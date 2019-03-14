@@ -228,7 +228,8 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
   private[this] var realtime: Option[ConvergenceRealtimeApi] = None
 
   def start(): ConvergenceServerNode = {
-    info("Convergence Server Node starting up...")
+    val ver = config.getString("convergence.version")
+    info(s"Convergence Server Node (${ver}) starting up...")
 
     val system = ActorSystem(ConvergenceServerNode.ActorSystemName, config)
     this.system = Some(system)
@@ -340,27 +341,27 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
     if (!orientDb.exists(convergenceDatabase)) {
       logger.info("Covergence database does not exists.  Creating.")
       orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
-      logger.info("Covergence database created, connecting as default admin user")
+      logger.debug("Covergence database created, connecting as default admin user")
 
       val db = orientDb.open(convergenceDatabase, "admin", "admin")
       logger.info("Connected to convergence database.")
 
-      logger.info("Deleting default 'reader' user.")
+      logger.debug("Deleting default 'reader' user.")
       db.getMetadata().getSecurity().getUser("reader").getDocument().delete()
 
-      logger.info("Setting 'writer' user credentials.")
+      logger.debug("Setting 'writer' user credentials.")
       val writerUser = db.getMetadata().getSecurity().getUser("writer")
       writerUser.setName(username)
       writerUser.setPassword(password)
       writerUser.save()
 
-      logger.info("Setting 'admin' user credentials.")
+      logger.debug("Setting 'admin' user credentials.")
       val adminUser = db.getMetadata().getSecurity().getUser("admin")
       adminUser.setName(adminUsername)
       adminUser.setPassword(adminPassword)
       adminUser.save()
 
-      logger.info("Installing schema.")
+      logger.info("Installing Convergence schema.")
       val dbProvider = new ConnectedSingleDatabaseProvider(db)
       val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
       dbProvider.withDatabase { db =>
@@ -409,7 +410,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           val c = obj.toConfig()
           val id = c.getString("id")
           val displayName = c.getString("displayName")
-          logger.info(s"bootstrapping namespace ${id}")
+          logger.info(s"bootstrapping namespace '${id}'")
           namespaceStore.createNamespace(id, displayName, false).get
       }
     }
@@ -425,7 +426,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
           val favorite = c.getBoolean("favorite")
           val anonymousAuth = c.getBoolean("config.anonymousAuthEnabled")
 
-          logger.info(s"bootstrapping domain ${namespace}/${id}")
+          logger.info(s"bootstrapping domain '${namespace}/${id}'")
           (for {
             exists <- namespaceStore.namespaceExists(namespace)
             created <- if (!exists) {
@@ -435,7 +436,7 @@ class ConvergenceServerNode(private[this] val config: Config) extends Logging {
             }
           } yield {
             val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth).get.map { _ =>
-              logger.info(s"bootstrapped domain ${namespace}/${id}")
+              logger.info(s"bootstrapped domain '${namespace}/${id}'")
             }
             
             Await.ready(f, FiniteDuration.apply(2, TimeUnit.MINUTES))
