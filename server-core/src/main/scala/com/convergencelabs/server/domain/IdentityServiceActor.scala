@@ -93,7 +93,7 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
     val sortOrder = criteria.sort
 
     persistenceProvider.userStore.searchUsersByFields(fields, searchString, order, sortOrder, limit, offset) match {
-      case Success(users) => sender ! UserList(users)
+      case Success(users) => sender ! users
       case Failure(e) => sender ! Status.Failure(e)
     }
   }
@@ -176,8 +176,6 @@ case class UserSearch(
   limit: Option[Int],
   order: Option[UserLookUpField.Value],
   sort: Option[SortOrder.Value])
-
-case class UserList(users: List[DomainUser])
 
 case class UserGroupsRequest(ids: Option[List[String]])
 case class UserGroupsResponse(groups: List[UserGroup])

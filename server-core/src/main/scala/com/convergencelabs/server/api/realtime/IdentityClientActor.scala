@@ -5,9 +5,15 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
 
+import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.SortOrder
+import com.convergencelabs.server.datastore.domain.UserGroup
 import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.UserList
+import com.convergencelabs.server.domain.GetUsersByUsername
+import com.convergencelabs.server.domain.UserGroupsForUsersRequest
+import com.convergencelabs.server.domain.UserGroupsForUsersResponse
+import com.convergencelabs.server.domain.UserGroupsRequest
+import com.convergencelabs.server.domain.UserGroupsResponse
 import com.convergencelabs.server.domain.UserLookUpField
 import com.convergencelabs.server.domain.UserSearch
 import com.convergencelabs.server.util.concurrent.AskFuture
@@ -16,31 +22,19 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
 import akka.actor.Props
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.domain.UserGroupsRequest
-import com.convergencelabs.server.domain.UserGroupsResponse
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.domain.UserGroup
-import com.convergencelabs.server.domain.UserGroupsForUsersRequest
-import com.convergencelabs.server.domain.UserGroupsForUsersResponse
 import io.convergence.proto.Identity
-import io.convergence.proto.Normal
-import io.convergence.proto.identity.UserSearchMessage
-import io.convergence.proto.identity.GetUsersMessage
-import io.convergence.proto.identity.UserGroupData
-import io.convergence.proto.identity.UserGroupsResponseMessage
-import io.convergence.proto.identity.UserGroupsForUsersRequestMessage
-import io.convergence.proto.identity.UserListMessage
-import io.convergence.proto.identity.UserGroupsRequestMessage
-import io.convergence.proto.identity.UserGroupsForUsersResponseMessage
-import io.convergence.proto.identity.DomainUserData
-import io.convergence.proto.identity.UserGroupsEntry
 import io.convergence.proto.Request
-import io.convergence.proto.common.StringList
+import io.convergence.proto.identity.GetUsersMessage
 import io.convergence.proto.identity.UserField
-import com.convergencelabs.server.domain.GetUserByUsername
-import com.convergencelabs.server.domain.GetUsersByUsername
+import io.convergence.proto.identity.UserGroupData
+import io.convergence.proto.identity.UserGroupsEntry
+import io.convergence.proto.identity.UserGroupsForUsersRequestMessage
+import io.convergence.proto.identity.UserGroupsForUsersResponseMessage
+import io.convergence.proto.identity.UserGroupsRequestMessage
+import io.convergence.proto.identity.UserGroupsResponseMessage
+import io.convergence.proto.identity.UserListMessage
+import io.convergence.proto.identity.UserSearchMessage
 
 object IdentityClientActor {
   def props(userServiceActor: ActorRef): Props =
@@ -51,9 +45,10 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
 
   implicit val timeout = Timeout(5 seconds)
   implicit val ec = context.dispatcher
+  import akka.pattern.ask
 
   def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[Normal with Identity] =>
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Identity] =>
       onRequestReceived(message.asInstanceOf[Request with Identity], replyPromise)
     case x: Any => unhandled(x)
   }
@@ -84,8 +79,8 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     val future = this.userServiceActor ?
       UserSearch(fields.toList, value, offset, limit, Some(orderBy), Some(sort))
 
-    future.mapResponse[UserList] onComplete {
-      case Success(UserList(users)) =>
+    future.mapResponse[List[DomainUser]] onComplete {
+      case Success(users) =>
         val userData = users.map(ImplicitMessageConversions.mapDomainUser(_))
         cb.reply(UserListMessage(userData))
       case Failure(cause) =>
@@ -99,8 +94,8 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     val GetUsersMessage(userIdData) = request
     val userIds = userIdData.map { userIdData => ImplicitMessageConversions.dataToDomainUserId(userIdData) }
     val future = this.userServiceActor ? GetUsersByUsername(userIds.toList)
-    future.mapResponse[UserList] onComplete {
-      case Success(UserList(users)) =>
+    future.mapResponse[List[DomainUser]] onComplete {
+      case Success(users) =>
         val userData = users.map(ImplicitMessageConversions.mapDomainUser(_))
         cb.reply(UserListMessage(userData))
       case Failure(cause) => 
