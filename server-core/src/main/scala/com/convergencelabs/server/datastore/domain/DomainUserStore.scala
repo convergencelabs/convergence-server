@@ -41,9 +41,6 @@ import com.orientechnologies.orient.core.index.OIndexCursor
 object DomainUserStore {
   import schema.UserClass._
 
-  val AdminUserPrefeix = "admin:"
-  val AnonymousUserPrefeix = "anonymous:"
-
   val UserDoesNotExistMessage = "User does not exist"
 
   case class CreateNormalDomainUser(
@@ -64,10 +61,6 @@ object DomainUserStore {
   private[this] val deletedUsernameGenerator = new RandomStringGenerator(36, RandomStringGenerator.Base64);
   def generateDeletedUsername(): String = {
     deletedUsernameGenerator.nextString();
-  }
-
-  def adminUsername(convergenceUsername: String): String = {
-    AdminUserPrefeix + convergenceUsername
   }
 
   def getUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[ORID] = {
@@ -302,7 +295,7 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
   }
 
   def convergenceUserExists(username: String): Try[Boolean] = {
-    this.userExists(DomainUserStore.adminUsername(username), DomainUserType.Convergence)
+    this.userExists(username, DomainUserType.Convergence)
   }
 
   private[this] def userExists(username: String, userType: DomainUserType.Value): Try[Boolean] = withDb { db =>

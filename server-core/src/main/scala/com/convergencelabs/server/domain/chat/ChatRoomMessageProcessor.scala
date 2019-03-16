@@ -43,15 +43,17 @@ class ChatRoomMessageProcessor(
   override def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
     val JoinChannelRequest(domainFqn, channelId, requestor, client) = message
     logger.debug(s"Client(${requestor}) joined chat room: ${channelId}")
-    watcher.tell(client, Actor.noSender)
 
-    chatRoomSessionManager.join(requestor, client) match {
+    (chatRoomSessionManager.join(requestor, client) match {
       case true =>
         // First session in, process the join request normally
         super.onJoinChannel(message)
       case false =>
         // user is already in, so short circuit
         Success(ChatMessageProcessingResult(Some(createJoinResponse()), List()))
+    }).map { result => 
+      watcher.tell(client, Actor.noSender)
+      result
     }
   }
 
@@ -95,7 +97,7 @@ class ChatRoomMessageProcessor(
           val syntheticMessage = LeaveChannelRequest(domainFqn, channelId, sk, client)
           processChatMessage(syntheticMessage) recover {
             case cause: Throwable => 
-              log.error(cause, "Error leaving channel after clinet actor terminated")
+              log.error(cause, "Error leaving channel after client actor terminated")
           }
         }
     }
