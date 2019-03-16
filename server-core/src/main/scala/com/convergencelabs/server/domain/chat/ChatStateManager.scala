@@ -11,6 +11,7 @@ import com.convergencelabs.server.datastore.domain.ChatEvent
 import com.convergencelabs.server.datastore.domain.ChatInfo
 import com.convergencelabs.server.datastore.domain.ChatStore
 import com.convergencelabs.server.datastore.domain.ChatMessageEvent
+import com.convergencelabs.server.datastore.domain.ChatMember
 import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
 import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
 import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
@@ -20,15 +21,15 @@ import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
 import com.convergencelabs.server.datastore.domain.GroupPermission
 import com.convergencelabs.server.datastore.domain.PermissionsStore
 import com.convergencelabs.server.datastore.domain.UserPermission
+import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.UnauthorizedException
 import com.convergencelabs.server.domain.chat.ChatMessages.ChatNotFoundException
 import com.convergencelabs.server.domain.chat.ChatStateManager.AllChatChannelPermissions
 import com.convergencelabs.server.domain.chat.ChatStateManager.ChatPermissions
 import com.convergencelabs.server.domain.chat.ChatStateManager.DefaultChatPermissions
 
+
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.domain.ChatMember
-import com.convergencelabs.server.domain.DomainUserId
 
 object ChatStateManager {
   def create(chatId: String, chatChannelStore: ChatStore, permissionsStore: PermissionsStore): Try[ChatStateManager] = {
@@ -79,13 +80,13 @@ class ChatStateManager(
   }
 
   def onRemoveChannel(chatId: String, userId: DomainUserId): Try[Unit] = {
-    hasPermission(userId, ChatPermissions.RemoveChannel).map { _ =>
+    hasPermission(userId, ChatPermissions.RemoveChannel).flatMap { _ =>
       chatStore.removeChat(chatId)
     }
   }
 
   def onJoinChannel(userId: DomainUserId): Try[ChatUserJoinedEvent] = {
-    hasPermission(userId, ChatPermissions.JoinChannel).map { _ =>
+    hasPermission(userId, ChatPermissions.JoinChannel).flatMap { _ =>
       val members = state.members
       if (members contains userId) {
         Failure(ChatAlreadyJoinedException(chatId))
@@ -106,11 +107,11 @@ class ChatStateManager(
           event
         }
       }
-    }.get
+    }
   }
 
   def onLeaveChannel(userId: DomainUserId): Try[ChatUserLeftEvent] = {
-    hasPermission(userId, ChatPermissions.LeaveChannel).map { _ =>
+    hasPermission(userId, ChatPermissions.LeaveChannel).flatMap { _ =>
       val members = state.members
       if (members contains userId) {
         val newMembers = members - userId
@@ -130,11 +131,11 @@ class ChatStateManager(
       } else {
         Failure(ChatNotJoinedException(chatId))
       }
-    }.get
+    }
   }
 
   def onAddUserToChannel(chatId: String, userId: DomainUserId, userToAdd: DomainUserId): Try[ChatUserAddedEvent] = {
-    hasPermission(userId, ChatPermissions.AddUser).map { _ =>
+    hasPermission(userId, ChatPermissions.AddUser).flatMap { _ =>
       val members = state.members
       if (members contains userToAdd) {
         Failure(ChatAlreadyJoinedException(chatId))
@@ -155,11 +156,11 @@ class ChatStateManager(
           event
         }
       }
-    }.get
+    }
   }
 
   def onRemoveUserFromChannel(chatId: String, userId: DomainUserId, userToRemove: DomainUserId): Try[ChatUserRemovedEvent] = {
-    hasPermission(userId, ChatPermissions.RemoveUser).map { _ =>
+    hasPermission(userId, ChatPermissions.RemoveUser).flatMap { _ =>
       val members = state.members
       if (members contains userToRemove) {
         val newMembers = members - userToRemove
@@ -174,18 +175,16 @@ class ChatStateManager(
         } yield {
           val newState = state.copy(lastEventNumber = eventNo, lastEventTime = timestamp, members = newMembers)
           this.state = newState
-
           event
         }
-
       } else {
         Failure(ChatNotJoinedException(chatId))
       }
-    }.get
+    }
   }
 
   def onSetChatChannelName(chatId: String, userId: DomainUserId, name: String): Try[ChatNameChangedEvent] = {
-    hasPermission(userId, ChatPermissions.SetName).map { _ =>
+    hasPermission(userId, ChatPermissions.SetName).flatMap { _ =>
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
@@ -199,11 +198,11 @@ class ChatStateManager(
         this.state = newState
         event
       }
-    }.get
+    }
   }
 
   def onSetChatChannelTopic(chatId: String, userId: DomainUserId, topic: String): Try[ChatTopicChangedEvent] = {
-    hasPermission(userId, ChatPermissions.SetTopic).map { _ =>
+    hasPermission(userId, ChatPermissions.SetTopic).flatMap { _ =>
       val eventNo = state.lastEventNumber + 1
       val timestamp = Instant.now()
 
@@ -217,7 +216,7 @@ class ChatStateManager(
         this.state = newState
         event
       }
-    }.get
+    }
   }
 
   def onMarkEventsSeen(chatId: String, userId: DomainUserId, eventNumber: Long): Try[Unit] = {
@@ -254,7 +253,7 @@ class ChatStateManager(
   }
 
   def onAddPermissions(chatId: String, userId: DomainUserId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
-    hasPermission(userId, ChatPermissions.Manage).map { _ =>
+    hasPermission(userId, ChatPermissions.Manage).flatMap { _ =>
       for {
         channel <- chatStore.getChatRid(chatId)
       } yield {
@@ -278,7 +277,7 @@ class ChatStateManager(
   }
 
   def onRemovePermissions(chatId: String, userId: DomainUserId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
-    hasPermission(userId, ChatPermissions.Manage).map { _ =>
+    hasPermission(userId, ChatPermissions.Manage).flatMap { _ =>
       for {
         channel <- chatStore.getChatRid(chatId)
       } yield {
@@ -302,7 +301,7 @@ class ChatStateManager(
   }
 
   def onSetPermissions(chatId: String, userId: DomainUserId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]): Try[Unit] = {
-    hasPermission(userId, ChatPermissions.Manage).map { _ =>
+    hasPermission(userId, ChatPermissions.Manage).flatMap { _ =>
       for {
         channel <- chatStore.getChatRid(chatId)
       } yield {

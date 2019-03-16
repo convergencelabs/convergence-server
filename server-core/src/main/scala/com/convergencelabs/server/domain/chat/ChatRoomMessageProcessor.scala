@@ -56,9 +56,9 @@ class ChatRoomMessageProcessor(
   }
 
   override def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val LeaveChannelRequest(domainFqn, channelId, sk, client) = message
-    logger.debug(s"Client(${sk}) left chat room: ${channelId}")
-    val result = chatRoomSessionManager.leave(sk) match {
+    val LeaveChannelRequest(domainFqn, channelId, userSession, client) = message
+    logger.debug(s"Client(${userSession}) left chat room: ${channelId}")
+    val result = chatRoomSessionManager.leave(userSession.sessionId) match {
       case true =>
         super.onLeaveChannel(message)
       case false =>

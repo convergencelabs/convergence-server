@@ -470,13 +470,20 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       }
   }
 
+  private[this] val DeleteChatEventsCommand = "DELETE FROM ChatEvent WHERE chat = (SELECT FROM Chat WHERE id = :chatId)"
+  private[this] val DeleteChatMembersCommand = "DELETE FROM ChatMember WHERE chat = (SELECT FROM Chat WHERE id = :chatId)"
+  
   def removeChat(id: String): Try[Unit] = withDb { db =>
-    ChatStore.getChatRid(id, db).flatMap { chatRid =>
-      Try {
-        chatRid.getRecord[ODocument].delete()
-        ()
-      }
-    }
+    val params = Map("chatId" -> id)
+    db.begin()
+    for {
+      _ <- OrientDBUtil.command(db, DeleteChatEventsCommand, params)
+      _ <- OrientDBUtil.command(db, DeleteChatMembersCommand, params)
+      _ <- OrientDBUtil.deleteFromSingleValueIndex(db, Classes.Chat.Indices.Id, id)
+//      chatRid <- ChatStore.getChatRid(id, db)
+//      _ <- Try(chatRid.getRecord[ODocument].delete())
+      _ <- Try(db.commit())
+    } yield(())
   }
 
   // TODO: All of the events are very similar, need to abstract some of each of these methods
@@ -527,7 +534,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "message" -> message)
     OrientDBUtil
@@ -547,7 +554,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
     OrientDBUtil
       .command(db, query, params)
@@ -566,7 +573,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
     OrientDBUtil
       .command(db, query, params)
@@ -586,7 +593,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "addedUsername" -> userAdded.username,
       "addedUserType" -> userAdded.userType.toString.toLowerCase)
@@ -608,7 +615,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "removedUsername" -> userRemoved.username,
       "removedUserType" -> userRemoved.userType.toString.toLowerCase)
@@ -630,7 +637,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "name" -> name)
     OrientDBUtil
@@ -651,7 +658,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "eventNo" -> eventNo,
       "chatId" -> chatId,
       "username" -> user.username,
-      "userType" -> user.userType,
+      "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "topic" -> topic)
     OrientDBUtil
@@ -686,9 +693,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     for {
       chatRid <- ChatStore.getChatRid(chatId, db)
       userRid <- DomainUserStore.getUserRid(userId, db)
-    } yield {
-      addChatMemeber(db, chatRid, userRid, seen)
-    }
+      _ <- addChatMemeber(db, chatRid, userRid, seen)
+    } yield (())
   }
 
   private[this] def addChatMemeber(db: ODatabaseDocument, chatRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {

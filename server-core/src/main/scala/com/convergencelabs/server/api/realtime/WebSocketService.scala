@@ -64,7 +64,7 @@ class WebSocketService(
   }
 
   private[this] def realTimeDomainFlow(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[Message, Message, Any] = {
-    logger.info(s"New web socket connection for $namespace/$domain")
+    logger.debug(s"New web socket connection for $namespace/$domain")
     Flow[Message]
       .collect {
         case BinaryMessage.Strict(msg) =>

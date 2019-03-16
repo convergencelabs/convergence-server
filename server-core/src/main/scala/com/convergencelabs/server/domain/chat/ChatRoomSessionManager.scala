@@ -9,16 +9,16 @@ class ChatRoomSessionManager {
   
   var clients = Set[ActorRef]()
   var clientSessionMap = Map[ActorRef, DomainUserSessionId]()
-  var sessionClientMap = Map[DomainUserSessionId, ActorRef]()
-  var userSessionMap = Map[DomainUserId, Set[DomainUserSessionId]]()
+  var sessionClientMap = Map[String, ActorRef]()
+  var userSessionMap = Map[DomainUserId, Set[String]]()
 
   def join(domainSessionId: DomainUserSessionId, client: ActorRef): Boolean = {
     val userId = domainSessionId.userId
     val userSessions = this.userSessionMap.getOrElse(userId, Set())
-    val newSessions = userSessions + domainSessionId
+    val newSessions = userSessions + domainSessionId.sessionId
     this.userSessionMap += (userId -> newSessions)
     clientSessionMap += (client -> domainSessionId)
-    sessionClientMap += (domainSessionId -> client)
+    sessionClientMap += (domainSessionId.sessionId -> client)
     this.clients += client
     newSessions.size == 1
   }
@@ -29,7 +29,7 @@ class ChatRoomSessionManager {
     }
   }
 
-  def leave(domainSessionId: DomainUserSessionId): Boolean = {
+  def leave(domainSessionId: String): Boolean = {
     val client = this.sessionClientMap.get(domainSessionId).getOrElse {
       throw new IllegalArgumentException("No such session")
     }
@@ -42,7 +42,7 @@ class ChatRoomSessionManager {
     }
     val userId = domainSessionId.userId
     val userSessions = this.userSessionMap.getOrElse(userId, Set())
-    val newSessions = userSessions - domainSessionId
+    val newSessions = userSessions - domainSessionId.sessionId
     if (newSessions.isEmpty) {
       this.userSessionMap -= userId
     } else {
@@ -50,7 +50,7 @@ class ChatRoomSessionManager {
     }
 
     clientSessionMap -= client
-    sessionClientMap -= domainSessionId
+    sessionClientMap -= domainSessionId.sessionId
     clients -= client
     newSessions.isEmpty
   }
@@ -60,5 +60,5 @@ class ChatRoomSessionManager {
   }
 
   def getSession(client: ActorRef): Option[DomainUserSessionId] = clientSessionMap.get(client)
-  def getClient(domainSessionId: DomainUserSessionId): Option[ActorRef] = sessionClientMap.get(domainSessionId)
+  def getClient(domainSessionId: DomainUserSessionId): Option[ActorRef] = sessionClientMap.get(domainSessionId.sessionId)
 }
