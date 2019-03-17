@@ -51,7 +51,7 @@ object DomainUserStore {
     email: Option[String])
 
   case class UpdateDomainUser(
-    username: String,
+    userId: DomainUserId,
     firstName: Option[String],
     lastName: Option[String],
     displayName: Option[String],
@@ -223,33 +223,16 @@ class DomainUserStore private[domain] (private[this] val dbProvider: DatabasePro
    * @param domainUser The user to update.
    */
   def updateDomainUser(update: UpdateDomainUser): Try[Unit] = withDb { db =>
-    val UpdateDomainUser(username, firstName, lastName, displayName, email, disabled) = update;
+    val UpdateDomainUser(userId, firstName, lastName, displayName, email, disabled) = update;
 
-    val query = "SELECT FROM User WHERE username = :username AND userType = 'normal'"
-    val params = Map(Fields.Username -> username)
+    val query = "SELECT FROM User WHERE username = :username AND userType = :userType"
+    val params = Map(Fields.Username -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil.getDocument(db, query, params).map { doc =>
-      firstName match {
-        case None => doc.removeField(Fields.FirstName)
-        case Some(value) => doc.setProperty(Fields.FirstName, value)
-      }
-
-      lastName match {
-        case None => doc.removeProperty(Fields.LastName)
-        case Some(value) => doc.setProperty(Fields.LastName, value)
-      }
-
-      displayName match {
-        case None => doc.removeProperty(Fields.DisplayName)
-        case Some(value) => doc.setProperty(Fields.DisplayName, value)
-      }
-
-      email match {
-        case None => doc.removeProperty(Fields.Email)
-        case Some(value) => doc.setProperty(Fields.Email, value)
-      }
-      
-      disabled.foreach(d => doc.setProperty(Fields.Disabled, d))
-      
+      firstName foreach(doc.setProperty(Fields.FirstName, _))
+      lastName foreach(doc.setProperty(Fields.LastName, _))
+      displayName foreach(doc.setProperty(Fields.DisplayName, _))
+      email foreach(doc.setProperty(Fields.Email, _))
+      disabled.foreach(doc.setProperty(Fields.Disabled, _))
       db.save(doc)
       ()
     }

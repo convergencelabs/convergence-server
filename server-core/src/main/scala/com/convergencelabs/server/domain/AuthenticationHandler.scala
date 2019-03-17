@@ -217,7 +217,7 @@ class AuthenticationHandler(
 
   private[this] def updateUserFromJwt(userId: DomainUserId, jwtClaims: JwtClaims): Try[Unit] = {
     val JwtInfo(username, firstName, lastName, displayName, email, groups) = JwtUtil.parseClaims(jwtClaims)
-    val update = UpdateDomainUser(username, firstName, lastName, displayName, email, None)
+    val update = UpdateDomainUser(userId, firstName, lastName, displayName, email, None)
     for {
       _ <- userStore.updateDomainUser(update)
       _ <- groups match {

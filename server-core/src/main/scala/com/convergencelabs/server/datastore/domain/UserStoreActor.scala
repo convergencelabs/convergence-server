@@ -104,7 +104,7 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def updateUser(message: UpdateUser): Unit = {
     val UpdateUser(username, firstName, lastName, displayName, email, disabled) = message
-    val domainuser = UpdateDomainUser(username, firstName, lastName, displayName, email, disabled);
+    val domainuser = UpdateDomainUser(DomainUserId.normal(username), firstName, lastName, displayName, email, disabled);
     reply(userStore.updateDomainUser(domainuser))
   }
 

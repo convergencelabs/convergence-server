@@ -96,12 +96,12 @@ class DomainUserStoreSpec
 
     "updating user" must {
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.updateDomainUser(UpdateDomainUser("foo", None, None, None, None, None)).failure.exception shouldBe a[EntityNotFoundException]
+        store.updateDomainUser(UpdateDomainUser(DomainUserId.normal("foo"), None, None, None, None, None)).failure.exception shouldBe a[EntityNotFoundException]
       }
 
       "currectly update an existing user, if unique properties are not violated" in withPersistenceStore { store =>
         initUsers(store)
-        val update = UpdateDomainUser(User1.username, Some("f"), Some("l"), Some("d"), Some("e"), Some(true))
+        val update = UpdateDomainUser(DomainUserId.normal(User1.username), Some("f"), Some("l"), Some("d"), Some("e"), Some(true))
         val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"), true, false, None)
         store.updateDomainUser(update).get
         val queried = store.getNormalDomainUser(User1.username).get.get
