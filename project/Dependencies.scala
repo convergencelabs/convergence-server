@@ -18,7 +18,7 @@ object Dependencies {
     val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.8.2"                     // Apache 2.0
 
     // Convergence
-    val convergenceProto   = "io.convergence"           %% "convergence-proto"            % "1.0.0-SNAPSHOT"
+    val convergenceProto   = "io.convergence"           %% "convergence-proto"            % "1.0.0-rc.1"
 
     // Akka
     val akkaActor          = "com.typesafe.akka"        %% "akka-actor"                   % Versions.akka               // Apache 2.0
