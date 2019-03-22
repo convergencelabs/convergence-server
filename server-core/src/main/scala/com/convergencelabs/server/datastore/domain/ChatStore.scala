@@ -712,20 +712,19 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def removeChatMember(chatId: String, userId: DomainUserId): Try[Unit] = withDb { db =>
-    for {
-      chatRid <- ChatStore.getChatRid(chatId, db)
-      memberRid <- getChatMemberRid(chatId, userId)
-    } yield {
-      Try {
-        val chatDoc = chatRid.getRecord[ODocument]
-        val members: JavaSet[ORID] = chatDoc.field(Classes.Chat.Fields.Members)
-        members.remove(memberRid)
-        chatDoc.field(Classes.Chat.Fields.Members, members)
-        chatDoc.save()
-        memberRid.getRecord[ODocument].delete()
-        ()
-      }
-    }
+    val script = """
+      |BEGIN;
+      |LET chatId = :chatId;
+      |LET chat = (SELECT FROM Chat WHERE id = $chatId);
+      |LET user = (SELECT FROM User WHERE username = :username AND userType = :userType);
+      |LET member = (SELECT FROM ChatMember WHERE chat = $chat AND user = $user);
+      |UPDATE Chat REMOVE members = $member WHERE id = $chatId;
+      |DELETE FROM (SELECT expand($member));
+      |COMMIT;
+      """.stripMargin;
+    
+    val params = Map("chatId" -> chatId, "username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
+    OrientDBUtil.execute(db, script, params).map(_ => ())
   }
 
   def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit] = tryWithDb { db =>
