@@ -5,8 +5,9 @@ import com.google.protobuf.struct.Struct
 import com.google.protobuf.struct.Value
 import com.google.protobuf.struct.NullValue
 import com.google.protobuf.struct.ListValue
+import grizzled.slf4j.Logging
 
-object JsonProtoConverter {
+object JsonProtoConverter extends Logging {
 
   def toStruct(jsonObject: JObject): Struct = {
     toValue(jsonObject).getStructValue
@@ -31,7 +32,8 @@ object JsonProtoConverter {
         val mappedValues = values.map(toValue(_))
         Value().withListValue(ListValue(mappedValues))
       case x: Any =>
-        ???
+        error("Invalid JValue Value:" + json.toString)
+        Value().withNullValue(NullValue.NULL_VALUE)
     }
   }
 
@@ -53,7 +55,8 @@ object JsonProtoConverter {
       case Value.Kind.ListValue(lst) =>
         JArray(lst.values.toList.map(toJValue(_)))
       case Value.Kind.Empty =>
-        ???
+        error("Invalid Protocol JSON Value:" + value.toString)
+        JNull
     }
   }
   
