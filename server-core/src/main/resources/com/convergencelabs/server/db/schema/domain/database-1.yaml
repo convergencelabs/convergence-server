@@ -666,7 +666,7 @@ actions:
 
   - action: CreateIndex
     className: ChatEvent
-    name: ChatEvent.chatl_eventNo
+    name: ChatEvent.chat_eventNo
     type: UniqueHashIndex
     properties: [chat, eventNo]
 
