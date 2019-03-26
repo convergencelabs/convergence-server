@@ -35,6 +35,10 @@ import grizzled.slf4j.Logging
 import com.convergencelabs.server.datastore.convergence.ConfigStoreActor
 import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStore
 import com.convergencelabs.server.datastore.convergence.ServerStatusActor
+import akka.cluster.singleton.ClusterSingletonManager
+import akka.cluster.singleton.ClusterSingletonManagerSettings
+import akka.actor.PoisonPill
+import com.convergencelabs.server.datastore.convergence.UserSessionTokenReaperActor
 
 class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
 
@@ -70,6 +74,13 @@ class BackendNode(system: ActorSystem, convergenceDbProvider: DatabaseProvider) 
           protocolConfig,
           DomainPersistenceManagerActor,
           FiniteDuration(10, TimeUnit.SECONDS))))
+
+    system.actorOf(
+      ClusterSingletonManager.props(
+        singletonProps = UserSessionTokenReaperActor.props(convergenceDbProvider),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(system).withRole("backend")),
+      name = "UserSessionTokenReaper")
 
     val clientDataResponseTimeout = FiniteDuration(10, TimeUnit.SECONDS)
     val receiveTimeout = FiniteDuration(10, TimeUnit.SECONDS)
