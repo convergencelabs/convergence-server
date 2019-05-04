@@ -60,7 +60,7 @@ package object rest {
   def createdResponse(data: Any): RestResponse = (StatusCodes.Created, SuccessRestResponse(data))
   def response(code: StatusCode, data: Any): RestResponse = (code, SuccessRestResponse(data))
 
-  case class PagedRestResponse(data: List[Any], startIndex: Int, totalResults: Int)
+  case class PagedRestResponse(data: List[Any], startIndex: Long, totalResults: Long)
 
   case class DomainRestData(
     displayName: String,

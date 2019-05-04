@@ -62,6 +62,8 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import org.json4s.JsonAST.JObject
 import com.convergencelabs.server.api.rest.DataValueToJValue
+import com.convergencelabs.common.PagedData
+import com.convergencelabs.server.api.rest.PagedRestResponse
 
 object DomainModelService {
 
@@ -95,7 +97,7 @@ object DomainModelService {
   case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean)
   case class SetOverrideWorldRequest(overrideWorld: Boolean)
 
-  case class ModelQueryPost(query: String)
+  case class ModelQueryPost(query: String, offset: Option[Int], limit: Option[Int])
 }
 
 class DomainModelService(
@@ -266,19 +268,20 @@ class DomainModelService(
   }
 
   def queryModels(authProfile: AuthorizationProfile, domain: DomainId, queryPost: ModelQueryPost): Future[RestResponse] = {
-    val ModelQueryPost(query) = queryPost
+    val ModelQueryPost(query, offset, limit) = queryPost
     val userId = DomainUserId.convergence(authProfile.username)
     val message = DomainRestMessage(domain, QueryModelsRequest(userId, query))
     (domainRestActor ? message)
-      .mapTo[List[ModelQueryResult]]
+      .mapTo[PagedData[ModelQueryResult]]
       .map { results =>
-        val response = results.map(model => ModelData(
+        val models = results.data.map(model => ModelData(
           model.metaData.id,
           model.metaData.collection,
           model.metaData.version,
           model.metaData.createdTime,
           model.metaData.modifiedTime,
           model.data))
+        val response = PagedRestResponse(models, results.offset, results.count)
         okResponse(response)
       }
   }

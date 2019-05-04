@@ -31,6 +31,8 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.api.rest.DataValueToJValue
+import com.convergencelabs.common.PagedData
+import com.convergencelabs.server.domain.model.query.Ast.SelectStatement
 
 object ModelStore {
 
@@ -98,9 +100,9 @@ object ModelStore {
 }
 
 class ModelStore private[domain] (
-  dbProvider: DatabaseProvider,
+  dbProvider:     DatabaseProvider,
   operationStore: ModelOperationStore,
-  snapshotStore: ModelSnapshotStore)
+  snapshotStore:  ModelSnapshotStore)
   extends AbstractDatabasePersistence(dbProvider)
   with Logging {
 
@@ -116,11 +118,11 @@ class ModelStore private[domain] (
   }
 
   def createModel(
-    modelId: String,
-    collectionId: String,
-    data: ObjectValue,
+    modelId:             String,
+    collectionId:        String,
+    data:                ObjectValue,
     overridePermissions: Boolean,
-    worldPermissions: ModelPermissions): Try[Model] = {
+    worldPermissions:    ModelPermissions): Try[Model] = {
 
     val createdTime = Instant.now()
     val modifiedTime = createdTime
@@ -247,8 +249,8 @@ class ModelStore private[domain] (
 
   def getAllModelMetaDataInCollection(
     collectionId: String,
-    offset: Option[Int],
-    limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
+    offset:       Option[Int],
+    limit:        Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 
     val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
@@ -259,47 +261,63 @@ class ModelStore private[domain] (
   // TODO implement orderBy and ascending / descending
   def getAllModelMetaData(
     offset: Option[Int],
-    limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
+    limit:  Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 
     val baseQuery = "SELECT FROM Model ORDER BY collection.id ASC, id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     OrientDBUtil.queryAndMap(db, query)(docToModelMetaData(_))
   }
 
-  def queryModels(query: String, userId: Option[DomainUserId]): Try[List[ModelQueryResult]] = withDb { db =>
-    new QueryParser(query).InputLine.run().recoverWith {
-      case ParseError(position, principalPosition, traces) =>
-        val index = position.index
-        Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
-    }.flatMap { select =>
-      val ModelQueryParameters(query, params, as) = ModelQueryBuilder.queryModels(select, userId)
-      OrientDBUtil.query(db, query, params).map { result =>
-        if (select.fields.isEmpty) {
-          result.map { modelDoc =>
-            val model = ModelStore.docToModel(modelDoc)
-            ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
-          }
-        } else {
-          result.map { modelDoc =>
-            val results = modelDoc.toMap()
-            results.remove("@rid")
-            val createdTime = results.remove(Fields.CreatedTime).asInstanceOf[Date]
-            val modifiedTime = results.remove(Fields.ModifiedTime).asInstanceOf[Date]
-            val meta = ModelMetaData(
-              results.remove(Fields.Id).asInstanceOf[String],
-              results.remove("collectionId").asInstanceOf[String],
-              results.remove(Fields.Version).asInstanceOf[Long],
-              createdTime.toInstant(),
-              modifiedTime.toInstant(),
-              false,
-              ModelPermissions(false, false, false, false),
-              results.remove(Fields.ValuePrefix).asInstanceOf[Long])
+  def queryModels(query: String, userId: Option[DomainUserId]): Try[PagedData[ModelQueryResult]] = withDb { db =>
+    for {
+      select <- new QueryParser(query).InputLine.run().recoverWith {
+        case ParseError(position, principalPosition, traces) =>
+          val index = position.index
+          Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
+      }
+      count <- this.modelCountQuery(select, userId, db)
+      results <- this.modelDataQuery(select, userId, db)
+    } yield {
+      val offset = select.offset.getOrElse(0)
+      PagedData[ModelQueryResult](results, offset, count)
+    }
+  }
 
-            val values = results.asScala.toList map Function.tupled { (field, value) =>
-              (as.get(field).getOrElse(field), DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
-            }
-            ModelQueryResult(meta, JObject(values))
+  private[this] def modelCountQuery(select: SelectStatement, userId: Option[DomainUserId], db: ODatabaseDocument): Try[Long] = {
+    val ModelQueryParameters(query, params, as) = ModelQueryBuilder.countModels(select, userId)
+    OrientDBUtil.getDocument(db, query, params).map { result =>
+      result.getProperty("count").asInstanceOf[Long]
+    }
+  }
+
+  private[this] def modelDataQuery(select: SelectStatement, userId: Option[DomainUserId], db: ODatabaseDocument): Try[List[ModelQueryResult]] = {
+    val ModelQueryParameters(query, params, as) = ModelQueryBuilder.queryModels(select, userId)
+    OrientDBUtil.query(db, query, params).map { result =>
+      if (select.fields.isEmpty) {
+        result.map { modelDoc =>
+          val model = ModelStore.docToModel(modelDoc)
+          ModelQueryResult(model.metaData, DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
+        }
+      } else {
+        result.map { modelDoc =>
+          val results = modelDoc.toMap()
+          results.remove("@rid")
+          val createdTime = results.remove(Fields.CreatedTime).asInstanceOf[Date]
+          val modifiedTime = results.remove(Fields.ModifiedTime).asInstanceOf[Date]
+          val meta = ModelMetaData(
+            results.remove(Fields.Id).asInstanceOf[String],
+            results.remove("collectionId").asInstanceOf[String],
+            results.remove(Fields.Version).asInstanceOf[Long],
+            createdTime.toInstant(),
+            modifiedTime.toInstant(),
+            false,
+            ModelPermissions(false, false, false, false),
+            results.remove(Fields.ValuePrefix).asInstanceOf[Long])
+
+          val values = results.asScala.toList map Function.tupled { (field, value) =>
+            (as.get(field).getOrElse(field), DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
           }
+          ModelQueryResult(meta, JObject(values))
         }
       }
     }
@@ -310,7 +328,7 @@ class ModelStore private[domain] (
       .findModelDocument(id, db)
       .map(_.map(doc => doc.getProperty(Fields.Data).asInstanceOf[ODocument].asObjectValue))
   }
-  
+
   private[this] val GetModelCountQuery = "SELECT count(*) as count FROM Model"
   def getModelCount(): Try[Long] = withDb { db =>
     OrientDBUtil.getDocument(db, GetModelCountQuery).map(_.getProperty("count").asInstanceOf[Long])

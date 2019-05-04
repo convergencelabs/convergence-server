@@ -9,7 +9,7 @@ val commonSettings = Seq(
   scalacOptions := Seq("-deprecation", "-feature"),
   fork := true,
   javaOptions += "-XX:MaxDirectMemorySize=16384m",
-  resolvers += "Convergence Repo" at "https://nexus.dev.int.convergencelabs.tech/repository/maven-all/",
+  resolvers += "Convergence Repo" at "https://nexus.dev.convergencelabs.tech/repository/maven-all/",
   publishTo := {
     val nexus = "https://nexus.dev.int.convergencelabs.tech/repository/"
     if (isSnapshot.value)

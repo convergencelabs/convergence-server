@@ -47,7 +47,7 @@ object ModelQueryBuilder {
     // TODO use a let to query for the user first.
     implicit val params = ScalaMutableMap[String, Any]()
     implicit val as = ScalaMutableMap[String, String]()
-
+    
     val projectionString =
       if (select.fields.isEmpty) {
         ""
@@ -68,13 +68,46 @@ object ModelQueryBuilder {
         sb.toString()
       }
 
-    val selectString = s"SELECT ${projectionString}FROM Model WHERE ${DomainSchema.Classes.Model.Fields.Collection}.${DomainSchema.Classes.Collection.Fields.Id} = ${addParam(select.collection)}"
+    val selectString = this.buildSelectString(select, projectionString)
+    val whereString = this.buildWhereString(select)
+    val permissionString = this.buildPermissionsString(userId)
+    val orderString: String = this.buildOrderString(select)
 
-    val whereString = (select.where map { where =>
+    val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
+
+    ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap, as.toMap)
+  }
+
+  def countModels(select: SelectStatement, userId: Option[DomainUserId]): ModelQueryParameters = {
+    // TODO use a let to query for the user first.
+    implicit val params = ScalaMutableMap[String, Any]()
+
+    val projectionString = "count(*) as count "
+    val selectString = this.buildSelectString(select, projectionString)
+    val whereString = this.buildWhereString(select)
+    val permissionString = this.buildPermissionsString(userId)
+    val orderString: String = this.buildOrderString(select)
+
+    val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
+
+    ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, None, None), params.toMap, Map())
+  }
+
+  private[this] def buildSelectString(select: SelectStatement, projectionString: String)(
+    implicit
+    params: ScalaMutableMap[String, Any]): String = {
+
+    s"SELECT ${projectionString}FROM Model WHERE ${DomainSchema.Classes.Model.Fields.Collection}.${DomainSchema.Classes.Collection.Fields.Id} = ${addParam(select.collection)}"
+  }
+
+  private[this] def buildWhereString(select: SelectStatement)(implicit params: ScalaMutableMap[String, Any]): String = {
+    (select.where map { where =>
       s" AND ${buildExpressionString(where)}"
     }) getOrElse ("")
+  }
 
-    val permissionString = userId.map { uid =>
+  private[this] def buildPermissionsString(userId: Option[DomainUserId])(implicit params: ScalaMutableMap[String, Any]): String = {
+    userId.map { uid =>
       val usernameParam = addParam(uid.username)
       val userTypeParam = addParam(uid.userType.toString.toLowerCase)
       s""" AND ((overridePermissions = true AND ((userPermissions CONTAINS ((user.username = $usernameParam AND user.userType = $userTypeParam AND permissions.read = true))) OR
@@ -83,8 +116,10 @@ object ModelQueryBuilder {
                     (NOT(collection.userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam )) AND collection.worldPermissions.read = true))))"""
 
     }.getOrElse("")
+  }
 
-    val orderString: String = if (select.orderBy.isEmpty) {
+  private[this] def buildOrderString(select: SelectStatement): String = {
+    if (select.orderBy.isEmpty) {
       ""
     } else {
       " ORDER BY " + (select.orderBy map { orderBy =>
@@ -95,10 +130,6 @@ object ModelQueryBuilder {
         s"${buildFieldPath(orderBy.field)} ${ascendingParam}"
       }).mkString(", ")
     }
-
-    val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
-
-    ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap, as.toMap)
   }
 
   private[this] def buildFieldPath(field: FieldTerm): String = {

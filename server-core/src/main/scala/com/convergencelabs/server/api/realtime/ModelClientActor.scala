@@ -103,22 +103,23 @@ import io.convergence.proto.references.SetReferenceMessage
 import io.convergence.proto.references.ShareReferenceMessage
 import io.convergence.proto.references.UnshareReferenceMessage
 import com.convergencelabs.server.domain.model.ModelQueryResult
+import com.convergencelabs.common.PagedData
 
 object ModelClientActor {
   def props(
-    domainFqn: DomainId,
-    session: DomainUserSessionId,
+    domainFqn:       DomainId,
+    session:         DomainUserSessionId,
     modelStoreActor: ActorRef,
-    requestTimeout: Timeout): Props =
+    requestTimeout:  Timeout): Props =
     Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout))
 
   val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.", Map())
 }
 
 class ModelClientActor(
-  private[this] val domainFqn: DomainId,
-  private[this] implicit val session: DomainUserSessionId,
-  private[this] val modelStoreActor: ActorRef,
+  private[this] val domainFqn:               DomainId,
+  private[this] implicit val session:        DomainUserSessionId,
+  private[this] val modelStoreActor:         ActorRef,
   private[this] implicit val requestTimeout: Timeout)
   extends Actor
   with ActorLogging {
@@ -150,17 +151,17 @@ class ModelClientActor(
   // scalastyle:off cyclomatic.complexity
   private[this] def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
+      case op: OutgoingOperation                                 => onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement                       => onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened                      => onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed                      => onRemoteClientClosed(remoteClosed)
+      case foreceClosed: ModelForceClose                         => onModelForceClose(foreceClosed)
       case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refShared: RemoteReferenceShared => onRemoteReferenceShared(refShared)
-      case refUnshared: RemoteReferenceUnshared => onRemoteReferenceUnshared(refUnshared)
-      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
-      case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
+      case refShared: RemoteReferenceShared                      => onRemoteReferenceShared(refShared)
+      case refUnshared: RemoteReferenceUnshared                  => onRemoteReferenceUnshared(refUnshared)
+      case refSet: RemoteReferenceSet                            => onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared                    => onRemoteReferenceCleared(refCleared)
+      case permsChanged: ModelPermissionsChanged                 => onModelPermissionsChanged(permsChanged)
     }
   }
   // scalastyle:on cyclomatic.complexity
@@ -311,11 +312,11 @@ class ModelClientActor(
 
   private[this] def onRequestReceived(message: Request, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
-      case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
-      case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage            => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage          => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case createRequest: CreateRealtimeModelRequestMessage        => onCreateRealtimeModelRequest(createRequest, replyCallback)
+      case deleteRequest: DeleteRealtimeModelRequestMessage        => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage                 => onModelQueryRequest(queryRequest, replyCallback)
       case getPermissionRequest: GetModelPermissionsRequestMessage => onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
       case setPermissionRequest: SetModelPermissionsRequestMessage => onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
     }
@@ -323,11 +324,11 @@ class ModelClientActor(
 
   private[this] def onMessageReceived(message: Normal with Model): Unit = {
     message match {
-      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
-      case shareReference: ShareReferenceMessage => onShareReference(shareReference)
+      case submission: OperationSubmissionMessage  => onOperationSubmission(submission)
+      case shareReference: ShareReferenceMessage   => onShareReference(shareReference)
       case shareReference: UnshareReferenceMessage => onUnshareReference(shareReference)
-      case setReference: SetReferenceMessage => onSetReference(setReference)
-      case clearReference: ClearReferenceMessage => onClearReference(clearReference)
+      case setReference: SetReferenceMessage       => onSetReference(setReference)
+      case clearReference: ClearReferenceMessage   => onClearReference(clearReference)
     }
   }
 
@@ -520,9 +521,9 @@ class ModelClientActor(
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(query) = request
     val future = modelStoreActor ? QueryModelsRequest(session.userId, query)
-    future.mapResponse[List[ModelQueryResult]] onComplete {
-      case Success(result) => cb.reply(
-        ModelsQueryResponseMessage(result map {
+    future.mapResponse[PagedData[ModelQueryResult]] onComplete {
+      case Success(result) =>
+        val models = result.data.map {
           r =>
             ModelResult(
               r.metaData.collection,
@@ -531,7 +532,9 @@ class ModelClientActor(
               Some(r.metaData.modifiedTime),
               r.metaData.version,
               Some(JsonProtoConverter.toStruct(r.data)))
-        }))
+        }
+        // FIXME add paged info
+        cb.reply(ModelsQueryResponseMessage(models, result.offset, result.count))
       case Failure(QueryParsingException(message, query, index)) =>
         cb.expectedError("invalid_query", message, Map("index" -> index.toString))
       case Failure(cause) =>
