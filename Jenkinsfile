@@ -22,24 +22,21 @@ sbtPod { label ->
         sh 'sbt serverNode/universal:publish'
       }
     }
+    container('docker') {
+      stage('Docker Prep') { 
+        sh '''
+        cp -a server-node/src/docker/ server-node/target/docker
+        cp -a server-node/target/universal/stage server-node/target/docker/stage
+        '''
+      }
     
-    stage('Docker Prep') { 
-      sh '''
-      cp -a server-node/src/docker/ server-node/target/docker
-      cp -a server-node/target/universal/stage server-node/target/docker/stage
-      '''
-    }
-    
-    stage('Docker Build') {
-      container('docker') {
+      stage('Docker Build') {
         dir('server-node/target/docker') {
           dockerBuild(containerName)
-        }
+        } 
       }
-    }
 
-    stage('Docker Push') {
-      container('docker') {
+      stage('Docker Push') {
         dockerPush(containerName, ["latest", env.GIT_COMMIT])
       }
     }
