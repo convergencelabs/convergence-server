@@ -10,9 +10,9 @@ sbtPod { label ->
         sh 'sbt -J-Xmx3G -J-Xss5M compile'
       }
       
-      //stage('Test') {
-      //  sh 'sbt -J-Xmx3G -J-Xss5M test'
-      //}
+      stage('Test') {
+        sh 'sbt -J-Xmx3G -J-Xss5M test'
+      }
       
       stage('Package') {
         sh 'sbt serverNode/stage'
@@ -28,16 +28,11 @@ sbtPod { label ->
         sh '''
         cp -a server-node/src/docker/ server-node/target/docker
         cp -a server-node/target/universal/stage server-node/target/docker/stage
-        ls -al server-node/target/docker
-        id
         '''
       }
     
       stage('Docker Build') {
         dir('server-node/target/docker') {
-          sh '''
-          ls -al
-          '''
           dockerBuild(containerName)
         } 
       }
