@@ -30,6 +30,7 @@ import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.presence.PresenceRequest
 import com.convergencelabs.server.domain.presence.UserPresence
 import com.convergencelabs.server.util.concurrent.AskFuture
+import scala.concurrent.duration._
 
 import akka.actor.Actor
 import akka.actor.ActorLogging
@@ -68,13 +69,15 @@ import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
 import io.convergence.proto.message.ConvergenceMessage
 import io.convergence.proto.permissions.PermissionType
 import scalapb.GeneratedMessage
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 object ClientActor {
   def props(
-    domainFqn: DomainId,
+    domainFqn:      DomainId,
     protocolConfig: ProtocolConfiguration,
-    remoteHost: RemoteAddress,
-    userAgent: String): Props = Props(
+    remoteHost:     RemoteAddress,
+    userAgent:      String): Props = Props(
     new ClientActor(
       domainFqn,
       protocolConfig,
@@ -83,10 +86,10 @@ object ClientActor {
 }
 
 class ClientActor(
-  private[this] val domainFqn: DomainId,
+  private[this] val domainFqn:      DomainId,
   private[this] val protocolConfig: ProtocolConfiguration,
-  private[this] val remoteHost: RemoteAddress,
-  private[this] val userAgent: String)
+  private[this] val remoteHost:     RemoteAddress,
+  private[this] val userAgent:      String)
   extends Actor with ActorLogging {
 
   import akka.pattern.ask
@@ -108,7 +111,7 @@ class ClientActor(
       log.debug(s"${domainFqn}: Client handshaked timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
-        case None =>
+        case None             =>
       }
       context.stop(self)
     }
@@ -165,7 +168,7 @@ class ClientActor(
     case SendUnprocessedMessage(convergenceMessage) =>
       Option(identityCacheManager) match {
         case Some(icm) => icm ! convergenceMessage
-        case _ => this.protocolConnection.serializeAndSend(convergenceMessage)
+        case _         => this.protocolConnection.serializeAndSend(convergenceMessage)
       }
     case SendProcessedMessage(convergenceMessage) =>
       this.protocolConnection.serializeAndSend(convergenceMessage)
@@ -182,6 +185,8 @@ class ClientActor(
     // no-op
     case DomainDeleted(domainFqn) =>
       domainDeleted()
+    case Disconnect =>
+      this.handleDisconnect()
     case x: Any =>
       invalidMessage(x)
   }
@@ -249,20 +254,29 @@ class ClientActor(
         case Failure(HandshakeFailureException(code, details)) => {
           log.debug(s"${domainFqn}: Handshake failure: {code: '${code}', details: '${details}'}")
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData(code, details)), false))
-
-          this.connectionActor ! CloseConnection
-          self ! PoisonPill
+          this.disconnect()
         }
         case Failure(cause) => {
           log.error(cause, s"${domainFqn}: Error handshaking with DomainActor")
           cb.reply(HandshakeResponseMessage(false, Some(ErrorData("unknown", "uknown error")), true))
-          this.connectionActor ! CloseConnection
-          self ! PoisonPill
+          this.disconnect()
         }
       }
     } else {
       log.debug(s"${domainFqn}: Not handhsaking with domain because handshake timeout occured")
     }
+  }
+
+  // TODO add an optional message to send to the client.
+  private[this] def disconnect(): Unit = {
+    // todo we do this to allow outgoing messages to be flushed.
+    // TODO we should make this time configurable.
+    this.context.system.scheduler.scheduleOnce(10 seconds, self, Disconnect)
+  }
+
+  private[this] def handleDisconnect(): Unit = {
+    this.connectionActor ! CloseConnection
+    self ! PoisonPill
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Unit = {
@@ -342,7 +356,7 @@ class ClientActor(
         .flatMap { p =>
           p match {
             case first :: nil => Future.successful(first)
-            case _ => Future.failed(EntityNotFoundException())
+            case _            => Future.failed(EntityNotFoundException())
           }
         }
       user <- (this.identityServiceActor ? GetUserByUsername(session.userId)).mapTo[DomainUser]
@@ -447,25 +461,23 @@ class ClientActor(
   private[this] def onConnectionClosed(): Unit = {
     log.debug(s"${domainFqn}: Sending disconnect to domain and stopping: ${sessionId}")
     domainRegion ! ClientDisconnected(domainFqn, self)
-    context.stop(self)
+    this.disconnect()
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
     log.debug(s"${domainFqn}: Connection Error for: ${sessionId} - " + cause.getMessage)
     domainRegion ! ClientDisconnected(domainFqn, self)
-    context.stop(self)
+    this.disconnect()
   }
 
   private[this] def invalidMessage(message: Any): Unit = {
     log.error(s"${domainFqn}: Invalid message: '${message}'")
-    connectionActor ! CloseConnection
-    context.stop(self)
+    this.disconnect()
   }
 
   private[this] def domainDeleted(): Unit = {
     log.error(s"${domainFqn}: Domain deleted shutting down")
-    connectionActor ! CloseConnection
-    context.stop(self)
+    this.disconnect()
   }
 
   override def postStop(): Unit = {
@@ -481,3 +493,4 @@ case class SendUnprocessedMessage(message: ConvergenceMessage)
 case class SendProcessedMessage(message: ConvergenceMessage)
 case class InternalAuthSuccess(user: DomainUser, session: DomainUserSessionId, reconnectToken: Option[String], presence: UserPresence, cb: ReplyCallback)
 case class InternalHandshakeSuccess(client: String, clientVersion: String, handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)
+case object Disconnect
