@@ -55,12 +55,13 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
   presenceServiceActor ! UserConnected(session.userId, self)
 
   def receive: Receive = {
+    // Incoming messages from the client
     case MessageReceived(message) if message.isInstanceOf[Normal with Presence] =>
       onMessageReceived(message.asInstanceOf[Normal with Presence])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Presence] =>
       onRequestReceived(message.asInstanceOf[Request with Presence], replyPromise)
 
-    // TODO: Add available messages
+    // Outgoing messages from the presence subsystem
     case UserPresenceSetState(userId, state) =>
       context.parent ! PresenceStateSetMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), JsonProtoConverter.jValueMapToValueMap(state))
     case UserPresenceRemoveState(userId, keys) =>
@@ -70,19 +71,21 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
     case UserPresenceAvailability(userId, available) =>
       context.parent ! PresenceAvailabilityChangedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), available)
 
-    case x: Any => unhandled(x)
+    case msg: Any =>
+      log.warning(s"Invalid message received by the presence client: $msg")
   }
 
   //
   // Incoming Messages
   //
-
   def onMessageReceived(message: Normal with Presence): Unit = {
     message match {
       case setState: PresenceSetStateMessage => onPresenceStateSet(setState)
       case removeState: PresenceRemoveStateMessage => onPresenceStateRemoved(removeState)
       case clearState: PresenceClearStateMessage => onPresenceStateCleared()
       case unsubPresence: UnsubscribePresenceMessage => onUnsubscribePresence(unsubPresence)
+      case msg: Any =>
+        log.warning(s"Invalid incoming precense message: $msg")
     }
   }
 

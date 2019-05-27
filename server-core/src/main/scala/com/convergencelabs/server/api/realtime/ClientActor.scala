@@ -271,6 +271,8 @@ class ClientActor(
   private[this] def disconnect(): Unit = {
     // todo we do this to allow outgoing messages to be flushed.
     // TODO we should make this time configurable.
+    // another approach here would be to send a message to the protocol connection
+    // that shuts it down. This would sequence it properly.
     this.context.system.scheduler.scheduleOnce(10 seconds, self, Disconnect)
   }
 
