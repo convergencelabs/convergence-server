@@ -36,7 +36,7 @@ trait DomainPersistenceManager {
 
 object DomainPersistenceManagerActor extends DomainPersistenceManager with Logging {
   val RelativePath = "DomainPersistenceManagerActor"
-  val persistenceProviderTimeout = 5
+  val persistenceProviderTimeout = 10
 
   def props(
     baseDbUri: String,

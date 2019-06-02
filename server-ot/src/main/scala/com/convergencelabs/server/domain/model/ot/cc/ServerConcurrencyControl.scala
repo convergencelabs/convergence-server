@@ -222,10 +222,10 @@ private[model] class ServerConcurrencyControl(
     incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
 
     var xFormedOp = incomingOp
-    val xFormedList = historyOperationEvents.map(event => {
-      val pair = operationTransformer.transform(xFormedOp, event.operation)
-      xFormedOp = pair._1
-      event.copy(operation = pair._2)
+    val xFormedList = historyOperationEvents.map(historicalEvent => {
+      val (newHistoricalOp, newIncomingOp) = operationTransformer.transform(historicalEvent.operation, xFormedOp)
+      xFormedOp = newIncomingOp
+      historicalEvent.copy(operation = newHistoricalOp)
     })
 
     (xFormedOp, xFormedList)
