@@ -178,20 +178,20 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         val order = inOrder(opXFormer)
 
         // C2 Op1
-        order.verify(opXFormer).transform(client2Op1, client1Op1)
-        order.verify(opXFormer).transform(client2Op1, client1Op2)
-        order.verify(opXFormer).transform(client2Op1, client1Op3)
+        order.verify(opXFormer).transform(client1Op1, client2Op1)
+        order.verify(opXFormer).transform(client1Op2, client2Op1)
+        order.verify(opXFormer).transform(client1Op3, client2Op1)
 
         // C2 Op2
-        order.verify(opXFormer).transform(client2Op2, client1Op3)
-        order.verify(opXFormer).transform(client2Op2, client1Op4)
-        order.verify(opXFormer).transform(client2Op2, client1Op5)
+        order.verify(opXFormer).transform(client1Op3, client2Op2)
+        order.verify(opXFormer).transform(client1Op4, client2Op2)
+        order.verify(opXFormer).transform(client1Op5, client2Op2)
 
-        verify(opXFormer, times(0)).transform(client2Op2, client1Op1)
-        verify(opXFormer, times(0)).transform(client2Op2, client1Op2)
+        verify(opXFormer, times(0)).transform(client1Op1, client2Op2)
+        verify(opXFormer, times(0)).transform(client1Op2, client2Op2)
 
-        verify(opXFormer, times(0)).transform(client2Op1, client2Op2)
         verify(opXFormer, times(0)).transform(client2Op2, client2Op1)
+        verify(opXFormer, times(0)).transform(client2Op1, client2Op2)
       }
 
       "not transform operations from the same site against each other" in {
@@ -217,10 +217,10 @@ class ServerConcurrencyControlSpec extends WordSpec with MockitoSugar {
         scc.commit()
 
         val order = inOrder(opXFormer)
-        order.verify(opXFormer).transform(client2Op1, client1Op1)
-        order.verify(opXFormer).transform(client1Op2, client2Op1)
+        order.verify(opXFormer).transform(client1Op1, client2Op1)
+        order.verify(opXFormer).transform(client2Op1, client1Op2)
 
-        verify(opXFormer, times(0)).transform(client1Op2, client1Op1)
+        verify(opXFormer, times(0)).transform(client1Op1, client1Op2)
       }
 
       "throw an exception if the previous event has not been committed or rolled back" in {
