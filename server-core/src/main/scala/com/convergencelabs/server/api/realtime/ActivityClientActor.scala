@@ -6,19 +6,15 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.server.domain.activity.ActivityClearState
 import com.convergencelabs.server.domain.activity.ActivityJoinRequest
 import com.convergencelabs.server.domain.activity.ActivityJoinResponse
 import com.convergencelabs.server.domain.activity.ActivityLeave
 import com.convergencelabs.server.domain.activity.ActivityParticipants
 import com.convergencelabs.server.domain.activity.ActivityParticipantsRequest
-import com.convergencelabs.server.domain.activity.ActivityRemoteStateCleared
-import com.convergencelabs.server.domain.activity.ActivityRemoteStateRemoved
-import com.convergencelabs.server.domain.activity.ActivityRemoteStateSet
-import com.convergencelabs.server.domain.activity.ActivityRemoveState
+import com.convergencelabs.server.domain.activity.ActivityUpdateState
+import com.convergencelabs.server.domain.activity.ActivityStateUpdated
 import com.convergencelabs.server.domain.activity.ActivitySessionJoined
 import com.convergencelabs.server.domain.activity.ActivitySessionLeft
-import com.convergencelabs.server.domain.activity.ActivitySetState
 import com.convergencelabs.server.util.concurrent.AskFuture
 import com.convergencelabs.server.domain.DomainId
 
@@ -33,19 +29,17 @@ import io.convergence.proto.Activity
 import io.convergence.proto.Request
 import io.convergence.proto.activity.ActivitySessionJoinedMessage
 import io.convergence.proto.activity.ActivitySessionLeftMessage
-import io.convergence.proto.activity.ActivityRemoteStateSetMessage
-import io.convergence.proto.activity.ActivityRemoteStateRemovedMessage
-import io.convergence.proto.activity.ActivityRemoteStateClearedMessage
 import io.convergence.proto.activity.ActivityLeaveMessage
-import io.convergence.proto.activity.ActivitySetStateMessage
-import io.convergence.proto.activity.ActivityRemoveStateMessage
-import io.convergence.proto.activity.ActivityClearStateMessage
 import io.convergence.proto.activity.ActivityJoinRequestMessage
 import io.convergence.proto.activity.ActivityParticipantsRequestMessage
 import io.convergence.proto.activity.ActivityParticipantsResponseMessage
 import io.convergence.proto.activity.ActivityState
+import io.convergence.proto.activity.ActivityStateUpdatedMessage
 import io.convergence.proto.activity.ActivityJoinResponseMessage
+import io.convergence.proto.activity.ActivityUpdateStateMessage
 import com.convergencelabs.server.domain.DomainUserSessionId
+
+
 
 object ActivityClientActor {
   def props(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId): Props =
@@ -59,24 +53,26 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
   implicit val ec = context.dispatcher
 
   def receive: Receive = {
+    // Incoming messages
     case MessageReceived(message) if message.isInstanceOf[Normal with Activity] =>
       onMessageReceived(message.asInstanceOf[Normal with Activity])
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Activity] =>
       onRequestReceived(message.asInstanceOf[Request with Activity], replyPromise)
 
+    // Outgoing messages
     case ActivitySessionJoined(activityId, sessionId, state) =>
       context.parent ! ActivitySessionJoinedMessage(activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state))
     case ActivitySessionLeft(activityId, sessionId) =>
       context.parent ! ActivitySessionLeftMessage(activityId, sessionId)
-    case ActivityRemoteStateSet(activityId, sessionId, state) =>
-      context.parent ! ActivityRemoteStateSetMessage(activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state))
-    case ActivityRemoteStateRemoved(activityId, sessionId, keys) =>
-      context.parent ! ActivityRemoteStateRemovedMessage(activityId, sessionId, keys)
-    case ActivityRemoteStateCleared(activityId, sessionId) =>
-      context.parent ! ActivityRemoteStateClearedMessage(activityId, sessionId)
-
-    case x: Any => unhandled(x)
+    case ActivityStateUpdated(activityId, sessionId, state, complete, removed) =>
+      context.parent ! ActivityStateUpdatedMessage(
+          activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state), complete, removed)
+      
+    // Everything else
+    case x: Any =>
+      log.warning("Unexpected activity message: {}", x)
   }
+  
 
   //
   // Incoming Messages
@@ -84,32 +80,26 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
 
   def onMessageReceived(message: Normal with Activity): Unit = {
     message match {
-      case leave: ActivityLeaveMessage => onActivityLeave(leave)
-      case setState: ActivitySetStateMessage => onActivityStateSet(setState)
-      case removeState: ActivityRemoveStateMessage => onActivityStateRemoved(removeState)
-      case clearState: ActivityClearStateMessage => onActivityStateCleared(clearState)
+      case leave: ActivityLeaveMessage => 
+        onActivityLeave(leave)
+      case setState: ActivityUpdateStateMessage => 
+        onActivityUpdateState(setState)
     }
   }
 
-  def onActivityStateSet(message: ActivitySetStateMessage): Unit = {
-    val ActivitySetStateMessage(id, state) = message
-    this.activityServiceActor ! ActivitySetState(domain, id, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state))
+  def onActivityUpdateState(message: ActivityUpdateStateMessage): Unit = {
+    val ActivityUpdateStateMessage(id, state, complete, removed) = message
+    this.activityServiceActor ! ActivityUpdateState(
+        domain, id, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state), complete, removed.toList)
   }
 
-  def onActivityStateRemoved(message: ActivityRemoveStateMessage): Unit = {
-    val ActivityRemoveStateMessage(id, keys) = message
-    this.activityServiceActor ! ActivityRemoveState(domain, id, session.sessionId, keys.toList)
-  }
-
-  def onActivityStateCleared(message: ActivityClearStateMessage): Unit = {
-    val ActivityClearStateMessage(id) = message
-    this.activityServiceActor ! ActivityClearState(domain, id, session.sessionId)
-  }
 
   def onRequestReceived(message: Request with Activity, replyCallback: ReplyCallback): Unit = {
     message match {
-      case join: ActivityJoinRequestMessage => onActivityJoin(join, replyCallback)
-      case participant: ActivityParticipantsRequestMessage => onParticipantsRequest(participant, replyCallback)
+      case join: ActivityJoinRequestMessage =>
+        onActivityJoin(join, replyCallback)
+      case participant: ActivityParticipantsRequestMessage =>
+        onParticipantsRequest(participant, replyCallback)
     }
   }
 

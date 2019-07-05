@@ -10,9 +10,13 @@ class ActivityStateMap private[activity] () {
     state += (sessionId -> (sessionState + (key -> value)))
   }
 
-  def clearState(sessionId: String, key: String): Unit = {
+  def removeState(sessionId: String, key: String): Unit = {
     val sessionState = state(sessionId)
     state += (sessionId -> (sessionState - key))
+  }
+  
+  def clear(): Unit ={
+    state = Map()
   }
 
   def getState(): Map[String, Map[String, JValue]] = {

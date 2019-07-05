@@ -53,12 +53,8 @@ class ActivityActor()
       join(sessionId, state, client)
     case ActivityLeave(domain, id, sessionId) =>
       leave(sessionId)
-    case ActivitySetState(domain, id, sessionId, state) =>
-      setState(sessionId, state)
-    case ActivityRemoveState(domain, id, sessionId, keys) =>
-      removeState(sessionId, keys)
-    case ActivityClearState(domain, id, sessionId) =>
-      clearState(sessionId)
+    case ActivityUpdateState(domain, id, sessionId, set, complete, removed) =>
+      setState(sessionId, set, complete, removed)
     case Terminated(actor) =>
       handleClientDeath(actor)
   }
@@ -126,33 +122,22 @@ class ActivityActor()
     }
   }
 
-  private[this] def setState(sessionId: String, state: Map[String, JValue]): Unit = {
+  private[this] def setState(sessionId: String, setState: Map[String, JValue], complete: Boolean, removed: List[String]): Unit = {
     if (isJoined(sessionId)) {
-      state.foreach {
+      if (complete) {
+        stateMap.clear()
+      }
+      
+      setState.foreach {
         case (key: String, value: Any) =>
           stateMap.setState(sessionId, key, value)
       }
+      
+      removed.foreach(key => stateMap.removeState(sessionId, key))
 
       val setter = this.joinedSessions(sessionId)
-      val message = ActivityRemoteStateSet(activityId, sessionId, state)
+      val message = ActivityStateUpdated(activityId, sessionId, setState, complete, removed)
       joinedSessions.values.filter(_ != setter) foreach (_ ! message)
-    }
-  }
-
-  private[this] def removeState(sessionId: String, keys: List[String]): Unit = {
-    if (isJoined(sessionId)) {
-      keys foreach (stateMap.clearState(sessionId, _))
-      val clearer = this.joinedSessions(sessionId)
-      val message = ActivityRemoteStateRemoved(activityId, sessionId, keys)
-      joinedSessions.values.filter(_ != clearer) foreach (_ ! message)
-    }
-  }
-
-  private[this] def clearState(sessionId: String): Unit = {
-    if (isJoined(sessionId)) {
-      val clearer = this.joinedSessions(sessionId)
-      val message = ActivityRemoteStateCleared(activityId, sessionId)
-      joinedSessions.values.filter(_ != clearer) foreach (_ ! message)
     }
   }
 

@@ -81,12 +81,9 @@ object ConvergenceMessageBodyUtils {
       case Body.ActivityLeaveRequest(message) => message
       case Body.ActivitySessionJoined(message) => message
       case Body.ActivitySessionLeft(message) => message
-      case Body.ActivityLocalStateSet(message) => message
-      case Body.ActivityLocalStateRemoved(message) => message
-      case Body.ActivityLocalStateCleared(message) => message
-      case Body.ActivityRemoteStateSet(message) => message
-      case Body.ActivityRemoteStateRemoved(message) => message
-      case Body.ActivityRemoteStateCleared(message) => message
+      case Body.ActivityUpdateState(message) => message
+      case Body.ActivityStateUpdated(message) => message
+      
       // Presence
       case Body.PresenceSetState(message) => message
       case Body.PresenceClearState(message) => message
@@ -225,12 +222,8 @@ object ConvergenceMessageBodyUtils {
       case message: ActivityLeaveMessage => Body.ActivityLeaveRequest(message)
       case message: ActivitySessionJoinedMessage => Body.ActivitySessionJoined(message)
       case message: ActivitySessionLeftMessage => Body.ActivitySessionLeft(message)
-      case message: ActivitySetStateMessage => Body.ActivityLocalStateSet(message)
-      case message: ActivityRemoveStateMessage => Body.ActivityLocalStateRemoved(message)
-      case message: ActivityClearStateMessage => Body.ActivityLocalStateCleared(message)
-      case message: ActivityRemoteStateSetMessage => Body.ActivityRemoteStateSet(message)
-      case message: ActivityRemoteStateRemovedMessage => Body.ActivityRemoteStateRemoved(message)
-      case message: ActivityRemoteStateClearedMessage => Body.ActivityRemoteStateCleared(message)
+      case message: ActivityUpdateStateMessage => Body.ActivityUpdateState(message)
+      case message: ActivityStateUpdatedMessage => Body.ActivityStateUpdated(message)
       // Presence
       case message: PresenceSetStateMessage => Body.PresenceSetState(message)
       case message: PresenceClearStateMessage => Body.PresenceClearState(message)
