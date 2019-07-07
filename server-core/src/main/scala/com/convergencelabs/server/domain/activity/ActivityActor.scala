@@ -54,24 +54,16 @@ class ActivityActor()
     case ActivityLeave(domain, id, sessionId) =>
       leave(sessionId)
     case ActivityUpdateState(domain, id, sessionId, set, complete, removed) =>
-      setState(sessionId, set, complete, removed)
+      onStateUpdated(sessionId, set, complete, removed)
     case Terminated(actor) =>
       handleClientDeath(actor)
-  }
-
-  private[this] def isEmpty(): Boolean = {
-    joinedSessions.isEmpty
   }
 
   private[this] def participantsRequest(): Unit = {
     sender ! ActivityParticipants(stateMap.getState())
   }
 
-  private[this] def getJoinedSessions(): Map[String, ActorRef] = {
-    this.joinedSessions
-  }
-
-  private[this] def isJoined(sessionId: String): Boolean = {
+  private[this] def isSessionJoined(sessionId: String): Boolean = {
     this.joinedSessions.contains(sessionId)
   }
 
@@ -97,16 +89,37 @@ class ActivityActor()
         sender ! ActivityJoinResponse(stateMap.getState())
     }
   }
+  
+  private[this] def onStateUpdated(sessionId: String, setState: Map[String, JValue], complete: Boolean, removed: List[String]): Unit = {
+    if (isSessionJoined(sessionId)) {
+      if (complete) {
+        stateMap.clear()
+      }
+      
+      setState.foreach {
+        case (key: String, value: Any) =>
+          stateMap.setState(sessionId, key, value)
+      }
+      
+      removed.foreach(key => stateMap.removeState(sessionId, key))
 
-  private[this] def leave(sessionId: String): Unit = {
-    if (!isJoined(sessionId)) {
-      this.sender ! Status.Failure(ActivityNotJoinedException(this.activityId))
+      val setter = this.joinedSessions(sessionId)
+      val message = ActivityStateUpdated(activityId, sessionId, setState, complete, removed)
+      joinedSessions.values.filter(_ != setter) foreach (_ ! message)
     } else {
-      leaveHelper(sessionId)
+      log.warning(s"Activity(${this.identityString}): Received a state update for a session(${sessionId}) that is not joined to the activity.")
     }
   }
 
-  private[this] def leaveHelper(sessionId: String): Unit = {
+  private[this] def leave(sessionId: String): Unit = {
+    if (!isSessionJoined(sessionId)) {
+      this.sender ! Status.Failure(ActivityNotJoinedException(this.activityId))
+    } else {
+      handleSessionLeft(sessionId)
+    }
+  }
+
+  private[this] def handleSessionLeft(sessionId: String): Unit = {
     val leaver = this.joinedSessions(sessionId)
     val message = ActivitySessionLeft(activityId, sessionId)
     joinedSessions.values filter (_ != leaver) foreach (_ ! message)
@@ -122,30 +135,11 @@ class ActivityActor()
     }
   }
 
-  private[this] def setState(sessionId: String, setState: Map[String, JValue], complete: Boolean, removed: List[String]): Unit = {
-    if (isJoined(sessionId)) {
-      if (complete) {
-        stateMap.clear()
-      }
-      
-      setState.foreach {
-        case (key: String, value: Any) =>
-          stateMap.setState(sessionId, key, value)
-      }
-      
-      removed.foreach(key => stateMap.removeState(sessionId, key))
-
-      val setter = this.joinedSessions(sessionId)
-      val message = ActivityStateUpdated(activityId, sessionId, setState, complete, removed)
-      joinedSessions.values.filter(_ != setter) foreach (_ ! message)
-    }
-  }
-
   private[this] def handleClientDeath(actor: ActorRef): Unit = {
     this.joinedClients.get(actor) match {
       case Some(sessionId) =>
         log.debug(s"${identityString}: Client with session ${sessionId} was terminated.  Leaving activity.")
-        this.leaveHelper(sessionId)
+        this.handleSessionLeft(sessionId)
       case None =>
         log.warning(s"${identityString}: Deathwatch on a client was triggered for an actor that did not have thi activity open")
     }
