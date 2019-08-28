@@ -36,7 +36,7 @@ import akka.http.scaladsl.server.Directives.put
 import akka.util.Timeout
 
 object ConvergenceUserService {
-  case class CreateUserRequest(username: String, firstName: String, lastName: String, displayName: String, email: String, serverRole: String, password: String)
+  case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
   case class UserPublicData(username: String, displayName: String)
   case class UserData(username: String, firstName: String, lastName: String, displayName: String, email: String, lastLogin: Option[Instant], serverRole: String)
   case class PasswordData(password: String)
@@ -111,7 +111,7 @@ class ConvergenceUserService(
 
   def createConvergenceUser(createRequest: CreateUserRequest): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, serverRole, password) = createRequest
-    val message = CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password, serverRole)
+    val message = CreateConvergenceUserRequest(username, email, firstName.getOrElse(""), lastName.getOrElse(""), displayName, password, serverRole)
     (userManagerActor ? message) map { _ => CreatedResponse }
   }
 
