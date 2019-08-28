@@ -122,7 +122,7 @@ class ConvergenceUserService(
 
   def updateUser(username: String, updateData: UpdateUserData): Future[RestResponse] = {
     val UpdateUserData(firstName, lastName, displayName, email, serverRole) = updateData
-    val message = UpdateConvergenceUserRequest(username, firstName, lastName, displayName, email, serverRole)
+    val message = UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole)
     (userManagerActor ? message).mapTo[Unit] map
       (_ => OkResponse)
   }
