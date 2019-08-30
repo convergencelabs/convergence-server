@@ -248,7 +248,7 @@ class ChatStateManager(
         event
       }
     } else {
-      Failure(UnauthorizedException("Not authorized"))
+      Failure(ChatNotJoinedException(this.chatId))
     }
   }
 
