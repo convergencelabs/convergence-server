@@ -269,10 +269,10 @@ class ClientActor(
 
   // TODO add an optional message to send to the client.
   private[this] def disconnect(): Unit = {
-    // todo we do this to allow outgoing messages to be flushed.
-    // TODO we should make this time configurable.
-    // another approach here would be to send a message to the protocol connection
-    // that shuts it down. This would sequence it properly.
+    // TODO we do this to allow outgoing messages to be flushed
+    // What we SHOULD do is send a message to the protocol connection and then have it shut down
+    // when it processes that message. That would cause it to flush any messages in the queue 
+    // before shutting down.
     this.context.system.scheduler.scheduleOnce(10 seconds, self, Disconnect)
   }
 
@@ -463,7 +463,9 @@ class ClientActor(
   private[this] def onConnectionClosed(): Unit = {
     log.debug(s"${domainFqn}: Sending disconnect to domain and stopping: ${sessionId}")
     domainRegion ! ClientDisconnected(domainFqn, self)
-    this.disconnect()
+    
+    // TODO we may want to keep this client alive to smooth over reconnect in the future.
+    self ! PoisonPill
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
