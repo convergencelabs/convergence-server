@@ -13,10 +13,12 @@ class SubscriptionMap[S, T] {
 
   def subscribe(subscriber: S, target: T): Unit = {
     val targets = subscribersToTargets.getOrElse(subscriber, Set())
-    subscribersToTargets += (subscriber -> (targets + target))
+    val newTargets = targets + target
+    subscribersToTargets += (subscriber -> newTargets)
 
     val subscribers = targetsToSubscribers.getOrElse(target, Set())
-    targetsToSubscribers += (target -> (subscribers + subscriber))
+    val newSubscribers = subscribers + subscriber
+    targetsToSubscribers += (target -> newSubscribers)
   }
 
   def isSubscribed(subscriber: S, target: T): Boolean = {
@@ -48,11 +50,13 @@ class SubscriptionMap[S, T] {
   }
 
   def subscriptions(subscriber: S): Set[T] = {
-    subscribersToTargets.getOrElse(subscriber, Set())
+    val subscriptions = subscribersToTargets.getOrElse(subscriber, Set())
+    subscriptions
   }
 
   def subscribers(target: T): Set[S] = {
-    targetsToSubscribers.getOrElse(target, Set())
+    val subscribers = targetsToSubscribers.getOrElse(target, Set())
+    subscribers
   }
 
   def removeTarget(target: T): Unit = {

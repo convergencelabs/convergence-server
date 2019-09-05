@@ -62,6 +62,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
   }
 
   private[this] def userConnected(userId: DomainUserId, client: ActorRef): Unit = {
+    this.subscriptions.subscribe(client, userId)
+    
     clients += (client -> userId)
     val result = this.presences.get(userId) match {
       case Some(presence) =>
@@ -76,7 +78,7 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
     this.presences += (userId -> result)
   }
 
-  private[this] def userDiconnected(client: ActorRef): Unit = {
+  private[this] def userDisconnected(client: ActorRef): Unit = {
     clients.get(client) match {
       case Some(userId) => {
         clients -= client
@@ -131,7 +133,7 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
   }
 
   private[this] def subscribe(userIds: List[DomainUserId], client: ActorRef): Unit = {
-    val result = userIds.map { userId =>
+    userIds.foreach { userId =>
       this.subscriptions.subscribe(client, userId)
     }
     sender ! lookupPresence(userIds)
@@ -153,13 +155,14 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
   }
 
   private[this] def broadcastToSubscribed(userId: DomainUserId, message: Any): Unit = {
-    this.subscriptions.subscribers(userId) foreach { client =>
+    val subscribers = this.subscriptions.subscribers(userId)
+    subscribers foreach { client =>
       client ! message
     }
   }
   
   private[this] def handleDeathwatch(client: ActorRef): Unit = {
     this.subscriptions.unsubscribe(client)
-    userDiconnected(client)
+    userDisconnected(client)
   }
 }
