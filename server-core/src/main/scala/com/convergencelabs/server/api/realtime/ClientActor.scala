@@ -156,6 +156,10 @@ class ClientActor(
   }
 
   private[this] def receiveCommon: Receive = {
+    case PongTimeout =>
+      log.debug(s"Pong Timeout for session: ${sessionId}")
+      this.handleDisconnect()
+      
     case IncomingBinaryMessage(message) =>
       this.protocolConnection.onIncomingMessage(message) match {
         case Success(Some(event)) =>
