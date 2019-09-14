@@ -401,7 +401,7 @@ class ModelClientActor(
   }
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId) = request
+    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, reconnect, contextVersion) = request
 
     val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
 
@@ -425,6 +425,7 @@ class ModelClientActor(
             metaData.collection,
             java.lang.Long.toString(valueIdPrefix, 36),
             metaData.version,
+            reconnect,
             Some(metaData.createdTime),
             Some(metaData.modifiedTime),
             Some(modelData),
