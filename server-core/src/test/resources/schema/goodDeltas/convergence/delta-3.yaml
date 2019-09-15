@@ -1,7 +1,0 @@
-version: 3
-description: Adds a property to TestClass1
-actions:
- 
-  - action: AddProperty
-    className: TestClass1
-    property: {name: prop6, type: String,                         constraints: {mandatory: true, notNull: true}}     

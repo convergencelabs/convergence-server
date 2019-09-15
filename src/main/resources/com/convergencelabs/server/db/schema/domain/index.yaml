@@ -1,0 +1,5 @@
+preReleaseVersion: 1
+releasedVersion: 1
+deltas:
+  1: {delta: 042b302e00cb4d7e30b370f1a694cdf96051e9cea892c2e225c19f84b5c9096c, database: 5784324e127886fbe7da5fe973e43b5b4c0d069c14384ce1901c40e7056636d8}
+  

@@ -1,5 +1,5 @@
 sbtPod { label ->
-  def containerName = "convergence-server-node"
+  def containerName = "convergence-server"
   
   runInNode(label) {
       
@@ -15,24 +15,24 @@ sbtPod { label ->
       }
       
       stage('Package') {
-        sh 'sbt serverNode/stage'
+        sh 'sbt stage'
       }
       
       stage('Publish Universal') {
-        sh 'sbt serverNode/universal:publish'
+        sh 'sbt universal:publish'
       }
     }
     
     container('docker') {
       stage('Docker Prep') { 
         sh '''
-        cp -a server-node/src/docker/ server-node/target/docker
-        cp -a server-node/target/universal/stage server-node/target/docker/stage
+        cp -a src/docker/ target/docker
+        cp -a target/universal/stage target/docker/stage
         '''
       }
     
       stage('Docker Build') {
-        dir('server-node/target/docker') {
+        dir('target/docker') {
           dockerBuild(containerName)
         } 
       }

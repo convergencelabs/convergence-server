@@ -1,0 +1,17 @@
+{
+  "serverOpType": "ArrayRemove",
+  "clientOpType": "ArraySet",
+  "cases": [
+    {
+      "id": "A-RS-1",
+      "input": {
+        "serverOp": {"type": "ArrayRemove", "noOp": false, "index": 4},
+        "clientOp": {"type": "ArraySet", "noOp": false, "value": ["Y"]}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayRemove", "noOp": true, "index": 4},
+        "clientOp": {"type": "ArraySet", "noOp": false, "value": ["Y"]}
+      }
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+version: 1
+description: Initial Schema Creation
+actions:
+
+########## User Class ##########
+
+  - action: CreateClass
+    name: User
+    properties: 
+      - {name: username, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: email, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: firstName, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: lastName, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: lastLogin, type: DateTime, constraints: {notNull: true}}
+
+  - action: CreateIndex
+    className: User
+    name: User.username
+    type: Unique
+    properties: [username]
+
+  - action: CreateIndex
+    className: User
+    name: User.email
+    type: Unique
+    properties: [email]
+    
+########## UserCredential Class ##########
+
+  - action: CreateClass
+    name: UserCredential
+    properties: 
+      - {name: user, type: Link, classType: User, constraints: {mandatory: true, notNull: true}}
+      - {name: password, type: String, constraints: {mandatory: true, notNull: true}}
+          
+  - action: CreateIndex
+    className: UserCredential
+    name: UserCredential.user
+    type: Unique
+    properties: [user]
+    
+########## UserAuthToken Class ##########
+
+  - action: CreateClass
+    name: UserAuthToken
+    properties: 
+      - {name: user, type: Link, classType: User, constraints: {mandatory: true, notNull: true}}
+      - {name: token, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: expireTime, type: DateTime, constraints: {mandatory: true, notNull: true}}
+          
+########## Domain Class ##########
+
+  - action: CreateClass
+    name: Domain
+    properties: 
+      - {name: namespace, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: domainId, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: displayName, type: String, constraints: {mandatory: true}}
+      - {name: owner, type: Link, classType: User, constraints: {mandatory: true, notNull: true}}
+      - {name: dbName, type: String}
+      - {name: dbUsername, type: String}
+      - {name: dbPassword, type: String}
+      - {name: status, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: statusMessage, type: String, constraints: {mandatory: true, notNull: true}}
+          
+  - action: CreateIndex
+    className: Domain
+    name: Domain.dbName
+    type: Unique
+    properties: [dbName]
+
+  - action: CreateIndex
+    className: Domain
+    name: Domain.namespace_domainId
+    type: UniqueHashIndex
+    properties: [namespace, domainId]
+    
+########## Registration Class ##########
+
+  - action: CreateClass
+    name: Registration
+    properties: 
+      - {name: email, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: fname, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: lname, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: reason, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: token, type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: approved, type: Boolean, constraints: {mandatory: true, notNull: true}}
+          
+  - action: CreateIndex
+    className: Registration
+    name: Registration.email
+    type: Unique
+    properties: [email]
+
+  - action: CreateIndex
+    className: Registration
+    name: Registration.email_token
+    type: Unique
+    properties: [email, token]
+    

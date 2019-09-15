@@ -1,0 +1,28 @@
+{
+  "serverOpType": "DateSet",
+  "clientOpType": "DateSet",
+  "cases": [
+    {
+      "id": "D-SS-1",
+      "input": {
+        "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": false, "value": 1584179425611}
+      },
+      "output": {
+        "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": true, "value": 1584179425611}
+      }
+    },
+    {
+      "id": "D-SS-2",
+      "input": {
+        "serverOp": {"type": "DateSet", "noOp": false, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": false, "value": 1484179423611}
+      },
+      "output": {
+        "serverOp": {"type": "DateSet", "noOp": true, "value": 1484179423611},
+        "clientOp": {"type": "DateSet", "noOp": true, "value": 1484179423611}
+      }
+    }
+  ]
+}

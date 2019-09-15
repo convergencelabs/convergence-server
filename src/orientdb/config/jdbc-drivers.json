@@ -1,0 +1,43 @@
+{
+  "Oracle": {
+    "className": "oracle.jdbc.driver.OracleDriver",
+    "url": "http://svn.ets.berkeley.edu/nexus/content/repositories/myberkeley/com/oracle/ojdbc7/12.1.0.1/ojdbc7-12.1.0.1.jar",
+    "version": "7-12.1.0.1",
+    "format": [
+      "jdbc:oracle:thin:@<HOST>:<PORT>:<SID>"
+    ]
+  },
+  "SQLServer": {
+    "className": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+    "url": "http://www.java2s.com/Code/JarDownload/sqljdbc4/sqljdbc4-2.0.jar.zip",
+    "version": "4.2.0",
+    "format": [
+      "jdbc:sqlserver://<HOST>:<PORT>;databaseName=<DB>"
+    ]
+  },
+  "MySQL": {
+    "className": "com.mysql.jdbc.Driver",
+    "url": "http://central.maven.org/maven2/mysql/mysql-connector-java/5.1.36/mysql-connector-java-5.1.36.jar",
+    "version": "5.1.36",
+    "format": [
+      "jdbc:mysql://<HOST>:<PORT>/<DB>"
+    ]
+  },
+  "PostgreSQL": {
+    "className": "org.postgresql.Driver",
+    "url": "https://jdbc.postgresql.org/download/postgresql-9.4-1201.jdbc4.jar",
+    "version": "9.4-1201",
+    "format": [
+      "jdbc:postgresql://<HOST>:<PORT>/<DB>"
+    ]
+  },
+  "HyperSQL": {
+    "className": "org.hsqldb.jdbc.JDBCDriver",
+    "url": "http://central.maven.org/maven2/org/hsqldb/hsqldb/2.3.3/hsqldb-2.3.3.jar",
+    "version": "2.3.3",
+    "format": [
+      "jdbc:hsqldb:hsql://<HOST>:<PORT>",
+      "jdbc:hsqldb:file:<filepath>"
+    ]
+  }
+}

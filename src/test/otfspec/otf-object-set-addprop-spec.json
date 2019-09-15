@@ -1,0 +1,17 @@
+{
+  "serverOpType": "ObjectSet",
+  "clientOpType": "ObjectAddProperty",
+  "cases": [
+    {
+      "id": "O-SA-1",
+      "input": {
+        "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
+        "clientOp": {"type": "ObjectAddProperty", "noOp": false, "prop": "X", "value": 3}
+      },
+      "output": {
+        "serverOp": {"type": "ObjectSet", "noOp": false, "value": {"Y": 4}},
+        "clientOp": {"type": "ObjectAddProperty", "noOp": true, "prop": "X", "value": 3}
+      }
+    }
+  ]
+}

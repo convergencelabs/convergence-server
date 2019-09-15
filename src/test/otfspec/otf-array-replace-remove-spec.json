@@ -1,0 +1,39 @@
+{
+  "serverOpType": "ArrayReplace",
+  "clientOpType": "ArrayRemove",
+  "cases": [
+    {
+      "id": "A-PR-1",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 5, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      }
+    },
+    {
+      "id": "A-PR-2",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 4}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayInsert", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": true, "index": 4}
+      }
+    },
+    {
+      "id": "A-PR-3",
+      "input": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+      },
+      "output": {
+        "serverOp": {"type": "ArrayReplace", "noOp": false, "index": 4, "value": "X"},
+        "clientOp": {"type": "ArrayRemove", "noOp": false, "index": 5}
+      }
+    }
+  ]
+}
