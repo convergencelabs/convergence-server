@@ -9,6 +9,6 @@ class ElementReference(
     extends ModelReference[String](source, session, key) {
 
   def handleElementDetached(vid: String): Unit = {
-    this.values filter(!_.equals(vid))
+    this.values = this.values filter(!_.equals(vid))
   }
 }

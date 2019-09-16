@@ -45,8 +45,7 @@ private[model] class OperationTransformer(
   }
 
   private[this] def transformIdenticalPathOperations(s: DiscreteOperation, c: DiscreteOperation): (DiscreteOperation, DiscreteOperation) = {
-    val tf = tfr.getOperationTransformationFunction(s, c)
-    tf match {
+    tfr.getOperationTransformationFunction(s, c) match {
       case Some(tf) => tf.transform(s, c)
       case None => throw new IllegalArgumentException(
           s"No operation transformation function found for operation pair (${s.getClass.getName},${s.getClass.getName})")

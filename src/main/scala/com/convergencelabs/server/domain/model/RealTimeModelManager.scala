@@ -2,45 +2,33 @@ package com.convergencelabs.server.domain.model
 
 import java.time.Instant
 
-import scala.collection.immutable.HashMap
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
+import akka.actor.{ActorContext, ActorRef, Status, Terminated}
+import akka.pattern.{AskTimeoutException, Patterns}
+import akka.util.Timeout
 import com.convergencelabs.server.UnknownErrorResponse
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.datastore.domain.ModelDataGenerator
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserSessionId
-import com.convergencelabs.server.domain.ModelSnapshotConfig
-import com.convergencelabs.server.domain.UnauthorizedException
-import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
-import com.convergencelabs.server.domain.model.ot.OperationTransformer
-import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
-import com.convergencelabs.server.domain.model.ot.TransformationFunctionRegistry
-import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
+import com.convergencelabs.server.datastore.domain.{DomainPersistenceProvider, ModelDataGenerator}
+import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId, ModelSnapshotConfig, UnauthorizedException}
+import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
+import com.convergencelabs.server.domain.model.ot.{OperationTransformer, ServerConcurrencyControl, TransformationFunctionRegistry, UnprocessedOperationEvent}
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
 import com.convergencelabs.server.util.EventLoop
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
-
-import akka.actor.ActorContext
-import akka.actor.ActorRef
-import akka.actor.Status
-import akka.actor.Terminated
-import akka.pattern.AskTimeoutException
-import akka.pattern.Patterns
-import akka.util.Timeout
 import grizzled.slf4j.Logging
+
+import scala.collection.immutable.HashMap
+import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.util.{Failure, Success, Try}
 
 object RealTimeModelManager {
   val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
 
   trait EventHandler {
     def onInitializationError(): Unit
+
     def onClientOpened(clientActor: ActorRef): Unit
+
     def onClientClosed(clientActor: ActorRef): Unit
+
     def closeModel()
   }
 
@@ -50,33 +38,35 @@ object RealTimeModelManager {
 
   trait RealtimeModelClient {
     def send(message: Any): Unit
+
     def request(message: Any): Future[Any]
   }
 
-  trait Requestor {
+  trait Requester {
     def reply(message: Any): Unit
   }
 
   case class OpenRequestRecord(clientActor: ActorRef, askingActor: ActorRef)
+
 }
 
 class RealTimeModelManager(
-  private[this] val persistenceFactory:        RealtimeModelPersistenceFactory,
-  private[this] val workQueue:                 EventLoop,
-  private[this] val domainFqn:                 DomainId,
-  private[this] val modelId:                   String,
-  private[this] val persistenceProvider:       DomainPersistenceProvider,
-  private[this] val permissionsResolver:       ModelPermissionResolver,
-  private[this] val modelCreator:              ModelCreator,
-  private[this] val clientDataResponseTimeout: Timeout,
-  private[this] val context:                   ActorContext,
-  private[this] val eventHandler:              RealTimeModelManager.EventHandler) extends Logging {
+                            private[this] val persistenceFactory: RealtimeModelPersistenceFactory,
+                            private[this] val workQueue: EventLoop,
+                            private[this] val domainFqn: DomainId,
+                            private[this] val modelId: String,
+                            private[this] val persistenceProvider: DomainPersistenceProvider,
+                            private[this] val permissionsResolver: ModelPermissionResolver,
+                            private[this] val modelCreator: ModelCreator,
+                            private[this] val clientDataResponseTimeout: Timeout,
+                            private[this] val context: ActorContext,
+                            private[this] val eventHandler: RealTimeModelManager.EventHandler) extends Logging {
 
   import RealTimeModelManager._
 
-  private[this] implicit val ec = context.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
 
-  val persistence = persistenceFactory.create(new PersistenceEventHanlder() {
+  private[this] val persistence = persistenceFactory.create(new PersistenceEventHandler() {
     def onError(message: String): Unit = {
       workQueue.schedule {
         forceCloseAllAfterError(message)
@@ -87,7 +77,7 @@ class RealTimeModelManager(
       // No-Op
     }
 
-    def onOperationCommited(version: Long): Unit = {
+    def onOperationCommitted(version: Long): Unit = {
       workQueue.schedule {
         commitVersion(version)
       }
@@ -99,7 +89,7 @@ class RealTimeModelManager(
         forceCloseAllAfterError(message)
       }
     }
-  });
+  })
 
   private[this] val modelStore = persistenceProvider.modelStore
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
@@ -137,27 +127,30 @@ class RealTimeModelManager(
       case State.Initialized =>
         onOpenModelWhileInitialized(request, replyTo)
       case State.Error | State.InitializationError =>
-        replyTo ! Status.Failure(new UnexpectedErrorException(
+        replyTo ! Status.Failure(UnexpectedErrorException(
           "The model can't be open, because it is currently shutting down after an error. You may be able to reopen the model."))
     }
   }
 
   /**
-   * Starts the open process from an uninitialized model.  This only happens
-   * when the first client it connecting.  Unless there is an error, after this
-   * method is called, the actor will be an in initializing state.
-   */
-  def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
-    debug(s"${domainFqn}/${modelId}: Handling a request to open the model while it is uninitialized.")
+    * Starts the open process from an uninitialized model.  This only happens
+    * when the first client it connecting.  Unless there is an error, after this
+    * method is called, the actor will be an in initializing state.
+    */
+  private[this] def onOpenModelWhileUninitialized(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
+    debug(s"$domainFqn/$modelId: Handling a request to open the model while it is uninitialized.")
     setState(State.Initializing)
+
+    // FIXME Here we need to check if it is a reconnect. If it is, we can't handle the case where the
+    //  model does not exist.
 
     queuedOpeningClients += (request.session -> OpenRequestRecord(request.clientActor, replyTo))
     modelStore.modelExists(modelId) map { exists =>
       if (exists) {
-        debug(s"${domainFqn}/${modelId}. Model exists, loading immediately from the database.")
-        requestModelDataFromDatastore()
+        debug(s"$domainFqn/$modelId. Model exists, loading immediately from the database.")
+        requestModelDataFromDataStore()
       } else {
-        debug(s"${domainFqn}/${modelId}: Model does not exist, will request from clients.")
+        debug(s"$domainFqn/$modelId: Model does not exist, will request from clients.")
         request.autoCreateId match {
           case Some(id) =>
             requestAutoCreateConfigFromClient(request.session, request.clientActor, id)
@@ -168,40 +161,40 @@ class RealTimeModelManager(
       }
     } recover {
       case cause =>
-        error(s"${domainFqn}/${modelId}: Unable to determine if a model exists.", cause)
+        error(s"$domainFqn/$modelId: Unable to determine if a model exists.", cause)
         handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
   /**
-   * Handles an additional request for opening the model, while the model is
-   * already initializing.
-   */
-  def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
+    * Handles an additional request for opening the model, while the model is
+    * already initializing.
+    */
+  private[this] def onOpenModelWhileInitializing(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
     if (queuedOpeningClients.contains(request.session)) {
-      replyTo ! Status.Failure(new ModelAlreadyOpeningException())
+      replyTo ! Status.Failure(ModelAlreadyOpeningException())
     } else {
-      debug(s"${domainFqn}/${modelId}: Handling a request to open the model while it is already initializing.")
+      debug(s"$domainFqn/$modelId: Handling a request to open the model while it is already initializing.")
       // We know we are already INITIALIZING.  This means we are at least the second client
       // to open the model before it was fully initialized.
       queuedOpeningClients += (request.session -> OpenRequestRecord(request.clientActor, replyTo))
 
       // If we are persistent, then the data is already loading, so there is nothing to do.
-      // However, if we are not persistent, we have already asessioned the previous opening clients
-      // for the data, but we will asession this client too, in case the others fail.
+      // However, if we are not persistent, we have already asked the previous opening clients
+      // for the data, but we will ask this client too, in case the others fail.
       modelStore.modelExists(modelId) map { exists =>
         if (!exists) {
-          // If there is an auto create id we can asession this client for data.  If there isn't an auto create
-          // id, we can't asession them, but that is ok since we assume the previous client supplied the data
+          // If there is an auto create id we can ask this client for data.  If there isn't an auto create
+          // id, we can't ask them, but that is ok since we assume the previous client supplied the data
           // else it would have bombed out.
-          request.autoCreateId.foreach((id) => requestAutoCreateConfigFromClient(request.session, request.clientActor, id))
+          request.autoCreateId.foreach(id => requestAutoCreateConfigFromClient(request.session, request.clientActor, id))
         }
         // Else no action required, the model must have been persistent, which means we are in the process of
         // loading it from the database.
       } recover {
         case cause =>
           error(
-            s"${domainFqn}/${modelId}: Unable to determine if model exists while handling an open request for an initializing model.",
+            s"$domainFqn/$modelId: Unable to determine if model exists while handling an open request for an initializing model.",
             cause)
           handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
       }
@@ -209,10 +202,10 @@ class RealTimeModelManager(
   }
 
   /**
-   * Asynchronously requests model data from the database.
-   */
-  def requestModelDataFromDatastore(): Unit = {
-    debug(s"${domainFqn}/${modelId}: Requesting model data from the database.")
+    * Asynchronously requests model data from the database.
+    */
+  def requestModelDataFromDataStore(): Unit = {
+    debug(s"$domainFqn/$modelId: Requesting model data from the database.")
     (for {
       snapshotMetaData <- modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)
       model <- modelStore.getModel(modelId)
@@ -234,14 +227,14 @@ class RealTimeModelManager(
         case _ =>
           val mMessage = model.map(_ => "found").getOrElse("not found")
           val sMessage = snapshotMetaData.map(_ => "found").getOrElse("not found")
-          val message = s"${domainFqn}/${modelId}: Error getting model data: model: ${mMessage}, snapshot: ${sMessage}"
+          val message = s"$domainFqn/$modelId: Error getting model data: model: $mMessage, snapshot: $sMessage"
           val cause = new IllegalStateException(message)
           error(message, cause)
           this.handleInitializationFailure(DatabaseInitializationFailure)
       }
     }) recover {
       case cause =>
-        error(s"${domainFqn}/${modelId}: Error getting model data.", cause)
+        error(s"$domainFqn/$modelId: Error getting model data.", cause)
         this.handleInitializationFailure(DatabaseInitializationFailure)
     }
   }
@@ -249,7 +242,7 @@ class RealTimeModelManager(
   def reloadModelPermissions(): Try[Unit] = {
     // Build a map of all current permissions so we can detect what changes.
     val currentPerms = this.connectedClients.map {
-      case (session, client) =>
+      case (session, _) =>
         val sessionPerms = this.permissions.resolveSessionPermissions(session.userId)
         (session, sessionPerms)
     }
@@ -265,30 +258,30 @@ class RealTimeModelManager(
           case (session, client) =>
             val current = this.permissions.resolveSessionPermissions(session.userId)
             val previous = currentPerms.get(session)
-            if (Some(current) != previous) {
+            if (!previous.contains(current)) {
               val message = ModelPermissionsChanged(this.modelId, current)
               client ! message
             }
         }
         ()
       }.recover {
-        case cause =>
-          error(s"${domainFqn}/${modelId}: Error updating permissions", cause)
-          this.forceCloseAllAfterError("Error updating permissions")
-      }
+      case cause =>
+        error(s"$domainFqn/$modelId: Error updating permissions", cause)
+        this.forceCloseAllAfterError("Error updating permissions")
+    }
   }
 
   /**
-   * Handles model initialization data coming back from the database and attempts to
-   * complete the initialization process.
-   */
+    * Handles model initialization data coming back from the database and attempts to
+    * complete the initialization process.
+    */
   private[this] def onDatabaseModelResponse(
-    modelData:        Model,
-    snapshotMetaData: ModelSnapshotMetaData,
-    snapshotConfig:   ModelSnapshotConfig,
-    permissions:      RealTimeModelPermissions): Unit = {
+                                             modelData: Model,
+                                             snapshotMetaData: ModelSnapshotMetaData,
+                                             snapshotConfig: ModelSnapshotConfig,
+                                             permissions: RealTimeModelPermissions): Unit = {
 
-    debug(s"${domainFqn}/${modelId}: Model loaded from database.")
+    debug(s"$domainFqn/$modelId: Model loaded from database.")
 
     try {
       this.permissions = permissions
@@ -318,42 +311,42 @@ class RealTimeModelManager(
 
       this.queuedOpeningClients = HashMap[DomainUserSessionId, OpenRequestRecord]()
       if (this.connectedClients.isEmpty) {
-        error(s"${domainFqn}/${modelId}: The model was initialized, but not clients are connected.")
+        error(s"$domainFqn/$modelId: The model was initialized, but not clients are connected.")
         this.handleInitializationFailure(UnknownErrorResponse("Model was initialized, but no clients connected"))
       }
       setState(State.Initialized)
     } catch {
       case cause: Throwable =>
         error(
-          s"${domainFqn}/${modelId}: Unable to initialize the model from the database.",
+          s"$domainFqn/$modelId: Unable to initialize the model from the database.",
           cause)
         handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
   /**
-   * Asynchronously requests the model data from the connecting client.
-   */
+    * Asynchronously requests the model data from the connecting client.
+    */
   private[this] def requestAutoCreateConfigFromClient(session: DomainUserSessionId, clientActor: ActorRef, autoCreateId: Int): Unit = {
-    debug(s"${domainFqn}/${modelId}: Requesting model config data from client.")
+    debug(s"$domainFqn/$modelId: Requesting model config data from client.")
 
     val future = Patterns.ask(clientActor, ClientAutoCreateModelConfigRequest(modelId, autoCreateId), clientDataResponseTimeout)
     future.mapTo[ClientAutoCreateModelConfigResponse] onComplete {
       case Success(response) =>
-        debug(s"${domainFqn}/${modelId}: Model config data received from client.")
+        debug(s"$domainFqn/$modelId: Model config data received from client.")
         workQueue.schedule {
           onClientAutoCreateModelConfigResponse(session, response)
         }
       case Failure(cause) => cause match {
-        case e: AskTimeoutException =>
-          debug(s"${domainFqn}/${modelId}: A timeout occured waiting for the client to respond with model data.")
+        case _: AskTimeoutException =>
+          debug(s"$domainFqn/$modelId: A timeout occured waiting for the client to respond with model data.")
           workQueue.schedule {
             handleQueuedClientOpenFailureFailure(
               session,
               ClientDataRequestFailure("The client did not respond in time with model data, while initializing a new model."))
           }
         case e: Throwable =>
-          error(s"${domainFqn}/${modelId}: Uknnown exception processing model config data response.", e)
+          error(s"$domainFqn/$modelId: Uknnown exception processing model config data response.", e)
           workQueue.schedule {
             handleQueuedClientOpenFailureFailure(session, UnknownErrorResponse(e.getMessage))
           }
@@ -362,24 +355,21 @@ class RealTimeModelManager(
   }
 
   /**
-   * Processes the model data coming back from a client.  This will persist the model and
-   * then open the model from the database.
-   */
+    * Processes the model data coming back from a client.  This will persist the model and
+    * then open the model from the database.
+    */
   def onClientAutoCreateModelConfigResponse(session: DomainUserSessionId, config: ClientAutoCreateModelConfigResponse): Unit = {
     if (this.state == State.Initializing) {
       this.queuedOpeningClients.get(session) match {
-        case Some(openRecord) =>
-          debug(s"${domainFqn}/${modelId}: Processing config data for model from client.")
-          val ClientAutoCreateModelConfigResponse(colleciton, modelData, overridePermissions, worldPermissions, userPermissions, ephemeral) = config
-
-          val overrideWorld = overridePermissions.getOrElse(false)
-          val worldPerms = worldPermissions.getOrElse(ModelPermissions(false, false, false, false))
+        case Some(_) =>
+          debug(s"$domainFqn/$modelId: Processing config data for model from client.")
+          val ClientAutoCreateModelConfigResponse(_, modelData, overridePermissions, worldPermissions, userPermissions, ephemeral) = config
           val rootObject = modelData.getOrElse(ModelDataGenerator(Map()))
           val collectionId = config.collectionId
 
           this.ephemeral = ephemeral.getOrElse(false)
 
-          debug(s"${domainFqn}/${modelId}: Creating model in database.")
+          debug(s"$domainFqn/$modelId: Creating model in database.")
 
           modelCreator.createModel(
             persistenceProvider,
@@ -390,39 +380,39 @@ class RealTimeModelManager(
             overridePermissions,
             worldPermissions,
             userPermissions) map { _ =>
-              requestModelDataFromDatastore()
-            } recover {
-              case cause: Exception =>
-                handleQueuedClientOpenFailureFailure(session, Status.Failure(cause))
-            }
+            requestModelDataFromDataStore()
+          } recover {
+            case cause: Exception =>
+              handleQueuedClientOpenFailureFailure(session, Status.Failure(cause))
+          }
         case None =>
           // Here we could not find the opening record, so we don't know who to respond to.
           // all we can really do is log this as an error.
-          error(s"${domainFqn}/${modelId}: Received a model auto config response for a client that was not in our opening clients queue.")
+          error(s"$domainFqn/$modelId: Received a model auto config response for a client that was not in our opening clients queue.")
       }
     }
   }
 
   /**
-   * Handles a request to open the model, when the model is already initialized.
-   */
-  private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest, asker: ActorRef): Unit = {
-    debug(s"${domainFqn}/${modelId}: Handling a request to open the model while it is initialized.")
+    * Handles a request to open the model, when the model is already initialized.
+    */
+  private[this] def onOpenModelWhileInitialized(request: OpenRealtimeModelRequest, requester: ActorRef): Unit = {
+    debug(s"$domainFqn/$modelId: Handling a request to open the model while it is initialized.")
 
     val session = request.session
     if (connectedClients.contains(session)) {
-      asker ! Status.Failure(new ModelAlreadyOpenException())
+      requester ! Status.Failure(ModelAlreadyOpenException())
     } else {
       val model = Model(this.metaData, this.model.data.dataValue())
-      respondToClientOpenRequest(session, model, OpenRequestRecord(request.clientActor, asker))
+      respondToClientOpenRequest(session, model, OpenRequestRecord(request.clientActor, requester))
     }
   }
 
   /**
-   * Lets a client know that the open process has completed successfully.
-   */
-  private[this] def respondToClientOpenRequest(session: DomainUserSessionId, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
-    debug(s"${domainFqn}/${modelId}: Responding to client open request: " + session)
+    * Lets a client know that the open process has completed successfully.
+    */
+  private[this] def  respondToClientOpenRequest(session: DomainUserSessionId, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
+    debug(s"$domainFqn/$modelId: Responding to client open request: " + session)
     if (permissions.resolveSessionPermissions(session.userId).read) {
       // Inform the concurrency control that we have a new client.
       val contextVersion = modelData.metaData.version
@@ -457,8 +447,8 @@ class RealTimeModelManager(
 
       // Let other client knows
       val msg = RemoteClientOpened(modelId, session)
-      connectedClients filterKeys ({ _ != session }) foreach {
-        case (session, clientActor) =>
+      connectedClients filterKeys (_ != session) foreach {
+        case (_, clientActor) =>
           clientActor ! msg
       }
     } else {
@@ -467,8 +457,8 @@ class RealTimeModelManager(
   }
 
   /**
-   * Handles a request to close the model.
-   */
+    * Handles a request to close the model.
+    */
   def onCloseModelRequest(request: CloseRealtimeModelRequest, askingActor: ActorRef): Unit = {
     clientClosed(request.session, askingActor)
   }
@@ -478,23 +468,23 @@ class RealTimeModelManager(
       case Some(session) =>
         clientClosed(session, terminated.actor)
       case None =>
-        warn(s"${domainFqn}/${modelId}: An unexpected actor terminated: " + terminated.actor.path)
+        warn(s"$domainFqn/$modelId: An unexpected actor terminated: " + terminated.actor.path)
     }
   }
 
   private[this] def clientClosed(session: DomainUserSessionId, askingActor: ActorRef): Unit = {
     if (!connectedClients.contains(session)) {
-      askingActor ! Status.Failure(new ModelNotOpenException())
+      askingActor ! Status.Failure(ModelNotOpenException())
     } else {
-      val closedActor = closeModel(session, true)
-      askingActor ! (())
+      closeModel(session, notifyOthers = true)
+      askingActor ! ((): Unit)
       checkForConnectionsAndClose()
     }
   }
 
   /**
-   * Determines if there are no more clients connected and if so request to shutdown.
-   */
+    * Determines if there are no more clients connected and if so request to shutdown.
+    */
   private[this] def checkForConnectionsAndClose(): Unit = {
     state match {
       case State.Uninitialized =>
@@ -507,7 +497,7 @@ class RealTimeModelManager(
           executeClose()
         }
       case State.Initialized =>
-        val committed = Option(this.model).map { m => m.contextVersion() == this.committedVersion }.getOrElse(true)
+        val committed = Option(this.model).forall(m => m.contextVersion() == this.committedVersion)
         if (connectedClients.isEmpty && committed) {
           // We will disconnect after all clients are disconnected and the model is committed.
           executeClose()
@@ -523,17 +513,10 @@ class RealTimeModelManager(
   private[this] def executeClose(): Unit = {
     persistence.close()
     if (this.ephemeral) {
-      debug(s"${this.modelId} closing and is ephemeral. Deleting." )
+      debug(s"$modelId closing and is ephemeral. Deleting.")
       this.modelStore.deleteModel(this.modelId)
     }
     eventHandler.closeModel()
-  }
-
-  /**
-   * Handles the notification of a deleted model, while open.
-   */
-  private[this] def handleModelDeletedWhileOpen(): Unit = {
-    forceCloseAllAfterError("Model deleted")
   }
 
   //
@@ -543,8 +526,8 @@ class RealTimeModelManager(
   def onOperationSubmission(request: OperationSubmission, clientActor: ActorRef): Unit = {
     val sessionKey = this.clientToSessionId.get(clientActor)
     sessionKey match {
-      case None => warn(s"${domainFqn}/${modelId}: Received operation from client for model that is not open!")
-      case Some(session) => {
+      case None => warn(s"$domainFqn/$modelId: Received operation from client for model that is not open!")
+      case Some(session) =>
         if (permissions.resolveSessionPermissions(session.userId).write) {
           val unprocessedOpEvent = UnprocessedOperationEvent(
             session.sessionId,
@@ -552,36 +535,35 @@ class RealTimeModelManager(
             request.operation)
 
           transformAndApplyOperation(session, unprocessedOpEvent) match {
-            case Success(outgoinOperation) =>
-              broadcastOperation(session, outgoinOperation, request.seqNo)
+            case Success(outgoingOperation) =>
+              broadcastOperation(session, outgoingOperation, request.seqNo)
               this.metaData = this.metaData.copy(
-                version = outgoinOperation.contextVersion + 1,
-                modifiedTime = outgoinOperation.timestamp)
+                version = outgoingOperation.contextVersion + 1,
+                modifiedTime = outgoingOperation.timestamp)
 
               if (snapshotRequired()) {
                 executeSnapshot()
               }
             case Failure(cause) =>
-              error(s"${domainFqn}/${modelId}: Error applying operation to model, kicking client from model: ${request}", cause);
+              error(s"$domainFqn/$modelId: Error applying operation to model, kicking client from model: $request", cause)
               forceClosedModel(
                 session,
                 s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + cause.getMessage,
-                true)
+                notifyOthers = true)
           }
         } else {
           forceClosedModel(
             session,
             s"Unauthorized to edit this model",
-            true)
+            notifyOthers = true)
         }
-      }
     }
 
   }
 
   /**
-   * Attempts to transform the operation and apply it to the data model.
-   */
+    * Attempts to transform the operation and apply it to the data model.
+    */
   private[this] def transformAndApplyOperation(session: DomainUserSessionId, unprocessedOpEvent: UnprocessedOperationEvent): Try[OutgoingOperation] = {
     val timestamp = Instant.now()
     this.model.processOperationEvent(unprocessedOpEvent).map {
@@ -603,15 +585,15 @@ class RealTimeModelManager(
   }
 
   /**
-   * Sends an ACK back to the originator of the operation and an operation message
-   * to all other connected clients.
-   */
+    * Sends an ACK back to the originator of the operation and an operation message
+    * to all other connected clients.
+    */
   private[this] def broadcastOperation(session: DomainUserSessionId, outgoingOperation: OutgoingOperation, originSeqNo: Long): Unit = {
     // Ack the sender
     connectedClients(session) ! OperationAcknowledgement(
       modelId, originSeqNo.toInt, outgoingOperation.contextVersion, outgoingOperation.timestamp)
 
-    broacastToAllOthers(outgoingOperation, session)
+    broadcastToAllOthers(outgoingOperation, session)
   }
 
   //
@@ -621,18 +603,18 @@ class RealTimeModelManager(
     val session = this.clientToSessionId(clientActor)
     this.model.processReferenceEvent(request, session) match {
       case Success(Some(event)) =>
-        broacastToAllOthers(event, session)
+        broadcastToAllOthers(event, session)
       case Success(None) =>
       // Event's no-op'ed
       case Failure(cause) =>
-        error(s"${domainFqn}/${modelId}: Invalid reference event", cause)
-        forceClosedModel(session, "invalid reference event", true)
+        error(s"$domainFqn/$modelId: Invalid reference event", cause)
+        forceClosedModel(session, "invalid reference event", notifyOthers = true)
     }
   }
 
-  private[this] def broacastToAllOthers(message: Any, origin: DomainUserSessionId): Unit = {
+  private[this] def broadcastToAllOthers(message: Any, origin: DomainUserSessionId): Unit = {
     connectedClients.filter(p => p._1 != origin) foreach {
-      case (session, clientActor) => clientActor ! message
+      case (_, clientActor) => clientActor ! message
     }
   }
 
@@ -643,10 +625,10 @@ class RealTimeModelManager(
     Instant.now())
 
   /**
-   * Asynchronously performs a snapshot of the model.
-   */
+    * Asynchronously performs a snapshot of the model.
+    */
   private[this] def executeSnapshot(): Unit = {
-    // This might not be the exact version that gets snapshotted
+    // This might not be the exact version that gets a snapshot
     // but that is OK, this is approximate. we send a message to
     // send the snapshot back to the actor to refine the exact version.
     latestSnapshot = ModelSnapshotMetaData(modelId, model.contextVersion(), Instant.now())
@@ -677,13 +659,13 @@ class RealTimeModelManager(
   //
 
   /**
-   * Kicks all clients out of the model.
-   */
+    * Kicks all clients out of the model.
+    */
   def forceCloseAllAfterError(reason: String): Unit = {
     setState(State.Error)
-    debug(s"${domainFqn}/${modelId}: Force closing all clients: $reason")
+    debug(s"$domainFqn/$modelId: Force closing all clients: $reason")
     connectedClients foreach {
-      case (clientId, actor) => forceClosedModel(clientId, reason, false)
+      case (clientId, _) => forceClosedModel(clientId, reason, notifyOthers = false)
     }
   }
 
@@ -692,8 +674,8 @@ class RealTimeModelManager(
   }
 
   /**
-   * Kicks a specific client out of the model.
-   */
+    * Kicks a specific client out of the model.
+    */
   private[this] def forceClosedModel(session: DomainUserSessionId, reason: String, notifyOthers: Boolean): Unit = {
     val closedActor = closeModel(session, notifyOthers)
 
@@ -704,12 +686,12 @@ class RealTimeModelManager(
   }
 
   /**
-   * Closes a model for a session and return the associated actor
-   *
-   * @param session The session of the client to close
-   * @param notifyOthers If True notifies other connected clients of close
-   * @return The actor associated with the closed session
-   */
+    * Closes a model for a session and return the associated actor
+    *
+    * @param session      The session of the client to close
+    * @param notifyOthers If True notifies other connected clients of close
+    * @return The actor associated with the closed session
+    */
   private[this] def closeModel(session: DomainUserSessionId, notifyOthers: Boolean): ActorRef = {
     val closedActor = connectedClients(session)
     connectedClients -= session
@@ -728,8 +710,8 @@ class RealTimeModelManager(
   }
 
   /**
-   * Informs all clients that the model could not be initialized.
-   */
+    * Informs all clients that the model could not be initialized.
+    */
   def handleInitializationFailure(response: AnyRef): Unit = {
     setState(State.InitializationError)
     queuedOpeningClients.values foreach { openRequest =>
@@ -741,8 +723,8 @@ class RealTimeModelManager(
   }
 
   /**
-   * Informs all clients that the model could not be initialized.
-   */
+    * Informs all clients that the model could not be initialized.
+    */
   def handleQueuedClientOpenFailureFailure(session: DomainUserSessionId, response: AnyRef): Unit = {
     queuedOpeningClients.get(session) foreach (openRequest => openRequest.askingActor ! response)
     queuedOpeningClients -= session

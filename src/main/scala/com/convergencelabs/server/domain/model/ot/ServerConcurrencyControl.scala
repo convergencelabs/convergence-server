@@ -1,10 +1,11 @@
 package com.convergencelabs.server.domain.model.ot
 
+import com.convergencelabs.server.domain.model.ReferenceValue
+import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
 import grizzled.slf4j.Logging
 import org.apache.commons.lang3.Validate
+
 import scala.collection.mutable
-import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
-import com.convergencelabs.server.domain.model.ReferenceValue
 
 /**
  * The ServerConcurrencyControl class implements the server side Operational Transformation Control Algorithm.  It is
@@ -61,7 +62,7 @@ private[model] class ServerConcurrencyControl(
     val (xFormedOp, xFormedStatePath) = transform(newStatePath, remoteOperation)
 
     // The results are stored as a pending event, waiting for a commit.
-    pendingEvent = Some(new ProcessedOperationEvent(
+    pendingEvent = Some(ProcessedOperationEvent(
       remoteClientId,
       _contextVersion,
       xFormedOp))
@@ -294,5 +295,5 @@ case class UnprocessedOperationEvent(clientId: String, contextVersion: Long, ope
  * @param operation The (potentially) transformed operation.
  */
 case class ProcessedOperationEvent(clientId: String, contextVersion: Long, operation: Operation) {
-  val resultingVersion = contextVersion + 1
+  val resultingVersion: Long = contextVersion + 1
 }

@@ -1,13 +1,15 @@
 package com.convergencelabs.server.domain.model
 
 import java.time.Instant
+
+import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.model.ot.AppliedOperation
 
 case class ModelOperation(
   modelId: String,
   version: Long,
   timestamp: Instant,
-  username: String,
+  userId: DomainUserId,
   sessionId: String,
   op: AppliedOperation)
 

@@ -2,41 +2,18 @@ package com.convergencelabs.server.datastore.domain
 
 import java.util.Date
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.model.NewModelOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
+import com.convergencelabs.server.domain.model.ot._
 import com.orientechnologies.common.io.OIOUtils
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import grizzled.slf4j.Logging
+
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, seqAsJavaListConverter}
+import scala.util.{Failure, Success, Try}
 
 object ModelOperationProcessor {
   sealed trait DataValueDeleteStrategy
@@ -55,7 +32,7 @@ class ModelOperationProcessor private[domain] (
 
   import ModelOperationProcessor._
 
-  val Id = "id";
+  val Id = "id"
   val CollectionId = "collectionId"
   val ModelId = "modelId"
   val Value = "value"
@@ -77,7 +54,9 @@ class ModelOperationProcessor private[domain] (
 
       // Commit Transaction
       // _ <- Try(db.commit())
-    } yield (())).recoverWith {
+    } yield {
+      ()
+    }).recoverWith {
       case cause: Throwable =>
         db.rollback()
         Failure(cause)
@@ -166,7 +145,7 @@ class ModelOperationProcessor private[domain] (
 
   private[this] def applyArraySetOperation(modelId: String, operation: AppliedArraySetOperation, db: ODatabaseDocument): Try[Unit] = {
     Try {
-      if (operation.value.length > 0) {
+      if (operation.value.nonEmpty) {
         val modelRid = getModelRid(modelId, db)
         val children = operation.value map { v =>
           val doc = OrientDataValueBuilder.dataValueToODocument(v, modelRid)
@@ -223,7 +202,7 @@ class ModelOperationProcessor private[domain] (
 
   private[this] def applyObjectSetOperation(modelId: String, operation: AppliedObjectSetOperation, db: ODatabaseDocument): Try[Unit] = {
     Try {
-      if (operation.value.size > 0) {
+      if (operation.value.nonEmpty) {
         val modelRid = getModelRid(modelId, db)
         val children = operation.value map {
           case (k, v) =>
@@ -252,7 +231,7 @@ class ModelOperationProcessor private[domain] (
     // https://github.com/orientechnologies/orientdb/issues/6250
     val hackValue = if (OIOUtils.isStringContent(operation.value)) {
       val hack = "\"\"" + operation.value + "\"\""
-      logger.warn(s"Using OrientDB Hack for string append: ${operation.value} -> ${hack}")
+      logger.warn(s"Using OrientDB Hack for string append: ${operation.value} -> $hack")
       hack
     } else {
       operation.value
@@ -324,21 +303,21 @@ class ModelOperationProcessor private[domain] (
       case DeleteAllObjectChildren =>
         "children.values()"
       case DeleteObjectKey(childPath) =>
-        s"children.`${childPath}`"
+        s"children.`$childPath`"
       case DeleteArrayIndex(index) =>
-        s"children[${index}]"
+        s"children[$index]"
     } map { path =>
       s"""LET directChildrenToDelete = SELECT expand($$dv.$path);           
          |LET allChildrenToDelete = TRAVERSE children FROM (SELECT expand($$directChildrenToDelete));
          |DELETE FROM (SELECT expand($$allChildrenToDelete));"""
-    } getOrElse ("")
+    } getOrElse ""
 
     s"""|LET models = SELECT FROM index:Model.id WHERE key = :modelId;
         |LET model = $$models[0].rid;
         |LET dvs = SELECT FROM DataValue WHERE id = :id AND model = $$model;
         |LET dv = $$dvs[0];
-        |${deleteCommand}
-        |UPDATE (SELECT expand($$dv)) ${updateClause};""".stripMargin
+        |$deleteCommand
+        |UPDATE (SELECT expand($$dv)) $updateClause;""".stripMargin
   }
 
   private[this] def getModelRid(modelId: String, db: ODatabaseDocument): ORID = {

@@ -8,7 +8,7 @@ import com.convergencelabs.server.datastore.domain.ModelOperationProcessor
 import com.convergencelabs.server.datastore.domain.ModelSnapshotStore
 import com.convergencelabs.server.datastore.domain.ModelStore
 import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHanlder
+import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -21,14 +21,14 @@ import akka.stream.scaladsl.Source
 import grizzled.slf4j.Logging
 
 trait RealtimeModelPersistenceFactory {
-  def create(handler: PersistenceEventHanlder): RealtimeModelPersistence;
+  def create(handler: PersistenceEventHandler): RealtimeModelPersistence
 }
 
 object RealtimeModelPersistence {
-  trait PersistenceEventHanlder {
+  trait PersistenceEventHandler {
     def onError(message: String): Unit
     def onClosed(): Unit
-    def onOperationCommited(version: Long): Unit
+    def onOperationCommitted(version: Long): Unit
     def onOperationError(message: String): Unit
   }
 }
@@ -47,13 +47,13 @@ object RealtimeModelPersistenceStream {
 }
 
 class RealtimeModelPersistenceStream(
-  private[this] val handler: PersistenceEventHanlder,
-  private[this] val domainFqn: DomainId,
-  private[this] val modelId: String,
-  private[this] implicit val system: ActorSystem,
-  private[this] val modelStore: ModelStore,
-  private[this] val modelSnapshotStore: ModelSnapshotStore,
-  private[this] val modelOperationProcessor: ModelOperationProcessor)
+                                      private[this] val handler: PersistenceEventHandler,
+                                      private[this] val domainFqn: DomainId,
+                                      private[this] val modelId: String,
+                                      private[this] implicit val system: ActorSystem,
+                                      private[this] val modelStore: ModelStore,
+                                      private[this] val modelSnapshotStore: ModelSnapshotStore,
+                                      private[this] val modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistence
   with Logging {
 
@@ -94,7 +94,7 @@ class RealtimeModelPersistenceStream(
 
   private[this] def onProcessOperation(modelOperation: NewModelOperation): Unit = {
     modelOperationProcessor.processModelOperation(modelOperation)
-      .map(_ => handler.onOperationCommited(modelOperation.version))
+      .map(_ => handler.onOperationCommitted(modelOperation.version))
       .recover {
         case cause: Throwable =>
           logger.error(s"${domainFqn}/${modelId}: Error applying operation: ${modelOperation}", cause)
@@ -135,7 +135,7 @@ class RealtimeModelPersistenceStreamFactory(
   private[this] val modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistenceFactory {
 
-  def create(handler: PersistenceEventHanlder): RealtimeModelPersistence = {
+  def create(handler: PersistenceEventHandler): RealtimeModelPersistence = {
     new RealtimeModelPersistenceStream(handler, domainFqn, modelId, system, modelStore, modelSnapshotStore, modelOperationProcessor)
   }
 }

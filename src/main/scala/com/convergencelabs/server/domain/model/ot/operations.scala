@@ -1,12 +1,8 @@
 package com.convergencelabs.server.domain.model.ot
 
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JNumber
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonAST.JDouble
-import com.convergencelabs.server.domain.model.data.DataValue
 import java.time.Instant
+
+import com.convergencelabs.server.domain.model.data.DataValue
 
 sealed trait Operation
 

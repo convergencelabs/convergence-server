@@ -4,10 +4,10 @@ import java.time.Instant
 
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
-import com.convergencelabs.server.domain.{DomainUser, DomainUserId, DomainUserType}
-import com.convergencelabs.server.domain.model.{Model, ModelMetaData, ModelOperation, NewModelOperation}
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.server.domain.model.{Model, ModelMetaData, ModelOperation, NewModelOperation}
+import com.convergencelabs.server.domain.{DomainUser, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.{Matchers, WordSpecLike}
@@ -23,26 +23,33 @@ class ModelOperationStoreSpec
   val testUsername = "test"
   val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None)
 
-  val modelPermissions = ModelPermissions(true, true, true, true)
+  val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
   
   val peopleCollection = "people"
   val modelId1 = "person1"
   val model = Model(
-    ModelMetaData(modelId1, peopleCollection, 10, truncatedInstantNow(), truncatedInstantNow(), true, modelPermissions, 1),
+    ModelMetaData(modelId1,
+      peopleCollection,
+      version = 10,
+      truncatedInstantNow(),
+      truncatedInstantNow(),
+      overridePermissions = true,
+      modelPermissions,
+      valuePrefix = 1),
     ObjectValue("vid", Map()))
 
   val sessionId = "test:1"
-  val session = DomainSession(sessionId, DomainUserId.normal(testUsername), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  val session = DomainSession(sessionId, user.toUserId, truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   val notFoundId = "Exist"
 
-  val op1 = AppliedStringInsertOperation("0:0", false, 1, "1")
+  val op1 = AppliedStringInsertOperation("0:0", noOp = false, 1, "1")
   val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
-  val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), testUsername, sessionId, op1)
+  val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), user.toUserId, sessionId, op1)
 
-  val op15 = AppliedStringInsertOperation("0:0", false, 2, "2")
+  val op15 = AppliedStringInsertOperation("0:0", noOp = false, 2, "2")
   val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
-  val modelOp15Expected = ModelOperation(modelId1, 15, Instant.ofEpochMilli(10), testUsername, sessionId, op15)
+  val modelOp15Expected = ModelOperation(modelId1, 15, Instant.ofEpochMilli(10), user.toUserId, sessionId, op15)
 
   "A ModelOperationStore" when {
     "creating a ModelOperation" must {
@@ -97,16 +104,16 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         var list = List[ModelOperation]()
         for (version <- 1 to 15) {
-          val op = AppliedStringInsertOperation("0:0", false, version, version.toString)
+          val op = AppliedStringInsertOperation("0:0", noOp = false, version, version.toString)
           val timestamp = truncatedInstantNow()
           val modelOp = NewModelOperation(modelId1, version, timestamp, sessionId, op)
-          list = list :+ ModelOperation(modelId1, version, timestamp, testUsername, sessionId, op) 
+          list = list :+ ModelOperation(modelId1, version, timestamp, user.toUserId, sessionId, op)
           provider.modelOperationStore.createModelOperation(modelOp).get
         }
         
         list = list.slice(5, 10)
 
-        provider.modelOperationStore.getOperationsAfterVersion(modelId1, 6, 5).success.get shouldBe list
+        provider.modelOperationStore.getOperationsAfterVersion(modelId1, 6, Some(5)).success.get shouldBe list
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>

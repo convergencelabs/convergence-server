@@ -1,14 +1,9 @@
 package com.convergencelabs.server.domain.model.ot
 
-import scala.reflect.ClassTag
 import com.convergencelabs.server.domain.model.ReferenceType
-import scala.collection.immutable.Map.Map2
-import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveIndexTF
-import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertIndexTF
-import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetIndexTF
-import com.convergencelabs.server.domain.model.ot.xform.reference.StringInsertRangeTF
-import com.convergencelabs.server.domain.model.ot.xform.reference.StringRemoveRangeTF
-import com.convergencelabs.server.domain.model.ot.xform.reference.StringSetRangeTF
+import com.convergencelabs.server.domain.model.ot.xform.reference._
+
+import scala.reflect.ClassTag
 
 private[model] class TransformationFunctionRegistry {
 
@@ -121,7 +116,7 @@ private object RegistryKey {
 }
 
 private class OTFMap {
-  var otfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
+  private[this] var otfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
 
   def register[S <: DiscreteOperation, C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit = {
     val key = RegistryKey.of(s, c)
@@ -139,7 +134,7 @@ private class OTFMap {
 }
 
 private class RTFMap {
-  var rtfs = Map[Tuple2[Class[_], ReferenceType.Value], ReferenceTransformationFunction[_]]()
+  private[this] var rtfs = Map[(Class[_], ReferenceType.Value), ReferenceTransformationFunction[_]]()
 
   def register[S <: DiscreteOperation](referenceType: ReferenceType.Value, otf: ReferenceTransformationFunction[S])(implicit s: ClassTag[S]): Unit = {
     val sClass = s.runtimeClass.asInstanceOf[Class[S]]

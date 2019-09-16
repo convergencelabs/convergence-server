@@ -2,135 +2,51 @@ package com.convergencelabs.server.api.realtime
 
 import java.util.UUID
 
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.domain.ModelStoreActor.QueryModelsRequest
-import com.convergencelabs.server.datastore.domain.QueryParsingException
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserSessionId
-import com.convergencelabs.server.domain.UnauthorizedException
-import com.convergencelabs.server.domain.model.ClearReference
-import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigRequest
-import com.convergencelabs.server.domain.model.ClientAutoCreateModelConfigResponse
-import com.convergencelabs.server.domain.model.ClientDataRequestFailure
-import com.convergencelabs.server.domain.model.CloseRealtimeModelRequest
-import com.convergencelabs.server.domain.model.CreateRealtimeModel
-import com.convergencelabs.server.domain.model.DeleteRealtimeModel
-import com.convergencelabs.server.domain.model.GetModelPermissionsRequest
-import com.convergencelabs.server.domain.model.GetModelPermissionsResponse
-import com.convergencelabs.server.domain.model.ModelAlreadyExistsException
-import com.convergencelabs.server.domain.model.ModelAlreadyOpenException
-import com.convergencelabs.server.domain.model.ModelDeletedWhileOpeningException
-import com.convergencelabs.server.domain.model.ModelForceClose
-import com.convergencelabs.server.domain.model.ModelNotFoundException
-import com.convergencelabs.server.domain.model.ModelPermissionsChanged
-import com.convergencelabs.server.domain.model.OpenModelSuccess
-import com.convergencelabs.server.domain.model.OpenRealtimeModelRequest
-import com.convergencelabs.server.domain.model.OperationAcknowledgement
-import com.convergencelabs.server.domain.model.OperationSubmission
-import com.convergencelabs.server.domain.model.OutgoingOperation
-import com.convergencelabs.server.domain.model.RealtimeModelClientMessage
-import com.convergencelabs.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.server.domain.model.ReferenceState
-import com.convergencelabs.server.domain.model.ReferenceType
-import com.convergencelabs.server.domain.model.RemoteClientClosed
-import com.convergencelabs.server.domain.model.RemoteClientOpened
-import com.convergencelabs.server.domain.model.RemoteReferenceCleared
-import com.convergencelabs.server.domain.model.RemoteReferenceSet
-import com.convergencelabs.server.domain.model.RemoteReferenceShared
-import com.convergencelabs.server.domain.model.RemoteReferenceUnshared
-import com.convergencelabs.server.domain.model.SetModelPermissionsRequest
-import com.convergencelabs.server.domain.model.SetReference
-import com.convergencelabs.server.domain.model.ShareReference
-import com.convergencelabs.server.domain.model.UnshareReference
-import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.instanceToTimestamp
-import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.messageToObjectValue
-import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.modelPermissionsToMessage
-import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.modelUserPermissionSeqToMap
-import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.objectValueToMessage
-import com.convergencelabs.server.util.concurrent.AskFuture
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, actorRef2Scala}
 import akka.util.Timeout
-import io.convergence.proto.Model
-import io.convergence.proto.Normal
-import io.convergence.proto.Request
-import io.convergence.proto.common.ErrorMessage
-import io.convergence.proto.common.Int32List
-import io.convergence.proto.common.StringList
-import io.convergence.proto.model.AutoCreateModelConfigRequestMessage
-import io.convergence.proto.model.AutoCreateModelConfigResponseMessage
-import io.convergence.proto.model.CloseRealTimeModelSuccessMessage
-import io.convergence.proto.model.CloseRealtimeModelRequestMessage
-import io.convergence.proto.model.CreateRealtimeModelRequestMessage
-import io.convergence.proto.model.CreateRealtimeModelSuccessMessage
-import io.convergence.proto.model.DeleteRealtimeModelRequestMessage
-import io.convergence.proto.model.DeleteRealtimeModelSuccessMessage
-import io.convergence.proto.model.GetModelPermissionsRequestMessage
-import io.convergence.proto.model.GetModelPermissionsResponseMessage
-import io.convergence.proto.model.ModelForceCloseMessage
-import io.convergence.proto.model.ModelPermissionsChangedMessage
-import io.convergence.proto.model.ModelPermissionsData
-import io.convergence.proto.model.ModelResult
-import io.convergence.proto.model.ModelsQueryRequestMessage
-import io.convergence.proto.model.ModelsQueryResponseMessage
-import io.convergence.proto.model.OpenRealtimeModelRequestMessage
-import io.convergence.proto.model.OpenRealtimeModelResponseMessage
-import io.convergence.proto.model.OpenRealtimeModelResponseMessage.ReferenceData
-import io.convergence.proto.model.RemoteClientClosedMessage
-import io.convergence.proto.model.RemoteClientOpenedMessage
-import io.convergence.proto.model.SetModelPermissionsRequestMessage
-import io.convergence.proto.model.SetModelPermissionsResponseMessage
-import io.convergence.proto.operations.OperationAcknowledgementMessage
-import io.convergence.proto.operations.OperationSubmissionMessage
-import io.convergence.proto.operations.RemoteOperationMessage
-import io.convergence.proto.references.ClearReferenceMessage
-import io.convergence.proto.references.IndexRange
-import io.convergence.proto.references.IndexRangeList
-import io.convergence.proto.references.ReferenceValues
-import io.convergence.proto.references.RemoteReferenceClearedMessage
-import io.convergence.proto.references.RemoteReferenceSetMessage
-import io.convergence.proto.references.RemoteReferenceSharedMessage
-import io.convergence.proto.references.RemoteReferenceUnsharedMessage
-import io.convergence.proto.references.SetReferenceMessage
-import io.convergence.proto.references.ShareReferenceMessage
-import io.convergence.proto.references.UnshareReferenceMessage
-import com.convergencelabs.server.domain.model.ModelQueryResult
 import com.convergencelabs.common.PagedData
+import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
+import com.convergencelabs.server.datastore.domain.ModelStoreActor.QueryModelsRequest
+import com.convergencelabs.server.datastore.domain.{ModelPermissions, QueryParsingException}
+import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId, UnauthorizedException}
+import com.convergencelabs.server.domain.model._
+import com.convergencelabs.server.util.concurrent.AskFuture
+import io.convergence.proto.{Model, Normal, Request}
+import io.convergence.proto.common.{ErrorMessage, Int32List, StringList}
+import io.convergence.proto.model.OpenRealtimeModelResponseMessage.ReferenceData
+import io.convergence.proto.model._
+import io.convergence.proto.operations.{OperationAcknowledgementMessage, OperationSubmissionMessage, RemoteOperationMessage}
+import io.convergence.proto.references._
+
+import scala.concurrent.ExecutionContextExecutor
+import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 object ModelClientActor {
   def props(
-    domainFqn:       DomainId,
-    session:         DomainUserSessionId,
-    modelStoreActor: ActorRef,
-    requestTimeout:  Timeout): Props =
+             domainFqn: DomainId,
+             session: DomainUserSessionId,
+             modelStoreActor: ActorRef,
+             requestTimeout: Timeout): Props =
     Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout))
 
-  val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specifieid collection and model id does not exist.", Map())
+  val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specified collection and model id does not exist.", Map())
 }
 
 class ModelClientActor(
-  private[this] val domainFqn:               DomainId,
-  private[this] implicit val session:        DomainUserSessionId,
-  private[this] val modelStoreActor:         ActorRef,
-  private[this] implicit val requestTimeout: Timeout)
+                        private[this] val domainFqn: DomainId,
+                        private[this] implicit val session: DomainUserSessionId,
+                        private[this] val modelStoreActor: ActorRef,
+                        private[this] implicit val requestTimeout: Timeout)
   extends Actor
-  with ActorLogging {
+    with ActorLogging {
 
-  import ModelClientActor._
   import akka.pattern.ask
 
-  private[this] var nextResourceId = 0;
+  private[this] var nextResourceId = 0
   private[this] var resourceIdToModelId = Map[String, String]()
   private[this] var modelIdToResourceId = Map[String, String]()
-  private[this] implicit val ec = context.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(context.system)
 
@@ -151,26 +67,27 @@ class ModelClientActor(
   // scalastyle:off cyclomatic.complexity
   private[this] def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation                                 => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement                       => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened                      => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed                      => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose                         => onModelForceClose(foreceClosed)
+      case op: OutgoingOperation => onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
+      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
       case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refShared: RemoteReferenceShared                      => onRemoteReferenceShared(refShared)
-      case refUnshared: RemoteReferenceUnshared                  => onRemoteReferenceUnshared(refUnshared)
-      case refSet: RemoteReferenceSet                            => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared                    => onRemoteReferenceCleared(refCleared)
-      case permsChanged: ModelPermissionsChanged                 => onModelPermissionsChanged(permsChanged)
+      case refShared: RemoteReferenceShared => onRemoteReferenceShared(refShared)
+      case refUnshared: RemoteReferenceUnshared => onRemoteReferenceUnshared(refUnshared)
+      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
+      case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 
   private[this] def onOutgoingOperation(op: OutgoingOperation): Unit = {
     val OutgoingOperation(modelId, session, contextVersion, timestamp, operation) = op
-    resourceId(modelId) foreach { resoruceId =>
+    resourceId(modelId) foreach { resourceId =>
       context.parent ! RemoteOperationMessage(
-        resoruceId,
+        resourceId,
         session.sessionId,
         contextVersion,
         Some(timestamp),
@@ -202,7 +119,6 @@ class ModelClientActor(
   private[this] def onModelPermissionsChanged(permsChanged: ModelPermissionsChanged): Unit = {
     val ModelPermissionsChanged(modelId, permissions) = permsChanged
     resourceId(modelId) foreach { resourceId =>
-      val ModelPermissions(read, write, remove, manage) = permissions
       context.parent ! ModelPermissionsChangedMessage(resourceId, Some(permissions))
     }
   }
@@ -217,7 +133,7 @@ class ModelClientActor(
   }
 
   private[this] def onAutoCreateModelConfigRequest(autoConfigRequest: ClientAutoCreateModelConfigRequest): Unit = {
-    val ClientAutoCreateModelConfigRequest(modelId, autoConfigId) = autoConfigRequest
+    val ClientAutoCreateModelConfigRequest(_, autoConfigId) = autoConfigRequest
     val askingActor = sender
     val future = context.parent ? AutoCreateModelConfigRequestMessage(autoConfigId)
     future.mapResponse[AutoCreateModelConfigResponseMessage] onComplete {
@@ -230,14 +146,14 @@ class ModelClientActor(
         val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
         val response = ClientAutoCreateModelConfigResponse(
           collection,
-          data.map(messageToObjectValue(_)),
+          data.map(messageToObjectValue),
           Some(overridePermissions),
           worldPermissions,
-          userPermissions.toMap,
+          userPermissions,
           Some(ephemeral))
         askingActor ! response
       case Failure(cause) =>
-        // forward the failure to the asker, so we fail fast.
+        // forward the failure to the asking actor, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
     }
   }
@@ -290,8 +206,8 @@ class ModelClientActor(
         (ReferenceType.Index, indices.toList)
       case ReferenceValues.Values.Ranges(IndexRangeList(ranges)) =>
         (ReferenceType.Range, ranges.map(r => (r.startIndex, r.endIndex)).toList)
-      case ReferenceValues.Values.Properties(StringList(proeprties)) =>
-        (ReferenceType.Property, proeprties.toList)
+      case ReferenceValues.Values.Properties(StringList(properties)) =>
+        (ReferenceType.Property, properties.toList)
       case ReferenceValues.Values.Elements(StringList(elements)) =>
         (ReferenceType.Element, elements.toList)
       case ReferenceValues.Values.Empty =>
@@ -312,11 +228,11 @@ class ModelClientActor(
 
   private[this] def onRequestReceived(message: Request, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage            => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage          => onCloseRealtimeModelRequest(closeRequest, replyCallback)
-      case createRequest: CreateRealtimeModelRequestMessage        => onCreateRealtimeModelRequest(createRequest, replyCallback)
-      case deleteRequest: DeleteRealtimeModelRequestMessage        => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage                 => onModelQueryRequest(queryRequest, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
+      case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
       case getPermissionRequest: GetModelPermissionsRequestMessage => onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
       case setPermissionRequest: SetModelPermissionsRequestMessage => onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
     }
@@ -324,11 +240,11 @@ class ModelClientActor(
 
   private[this] def onMessageReceived(message: Normal with Model): Unit = {
     message match {
-      case submission: OperationSubmissionMessage  => onOperationSubmission(submission)
-      case shareReference: ShareReferenceMessage   => onShareReference(shareReference)
+      case submission: OperationSubmissionMessage => onOperationSubmission(submission)
+      case shareReference: ShareReferenceMessage => onShareReference(shareReference)
       case shareReference: UnshareReferenceMessage => onUnshareReference(shareReference)
-      case setReference: SetReferenceMessage       => onSetReference(setReference)
-      case clearReference: ClearReferenceMessage   => onClearReference(clearReference)
+      case setReference: SetReferenceMessage => onSetReference(setReference)
+      case clearReference: ClearReferenceMessage => onClearReference(clearReference)
     }
   }
 
@@ -340,7 +256,7 @@ class ModelClientActor(
           domainFqn, modelId, seqNo, version, OperationMapper.mapIncoming(operation.get))
         modelClusterRegion ! submission
       case None =>
-        log.warning(s"${domainFqn}: Recieved an operation submissions for a resource id that does not exists.")
+        log.warning(s"$domainFqn: Received an operation submissions for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An operation message was received for a model that is not open", Map())
     }
   }
@@ -354,7 +270,7 @@ class ModelClientActor(
         val publishReference = ShareReference(domainFqn, modelId, vId, key, refType, values, version)
         modelClusterRegion ! publishReference
       case None =>
-        log.warning(s"${domainFqn}: Recieved a reference publish message for a resource id that does not exists.")
+        log.warning(s"$domainFqn: Received a reference publish message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
     }
   }
@@ -364,10 +280,10 @@ class ModelClientActor(
     val vId = valueId.filter(!_.isEmpty)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val unpublishReference = UnshareReference(domainFqn, modelId, vId, key)
-        modelClusterRegion ! unpublishReference
+        val unshareReference = UnshareReference(domainFqn, modelId, vId, key)
+        modelClusterRegion ! unshareReference
       case None =>
-        log.warning(s"${domainFqn}: Recieved a reference unpublish message for a resource id that does not exists.")
+        log.warning(s"$domainFqn: Received a reference unshare message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
     }
   }
@@ -382,7 +298,7 @@ class ModelClientActor(
         val setReference = SetReference(domainFqn, modelId, vId, key, referenceType, values, version)
         modelClusterRegion ! setReference
       case None =>
-        log.warning(s"${domainFqn}: Recieved a reference set message for a resource id that does not exists.")
+        log.warning(s"$domainFqn: Received a reference set message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
     }
   }
@@ -395,7 +311,7 @@ class ModelClientActor(
         val clearReference = ClearReference(domainFqn, modelId, vId, key)
         modelClusterRegion ! clearReference
       case None =>
-        log.warning(s"${domainFqn}: Recieved a reference clear message for a resource id that does not exists.")
+        log.warning(s"$domainFqn: Received a reference clear message for a resource id that does not exists.")
         sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
     }
   }
@@ -403,17 +319,18 @@ class ModelClientActor(
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, reconnect, contextVersion) = request
 
-    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
+    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
 
-    val future = modelClusterRegion ? OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, session, self)
+    val openRequest = OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, reconnect, Some(contextVersion), session, self)
+    val future = modelClusterRegion ? openRequest
     future.mapResponse[OpenModelSuccess] onComplete {
       case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
-        val resourceId = nextResourceId();
+        val resourceId = generateNextResourceId()
         resourceIdToModelId += (resourceId -> modelId)
         modelIdToResourceId += (modelId -> resourceId)
 
         val convertedReferences = references.map {
-          case ReferenceState(session, valueId, key, refType, values) =>
+          case ReferenceState(_, valueId, key, refType, values) =>
             val referenceValues = mapOutgoingReferenceValue(refType, values)
             ReferenceData(session.sessionId, valueId, key, Some(referenceValues))
         }
@@ -442,12 +359,12 @@ class ModelClientActor(
         cb.expectedError("model_deleted", "The requested model was deleted while opening.")
       case Failure(ClientDataRequestFailure(message)) =>
         cb.expectedError("data_request_failure", message)
-      case Failure(ModelNotFoundException(modelId)) =>
+      case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}/${modelId}: Unexpected error opening model.")
+        log.error(cause, s"$domainFqn/$modelId: Unexpected error opening model.")
         cb.unknownError()
     }
   }
@@ -463,7 +380,7 @@ class ModelClientActor(
             modelIdToResourceId -= modelId
             cb.reply(CloseRealTimeModelSuccessMessage())
           case Failure(cause) =>
-            log.error(cause, s"${domainFqn}: Unexpected error closing model.")
+            log.error(cause, s"$domainFqn: Unexpected error closing model.")
             cb.unexpectedError("could not close model")
         }
       case None =>
@@ -479,7 +396,7 @@ class ModelClientActor(
     val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
 
     // FIXME make a utility for this.
-    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString())
+    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
 
     val future = modelClusterRegion ? CreateRealtimeModel(
       domainFqn,
@@ -491,14 +408,14 @@ class ModelClientActor(
       userPermissions,
       Some(session))
     future.mapResponse[String] onComplete {
-      case Success(modelId) =>
+      case Success(_) =>
         cb.reply(CreateRealtimeModelSuccessMessage(modelId))
-      case Failure(ModelAlreadyExistsException(modelId)) =>
-        cb.expectedError("model_alread_exists", "A model with the specifieid model id already exists")
+      case Failure(ModelAlreadyExistsException(_)) =>
+        cb.expectedError("model_already_exists", "A model with the specified model id already exists")
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}: Unexpected error creating model.")
+        log.error(cause, s"$domainFqn: Unexpected error creating model.")
         cb.unexpectedError("could not create model")
     }
   }
@@ -514,7 +431,7 @@ class ModelClientActor(
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}: Unexpected error removing model.")
+        log.error(cause, s"$domainFqn: Unexpected error removing model.")
         cb.unexpectedError("Unexpected error removing model.")
     }
   }
@@ -536,10 +453,10 @@ class ModelClientActor(
         }
         // FIXME add paged info
         cb.reply(ModelsQueryResponseMessage(models, result.offset, result.count))
-      case Failure(QueryParsingException(message, query, index)) =>
+      case Failure(QueryParsingException(message, _, index)) =>
         cb.expectedError("invalid_query", message, Map("index" -> index.toString))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}: Unexpected error querying models.")
+        log.error(cause, s"$domainFqn: Unexpected error querying models.")
         cb.unexpectedError("Unexpected error querying models.")
     }
   }
@@ -557,7 +474,7 @@ class ModelClientActor(
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}: Unexpected error getting permissions for model.")
+        log.error(cause, s"$domainFqn: Unexpected error getting permissions for model.")
         cb.unexpectedError("could get model permissions")
     }
   }
@@ -575,31 +492,31 @@ class ModelClientActor(
       mappedWorld,
       setAllUsers,
       mappedAddedUsers,
-      removedUsers.map(ImplicitMessageConversions.dataToDomainUserId(_)).toList)
+      removedUsers.map(ImplicitMessageConversions.dataToDomainUserId).toList)
     val future = modelClusterRegion ? message
     future onComplete {
       case Success(_) =>
         cb.reply(SetModelPermissionsResponseMessage())
       case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
-      case Failure(UnauthorizedException(message)) =>
-        cb.reply(ErrorMessages.Unauthorized(message))
+      case Failure(UnauthorizedException(m)) =>
+        cb.reply(ErrorMessages.Unauthorized(m))
       case Failure(cause) =>
-        log.error(cause, s"${domainFqn}: Unexpected error setting permissions for model.")
+        log.error(cause, s"$domainFqn: Unexpected error setting permissions for model.")
         cb.unexpectedError("Unexpected error setting permissions for model.")
     }
   }
 
   def resourceId(modelId: String): Option[String] = {
     this.modelIdToResourceId.get(modelId) orElse {
-      log.error(s"${domainFqn}: Recevie an outgoing message for a modelId that is not open: ${modelId}")
+      log.error(s"$domainFqn: Receive an outgoing message for a modelId that is not open: $modelId")
       None
     }
   }
 
-  def nextResourceId(): String = {
-    val id = nextResourceId.toString();
-    nextResourceId += 1;
-    return id;
+  def generateNextResourceId(): String = {
+    val id = nextResourceId.toString
+    nextResourceId += 1
+    id
   }
 }

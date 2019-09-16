@@ -1,65 +1,11 @@
 package com.convergencelabs.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId}
+import com.convergencelabs.server.domain.model.data.{DataValue, ObjectValue}
+import com.convergencelabs.server.domain.model.ot._
+import com.convergencelabs.server.domain.model.reference._
 
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.model.data.ArrayValue
-import com.convergencelabs.server.domain.model.data.BooleanValue
-import com.convergencelabs.server.domain.model.data.DataValue
-import com.convergencelabs.server.domain.model.data.DateValue
-import com.convergencelabs.server.domain.model.data.DoubleValue
-import com.convergencelabs.server.domain.model.data.NullValue
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.data.StringValue
-import com.convergencelabs.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.AppliedOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.AppliedStringSetOperation
-import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.DateSetOperation
-import com.convergencelabs.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.ProcessedOperationEvent
-import com.convergencelabs.server.domain.model.ot.ServerConcurrencyControl
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.server.domain.model.ot.UnprocessedOperationEvent
-import com.convergencelabs.server.domain.model.reference.ElementReference
-import com.convergencelabs.server.domain.model.reference.ElementReferenceManager
-import com.convergencelabs.server.domain.model.reference.IndexReference
-import com.convergencelabs.server.domain.model.reference.ModelReference
-import com.convergencelabs.server.domain.model.reference.RangeReference
-import com.convergencelabs.server.domain.DomainUserSessionId
+import scala.util.{Failure, Success, Try}
 
 class RealTimeModel(
   private[this] val domainFqn: DomainId,
@@ -67,10 +13,10 @@ class RealTimeModel(
   private[this] val cc: ServerConcurrencyControl,
   private val obj: ObjectValue) extends RealTimeValueFactory {
 
-  val idToValue = collection.mutable.HashMap[String, RealTimeValue]()
-  val elementReferenceManager = new ElementReferenceManager(this, List(ReferenceType.Element))
+  val idToValue: collection.mutable.HashMap[String, RealTimeValue] = collection.mutable.HashMap[String, RealTimeValue]()
+  private val elementReferenceManager = new ElementReferenceManager(this, List(ReferenceType.Element))
 
-  val data = this.createValue(obj, None, None).asInstanceOf[RealTimeObject]
+  val data: RealTimeObject = this.createValue(obj, None, None).asInstanceOf[RealTimeObject]
 
   def contextVersion(): Long = {
     this.cc.contextVersion
@@ -177,7 +123,7 @@ class RealTimeModel(
 
               case unshare: UnshareReference =>
                 realTimeValue.processReferenceEvent(unshare, session)
-                val UnshareReference(domain, modelId, id, key) = unshare
+                val UnshareReference(_, modelId, id, key) = unshare
                 Some(RemoteReferenceUnshared(modelId, session, id, key))
               case set: SetReference =>
                 //TODO: Added ReferenceValue to move ot packages into separate project and need to evaluate usage here
@@ -207,7 +153,7 @@ class RealTimeModel(
           case share: ShareReference =>
             elementReferenceManager.handleReferenceEvent(share, session)
             val ShareReference(_, _, id, key, refType, values, contextVersion) = share
-            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
+            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains }
             val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
             elementReferenceManager.handleReferenceEvent(xformedSet, session)
             Some(RemoteReferenceShared(modelId, session, id, key, refType, xformedValue))
@@ -218,7 +164,7 @@ class RealTimeModel(
             Some(RemoteReferenceUnshared(modelId, session, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set
-            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains(_) }
+            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains }
             val xformedSet = SetReference(d, m, id, key, refType, xformedValue, version)
             elementReferenceManager.handleReferenceEvent(xformedSet, session)
             Some(RemoteReferenceSet(modelId, session, id, key, refType, xformedValue))
@@ -265,21 +211,21 @@ class RealTimeModel(
     value match {
       case v: RealTimeContainerValue =>
         val mine = v.references().map { x => toReferenceState(x) }
-        val childrens = v.children.flatMap { child =>
+        val mappedChildren = v.children().flatMap { child =>
           references(child)
         }.toSet
-        mine ++ childrens
-      case v: Any =>
+        mine ++ mappedChildren
+      case _: Any =>
         value.references().map { x => toReferenceState(x) }
     }
   }
 
   def toReferenceState(r: ModelReference[_]): ReferenceState = {
     val refType = r match {
-      case ref: IndexReference => ReferenceType.Index
-      case ref: RangeReference => ReferenceType.Range
-      case ref: ElementReference => ReferenceType.Element
-      case _ => throw new IllegalArgumentException("Unexpected reference type")
+      case _: IndexReference => ReferenceType.Index
+      case _: RangeReference => ReferenceType.Range
+      case _: ElementReference => ReferenceType.Element
+      case _: Any => throw new IllegalArgumentException(s"Unexpected reference type: ${r.getClass.getSimpleName}")
     }
 
     ReferenceState(
@@ -292,6 +238,6 @@ class RealTimeModel(
       },
       r.key,
       refType,
-      r.get)
+      r.get())
   }
 }

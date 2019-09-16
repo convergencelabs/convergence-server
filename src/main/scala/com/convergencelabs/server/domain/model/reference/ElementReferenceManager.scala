@@ -70,7 +70,7 @@ class ElementReferenceManager(
     this.rm.get(session, event.key) match {
       case Some(reference: ElementReference) =>
         val vids = event.values.asInstanceOf[List[String]]
-        vids filter { source.idToValue.contains(_) }
+        vids filter source.idToValue.contains
         
         for (vid <- vids) {
           source.idToValue(vid).addDetachListener(reference.handleElementDetached)

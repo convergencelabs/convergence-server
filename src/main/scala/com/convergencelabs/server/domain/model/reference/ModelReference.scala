@@ -22,7 +22,7 @@ abstract class ModelReference[T](
   }
 
   def isSet(): Boolean = {
-    !this.get().isEmpty
+    this.get().nonEmpty
   }
 
   def handleSet(): Unit = {

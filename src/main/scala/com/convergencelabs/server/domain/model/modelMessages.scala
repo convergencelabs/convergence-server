@@ -2,14 +2,11 @@ package com.convergencelabs.server.domain.model
 
 import java.time.Instant
 
+import akka.actor.ActorRef
 import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserSessionId
+import com.convergencelabs.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.ot.Operation
-
-import akka.actor.ActorRef
-import com.convergencelabs.server.domain.DomainUserId
 
 sealed trait ModelMessage {
   val domainFqn: DomainId
@@ -48,20 +45,27 @@ case class DeleteRealtimeModel(domainFqn: DomainId, modelId: String, session: Op
 // Incoming Permissions Messages
 case class GetModelPermissionsRequest(domainFqn: DomainId, modelId: String, session: DomainUserSessionId) extends StatelessModelMessage
 case class SetModelPermissionsRequest(
-  domainFqn: DomainId,
-  modelId: String,
-  session: DomainUserSessionId,
-  overrideCollection: Option[Boolean],
-  worldPermissions: Option[ModelPermissions],
-  setAllUsers: Boolean,
-  aadedUserPermissions: Map[DomainUserId, ModelPermissions],
-  removedUserPermissions: List[DomainUserId]) extends StatelessModelMessage
+                                       domainFqn: DomainId,
+                                       modelId: String,
+                                       session: DomainUserSessionId,
+                                       overrideCollection: Option[Boolean],
+                                       worldPermissions: Option[ModelPermissions],
+                                       setAllUsers: Boolean,
+                                       addedUserPermissions: Map[DomainUserId, ModelPermissions],
+                                       removedUserPermissions: List[DomainUserId]) extends StatelessModelMessage
 
 //
 // Messages targeted specifically at "open" models.
 //
 sealed trait RealTimeModelMessage extends ModelMessage
-case class OpenRealtimeModelRequest(domainFqn: DomainId, modelId: String, autoCreateId: Option[Int], session: DomainUserSessionId, clientActor: ActorRef) extends RealTimeModelMessage
+case class OpenRealtimeModelRequest(
+                                     domainFqn: DomainId,
+                                     modelId: String,
+                                     autoCreateId: Option[Int],
+                                     reconnect: Boolean,
+                                     contextVersion: Option[Long],
+                                     session: DomainUserSessionId,
+                                     clientActor: ActorRef) extends RealTimeModelMessage
 case class CloseRealtimeModelRequest(domainFqn: DomainId, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
 case class OperationSubmission(domainFqn: DomainId, modelId: String, seqNo: Long, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
 

@@ -1,70 +1,49 @@
 package com.convergencelabs.server.domain.model
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
-import scala.language.implicitConversions
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.server.actor.ShardedActor
+import akka.actor.{ActorRef, Props, ReceiveTimeout, Status, Terminated}
+import akka.util.Timeout
+import com.convergencelabs.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.UnauthorizedException
+import com.convergencelabs.server.datastore.domain.{DomainPersistenceManager, DomainPersistenceProvider, ModelPermissions}
+import com.convergencelabs.server.domain.{DomainId, DomainUserId, UnauthorizedException}
 import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
 import com.convergencelabs.server.util.ActorBackedEventLoop
 import com.convergencelabs.server.util.ActorBackedEventLoop.TaskScheduled
-import com.convergencelabs.server.actor.ShardedActorStatUpPlan
-import com.convergencelabs.server.actor.StartUpRequired
-import com.convergencelabs.server.datastore.domain.ModelPermissions
 
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.ReceiveTimeout
-import akka.actor.Status
-import akka.actor.Terminated
-import akka.util.Timeout
-import com.convergencelabs.server.domain.DomainUserId
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.language.implicitConversions
+import scala.util.{Failure, Success, Try}
 
 
 /**
- * Provides a factory method for creating the RealtimeModelActor
- */
+  * Provides a factory method for creating the RealtimeModelActor
+  */
 object RealtimeModelActor {
   def props(
-    modelPemrissionResolver: ModelPermissionResolver,
-    modelCreator: ModelCreator,
-    persistenceManager: DomainPersistenceManager,
-    clientDataResponseTimeout: FiniteDuration,
-    receiveTimeout: FiniteDuration): Props =
+             modelPermissionResolver: ModelPermissionResolver,
+             modelCreator: ModelCreator,
+             persistenceManager: DomainPersistenceManager,
+             clientDataResponseTimeout: FiniteDuration,
+             receiveTimeout: FiniteDuration): Props =
     Props(new RealtimeModelActor(
-      modelPemrissionResolver,
+      modelPermissionResolver,
       modelCreator,
       persistenceManager,
       clientDataResponseTimeout,
       receiveTimeout))
-
-  private object ErrorCodes extends Enumeration {
-    val Unknown = "unknown"
-    val ModelDeleted = "model_deleted"
-  }
 }
 
 /**
- * An instance of the RealtimeModelActor manages the lifecycle of a single
- * realtime model.
- */
+  * An instance of the RealtimeModelActor manages the lifecycle of a single
+  * realtime model.
+  */
 class RealtimeModelActor(
-  private[this] val modelPermissionResolver: ModelPermissionResolver,
-  private[this] val modelCreator: ModelCreator,
-  private[this] val persistenceManager: DomainPersistenceManager,
-  private[this] val clientDataResponseTimeout: FiniteDuration,
-  private[this] val receiveTimeout: FiniteDuration)
+                          private[this] val modelPermissionResolver: ModelPermissionResolver,
+                          private[this] val modelCreator: ModelCreator,
+                          private[this] val persistenceManager: DomainPersistenceManager,
+                          private[this] val clientDataResponseTimeout: FiniteDuration,
+                          private[this] val receiveTimeout: FiniteDuration)
   extends ShardedActor(classOf[ModelMessage]) {
-
-  import RealtimeModelActor._
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
   private[this] var _domainFqn: Option[DomainId] = None
@@ -75,10 +54,10 @@ class RealtimeModelActor(
   // Receive methods
   //
 
-  override def receiveInitialized = this.receiveClosed
+  protected override def receiveInitialized: Receive = this.receiveClosed
 
   private[this] def receiveClosed: Receive = {
-    case msg: ReceiveTimeout =>
+    case _: ReceiveTimeout =>
       this.passivate()
     case msg: StatelessModelMessage =>
       handleStatelessMessage(msg)
@@ -92,24 +71,20 @@ class RealtimeModelActor(
   private[this] def receiveOpened: Receive = {
     case msg: StatelessModelMessage =>
       handleStatelessMessage(msg)
-
     case msg: RealTimeModelMessage =>
       handleRealtimeMessage(msg)
-
     case TaskScheduled(task) =>
       task()
-
     case terminated: Terminated =>
       modelManager.handleTerminated(terminated)
-
     case unknown: Any =>
       unhandled(unknown)
   }
 
-  private def handleStatelessMessage(msg: StatelessModelMessage): Unit = {
+  private[this] def handleStatelessMessage(msg: StatelessModelMessage): Unit = {
     msg match {
       case msg: GetRealtimeModel =>
-        this.getModel(msg)
+        this.retrieveModel(msg)
       case msg: CreateRealtimeModel =>
         this.createModel(msg)
       case msg: DeleteRealtimeModel =>
@@ -117,19 +92,18 @@ class RealtimeModelActor(
       case msg: CreateOrUpdateRealtimeModel =>
         this.createOrUpdateModel(msg)
       case msg: GetModelPermissionsRequest =>
-        this.getModelPermissions(msg)
+        this.retrieveModelPermissions(msg)
       case msg: SetModelPermissionsRequest =>
         this.setModelPermissions(msg)
     }
   }
 
-  private[this] def getModelPermissions(msg: GetModelPermissionsRequest): Unit = {
-    val GetModelPermissionsRequest(domainFqn, modelId, session) = msg
+  private[this] def retrieveModelPermissions(msg: GetModelPermissionsRequest): Unit = {
+    val GetModelPermissionsRequest(_, modelId, session) = msg
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
         modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
-            val permissionsStore = persistenceProvider.modelPermissionsStore
             modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
               val ModelPemrissionResult(overrideCollection, modelWorld, modelUsers) = p
               GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
@@ -152,7 +126,7 @@ class RealtimeModelActor(
   }
 
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(domainFqn, modelId, session, overrideCollection, world, setAllUsers, addedUsers, removedUsers) = msg
+    val SetModelPermissionsRequest(_, modelId, session, overrideCollection, world, setAllUsers, addedUsers, removedUsers) = msg
     val users = scala.collection.mutable.Map[DomainUserId, Option[ModelPermissions]]()
     users ++= addedUsers.mapValues(Some(_))
     removedUsers.foreach(username => users += (username -> None))
@@ -160,7 +134,7 @@ class RealtimeModelActor(
       if (exists) {
         modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.manage).flatMap { canSet =>
           if (canSet) {
-            (for {
+            for {
               _ <- overrideCollection match {
                 case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelId, ov)
                 case None => Success(())
@@ -169,15 +143,16 @@ class RealtimeModelActor(
                 case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelId, perms)
                 case None => Success(())
               }
-              _ <- setAllUsers match {
-                case true => persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
-                case falese => Success(())
+              _ <- if(setAllUsers) {
+                persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
+              } else {
+                Success(())
               }
               _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users.toMap)
             } yield {
               this._modelManager.foreach { m => m.reloadModelPermissions() }
               ()
-            })
+            }
           } else {
             Failure(UnauthorizedException("User must have 'manage' permissions on the model to set permissions"))
           }
@@ -186,7 +161,7 @@ class RealtimeModelActor(
         Failure(ModelNotFoundException(modelId))
       }
     } map { _ =>
-      sender ! (())
+      sender ! ((): Unit)
     } recover {
       case cause: Throwable =>
         sender ! Status.Failure(cause)
@@ -232,18 +207,18 @@ class RealtimeModelActor(
   override protected def initialize(msg: ModelMessage): Try[ShardedActorStatUpPlan] = {
     persistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       this._persistenceProvider = Some(provider)
-      log.debug(s"${identityString}: Acquired persistence")
+      log.debug(s"$identityString: Acquired persistence")
       this.becomeClosed()
       StartUpRequired
     } recoverWith {
       case cause: Throwable =>
-        log.debug(s"${identityString}: Could not acquire persistence")
+        log.debug(s"$identityString: Could not acquire persistence")
         Failure(cause)
     }
   }
 
   private[this] def becomeOpened(): Unit = {
-    log.debug(s"${identityString}: Becoming open.")
+    log.debug(s"$identityString: Becoming open.")
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
       domainFqn,
       modelId,
@@ -264,16 +239,19 @@ class RealtimeModelActor(
       context,
       new EventHandler() {
         def onInitializationError(): Unit = {
-          becomeClosed();
+          becomeClosed()
         }
+
         def onClientOpened(clientActor: ActorRef): Unit = {
           context.watch(clientActor)
         }
+
         def onClientClosed(clientActor: ActorRef): Unit = {
           context.unwatch(clientActor)
         }
-        def closeModel() = {
-          becomeClosed();
+
+        def closeModel(): Unit = {
+          becomeClosed()
         }
       })
     this._modelManager = Some(mm)
@@ -282,7 +260,7 @@ class RealtimeModelActor(
   }
 
   private[this] def becomeClosed(): Unit = {
-    log.debug(s"${identityString}: Becoming closed.")
+    log.debug(s"$identityString: Becoming closed.")
     this._modelManager = None
     this.context.become(receiveClosed)
     this.context.setReceiveTimeout(this.receiveTimeout)
@@ -293,41 +271,9 @@ class RealtimeModelActor(
     super.passivate()
   }
 
-  //
-  // Stuff to add
-  //
-
-  private[this] def onGetModelPermissions(request: GetModelPermissionsRequest): Unit = {
-    val GetModelPermissionsRequest(domainFqn, modelId, session) = request
-    persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
-      if (exists) {
-        modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
-          if (canRead) {
-            val permissionsStore = persistenceProvider.modelPermissionsStore
-            modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
-              val ModelPemrissionResult(overrideCollection, modelWorld, modelUsers) = p
-              GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
-            }
-          } else {
-            val message = "User must have 'read' permissions on the model to get permissions."
-            Failure(UnauthorizedException(message))
-          }
-        }
-      } else {
-        Failure(ModelNotFoundException(modelId))
-      }
-    } map { response =>
-      sender ! response
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
-        ()
-    }
-  }
-
-  def getModel(msg: GetRealtimeModel): Unit = {
-    val GetRealtimeModel(domainFqn, getModelId, session) = msg
-    log.debug(s"${identityString}: Getting model")
+  private[this] def retrieveModel(msg: GetRealtimeModel): Unit = {
+    val GetRealtimeModel(_, getModelId, session) = msg
+    log.debug(s"$identityString: Getting model")
     (session match {
       case Some(s) =>
         modelPermissionResolver.getModelUserPermissions(getModelId, s.userId, persistenceProvider)
@@ -352,11 +298,11 @@ class RealtimeModelActor(
   }
 
   private[this] def createOrUpdateModel(msg: CreateOrUpdateRealtimeModel): Unit = {
-    val CreateOrUpdateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session) = msg
+    val CreateOrUpdateRealtimeModel(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, _) = msg
     persistenceProvider.modelStore.modelExists(modelId) flatMap { exists =>
       if (exists) {
         this._modelManager match {
-          case Some(m) =>
+          case Some(_) =>
             Failure(new RuntimeException("Cannot update an open model"))
           case None =>
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
@@ -382,10 +328,10 @@ class RealtimeModelActor(
   }
 
   private[this] def createModel(msg: CreateRealtimeModel): Unit = {
-    val CreateRealtimeModel(domainFqn, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session) = msg
-    log.debug(s"${identityString}: Creating model.")
+    val CreateRealtimeModel(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session) = msg
+    log.debug(s"$identityString: Creating model.")
     if (collectionId.length == 0) {
-      sender ! Status.Failure(new IllegalArgumentException("The collecitonId can not be empty when creating a model"))
+      sender ! Status.Failure(new IllegalArgumentException("The collectionId can not be empty when creating a model"))
     } else {
       modelCreator.createModel(
         persistenceProvider,
@@ -396,24 +342,24 @@ class RealtimeModelActor(
         overridePermissions,
         worldPermissions,
         userPermissions) map { model =>
-          log.debug(s"${identityString}: Model created.")
-          sender ! model.metaData.id
-          ()
-        } recover {
-          case e: DuplicateValueException =>
-            sender ! Status.Failure(ModelAlreadyExistsException(modelId))
-          case e: UnauthorizedException =>
-            sender ! Status.Failure(e)
-          case e: Exception =>
-            log.error(e, s"Could not create model: ${modelId}")
-            sender ! Status.Failure(e)
-        }
+        log.debug(s"$identityString: Model created.")
+        sender ! model.metaData.id
+        ()
+      } recover {
+        case _: DuplicateValueException =>
+          sender ! Status.Failure(ModelAlreadyExistsException(modelId))
+        case e: UnauthorizedException =>
+          sender ! Status.Failure(e)
+        case e: Exception =>
+          log.error(e, s"Could not create model: $modelId")
+          sender ! Status.Failure(e)
+      }
     }
   }
 
   private[this] def deleteModel(deleteRequest: DeleteRealtimeModel): Unit = {
     // FIXME I don't think we need to check exists first.
-    val DeleteRealtimeModel(domainFqn, modelId, session) = deleteRequest
+    val DeleteRealtimeModel(_, modelId, session) = deleteRequest
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
         (session match {
@@ -424,9 +370,7 @@ class RealtimeModelActor(
             Success(true)
         }) flatMap { canDelete =>
           if (canDelete) {
-            this._modelManager.map { m =>
-              m.modelDeleted()
-            }
+            this._modelManager.foreach(_.modelDeleted())
             persistenceProvider.modelStore.deleteModel(modelId)
           } else {
             val message = "User must have 'remove' permissions on the model to remove it."
@@ -448,7 +392,7 @@ class RealtimeModelActor(
 
   override def postStop(): Unit = {
     super.postStop()
-    this._domainFqn foreach { d =>
+    this._domainFqn foreach { _ =>
       persistenceManager.releasePersistenceProvider(self, context, domainFqn)
     }
   }

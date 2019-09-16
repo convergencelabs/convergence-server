@@ -1,13 +1,7 @@
 package com.convergencelabs.server.domain
 
-import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.domain.model.ModelSnapshotMetaData
 import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.model.ot.Operation
-
-import akka.actor.ActorRef
 
 package model {
 
@@ -16,8 +10,8 @@ package model {
   case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
     worldPermissions: Option[ModelPermissions], userPermissions: Map[DomainUserId, ModelPermissions], ephemeral: Option[Boolean])
 
-  case class ModelNotFoundException(modelId: String) extends Exception(s"A model with id '${modelId}' does not exist.")
-  case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '${modelId}' already exists.")
+  case class ModelNotFoundException(modelId: String) extends Exception(s"A model with id '$modelId' does not exist.")
+  case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '$modelId' already exists.")
 
   case class CreateCollectionRequest(collection: Collection)
   case class UpdateCollectionRequest(collection: Collection)
@@ -32,7 +26,17 @@ package model {
   case class ClientDataRequestFailure(message: String) extends RuntimeException(message)
   
   case class ModelShutdownRequest(modelId: String, ephemeral: Boolean)
-  
+
+  case class ModelReconnectComplete(modelId: String)
+  case class ModelServerStatePathRejoined(modelId: String)
+  case class ModelReconnectFailed(modelId: String, message: String)
+
+  object ReferenceType extends Enumeration {
+    val Index, Range, Property, Element = Value
+  }
+
+  case class ReferenceValue(id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long)
+
   case class ReferenceState(
     session: DomainUserSessionId,
     valueId: Option[String],
