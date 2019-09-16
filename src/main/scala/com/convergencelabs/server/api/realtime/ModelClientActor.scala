@@ -317,11 +317,11 @@ class ModelClientActor(
   }
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, reconnect, contextVersion) = request
+    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, reconnectSessionId, reconnectContextVersion) = request
 
     val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
 
-    val openRequest = OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, reconnect, Some(contextVersion), session, self)
+    val openRequest = OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, reconnectSessionId, reconnectContextVersion, session, self)
     val future = modelClusterRegion ? openRequest
     future.mapResponse[OpenModelSuccess] onComplete {
       case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
@@ -342,7 +342,7 @@ class ModelClientActor(
             metaData.collection,
             java.lang.Long.toString(valueIdPrefix, 36),
             metaData.version,
-            reconnect,
+            reconnectSessionId.isDefined,
             Some(metaData.createdTime),
             Some(metaData.modifiedTime),
             Some(modelData),

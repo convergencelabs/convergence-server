@@ -62,8 +62,8 @@ case class OpenRealtimeModelRequest(
                                      domainFqn: DomainId,
                                      modelId: String,
                                      autoCreateId: Option[Int],
-                                     reconnect: Boolean,
-                                     contextVersion: Option[Long],
+                                     reconnectSessionId: Option[String],
+                                     reconnectContextVersion: Option[Long],
                                      session: DomainUserSessionId,
                                      clientActor: ActorRef) extends RealTimeModelMessage
 case class CloseRealtimeModelRequest(domainFqn: DomainId, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
