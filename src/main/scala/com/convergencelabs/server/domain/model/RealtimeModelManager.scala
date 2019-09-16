@@ -7,10 +7,10 @@ import akka.pattern.{AskTimeoutException, Patterns}
 import akka.util.Timeout
 import com.convergencelabs.server.UnknownErrorResponse
 import com.convergencelabs.server.datastore.domain.{DomainPersistenceProvider, ModelDataGenerator}
-import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId, ModelSnapshotConfig, UnauthorizedException}
 import com.convergencelabs.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
-import com.convergencelabs.server.domain.model.ot.{OperationTransformer, ServerConcurrencyControl, TransformationFunctionRegistry, UnprocessedOperationEvent}
 import com.convergencelabs.server.domain.model.ot.xform.ReferenceTransformer
+import com.convergencelabs.server.domain.model.ot.{OperationTransformer, ServerConcurrencyControl, TransformationFunctionRegistry, UnprocessedOperationEvent}
+import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId, ModelSnapshotConfig, UnauthorizedException}
 import com.convergencelabs.server.util.EventLoop
 import com.convergencelabs.server.util.concurrent.UnexpectedErrorException
 import grizzled.slf4j.Logging
@@ -19,7 +19,7 @@ import scala.collection.immutable.HashMap
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
-object RealTimeModelManager {
+object RealtimeModelManager {
   val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
 
   trait EventHandler {
@@ -50,20 +50,28 @@ object RealTimeModelManager {
 
 }
 
-class RealTimeModelManager(
-                            private[this] val persistenceFactory: RealtimeModelPersistenceFactory,
-                            private[this] val workQueue: EventLoop,
-                            private[this] val domainFqn: DomainId,
-                            private[this] val modelId: String,
-                            private[this] val persistenceProvider: DomainPersistenceProvider,
-                            private[this] val permissionsResolver: ModelPermissionResolver,
-                            private[this] val modelCreator: ModelCreator,
-                            private[this] val clientDataResponseTimeout: Timeout,
-                            private[this] val context: ActorContext,
-                            private[this] val eventHandler: RealTimeModelManager.EventHandler) extends Logging {
+/**
+  * The RealtimeModelManager manages the lifecycle of a RealtimeModel.  It is
+  * primarily concerned with the opening and closing of the model, and how the
+  * model is initialized when it is first opened. This class also keeps track
+  * of connected clients to both distribute messages appropriately and also to
+  * determine when it time to shut down. This class is delegated to from the
+  * [[com.convergencelabs.server.domain.model.RealtimeModelActor]].
+  */
+class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPersistenceFactory,
+                           private[this] val workQueue: EventLoop,
+                           private[this] val domainFqn: DomainId,
+                           private[this] val modelId: String,
+                           private[this] val persistenceProvider: DomainPersistenceProvider,
+                           private[this] val permissionsResolver: ModelPermissionResolver,
+                           private[this] val modelCreator: ModelCreator,
+                           private[this] val clientDataResponseTimeout: Timeout,
+                           private[this] val context: ActorContext,
+                           private[this] val eventHandler: RealtimeModelManager.EventHandler) extends Logging {
 
-  import RealTimeModelManager._
+  import RealtimeModelManager._
 
+  private[this] implicit val sender: ActorRef = context.self
   private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   private[this] val persistence = persistenceFactory.create(new PersistenceEventHandler() {
@@ -118,6 +126,11 @@ class RealTimeModelManager(
   // Opening and Closing
   //
 
+  /**
+    * Handles a request by a new client to open the model.
+    * @param request The request received by the RealtimeModelActor.
+    * @param replyTo The actor that the reply should go to.
+    */
   def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequest, replyTo: ActorRef) {
     state match {
       case State.Uninitialized =>
@@ -275,11 +288,10 @@ class RealTimeModelManager(
     * Handles model initialization data coming back from the database and attempts to
     * complete the initialization process.
     */
-  private[this] def onDatabaseModelResponse(
-                                             modelData: Model,
-                                             snapshotMetaData: ModelSnapshotMetaData,
-                                             snapshotConfig: ModelSnapshotConfig,
-                                             permissions: RealTimeModelPermissions): Unit = {
+  private[this] def onDatabaseModelResponse(modelData: Model,
+                                            snapshotMetaData: ModelSnapshotMetaData,
+                                            snapshotConfig: ModelSnapshotConfig,
+                                            permissions: RealTimeModelPermissions): Unit = {
 
     debug(s"$domainFqn/$modelId: Model loaded from database.")
 
@@ -405,13 +417,25 @@ class RealTimeModelManager(
     } else {
       val model = Model(this.metaData, this.model.data.dataValue())
       respondToClientOpenRequest(session, model, OpenRequestRecord(request.clientActor, requester))
+
+      request.reconnect.foreach(reconnect => {
+        val coordinator = new ModelReconnectCoordinator(
+          this.persistenceProvider.modelOperationStore,
+          this.modelId,
+          this.model.contextVersion(),
+          reconnect.sessionId,
+          reconnect.contextVersion,
+          request.clientActor
+        )
+        coordinator.initiateReconnect()
+      })
     }
   }
 
   /**
     * Lets a client know that the open process has completed successfully.
     */
-  private[this] def  respondToClientOpenRequest(session: DomainUserSessionId, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
+  private[this] def respondToClientOpenRequest(session: DomainUserSessionId, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
     debug(s"$domainFqn/$modelId: Responding to client open request: " + session)
     if (permissions.resolveSessionPermissions(session.userId).read) {
       // Inform the concurrency control that we have a new client.

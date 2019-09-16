@@ -6,7 +6,7 @@ import com.convergencelabs.server.actor.{ShardedActor, ShardedActorStatUpPlan, S
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.{DomainPersistenceManager, DomainPersistenceProvider, ModelPermissions}
 import com.convergencelabs.server.domain.{DomainId, DomainUserId, UnauthorizedException}
-import com.convergencelabs.server.domain.model.RealTimeModelManager.EventHandler
+import com.convergencelabs.server.domain.model.RealtimeModelManager.EventHandler
 import com.convergencelabs.server.util.ActorBackedEventLoop
 import com.convergencelabs.server.util.ActorBackedEventLoop.TaskScheduled
 
@@ -48,7 +48,7 @@ class RealtimeModelActor(
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
   private[this] var _domainFqn: Option[DomainId] = None
   private[this] var _modelId: Option[String] = None
-  private[this] var _modelManager: Option[RealTimeModelManager] = None
+  private[this] var _modelManager: Option[RealtimeModelManager] = None
 
   //
   // Receive methods
@@ -182,7 +182,7 @@ class RealtimeModelActor(
     }
   }
 
-  private[this] def modelManager: RealTimeModelManager = this._modelManager.getOrElse {
+  private[this] def modelManager: RealtimeModelManager = this._modelManager.getOrElse {
     throw new IllegalStateException("The model manager can not be access when the model is not open.")
   }
 
@@ -227,7 +227,7 @@ class RealtimeModelActor(
       persistenceProvider.modelSnapshotStore,
       persistenceProvider.modelOperationProcessor)
 
-    val mm = new RealTimeModelManager(
+    val mm = new RealtimeModelManager(
       persistenceFactory,
       new ActorBackedEventLoop(self),
       domainFqn,

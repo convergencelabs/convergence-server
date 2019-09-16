@@ -3,41 +3,21 @@ package com.convergencelabs.server.api.realtime
 import java.net.InetAddress
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Await
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
-
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
-import org.scalatest.mockito.MockitoSugar
-
-import com.convergencelabs.server.HeartbeatConfiguration
-import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.domain.AuthenticationSuccess
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.DomainUserSessionId
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.HandshakeRequest
-import com.convergencelabs.server.domain.HandshakeSuccess
-import com.convergencelabs.server.domain.PasswordAuthRequest
-
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.RemoteAddress.IP
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.server.{HeartbeatConfiguration, ProtocolConfiguration}
+import com.convergencelabs.server.domain._
 import io.convergence.proto.Response
-import io.convergence.proto.authentication.AuthSuccess
-import io.convergence.proto.authentication.AuthenticationRequestMessage
-import io.convergence.proto.authentication.AuthenticationResponseMessage
-import io.convergence.proto.authentication.PasswordAuthRequestMessage
+import io.convergence.proto.authentication.{AuthSuccess, AuthenticationRequestMessage, AuthenticationResponseMessage, PasswordAuthRequestMessage}
 import io.convergence.proto.connection.HandshakeRequestMessage
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.mockito.MockitoSugar
 import scalapb.GeneratedMessage
+
+import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.postfixOps
 
 
 // scalastyle:off magic.number
@@ -49,7 +29,7 @@ class ClientActorSpec
   with Matchers {
 
   val SessionId = "sessionId"
-  val RecconnectToken = "secconnectToken"
+  val ReconnectToken = "ReconnectToken"
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)

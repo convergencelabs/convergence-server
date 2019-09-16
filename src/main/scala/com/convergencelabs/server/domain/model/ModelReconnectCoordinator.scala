@@ -7,13 +7,12 @@ import com.convergencelabs.server.domain.model.ot._
 
 import scala.util.{Success, Try}
 
-class ModelReconnectCoordinator(
-                                 private[this] val modelOperationStore: ModelOperationStore,
-                                 private[this] val modelId: String,
-                                 private[this] val currentContextVersion: Long,
-                                 private[this] val previousSessionId: String,
-                                 private[this] val previousContextVersion: Long,
-                                 private[this] val actor: ActorRef,
+class ModelReconnectCoordinator(private[this] val modelOperationStore: ModelOperationStore,
+                                private[this] val modelId: String,
+                                private[this] val currentContextVersion: Long,
+                                private[this] val previousSessionId: String,
+                                private[this] val previousContextVersion: Long,
+                                private[this] val actor: ActorRef
                                ) {
   def initiateReconnect(): Unit = {
     (for {
