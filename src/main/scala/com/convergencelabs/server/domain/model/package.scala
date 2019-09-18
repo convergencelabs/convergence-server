@@ -27,10 +27,6 @@ package model {
   
   case class ModelShutdownRequest(modelId: String, ephemeral: Boolean)
 
-  case class ModelReconnectComplete(modelId: String)
-  case class ModelServerStatePathRejoined(modelId: String)
-  case class ModelReconnectFailed(modelId: String, message: String)
-
   object ReferenceType extends Enumeration {
     val Index, Range, Property, Element = Value
   }

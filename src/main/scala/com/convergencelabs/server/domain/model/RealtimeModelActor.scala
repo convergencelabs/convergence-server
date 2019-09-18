@@ -5,8 +5,8 @@ import akka.util.Timeout
 import com.convergencelabs.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.server.datastore.DuplicateValueException
 import com.convergencelabs.server.datastore.domain.{DomainPersistenceManager, DomainPersistenceProvider, ModelPermissions}
-import com.convergencelabs.server.domain.{DomainId, DomainUserId, UnauthorizedException}
 import com.convergencelabs.server.domain.model.RealtimeModelManager.EventHandler
+import com.convergencelabs.server.domain.{DomainId, DomainUserId, UnauthorizedException}
 import com.convergencelabs.server.util.ActorBackedEventLoop
 import com.convergencelabs.server.util.ActorBackedEventLoop.TaskScheduled
 
@@ -173,6 +173,8 @@ class RealtimeModelActor(
     msg match {
       case openRequest: OpenRealtimeModelRequest =>
         modelManager.onOpenRealtimeModelRequest(openRequest, sender)
+      case reconnectRequest: ModelReconnectRequest =>
+        modelManager.onModelReconnectRequest(reconnectRequest, sender)
       case closeRequest: CloseRealtimeModelRequest =>
         modelManager.onCloseModelRequest(closeRequest, sender)
       case operationSubmission: OperationSubmission =>
@@ -199,13 +201,13 @@ class RealtimeModelActor(
   }
 
   override protected def setIdentityData(message: ModelMessage): Try[String] = {
-    this._domainFqn = Some(message.domainFqn)
+    this._domainFqn = Some(message.domainId)
     this._modelId = Some(message.modelId)
-    Success(s"${message.domainFqn.namespace}/${message.domainFqn.domainId}/${message.modelId}")
+    Success(s"${message.domainId.namespace}/${message.domainId.domainId}/${message.modelId}")
   }
 
   override protected def initialize(msg: ModelMessage): Try[ShardedActorStatUpPlan] = {
-    persistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
+    persistenceManager.acquirePersistenceProvider(self, context, msg.domainId) map { provider =>
       this._persistenceProvider = Some(provider)
       log.debug(s"$identityString: Acquired persistence")
       this.becomeClosed()
@@ -323,7 +325,6 @@ class RealtimeModelActor(
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
-        ()
     }
   }
 
@@ -382,11 +383,9 @@ class RealtimeModelActor(
       }
     } map { _ =>
       sender ! (())
-      ()
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
-        ()
     }
   }
 

@@ -1,22 +1,18 @@
 package com.convergencelabs.server.api.realtime
 
-import scalapb.GeneratedMessage
-import io.convergence.proto.Request
-import io.convergence.proto.Response
-import io.convergence.proto.message.ConvergenceMessage.Body
-import io.convergence.proto.connection._
-import io.convergence.proto.model._
 import io.convergence.proto.activity._
 import io.convergence.proto.authentication._
-import io.convergence.proto.model._
-import io.convergence.proto.message._
-import io.convergence.proto.common._
 import io.convergence.proto.chat._
+import io.convergence.proto.common._
+import io.convergence.proto.connection._
+import io.convergence.proto.identity._
+import io.convergence.proto.message.ConvergenceMessage.Body
+import io.convergence.proto.model._
+import io.convergence.proto.operations._
 import io.convergence.proto.permissions._
 import io.convergence.proto.presence._
 import io.convergence.proto.references._
-import io.convergence.proto.identity._
-import io.convergence.proto.operations._
+import scalapb.GeneratedMessage
 
 object ConvergenceMessageBodyUtils {
   def fromBody(body: Body): GeneratedMessage = {
@@ -65,8 +61,9 @@ object ConvergenceMessageBodyUtils {
       case Body.SetModelPermissionsRequest(message) => message
       case Body.SetModelPermissionsResponse(message) => message
       case Body.ModelPermissionsChanged(message) => message
-      case Body.ModelStatePathRejoined(message) => message
-      case Body.ModelReconnectCompleted(message) => message
+      case Body.ModelReconnectRequest(message) => message
+      case Body.ModelReconnectResponse(message) => message
+      case Body.ModelReconnectComplete(message) => message
       
       // Identity
       case Body.UsersGetRequest(message) => message
@@ -209,8 +206,9 @@ object ConvergenceMessageBodyUtils {
       case message: SetModelPermissionsRequestMessage => Body.SetModelPermissionsRequest(message)
       case message: SetModelPermissionsResponseMessage => Body.SetModelPermissionsResponse(message)
       case message: ModelPermissionsChangedMessage => Body.ModelPermissionsChanged(message)
-      case message: ModelStatePathRejoined => Body.ModelStatePathRejoined(message)
-      case message: ModelReconnectComplete => Body.ModelReconnectCompleted(message)
+      case message: ModelReconnectRequestMessage => Body.ModelReconnectRequest(message)
+      case message: ModelReconnectResponseMessage => Body.ModelReconnectResponse(message)
+      case message: ModelReconnectCompleteMessage => Body.ModelReconnectComplete(message)
       // Identity
       case message: GetUsersMessage => Body.UsersGetRequest(message)
       case message: UserSearchMessage => Body.UserSearchRequest(message)

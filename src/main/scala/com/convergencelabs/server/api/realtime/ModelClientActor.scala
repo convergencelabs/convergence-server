@@ -13,8 +13,7 @@ import com.convergencelabs.server.domain.model._
 import com.convergencelabs.server.util.concurrent.AskFuture
 import io.convergence.proto.{Model, Normal, Request}
 import io.convergence.proto.common.{ErrorMessage, Int32List, StringList}
-import io.convergence.proto.model.OpenRealtimeModelResponseMessage.ReferenceData
-import io.convergence.proto.model._
+import io.convergence.proto.model.{ModelReconnectRequestMessage, _}
 import io.convergence.proto.operations.{OperationAcknowledgementMessage, OperationSubmissionMessage, RemoteOperationMessage}
 import io.convergence.proto.references._
 
@@ -31,6 +30,8 @@ object ModelClientActor {
     Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout))
 
   val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specified collection and model id does not exist.", Map())
+  val ModelAlreadyOpenError = ErrorMessage("model_already_open", "The requested model is already open by this client.", Map())
+  val ModelDeletedError = ErrorMessage("model_deleted", "The requested model was deleted.", Map())
 }
 
 class ModelClientActor(
@@ -71,18 +72,18 @@ class ModelClientActor(
       case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
       case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
       case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
-      case foreceClosed: ModelForceClose => onModelForceClose(foreceClosed)
+      case forceClosed: ModelForceClose => onModelForceClose(forceClosed)
       case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
       case refShared: RemoteReferenceShared => onRemoteReferenceShared(refShared)
       case refUnshared: RemoteReferenceUnshared => onRemoteReferenceUnshared(refUnshared)
       case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
       case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
+      case modelReconnectComplete: ModelReconnectComplete => onModelReconnectComplete(modelReconnectComplete)
     }
   }
 
   // scalastyle:on cyclomatic.complexity
-
   private[this] def onOutgoingOperation(op: OutgoingOperation): Unit = {
     val OutgoingOperation(modelId, session, contextVersion, timestamp, operation) = op
     resourceId(modelId) foreach { resourceId =>
@@ -92,6 +93,22 @@ class ModelClientActor(
         contextVersion,
         Some(timestamp),
         Some(OperationMapper.mapOutgoing(operation)))
+    }
+  }
+
+  private[this] def onModelReconnectComplete(reconnectComplete: ModelReconnectComplete): Unit = {
+    val ModelReconnectComplete(modelId, connectedClients, references, permissions) = reconnectComplete
+    val convertedReferences = convertReferences(references)
+    resourceId(modelId) foreach { resourceId =>
+      context.parent ! ModelReconnectCompleteMessage(
+        resourceId,
+        connectedClients.map(s => s.sessionId).toSeq,
+        convertedReferences.toSeq,
+        Some(ModelPermissionsData(
+          permissions.read,
+          permissions.write,
+          permissions.remove,
+          permissions.manage)))
     }
   }
 
@@ -229,6 +246,7 @@ class ModelClientActor(
   private[this] def onRequestReceived(message: Request, replyCallback: ReplyCallback): Unit = {
     message match {
       case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case reconnectRequest: ModelReconnectRequestMessage => onModelReconnectRequest(reconnectRequest, replyCallback)
       case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
       case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
       case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
@@ -316,61 +334,6 @@ class ModelClientActor(
     }
   }
 
-  private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, reconnectRequestData) = request
-
-    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
-
-    val reconnectRequest = reconnectRequestData.map(data => ReconnectRequest(data.sessionId, data.contextVersion))
-
-    val openRequest = OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, reconnectRequest, session, self)
-    val future = modelClusterRegion ? openRequest
-    future.mapResponse[OpenModelSuccess] onComplete {
-      case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
-        val resourceId = generateNextResourceId()
-        resourceIdToModelId += (resourceId -> modelId)
-        modelIdToResourceId += (modelId -> resourceId)
-
-        val convertedReferences = references.map {
-          case ReferenceState(_, valueId, key, refType, values) =>
-            val referenceValues = mapOutgoingReferenceValue(refType, values)
-            ReferenceData(session.sessionId, valueId, key, Some(referenceValues))
-        }
-
-        cb.reply(
-          OpenRealtimeModelResponseMessage(
-            resourceId,
-            metaData.id,
-            metaData.collection,
-            java.lang.Long.toString(valueIdPrefix, 36),
-            metaData.version,
-            reconnectRequest.isDefined,
-            Some(metaData.createdTime),
-            Some(metaData.modifiedTime),
-            Some(modelData),
-            connectedClients.map(s => s.sessionId).toSeq,
-            convertedReferences.toSeq,
-            Some(ModelPermissionsData(
-              modelPermissions.read,
-              modelPermissions.write,
-              modelPermissions.remove,
-              modelPermissions.manage))))
-      case Failure(ModelAlreadyOpenException()) =>
-        cb.expectedError("model_already_open", s"The requested model is already open by this client.")
-      case Failure(ModelDeletedWhileOpeningException()) =>
-        cb.expectedError("model_deleted", "The requested model was deleted while opening.")
-      case Failure(ClientDataRequestFailure(message)) =>
-        cb.expectedError("data_request_failure", message)
-      case Failure(ModelNotFoundException(_)) =>
-        cb.reply(ModelClientActor.ModelNotFoundError)
-      case Failure(UnauthorizedException(message)) =>
-        cb.reply(ErrorMessages.Unauthorized(message))
-      case Failure(cause) =>
-        log.error(cause, s"$domainFqn/$modelId: Unexpected error opening model.")
-        cb.unknownError()
-    }
-  }
-
   private[this] def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CloseRealtimeModelRequestMessage(resourceId) = request
     resourceIdToModelId.get(resourceId) match {
@@ -387,6 +350,84 @@ class ModelClientActor(
         }
       case None =>
         cb.expectedError("model_not_open", s"the requested model was not open")
+    }
+  }
+
+  private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+    val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId) = request
+    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
+    val openRequest = OpenRealtimeModelRequest(domainFqn, modelId, autoCreateId, session, self)
+    val future = modelClusterRegion ? openRequest
+    future.mapResponse[OpenModelSuccess] onComplete {
+      case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
+        val resourceId = generateNextResourceId()
+        resourceIdToModelId += (resourceId -> modelId)
+        modelIdToResourceId += (modelId -> resourceId)
+
+        val convertedReferences = convertReferences(references)
+        cb.reply(
+          OpenRealtimeModelResponseMessage(
+            resourceId,
+            metaData.id,
+            metaData.collection,
+            java.lang.Long.toString(valueIdPrefix, 36),
+            metaData.version,
+            Some(metaData.createdTime),
+            Some(metaData.modifiedTime),
+            Some(modelData),
+            connectedClients.map(s => s.sessionId).toSeq,
+            convertedReferences.toSeq,
+            Some(ModelPermissionsData(
+              modelPermissions.read,
+              modelPermissions.write,
+              modelPermissions.remove,
+              modelPermissions.manage))))
+      case Failure(ModelAlreadyOpenException()) =>
+        cb.reply(ModelClientActor.ModelAlreadyOpenError)
+      case Failure(ModelDeletedWhileOpeningException()) =>
+        cb.reply(ModelClientActor.ModelDeletedError)
+      case Failure(ClientDataRequestFailure(message)) =>
+        cb.expectedError("data_request_failure", message)
+      case Failure(ModelNotFoundException(_)) =>
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
+      case Failure(cause) =>
+        log.error(cause, s"$domainFqn/$modelId: Unexpected error opening model.")
+        cb.unknownError()
+    }
+  }
+
+  private[this] def convertReferences(references: Set[ReferenceState]): Seq[ReferenceData] = {
+    references.map {
+      case ReferenceState(_, valueId, key, refType, values) =>
+        val referenceValues = mapOutgoingReferenceValue(refType, values)
+        ReferenceData(session.sessionId, valueId, key, Some(referenceValues))
+    }.toSeq
+  }
+
+  private[this] def onModelReconnectRequest(request: ModelReconnectRequestMessage, cb: ReplyCallback): Unit = {
+    val ModelReconnectRequestMessage(modelId, contextVersion) = request
+
+    val reconnectRequest = ModelReconnectRequest(domainFqn, modelId, this.session, contextVersion, this.self)
+
+    val future = modelClusterRegion ? reconnectRequest
+    future.mapResponse[ModelReconnectResponse] onComplete {
+      case Success(ModelReconnectResponse(currentVersion)) =>
+        val resourceId = generateNextResourceId()
+        resourceIdToModelId += (resourceId -> modelId)
+        modelIdToResourceId += (modelId -> resourceId)
+        val responseMessage = ModelReconnectResponseMessage(resourceId, currentVersion)
+        cb.reply(responseMessage)
+      case Failure(ModelAlreadyOpenException()) =>
+        cb.reply(ModelClientActor.ModelAlreadyOpenError)
+      case Failure(ModelNotFoundException(_)) =>
+        cb.reply(ModelClientActor.ModelNotFoundError)
+      case Failure(UnauthorizedException(message)) =>
+        cb.reply(ErrorMessages.Unauthorized(message))
+      case Failure(cause) =>
+        log.error(cause, s"$domainFqn/$modelId: Unexpected error reconnecting model.")
+        cb.unknownError()
     }
   }
 

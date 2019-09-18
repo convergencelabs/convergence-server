@@ -115,7 +115,7 @@ class ProtocolConnectionSpec
         val opSubmission = OperationSubmissionMessage()
           .withResourceId("r")
           .withSequenceNumber(1)
-          .withVersion(2)
+          .withContextVersion(2)
           .withOperation(OperationData().withCompoundOperation(CompoundOperationData(List())))
         val message = ConvergenceMessage()
           .withOperationSubmission(opSubmission)
@@ -129,7 +129,7 @@ class ProtocolConnectionSpec
         val opSubmission = OperationSubmissionMessage()
           .withResourceId("r")
           .withSequenceNumber(1)
-          .withVersion(2)
+          .withContextVersion(2)
           .withOperation(OperationData().withCompoundOperation(CompoundOperationData(List())))
 
         val message = ConvergenceMessage()

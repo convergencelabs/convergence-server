@@ -5,59 +5,23 @@ import com.convergencelabs.server.datastore.domain.ModelOperationStore
 import com.convergencelabs.server.domain.DomainUserSessionId
 import com.convergencelabs.server.domain.model.ot._
 
-import scala.util.{Success, Try}
+import scala.concurrent.{ExecutionContext, Future}
 
-class ModelReconnectCoordinator(private[this] val modelOperationStore: ModelOperationStore,
-                                private[this] val modelId: String,
-                                private[this] val currentContextVersion: Long,
-                                private[this] val previousSessionId: String,
-                                private[this] val previousContextVersion: Long,
-                                private[this] val actor: ActorRef
-                               ) {
-  def initiateReconnect(): Unit = {
-    (for {
-      maxSessionOperationVersion <- getMaxVersionForSession
-      _ <- sendOperationsUpToMaxForSession(maxSessionOperationVersion)
-      _ <- statePathRejoined()
-      _ <- sendRemainingOperations(maxSessionOperationVersion)
-    } yield {
-      actor ! ModelReconnectComplete(modelId)
-    })
-      .recover {
-        case cause: Throwable =>
-          actor ! ModelReconnectFailed(modelId, cause.getMessage)
-      }
-  }
+class ModelOperationReplayHelper(private[this] val modelOperationStore: ModelOperationStore,
+                                 private[this] val modelId: String,
+                                 private[this] val clientActor: ActorRef,
+                                 private[this] implicit val sender: ActorRef,
+                                 private[this] implicit val ec: ExecutionContext
+                                ) {
 
-  private[this] def getMaxVersionForSession: Try[Option[Long]] = {
-    modelOperationStore.getMaxOperationForSessionAfterVersion(modelId, previousSessionId, previousContextVersion)
-  }
-
-  private[this] def sendOperationsUpToMaxForSession(maxVersionForSession: Option[Long]): Try[Unit] = {
-    maxVersionForSession match {
-      case Some(version) =>
-        sendOperationsInRange(previousContextVersion + 1, version)
-      case None =>
-        Success(())
+  def sendOperationsInRange(firstVersion: Long, lastVersion: Long): Future[Unit] = {
+    Future {
+      // FIXME we need to probably get these in batches. We don't want to just
+      //  grab an unbounded set of data.
+      modelOperationStore
+        .getOperationsInVersionRange(modelId, firstVersion, lastVersion)
+        .map(_.foreach(sendOperation)).get
     }
-  }
-
-  private[this] def statePathRejoined(): Try[Unit] = {
-    this.actor ! ModelServerStatePathRejoined(modelId)
-    Success(())
-  }
-
-  private[this] def sendRemainingOperations(maxSessionOperationVersion: Option[Long]): Try[Unit] = {
-    val fromVersion = maxSessionOperationVersion.getOrElse(previousContextVersion) + 1
-    sendOperationsInRange(fromVersion, currentContextVersion)
-  }
-
-  private[this] def sendOperationsInRange(firstVersion: Long, lastVersion: Long): Try[Unit] = {
-    // FIXME we need to probably get these in batches. We don't want to just
-    //  grab an unbounded set of data.
-    modelOperationStore
-      .getOperationsInVersionRange(modelId, firstVersion, lastVersion)
-      .map(_.foreach(sendOperation))
   }
 
   private[this] def sendOperation(modelOperation: ModelOperation): Unit = {
@@ -65,10 +29,10 @@ class ModelReconnectCoordinator(private[this] val modelOperationStore: ModelOper
     val outgoingOp = OutgoingOperation(
       modelId,
       DomainUserSessionId(modelOperation.sessionId, modelOperation.userId),
-      modelOperation.version.toInt,
+      modelOperation.version.toInt - 1, // this needs to be the context version.
       modelOperation.timestamp,
       op)
-    actor ! outgoingOp
+    clientActor ! outgoingOp
   }
 
   private[this] def convertAppliedOperation(appliedOperation: AppliedOperation): Operation = {
