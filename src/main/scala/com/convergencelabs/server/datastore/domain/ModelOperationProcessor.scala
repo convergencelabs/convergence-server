@@ -227,18 +227,8 @@ class ModelOperationProcessor private[domain] (
   // String Operations
   //
   private[this] def applyStringInsertOperation(modelId: String, operation: AppliedStringInsertOperation, db: ODatabaseDocument): Try[Unit] = {
-    // FIXME remove this when the following orient issue is resolved
-    // https://github.com/orientechnologies/orientdb/issues/6250
-    val hackValue = if (OIOUtils.isStringContent(operation.value)) {
-      val hack = "\"\"" + operation.value + "\"\""
-      logger.warn(s"Using OrientDB Hack for string append: ${operation.value} -> $hack")
-      hack
-    } else {
-      operation.value
-    }
-
     val script = createUpdate("SET value = value.left(:index).append(:value).append(value.substring(:index))", None)
-    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> hackValue)
+    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> operation.value)
     val result = OrientDBUtil.executeMutation(db, script, params).map(_ => ())
     result
   }
