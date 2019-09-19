@@ -329,11 +329,12 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       }
       this.queuedReconnectingClients = HashMap[DomainUserSessionId, ReconnectRequestRecord]()
 
-      if (this.connectedClients.isEmpty) {
+      if (this.connectedClients.isEmpty && this.reconnectingClients.isEmpty) {
         error(s"$domainFqn/$modelId: The model was initialized, but no clients are connected.")
         this.handleInitializationFailure(UnknownErrorResponse("Model was initialized, but no clients connected"))
+      } else {
+        setState(State.Initialized)
       }
-      setState(State.Initialized)
     } catch {
       case cause: Throwable =>
         error(
@@ -659,10 +660,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
                 notifyOthers = true)
           }
         } else {
-          forceClosedModel(
-            session,
-            s"Unauthorized to edit this model",
-            notifyOthers = true)
+          forceClosedModel(session, "Unauthorized to edit this model", notifyOthers = true)
         }
     }
 

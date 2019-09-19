@@ -61,7 +61,7 @@ class RealtimeModelActor(
       this.passivate()
     case msg: StatelessModelMessage =>
       handleStatelessMessage(msg)
-    case msg: OpenRealtimeModelRequest =>
+    case msg @ (_: OpenRealtimeModelRequest | _:ModelReconnectRequest) =>
       this.becomeOpened()
       this.receiveOpened(msg)
     case unknown: Any =>

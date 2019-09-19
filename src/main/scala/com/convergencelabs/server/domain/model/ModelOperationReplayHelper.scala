@@ -29,7 +29,7 @@ class ModelOperationReplayHelper(private[this] val modelOperationStore: ModelOpe
     val outgoingOp = OutgoingOperation(
       modelId,
       DomainUserSessionId(modelOperation.sessionId, modelOperation.userId),
-      modelOperation.version.toInt - 1, // this needs to be the context version.
+      modelOperation.version - 1, // this needs to be the context version, which is one behind the version
       modelOperation.timestamp,
       op)
     clientActor ! outgoingOp
