@@ -23,7 +23,7 @@ class DomainImportExportSpec extends WordSpecLike with Matchers {
     "import the correct data" in {
       val dbName = "DomainImporterSpec-" + System.nanoTime()
 
-      val orientDB = new OrientDB("memory:DomainImporterSpec", "root", "password", OrientDBConfig.defaultConfig());
+      val orientDB = new OrientDB("memory:target/orientdb/DomainImportExportSpec", "root", "password", OrientDBConfig.defaultConfig());
       orientDB.create(dbName, ODatabaseType.MEMORY);
       val db = orientDB.open(dbName, "admin", "admin")
       db.activateOnCurrentThread()
