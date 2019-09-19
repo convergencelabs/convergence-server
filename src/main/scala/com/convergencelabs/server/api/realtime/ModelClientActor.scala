@@ -400,9 +400,9 @@ class ModelClientActor(
 
   private[this] def convertReferences(references: Set[ReferenceState]): Seq[ReferenceData] = {
     references.map {
-      case ReferenceState(_, valueId, key, refType, values) =>
+      case ReferenceState(sessionId, valueId, key, refType, values) =>
         val referenceValues = mapOutgoingReferenceValue(refType, values)
-        ReferenceData(session.sessionId, valueId, key, Some(referenceValues))
+        ReferenceData(sessionId.sessionId, valueId, key, Some(referenceValues))
     }.toSeq
   }
 

@@ -1,8 +1,8 @@
 package com.convergencelabs.server.domain.model.reference
 
-import scala.collection.mutable.ListBuffer
-
 import com.convergencelabs.server.domain.DomainUserSessionId
+
+import scala.collection.mutable.ListBuffer
 
 class ReferenceMap {
 
