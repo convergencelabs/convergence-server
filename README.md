@@ -3,7 +3,11 @@
 <img src="docs/images/logo.png" width="100" />
 
 
-This is the main repository for the Convergence Server. [Convergence](https://convergence.io) enables realtime collaboration within modern application. 
+This is the main repository for the Convergence Server. [Convergence](https://convergence.io) enables realtime collaboration within modern applications. 
+
+## License
+
+This repository is GPL-licensed.  It is intended to be used primarily over a WebSocket connection with an official Convergence client, which is itself licensed more permissively.  There is additionally a REST API exposed for various administrative functions.
 
 ## Languages and Frameworks
 The server is developed primarily in Scala and leverages [Akka](https://akka.io) as the major application framework. Akka provides the primary ability for multiple Convergence Servers to cluster together, providing horizontal scalability. [OrientDB](https://orientdb.org/) is used as the database. [Google Protocol Buffers](https://developers.google.com/protocol-buffers/) are used as the communications protocol for realtime collaboration over web sockets.
@@ -51,3 +55,11 @@ docker run -p 0.0.0.0:8080-8081:8080-8081 convergence-server
 ```
 
 The -p 8080:8080 links the port on the localhost to the port 8080 in the container.  If you are running on OSX or Windows, you will be running docker in a VM that has an ip address other than local host.  The container will then be running on some other IP.
+
+## Support
+
+[Convergence Labs](https://convergencelabs.com) provides several different channels for support:
+
+- Please use the [Discourse Forum](https://forum.convergence.io) for general and technical questions, so the whole community can benefit.
+- For paid dedicated support or custom development services, [contact us](https://convergence.io/contact-sales/) directly.
+- Email <support@convergencelabs.com> for all other inquiries.
