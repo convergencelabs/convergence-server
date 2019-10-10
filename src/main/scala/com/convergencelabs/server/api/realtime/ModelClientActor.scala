@@ -454,7 +454,7 @@ class ModelClientActor(
       case Success(_) =>
         cb.reply(CreateRealtimeModelSuccessMessage(modelId))
       case Failure(ModelAlreadyExistsException(_)) =>
-        cb.expectedError("model_already_exists", "A model with the specified model id already exists")
+        cb.expectedError("model_already_exists", s"A model with the id '$modelId' already exists")
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
