@@ -36,6 +36,10 @@ object RealtimeModelManager {
     val Uninitialized, Initializing, InitializationError, Initialized, Error = Value
   }
 
+  object ForceModelCloseReasonCode extends Enumeration {
+    val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion  = Value
+  }
+
   trait RealtimeModelClient {
     def send(message: Any): Unit
 
@@ -96,7 +100,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     def onOperationError(message: String): Unit = {
       workQueue.schedule {
         state = State.Error
-        forceCloseAllAfterError(message)
+        forceCloseAllAfterError(message, ForceModelCloseReasonCode.ErrorApplyingOperation.id)
       }
     }
   })
@@ -281,7 +285,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       }.recover {
       case cause =>
         error(s"$domainFqn/$modelId: Error updating permissions", cause)
-        this.forceCloseAllAfterError("Error updating permissions")
+        this.forceCloseAllAfterError("Error updating permissions", ForceModelCloseReasonCode.PermissionError.id)
     }
   }
 
@@ -656,11 +660,12 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
               error(s"$domainFqn/$modelId: Error applying operation to model, kicking client from model: $request", cause)
               forceClosedModel(
                 session,
+                ForceModelCloseReasonCode.ErrorApplyingOperation.id,
                 s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + cause.getMessage,
                 notifyOthers = true)
           }
         } else {
-          forceClosedModel(session, "Unauthorized to edit this model", notifyOthers = true)
+          forceClosedModel(session, ForceModelCloseReasonCode.Unauthorized.id, "Unauthorized to edit this model", notifyOthers = true)
         }
     }
 
@@ -713,7 +718,12 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       // Event's no-op'ed
       case Failure(cause) =>
         error(s"$domainFqn/$modelId: Invalid reference event", cause)
-        forceClosedModel(session, "invalid reference event", notifyOthers = true)
+        forceClosedModel(
+          session,
+          ForceModelCloseReasonCode.InvalidReferenceEvent.id,
+          "invalid reference event",
+          notifyOthers = true
+        )
     }
   }
 
@@ -752,7 +762,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   def commitVersion(version: Long): Unit = {
     if (version != this.committedVersion + 1) {
-      forceCloseAllAfterError(s"The commited version ($version) was not what was expected (${this.committedVersion + 1}).")
+      forceCloseAllAfterError(s"The committed version ($version) was not what was expected (${this.committedVersion + 1}).", ForceModelCloseReasonCode.UnexpectedCommittedVersion.id)
     } else {
       this.committedVersion = version
       this.checkForConnectionsAndClose()
@@ -766,25 +776,25 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   /**
    * Kicks all clients out of the model.
    */
-  def forceCloseAllAfterError(reason: String): Unit = {
+  def forceCloseAllAfterError(reason: String, reasonCode: Int = ForceModelCloseReasonCode.Unknown.id): Unit = {
     setState(State.Error)
-    debug(s"$domainFqn/$modelId: Force closing all clients: $reason")
+    debug(s"$domainFqn/$modelId: Force closing all clients: $reason ($reasonCode)")
     connectedClients foreach {
-      case (clientId, _) => forceClosedModel(clientId, reason, notifyOthers = false)
+      case (clientId, _) => forceClosedModel(clientId, reasonCode, reason, notifyOthers = false)
     }
   }
 
   def modelDeleted(): Unit = {
-    this.forceCloseAllAfterError("The model was deleted")
+    this.forceCloseAllAfterError("The model was deleted", ForceModelCloseReasonCode.Deleted.id)
   }
 
   /**
    * Kicks a specific client out of the model.
    */
-  private[this] def forceClosedModel(session: DomainUserSessionId, reason: String, notifyOthers: Boolean): Unit = {
+  private[this] def forceClosedModel(session: DomainUserSessionId, reasonCode: Int, reason: String, notifyOthers: Boolean): Unit = {
     val closedActor = closeModel(session, notifyOthers)
 
-    val forceCloseMessage = ModelForceClose(modelId, reason)
+    val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode)
     closedActor ! forceCloseMessage
 
     checkForConnectionsAndClose()

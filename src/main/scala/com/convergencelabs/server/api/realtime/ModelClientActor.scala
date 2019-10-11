@@ -141,11 +141,11 @@ class ModelClientActor(
   }
 
   private[this] def onModelForceClose(forceClose: ModelForceClose): Unit = {
-    val ModelForceClose(modelId, reason) = forceClose
+    val ModelForceClose(modelId, reason, reasonCode) = forceClose
     resourceId(modelId) foreach { resourceId =>
       modelIdToResourceId -= modelId
       resourceIdToModelId -= resourceId
-      context.parent ! ModelForceCloseMessage(resourceId, reason)
+      context.parent ! ModelForceCloseMessage(resourceId, reason, reasonCode)
     }
   }
 

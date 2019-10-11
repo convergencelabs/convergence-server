@@ -124,7 +124,7 @@ case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) ext
 
 case class RemoteClientOpened(modelId: String, session: DomainUserSessionId) extends RealtimeModelClientMessage
 
-case class ModelForceClose(modelId: String, reason: String) extends RealtimeModelClientMessage
+case class ModelForceClose(modelId: String, reason: String, reasonCode: Int) extends RealtimeModelClientMessage
 
 case class ModelPermissionsChanged(modelId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
 
