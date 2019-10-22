@@ -231,10 +231,10 @@ class UserStore(dbProvider: DatabaseProvider)
     OrientDBUtil.mutateOneDocument(db, SetBearerTokenCommand, params)
   }
   
-  private[this] val GetBearerTokenCommand = "SELECT bearerToken User FROM WHERE username = :username"
+  private[this] val GetBearerTokenCommand = "SELECT bearerToken FROM User WHERE username = :username"
   def getBearerToken(username: String): Try[Option[String]] = withDb { db =>
     val params = Map(Params.Username -> username)
-    OrientDBUtil.findDocument(db, SetBearerTokenCommand, params).map(_.map(_.getProperty("bearerToken").asInstanceOf[String]))
+    OrientDBUtil.findDocument(db, GetBearerTokenCommand, params).map(_.map(_.getProperty("bearerToken").asInstanceOf[String]))
   }
 
   private[this] val SetLastLoginCommand = "UPDATE User SET lastLogin = :lastLogin WHERE username = :username"
