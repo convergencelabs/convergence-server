@@ -3,23 +3,16 @@ package com.convergencelabs.server.datastore.domain
 import java.time.Instant
 import java.util.Date
 
-import scala.collection.JavaConverters.mapAsScalaMapConverter
-import scala.util.Failure
-import scala.util.Try
-
-import org.json4s.JsonAST.JObject
-import org.parboiled2.ParseError
-
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.common.PagedData
+import com.convergencelabs.server.api.rest.DataValueToJValue
+import com.convergencelabs.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.ODocumentToDataValue
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.domain.model.ModelQueryResult
+import com.convergencelabs.server.domain.DomainUserId
+import com.convergencelabs.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.convergencelabs.server.domain.model.data.ObjectValue
+import com.convergencelabs.server.domain.model.query.Ast.SelectStatement
 import com.convergencelabs.server.domain.model.query.QueryParser
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
@@ -27,12 +20,12 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.api.rest.DataValueToJValue
-import com.convergencelabs.common.PagedData
-import com.convergencelabs.server.domain.model.query.Ast.SelectStatement
+import org.json4s.JsonAST.JObject
+import org.parboiled2.ParseError
+
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.util.{Failure, Try}
 
 object ModelStore {
 
@@ -60,8 +53,8 @@ object ModelStore {
       doc.getProperty(Fields.Id),
       doc.eval("collection.id").asInstanceOf[String],
       doc.getProperty(Fields.Version),
-      createdTime.toInstant(),
-      modifiedTime.toInstant(),
+      createdTime.toInstant,
+      modifiedTime.toInstant,
       doc.getProperty(Fields.OverridePermissions),
       worldPermissions,
       doc.getProperty(Fields.ValuePrefix))
@@ -71,7 +64,7 @@ object ModelStore {
     // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
     // and in other cases an ODocument. This handles both cases.  We should figure out what
     // is supposed to come back and why it might be coming back as the other.
-    val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument];
+    val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument]
     Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
@@ -89,7 +82,7 @@ object ModelStore {
         val params = Map(Params.CollectionId -> collectionId)
         OrientDBUtil.command(db, command, params)
       }
-    } yield (())
+    } yield ()
   }
 
   def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
@@ -151,14 +144,14 @@ class ModelStore private[domain] (
     val modifiedTime = model.metaData.modifiedTime
     val version = model.metaData.version
     val data = model.data
-    val overrridePermissions = model.metaData.overridePermissions
+    val overridePermissions = model.metaData.overridePermissions
     val worldPermissions = model.metaData.worldPermissions
     val valuePrefix = model.metaData.valuePrefix
 
     CollectionStore.getCollectionRid(collectionId, db)
       .recoverWith {
         case cause: Exception =>
-          val message = s"Could not create model because collection '${collectionId}' could not be found."
+          val message = s"Could not create model because collection '$collectionId' could not be found."
           logger.error(message, cause)
           Failure(new IllegalArgumentException(message))
       }.map { collectionRid =>
@@ -169,7 +162,7 @@ class ModelStore private[domain] (
         modelDoc.setProperty(Fields.Version, version)
         modelDoc.setProperty(Fields.CreatedTime, Date.from(createdTime))
         modelDoc.setProperty(Fields.ModifiedTime, Date.from(modifiedTime))
-        modelDoc.setProperty(Fields.OverridePermissions, overrridePermissions)
+        modelDoc.setProperty(Fields.OverridePermissions, overridePermissions)
         modelDoc.setProperty(Fields.ValuePrefix, valuePrefix)
 
         val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
@@ -185,20 +178,30 @@ class ModelStore private[domain] (
         db.commit()
         ()
       }.get
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue()
 
   //FIXME: Add in overridePermissions flag
-  def updateModel(id: String, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = tryWithDb { db =>
-    getModelDocument(id, db).flatMap { doc =>
-      deleteDataValuesForModel(id).map { _ =>
-        val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, doc)
-        doc.setProperty(Fields.Data, dataValueDoc)
-        val worldPermissionsDoc = worldPermissions.map(ModelPermissionsStore.modelPermissionToDoc(_))
-        doc.setProperty(Fields.WorldPermissions, worldPermissions)
-        doc.save()
+  def updateModel(id: String, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = withDb { db =>
+
+    for {
+      _ <- Try(db.begin())
+      currentDoc <- getModelDocument(id, db)
+      _ <- deleteDataValuesForModel(id, Some(db))
+      _ <- Try {
+        val dataValueDoc = OrientDataValueBuilder.dataValueToODocument(data, currentDoc)
+        currentDoc.setProperty(Fields.Data, dataValueDoc)
+
+        worldPermissions.foreach(wp => {
+          val worldPermissionsDoc =  ModelPermissionsStore.modelPermissionToDoc(wp)
+          currentDoc.setProperty(Fields.WorldPermissions, worldPermissionsDoc, OType.EMBEDDED)
+        })
+
+        dataValueDoc.save()
+        currentDoc.save()
+        db.commit()
         ()
       }
-    }
+    } yield ()
   }
 
   def updateModelOnOperation(id: String, version: Long, timestamp: Instant, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
@@ -220,7 +223,7 @@ class ModelStore private[domain] (
       _ <- snapshotStore.removeAllSnapshotsForModel(id)
       _ <- deleteDataValuesForModel(id)
       _ <- deleteModelRecord(id)
-    } yield (())
+    } yield ()
   }
 
   def deleteModelRecord(id: String): Try[Unit] = withDb { db =>
@@ -229,7 +232,7 @@ class ModelStore private[domain] (
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def deleteDataValuesForModel(id: String): Try[Unit] = withDb { db =>
+  def deleteDataValuesForModel(id: String, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val command = "DELETE FROM DataValue WHERE model.id = :id"
     val params = Map(Fields.Id -> id)
     OrientDBUtil.command(db, command, params).map(_ => ())
@@ -238,13 +241,13 @@ class ModelStore private[domain] (
   def getModel(id: String): Try[Option[Model]] = withDb { db =>
     ModelStore
       .findModelDocument(id, db)
-      .map(_.map(ModelStore.docToModel(_)))
+      .map(_.map(ModelStore.docToModel))
   }
 
   def getModelMetaData(id: String): Try[Option[ModelMetaData]] = withDb { db =>
     ModelStore
       .findModelDocument(id, db)
-      .map(_.map(ModelStore.docToModelMetaData(_)))
+      .map(_.map(ModelStore.docToModelMetaData))
   }
 
   def getAllModelMetaDataInCollection(
@@ -255,7 +258,7 @@ class ModelStore private[domain] (
     val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(Params.CollectionId -> collectionId)
-    OrientDBUtil.queryAndMap(db, query, params)(docToModelMetaData(_))
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelMetaData)
   }
 
   // TODO implement orderBy and ascending / descending
@@ -265,7 +268,7 @@ class ModelStore private[domain] (
 
     val baseQuery = "SELECT FROM Model ORDER BY collection.id ASC, id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    OrientDBUtil.queryAndMap(db, query)(docToModelMetaData(_))
+    OrientDBUtil.queryAndMap(db, query)(docToModelMetaData)
   }
 
   def queryModels(query: String, userId: Option[DomainUserId]): Try[PagedData[ModelQueryResult]] = withDb { db =>
@@ -273,7 +276,7 @@ class ModelStore private[domain] (
       select <- new QueryParser(query).InputLine.run().recoverWith {
         case ParseError(position, principalPosition, traces) =>
           val index = position.index
-          Failure(QueryParsingException(s"Parse error at position ${index}", query, Some(index)))
+          Failure(QueryParsingException(s"Parse error at position $index", query, Some(index)))
       }
       count <- this.modelCountQuery(select, userId, db)
       results <- this.modelDataQuery(select, userId, db)
@@ -300,7 +303,7 @@ class ModelStore private[domain] (
         }
       } else {
         result.map { modelDoc =>
-          val results = modelDoc.toMap()
+          val results = modelDoc.toMap
           results.remove("@rid")
           val createdTime = results.remove(Fields.CreatedTime).asInstanceOf[Date]
           val modifiedTime = results.remove(Fields.ModifiedTime).asInstanceOf[Date]
@@ -308,14 +311,14 @@ class ModelStore private[domain] (
             results.remove(Fields.Id).asInstanceOf[String],
             results.remove("collectionId").asInstanceOf[String],
             results.remove(Fields.Version).asInstanceOf[Long],
-            createdTime.toInstant(),
-            modifiedTime.toInstant(),
-            false,
-            ModelPermissions(false, false, false, false),
+            createdTime.toInstant,
+            modifiedTime.toInstant,
+            overridePermissions = false,
+            ModelPermissions(read = false, write = false, remove = false, manage = false),
             results.remove(Fields.ValuePrefix).asInstanceOf[Long])
 
           val values = results.asScala.toList map Function.tupled { (field, value) =>
-            (as.get(field).getOrElse(field), DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+            (as.getOrElse(field, field), DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
           }
           ModelQueryResult(meta, JObject(values))
         }

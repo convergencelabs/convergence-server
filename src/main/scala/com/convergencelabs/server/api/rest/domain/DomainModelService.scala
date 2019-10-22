@@ -3,67 +3,22 @@ package com.convergencelabs.server.api.rest.domain
 import java.time.Instant
 import java.util.UUID
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.createdResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.datastore.domain.ModelDataGenerator
-import com.convergencelabs.server.datastore.domain.ModelPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.GetAllModelUserPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.GetModelOverridesPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.GetModelPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.GetModelUserPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.GetModelWorldPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.ModelPermissionsResponse
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.ModelUserPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.RemoveModelUserPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.SetModelOverridesPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.SetModelUserPermissions
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.SetModelWorldPermissions
-import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModels
-import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModelsInCollection
-import com.convergencelabs.server.datastore.domain.ModelStoreActor.QueryModelsRequest
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.model.CreateOrUpdateRealtimeModel
-import com.convergencelabs.server.domain.model.CreateRealtimeModel
-import com.convergencelabs.server.domain.model.DeleteRealtimeModel
-import com.convergencelabs.server.domain.model.GetRealtimeModel
-import com.convergencelabs.server.domain.model.Model
-import com.convergencelabs.server.domain.model.ModelMetaData
-import com.convergencelabs.server.domain.model.ModelNotFoundException
-import com.convergencelabs.server.domain.model.ModelQueryResult
-import com.convergencelabs.server.domain.model.data.ObjectValue
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import org.json4s.JsonAST.JObject
-import com.convergencelabs.server.api.rest.DataValueToJValue
 import com.convergencelabs.common.PagedData
-import com.convergencelabs.server.api.rest.PagedRestResponse
+import com.convergencelabs.server.api.rest._
+import com.convergencelabs.server.datastore.domain.{ModelDataGenerator, ModelPermissions}
+import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor._
+import com.convergencelabs.server.datastore.domain.ModelStoreActor.{GetModels, GetModelsInCollection, QueryModelsRequest}
+import com.convergencelabs.server.domain.{DomainId, DomainUserId}
+import com.convergencelabs.server.domain.model._
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.security.AuthorizationProfile
+import org.json4s.JsonAST.JObject
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainModelService {
 
@@ -108,10 +63,9 @@ class DomainModelService(
   extends DomainRestService(executionContext, timeout) {
 
   import DomainModelService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
   import akka.http.scaladsl.server.Directive._
-  import akka.http.scaladsl.server.Directives._
+  import akka.http.scaladsl.server.Directives.{Segment, _}
+  import akka.pattern.ask
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("models") {
@@ -126,7 +80,7 @@ class DomainModelService(
       } ~ pathPrefix(Segment) { modelId: String =>
         pathEnd {
           get {
-            parameters("data".as[Boolean].?) { (data) =>
+            parameters("data".as[Boolean].?) { data =>
               complete(getModel(domain, modelId, data.getOrElse(true)))
             }
           } ~ put {
@@ -194,7 +148,7 @@ class DomainModelService(
   def getModels(domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetModels(None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
-      _.map(mapMetaData(_))
+      _.map(mapMetaData)
     } map {
       models => okResponse(models)
     }
@@ -203,7 +157,7 @@ class DomainModelService(
   def getModelsInCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetModelsInCollection(collectionId, None, None))
     (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
-      _.map(mapMetaData(_))
+      _.map(mapMetaData)
     } map {
       models => okResponse(models)
     }
@@ -222,22 +176,21 @@ class DomainModelService(
     val message = GetRealtimeModel(domain, modelId, None)
     (modelClusterRegion ? message).mapTo[Option[Model]] map {
       case Some(model) =>
-        val result = data match {
-          case true =>
-            ModelData(
-              model.metaData.id,
-              model.metaData.collection,
-              model.metaData.version,
-              model.metaData.createdTime,
-              model.metaData.modifiedTime,
-              DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
-          case false =>
-            ModelMetaDataResponse(
-              model.metaData.id,
-              model.metaData.collection,
-              model.metaData.version,
-              model.metaData.createdTime,
-              model.metaData.modifiedTime)
+        val result = if (data) {
+          ModelData(
+            model.metaData.id,
+            model.metaData.collection,
+            model.metaData.version,
+            model.metaData.createdTime,
+            model.metaData.modifiedTime,
+            DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
+        } else {
+          ModelMetaDataResponse(
+            model.metaData.id,
+            model.metaData.collection,
+            model.metaData.version,
+            model.metaData.createdTime,
+            model.metaData.modifiedTime)
         }
         okResponse(result)
       case None =>
@@ -246,24 +199,23 @@ class DomainModelService(
   }
 
   def postModel(domain: DomainId, model: ModelPost): Future[RestResponse] = {
-    val ModelPost(colletionId, data) = model
+    val ModelPost(collectionIId, data) = model
 
     // FIXME abstract this.
-    val modelId = UUID.randomUUID().toString()
+    val modelId = UUID.randomUUID().toString
     val objectValue = ModelDataGenerator(data)
     // FIXME need to pass in model permissions options.
-    val message = CreateRealtimeModel(domain, modelId, colletionId, objectValue, None, None, Map(), None)
+    val message = CreateRealtimeModel(domain, modelId, collectionIId, objectValue, None, None, Map(), None)
     (modelClusterRegion ? message).mapTo[String] map {
-      case modelId: String =>
-        createdResponse(CreateModelResponse(modelId))
+       modelId: String => createdResponse(CreateModelResponse(modelId))
     }
   }
 
   def putModel(domain: DomainId, modelId: String, modelPut: ModelPut): Future[RestResponse] = {
-    val ModelPut(colleciontId, data) = modelPut
+    val ModelPut(collectionId, data) = modelPut
     val objectValue = ModelDataGenerator(data)
     // FIXME need to pass id model permissions options.
-    val message = CreateOrUpdateRealtimeModel(domain, modelId, colleciontId, objectValue, None, None, None, None)
+    val message = CreateOrUpdateRealtimeModel(domain, modelId, collectionId, objectValue, None, None, None, None)
     (modelClusterRegion ? message) map { _ => OkResponse }
   }
 
@@ -359,6 +311,6 @@ class DomainModelService(
   }
 
   private[this] def notFound(modelId: String): RestResponse = {
-    notFoundResponse(Some(s"A model with id '${modelId}' does not exist."))
+    notFoundResponse(Some(s"A model with id '$modelId' does not exist."))
   }
 }
