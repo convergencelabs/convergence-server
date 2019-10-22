@@ -1,18 +1,9 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.ValidateSessionTokenRequest
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.ValidateUserBearerTokenRequest
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.headers.Authorization
-import akka.http.scaladsl.model.headers.GenericHttpCredentials
-import akka.http.scaladsl.server.Directive.SingleValueModifiers
+import akka.http.scaladsl.model.headers.{Authorization, GenericHttpCredentials}
 import akka.http.scaladsl.server.Directive1
 import akka.http.scaladsl.server.StandardRoute.toDirective
 import akka.http.scaladsl.server.directives.BasicDirectives.provide
@@ -20,6 +11,10 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor.{ValidateSessionTokenRequest, ValidateUserBearerTokenRequest}
+import com.convergencelabs.server.security.AuthorizationProfile
+
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * This class provides a helper directive to authenticate users and validate
@@ -33,8 +28,8 @@ class Authenticator(
 
   import akka.pattern.ask
 
-  private[this] implicit val ec = executionContext
-  private[this] implicit val t = timeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = timeout
 
   private[this] val SessionTokenScheme = "SessionToken"
   private[this] val BearerTokenScheme = "BearerToken"
@@ -59,7 +54,7 @@ class Authenticator(
         }
 
       case Some(Authorization(GenericHttpCredentials(BearerTokenScheme, token, _))) if token != "" && Option(token).isDefined =>
-        onSuccess(validateUserBearerTokeny(token)).flatMap {
+        onSuccess(validateUserBearerToken(token)).flatMap {
           case Some(profile) =>
             provide(profile)
           case None =>
@@ -67,7 +62,7 @@ class Authenticator(
         }
 
       case Some(Authorization(GenericHttpCredentials(BearerTokenScheme, _, params))) if params.keySet == Set("") =>
-        onSuccess(validateUserBearerTokeny(params(""))).flatMap {
+        onSuccess(validateUserBearerToken(params(""))).flatMap {
           case Some(profile) =>
             provide(profile)
           case None =>
@@ -82,7 +77,7 @@ class Authenticator(
     (authActor ? ValidateSessionTokenRequest(token)).mapTo[Option[AuthorizationProfile]]
   }
 
-  private[this] def validateUserBearerTokeny(token: String): Future[Option[AuthorizationProfile]] = {
+  private[this] def validateUserBearerToken(token: String): Future[Option[AuthorizationProfile]] = {
     (authActor ? ValidateUserBearerTokenRequest(token)).mapTo[Option[AuthorizationProfile]]
   }
 }

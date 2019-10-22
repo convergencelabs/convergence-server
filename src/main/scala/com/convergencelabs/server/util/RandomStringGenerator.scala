@@ -1,52 +1,58 @@
 package com.convergencelabs.server.util
 
-import java.security.SecureRandom;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Random;
+import java.security.SecureRandom
+import java.util.Locale
+import java.util.Random
 
 object RandomStringGenerator {
-  val UpperCaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  val LowerCaseLetters = UpperCaseLetters.toLowerCase(Locale.ROOT);
-  val Digits = "0123456789";
-  val AlphaNumeric = UpperCaseLetters + LowerCaseLetters + Digits;
-  val Base64 = AlphaNumeric + "/" + "+"
+  val UpperCaseLetters: String = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  val LowerCaseLetters: String = UpperCaseLetters.toLowerCase(Locale.ROOT)
+  val Digits: String = "0123456789"
+  val AlphaNumeric: String = UpperCaseLetters + LowerCaseLetters + Digits
+  val Base64: String = AlphaNumeric + "/" + "+"
 }
 
+/**
+ * Generates random strings. NOTE this class is NOT thread safe.
+ *
+ * @param length
+ *   The length of the random strings to generate.
+ * @param random
+ *   The random number generator to use.
+ * @param symbols
+ *   The symbols to draw upon to generate the random string.
+ */
 class RandomStringGenerator(
     val length: Int,
     private[this] val random: Random,
     val symbols: String) {
 
-  import RandomStringGenerator._
-
   if (length < 1) {
-    throw new IllegalArgumentException();
+    throw new IllegalArgumentException("length must be >= 1")
   }
   
-  if (symbols.length() < 2) {
-    throw new IllegalArgumentException();
+  if (symbols.length < 2) {
+    throw new IllegalArgumentException("The length of symbols must be >= 2")
   }
 
-  private[this] val buf = new Array[Char](length);
-  private[this] val chars = symbols.toCharArray();
+  private[this] val buf = new Array[Char](length)
 
   def this(length: Int, symbols: String) {
-    this(length, new SecureRandom(), symbols);
+    this(length, new SecureRandom(), symbols)
   }
   
   def this(length: Int, random: Random) {
-    this(length, random, RandomStringGenerator.Base64);
+    this(length, random, RandomStringGenerator.Base64)
   }
   
   def this(length: Int) {
-    this(length, new SecureRandom());
+    this(length, new SecureRandom())
   }
  
   def nextString(): String = {
-    for (idx <- 0 to buf.length - 1) {
-      buf(idx) = symbols(random.nextInt(symbols.length));
+    for (idx <- buf.indices) {
+      buf(idx) = symbols(random.nextInt(symbols.length))
     }
-    new String(buf);
+    new String(buf)
   }
 }
