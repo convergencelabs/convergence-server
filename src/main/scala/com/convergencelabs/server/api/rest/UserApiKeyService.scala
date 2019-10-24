@@ -25,10 +25,6 @@ object UserApiKeyService {
                             key: String,
                             enabled: Boolean,
                             lastUsed: Option[Instant])
-
-  case class CreateUserApiKeysResponse(key: UserApiKeyData)
-
-  case class GetUserApiKeysResponse(apiKeys: List[UserApiKeyData])
 }
 
 class UserApiKeyService(
@@ -75,8 +71,7 @@ class UserApiKeyService(
         val UserApiKey(_, name, keyId, enabled, lastUsed) = key
         UserApiKeyData(name, keyId, enabled, lastUsed)
       }).toList
-      val response = GetUserApiKeysResponse(keyData)
-      okResponse(response)
+      okResponse(keyData)
     }
   }
 
@@ -84,7 +79,7 @@ class UserApiKeyService(
     val request = CreateApiKeyRequest(authProfile.username, keyData.name, keyData.enabled)
     (userApiKeyStoreActor ? request).mapTo[UserApiKey] map {
       case UserApiKey(_, key, name, enabled, lastUsed) =>
-        okResponse(CreateUserApiKeysResponse(UserApiKeyData(key, name, enabled, lastUsed)))
+        okResponse(UserApiKeyData(key, name, enabled, lastUsed))
     }
   }
 
