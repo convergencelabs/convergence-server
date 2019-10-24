@@ -9,7 +9,7 @@ import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatena
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.convergence.UserApiKeyStoreActor.{CreateApiKeyRequest, DeleteApiKeyRequest, GetApiKeysForUser, UpdateKeyRequest}
+import com.convergencelabs.server.datastore.convergence.UserApiKeyStoreActor._
 import com.convergencelabs.server.security.AuthorizationProfile
 import com.convergencelabs.server.datastore.convergence.UserApiKey
 
@@ -25,6 +25,7 @@ object UserApiKeyService {
                             key: String,
                             enabled: Boolean,
                             lastUsed: Option[Instant])
+
 }
 
 class UserApiKeyService(
@@ -51,6 +52,9 @@ class UserApiKeyService(
         },
         path(Segment) { keyId =>
           pathEnd {
+            get {
+              complete(getApiKey(authProfile, keyId))
+            } ~
             put {
               entity(as[UpdateKeyData]) { keyData =>
                 complete(updateApiKey(authProfile, keyId, keyData))
@@ -72,6 +76,16 @@ class UserApiKeyService(
         UserApiKeyData(name, keyId, enabled, lastUsed)
       }).toList
       okResponse(keyData)
+    }
+  }
+
+  def getApiKey(authProfile: AuthorizationProfile, key: String): Future[RestResponse] = {
+    val request = GetApiKeyRequest(authProfile.username, key)
+    (userApiKeyStoreActor ? request).mapTo[Option[UserApiKey]] map {
+      case Some(UserApiKey(_, name, keyId, enabled, lastUsed)) =>
+        okResponse(UserApiKeyData(name, keyId, enabled, lastUsed))
+      case None =>
+        notFoundResponse(Some(s"A key with id '$key' could not be found"))
     }
   }
 

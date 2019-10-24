@@ -17,6 +17,8 @@ object UserApiKeyStoreActor {
 
   case class GetApiKeysForUser(username: String)
 
+  case class GetApiKeyRequest(username: String, key: String)
+
   case class CreateApiKeyRequest(username: String, name: String, enabled: Option[Boolean])
 
   case class DeleteApiKeyRequest(username: String, key: String)
@@ -39,6 +41,7 @@ class UserApiKeyStoreActor private[datastore](private[this] val dbProvider: Data
 
   def receive: Receive = {
     case message: GetApiKeysForUser => getKeys(message)
+    case message: GetApiKeyRequest => getKey(message)
     case message: CreateApiKeyRequest => createKey(message)
     case message: DeleteApiKeyRequest => deleteKey(message)
     case message: UpdateKeyRequest => updateKey(message)
@@ -48,6 +51,11 @@ class UserApiKeyStoreActor private[datastore](private[this] val dbProvider: Data
   def getKeys(message: GetApiKeysForUser): Unit = {
     val GetApiKeysForUser(username) = message
     reply(userApiKeyStore.getKeysForUser(username))
+  }
+
+  def getKey(message: GetApiKeyRequest): Unit = {
+    val GetApiKeyRequest(username, key) = message
+    reply(userApiKeyStore.getKeyForUser(username, key))
   }
 
   def createKey(message: CreateApiKeyRequest): Unit = {

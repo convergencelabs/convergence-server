@@ -94,6 +94,13 @@ class UserApiKeyStore(
     OrientDBUtil.queryAndMap(db, GetKeysForUserQuery, params) { doc => docToApiKey(doc) }.map(_.toSet)
   }
 
+  private[this] val GetKeyForUserQuery = "SELECT * FROM UserApiKey WHERE user.username = :username AND key = :key"
+
+  def getKeyForUser(username: String, key: String): Try[Option[UserApiKey]] = withDb { db =>
+    val params = Map(Params.Username -> username, Params.Key -> key)
+    OrientDBUtil.findDocumentAndMap(db, GetKeyForUserQuery, params) { doc => docToApiKey(doc) }
+  }
+
   private[this] val DeleteKeyCommand = "DELETE FROM UserApiKey WHERE key = :key AND user.username = :username"
 
   def deleteKey(apiKey: String, username: String): Try[Unit] = withDb { db =>
