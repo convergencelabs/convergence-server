@@ -1,35 +1,16 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
-import com.convergencelabs.server.datastore.convergence.UserStore.User
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, entity, get, parameters, path, pathEnd, pathPrefix, post}
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import grizzled.slf4j.Logging
+import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.{GetConfigs, SetConfigs}
 import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.GetConfigs
-import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.SetConfigs
+import grizzled.slf4j.Logging
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object ConfigService {
 }
@@ -41,13 +22,12 @@ class ConfigService(
   extends JsonSupport
   with Logging {
 
-  import ConfigService._
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("config") {
       pathEnd {
         get {

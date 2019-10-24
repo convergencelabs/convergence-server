@@ -115,14 +115,14 @@ actions:
     type: Unique
     properties: [bearerToken]
 
- ########## UserIntegrationTokens Class ##########
+ ########## UserApiKey Class ##########
 
   - action: CreateClass
     name: UserApiKey
     properties:
       - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true,  notNull: true, readOnly: true}}
-      - {name: name,     type: Link,   linkedClass: User, constraints: {mandatory: true,  notNull: true, readOnly: true}}
-      - {name: key,    type: String,                    constraints: {mandatory: true,  notNull: true}}
+      - {name: name,     type: String,                    constraints: {mandatory: true,  notNull: true}}
+      - {name: key,      type: String,                    constraints: {mandatory: true,  notNull: true}}
       - {name: enabled,  type: Boolean,                   constraints: {mandatory: true,  notNull: true}}
       - {name: lastUsed, type: DateTime,                  constraints: {mandatory: false, notNull: true}}
 

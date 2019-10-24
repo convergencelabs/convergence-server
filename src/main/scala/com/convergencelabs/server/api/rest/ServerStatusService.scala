@@ -1,22 +1,16 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.ServerStatusActor.GetStatusRequest
-import com.convergencelabs.server.datastore.convergence.ServerStatusActor.ServerStatusResponse
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
+import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, pathEnd, pathPrefix}
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.ServerStatusActor.{GetStatusRequest, ServerStatusResponse}
+import com.convergencelabs.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object ServerStatusService {
   case class ServerStatus(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
@@ -32,10 +26,10 @@ class ServerStatusService(
   import ServerStatusService._
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("status") {
       pathEnd {
         get {

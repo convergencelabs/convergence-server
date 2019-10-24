@@ -2,38 +2,17 @@ package com.convergencelabs.server.api.rest
 
 import java.time.Instant
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ConvergenceUserInfo
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.CreateConvergenceUserRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.DeleteConvergenceUserRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUsers
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserRequest
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor._
 import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.security.AuthorizationProfile
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
-import akka.util.Timeout
+import scala.concurrent.{ExecutionContext, Future}
 
 object ConvergenceUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
@@ -52,10 +31,10 @@ class ConvergenceUserService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("users") {
       pathEnd {
         get {

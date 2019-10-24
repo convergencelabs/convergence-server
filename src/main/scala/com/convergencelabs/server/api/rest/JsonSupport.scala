@@ -1,20 +1,12 @@
 package com.convergencelabs.server.api.rest
 
-import java.time.Duration
-import java.time.Instant
-
-import scala.annotation.implicitNotFound
-
-import org.json4s.CustomSerializer
-import org.json4s.DefaultFormats
-import org.json4s.FieldSerializer
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JLong
-import org.json4s.jackson.Serialization
+import java.time.{Duration, Instant}
 
 import com.convergencelabs.server.domain.model.data.DataValue
-
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import org.json4s.{CustomSerializer, DefaultFormats, FieldSerializer, Formats}
+import org.json4s.JsonAST.{JInt, JLong}
+import org.json4s.jackson.Serialization
 
 trait JsonSupport extends Json4sSupport {
 
@@ -25,7 +17,7 @@ trait JsonSupport extends Json4sSupport {
       Instant.ofEpochMilli(num.longValue())
   }, {
     case x: Instant =>
-      JLong(x.toEpochMilli())
+      JLong(x.toEpochMilli)
   }))
 
   val durationSerializer = new CustomSerializer[Duration](formats => ({
@@ -36,7 +28,7 @@ trait JsonSupport extends Json4sSupport {
       Duration.ofMillis(long)
   }, {
     case x: Duration =>
-      JLong(x.toMillis())
+      JLong(x.toMillis)
   }))
 
   val dataValueSerializer = new CustomSerializer[DataValue](formats => ({
@@ -48,9 +40,9 @@ trait JsonSupport extends Json4sSupport {
 
   }))
 
-  implicit val serialization = Serialization
+  implicit val serialization: Serialization.type = Serialization
 
-  implicit val formats = DefaultFormats +
+  implicit val formats: Formats = DefaultFormats +
     instantSerializer +
     durationSerializer +
     dataValueSerializer +

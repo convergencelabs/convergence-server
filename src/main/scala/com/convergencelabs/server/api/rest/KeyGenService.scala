@@ -1,21 +1,14 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.JwtUtil
-
-import KeyGenService.CreateTokenResponse
-import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.util.Timeout
+import com.convergencelabs.server.api.rest.KeyGenService.CreateTokenResponse
+import com.convergencelabs.server.domain.JwtUtil
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 object KeyGenService {
   case class CreateTokenResponse(publicKey: String, privateKey: String)
@@ -25,7 +18,7 @@ class KeyGenService(
   private[this] val executionContext: ExecutionContext)
     extends JsonSupport {
 
-  implicit val ec = executionContext
+  implicit val ec: ExecutionContext = executionContext
 
   def route(): Route = {
     pathPrefix("util" / "keygen") {

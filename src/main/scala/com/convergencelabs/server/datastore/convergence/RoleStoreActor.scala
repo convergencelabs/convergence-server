@@ -1,18 +1,14 @@
 package com.convergencelabs.server.datastore.convergence
 
+import akka.actor.{ActorLogging, Props}
+import akka.util.Timeout
+import com.convergencelabs.server.datastore.StoreActor
+import com.convergencelabs.server.datastore.convergence.RoleStore.Role
+import com.convergencelabs.server.db.DatabaseProvider
+
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
-import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.datastore.StoreActor
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.datastore.convergence.RoleStore.Role
-
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.util.Timeout
-import com.convergencelabs.server.datastore.convergence.RoleStore.UserRole
-import scala.util.Try
 
 object RoleStoreActor {
   val RelativePath = "RoleStoreActor"
@@ -40,8 +36,8 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
   import RoleStoreActor._
 
   // FIXME: Read this from configuration
-  private[this] implicit val requstTimeout = Timeout(2 seconds)
-  private[this] implicit val exectionContext = context.dispatcher
+  private[this] implicit val requestTimeout: Timeout = Timeout(2 seconds)
+  private[this] implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
   private[this] val permissionsStore: RoleStore = new RoleStore(dbProvider)
 

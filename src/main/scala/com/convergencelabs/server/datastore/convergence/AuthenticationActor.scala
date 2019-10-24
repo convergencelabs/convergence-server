@@ -1,19 +1,14 @@
 package com.convergencelabs.server.datastore.convergence
 
-import java.time.Duration
-import java.time.Instant
+import java.time.{Duration, Instant}
 
-import com.convergencelabs.server.db.DatabaseProvider
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.server.datastore.StoreActor
-
-import akka.actor.ActorLogging
-import akka.actor.Props
-import com.convergencelabs.server.util.RandomStringGenerator
-import scala.util.Success
-import scala.util.Failure
-import scala.util.Try
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.security.AuthorizationProfile
-import java.util.concurrent.TimeUnit
+import com.convergencelabs.server.util.RandomStringGenerator
+
+import scala.util.{Success, Try}
 
 object AuthenticationActor {
   val RelativePath = "AuthActor"
@@ -30,6 +25,7 @@ object AuthenticationActor {
 
   case class ValidateSessionTokenRequest(token: String)
   case class ValidateUserBearerTokenRequest(bearerToken: String)
+  case class ValidateUserApiKeyRequest(apiKey: String)
 
   case class GetSessionTokenExpirationRequest(token: String)
   case class SessionTokenExpiration(username: String, expiration: Duration)
@@ -43,6 +39,7 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
   import AuthenticationActor._
 
   private[this] val userStore = new UserStore(dbProvider)
+  private[this] val userApiKeyStore = new UserApiKeyStore(dbProvider)
   private[this] val roleStore = new RoleStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
   private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
@@ -57,8 +54,10 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
       validateSessionToken(validateRequest)
     case validateUserBearerTokenRequest: ValidateUserBearerTokenRequest =>
       validateBearerToken(validateUserBearerTokenRequest)
+    case validateUserApiKey: ValidateUserApiKeyRequest =>
+      validateApiKey(validateUserApiKey)
     case tokenExpirationRequest: GetSessionTokenExpirationRequest =>
-      getSessionTokenExpiration(tokenExpirationRequest)
+      retrieveSessionTokenExpiration(tokenExpirationRequest)
     case invalidateTokenRequest: InvalidateTokenRequest =>
       invalidateToken(invalidateTokenRequest)
     case message: Any =>
@@ -66,27 +65,26 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
   }
 
   private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
-    val response = (for {
+    val response = for {
       timeout <- configStore.getSessionTimeout()
       valid <- userStore.validateCredentials(authRequest.username, authRequest.password)
-      response <- (valid match {
-        case true =>
-          val expiresAt = Instant.now().plus(timeout)
-          val token = sessionTokenGenerator.nextString()
-          userSessionTokenStore
-            .createToken(authRequest.username, token, expiresAt)
-            .map { _ =>
-              AuthSuccess(token, timeout)
-            }
-            .recover {
-              case cause: Throwable =>
-                log.error(cause, "Unable to create User Session Token")
-                AuthFailure
-            }
-        case false =>
-          Success(AuthFailure)
-      })
-    } yield (response))
+      resp <- if (valid) {
+        val expiresAt = Instant.now().plus(timeout)
+        val token = sessionTokenGenerator.nextString()
+        userSessionTokenStore
+          .createToken(authRequest.username, token, expiresAt)
+          .map { _ =>
+            AuthSuccess(token, timeout)
+          }
+          .recover {
+            case cause: Throwable =>
+              log.error(cause, "Unable to create User Session Token")
+              AuthFailure
+          }
+      } else {
+        Success(AuthFailure)
+      }
+    } yield resp
 
     reply(response)
   }
@@ -100,17 +98,24 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
       timeout <- configStore.getSessionTimeout()
       username <- userSessionTokenStore.validateUserSessionToken(validateRequest.token, () => Instant.now().plus(timeout))
       authProfile <- getAuthorizationProfile(username)
-    } yield (authProfile))
+    } yield authProfile)
   }
 
   private[this] def validateBearerToken(validateRequest: ValidateUserBearerTokenRequest): Unit = {
     reply(for {
       username <- userStore.validateBearerToken(validateRequest.bearerToken)
       authProfile <- getAuthorizationProfile(username)
-    } yield (authProfile))
+    } yield authProfile)
   }
 
-  private[this] def getSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
+  private[this] def validateApiKey(validateRequest: ValidateUserApiKeyRequest): Unit = {
+    reply(for {
+      username <- userApiKeyStore.validateUserApiKey(validateRequest.apiKey)
+      authProfile <- getAuthorizationProfile(username)
+    } yield authProfile)
+  }
+
+  private[this] def retrieveSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
     val result = userSessionTokenStore.expirationCheck(tokenExpirationRequest.token).map(_.map {
       case (username, expiration) =>
         val now = Instant.now()

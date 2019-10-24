@@ -1,43 +1,23 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.ConvergenceUserInfo
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetConvergenceUser
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.GetUserBearerTokenRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.RegenerateUserBearerTokenRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.SetPasswordRequest
-import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest
-import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.GetFavoritesForUser
-import com.convergencelabs.server.datastore.convergence.UserStore.User
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, put}
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.ConvergenceUserManagerActor._
+import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.{AddFavoriteDomain, GetFavoritesForUser, RemoveFavoriteDomain}
+import com.convergencelabs.server.datastore.convergence.UserStore.User
+import com.convergencelabs.server.domain.{Domain, DomainId}
+import com.convergencelabs.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.AddFavoriteDomain
-import com.convergencelabs.server.datastore.convergence.UserFavoriteDomainStoreActor.RemoveFavoriteDomain
-import com.convergencelabs.server.domain.Domain
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object CurrentUserService {
   case class BearerTokenResponse(token: String)
-  case class CovergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
+  case class ConvergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
   case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
   case class PasswordSetRequest(password: String)
 }
@@ -54,10 +34,10 @@ class CurrentUserService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("user") {
       path("profile") {
         get {
@@ -117,7 +97,7 @@ class CurrentUserService(
     val message = GetConvergenceUser(authProfile.username)
     (convergenceUserActor ? message).mapTo[Option[ConvergenceUserInfo]].map {
       case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, lastLogin), globalRole)) =>
-        okResponse(CovergenceUserProfile(username, email, firstName, lastName, displayName))
+        okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName))
       case None =>
         notFoundResponse()
     }

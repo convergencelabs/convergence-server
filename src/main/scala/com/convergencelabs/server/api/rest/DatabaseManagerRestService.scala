@@ -1,41 +1,23 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import org.json4s.jackson.Serialization
-
-import com.convergencelabs.server.db.data.JsonFormats
-import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetConvergenceVersion
-import com.convergencelabs.server.db.schema.DatabaseManagerActor.GetDomainVersion
-import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeConvergence
-import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomain
-import com.convergencelabs.server.db.schema.DatabaseManagerActor.UpgradeDomains
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.api.rest.DatabaseManagerRestService.UpgradeRequest
-import com.convergencelabs.server.api.rest.DatabaseManagerRestService.VersionResponse
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives.Segment
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.handleWith
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, entity, get, handleWith, path, pathPrefix, post}
+import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.server.api.rest.DatabaseManagerRestService.{UpgradeRequest, VersionResponse}
+import com.convergencelabs.server.db.data.JsonFormats
+import com.convergencelabs.server.db.schema.DatabaseManagerActor._
+import com.convergencelabs.server.domain.DomainId
+import com.convergencelabs.server.security.AuthorizationProfile
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.security.AuthorizationProfile
+import org.json4s.Formats
+import org.json4s.jackson.Serialization
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object DatabaseManagerRestService {
   case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
@@ -49,13 +31,13 @@ class DatabaseManagerRestService(
     extends Json4sSupport
     with Logging {
 
-  implicit val serialization = Serialization
-  implicit val formats = JsonFormats.format
+  implicit val serialization: Serialization.type = Serialization
+  implicit val formats: Formats = JsonFormats.format
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("schema") {
       (post & pathPrefix("upgrade")) {
         path("convergence") {
@@ -80,30 +62,24 @@ class DatabaseManagerRestService(
   def upgradeConvergence(request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
-    logger.debug(s"Received an request to upgrade convergence database to version: ${to}")
-    (databaseManager ? UpgradeConvergence(version, preRelease.getOrElse(false))).mapTo[Unit].map {
-      case _ => OkResponse
-    }
+    logger.debug(s"Received an request to upgrade convergence database to version: $to")
+    (databaseManager ? UpgradeConvergence(version, preRelease.getOrElse(false))).mapTo[Unit].map(_ => OkResponse)
   }
 
   def upgradeDomain(namespace: String, domainId: String, request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
-    logger.debug(s"Received an request to upgrade domain database to version: ${to}")
+    logger.debug(s"Received an request to upgrade domain database to version: $to")
     val message = UpgradeDomain(DomainId(namespace, domainId), version, preRelease.getOrElse(false))
-    (databaseManager ? message).mapTo[Unit].map {
-      case _ => OkResponse
-    }
+    (databaseManager ? message).mapTo[Unit].map(_ => OkResponse)
   }
 
   def upgradeDomains(request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
-    logger.debug(s"Received an request to upgrade all domain databases to version: ${to}")
+    logger.debug(s"Received an request to upgrade all domain databases to version: $to")
     val message = UpgradeDomains(version, preRelease.getOrElse(false))
-    (databaseManager ? message).mapTo[Unit].map {
-      case _ => OkResponse
-    }
+    (databaseManager ? message).mapTo[Unit].map(_ => OkResponse)
   }
 
   def getConvergenceVersion(): Future[RestResponse] = {
@@ -122,12 +98,11 @@ class DatabaseManagerRestService(
 
   private[this] def toVersion(version: Option[Int], preRelease: Option[Boolean]): String = {
     val v = version.map(_.toString) getOrElse ("latest")
-    val p = preRelease.getOrElse(false) match {
-      case true =>
-        "pre-released"
-      case false =>
-        "released"
+    val p = if (preRelease.getOrElse(false)) {
+      "pre-released"
+    } else {
+      "released"
     }
-    s"${v} (${p})"
+    s"$v ($p)"
   }
 }

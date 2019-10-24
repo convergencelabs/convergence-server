@@ -17,14 +17,14 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
 import grizzled.slf4j.Logging
 
-case class UserApiKey(
-  username: String,
-  name: String,
-  key: String,
-  enabled: Boolean,
-  lastUsed: Option[Instant])
+case class UserApiKey(username: String,
+                      name: String,
+                      key: String,
+                      enabled: Boolean,
+                      lastUsed: Option[Instant])
 
 object UserApiKeyStore {
+
   object Params {
     val Key = "key"
     val Username = "username"
@@ -57,20 +57,20 @@ object UserApiKeyStore {
  * Manages the persistence of User API Keys.
  *
  * @constructor Creates a new UserApiKeyStore using the provided database provider.
- *
  * @param dbProvider The database provider to use for persistence
  */
 class UserApiKeyStore(
-  val dbProvider: DatabaseProvider)
+                       val dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import UserApiKeyStore._
 
   def createKey(apiKey: UserApiKey): Try[Unit] = withDb { db =>
-    val UserApiKey(username, name, key, enabled, lastUsed) = apiKey
-    val queryStirng = """
-        |INSERT INTO 
+    val UserApiKey(username, name, key, enabled, _) = apiKey
+    val command =
+      """
+        |INSERT INTO
         |  UserApiKey 
         |SET
         |  user = (SELECT FROM User WHERE username = :username),
@@ -84,36 +84,52 @@ class UserApiKeyStore(
       Params.Key -> key,
       Params.Enabled -> enabled)
 
-    OrientDBUtil.mutateOneDocument(db, queryStirng, params)
+    OrientDBUtil.command(db, command, params).map(_ => ())
+  } recoverWith handleDuplicateValue
+
+  private[this] val GetKeysForUserQuery = "SELECT * FROM UserApiKey WHERE user.username = :username"
+
+  def getKeysForUser(username: String): Try[Set[UserApiKey]] = withDb { db =>
+    val params = Map(Params.Username -> username)
+    OrientDBUtil.queryAndMap(db, GetKeysForUserQuery, params) { doc => docToApiKey(doc) }.map(_.toSet)
   }
 
-  private[this] val DeleteKeyCommand = "DELETE FROM UserApiKey WHERE key = :key"
+  private[this] val DeleteKeyCommand = "DELETE FROM UserApiKey WHERE key = :key AND user.username = :username"
 
-  def deleteKey(apiKey: String): Try[Unit] = tryWithDb { db =>
-    val params = Map(Params.Key -> apiKey)
+  def deleteKey(apiKey: String, username: String): Try[Unit] = withDb { db =>
+    val params = Map(Params.Key -> apiKey, Params.Username -> username)
     OrientDBUtil.mutateOneDocument(db, DeleteKeyCommand, params)
   }
 
   private[this] val ValidateUserApiKeyQuery = "SELECT user.username as username FROM UserApiKey WHERE key = :key AND enabled = true"
+
   def validateUserApiKey(apiKey: String): Try[Option[String]] = withDb { db =>
     val params = Map(Params.Key -> apiKey)
     OrientDBUtil.findDocument(db, ValidateUserApiKeyQuery, params)
       .map(_.map(doc => doc.getProperty(Params.Username).asInstanceOf[String]))
   }
-  
+
   private[this] val SetLastUsedForKeyCommand = "UPDATE UserApiKey SET lastUsed = :lastUsed WHERE key = :key"
+
   def setLastUsedForKey(apiKey: String, lastUsed: Instant): Try[Unit] = withDb { db =>
     val params = Map(Params.Key -> apiKey, Params.LastUsed -> lastUsed)
     OrientDBUtil.mutateOneDocument(db, SetLastUsedForKeyCommand, params)
   }
-  
+
+  private[this] val UpdateKey = "UPDATE UserApiKey SET name = :name, enabled = :enabled WHERE key = :key AND user.username = :username"
+
+  def updateKeyKey(apiKey: String, username: String, name: String, enabled: Boolean): Try[Unit] = withDb { db =>
+    val params = Map(Params.Key -> apiKey, Params.Username -> username, Params.Name -> name, Params.Enabled -> enabled)
+    OrientDBUtil.mutateOneDocument(db, UpdateKey, params)
+  } recoverWith handleDuplicateValue
+
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case UserApiKeyClass.Indices.Key =>
           Failure(DuplicateValueException(UserApiKeyClass.Fields.Key))
         case UserApiKeyClass.Indices.UserName =>
-          Failure(DuplicateValueException("User and Name"))
+          Failure(DuplicateValueException("user_name"))
         case _ =>
           Failure(e)
       }

@@ -1,38 +1,17 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.CreateNamespace
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.DeleteNamespace
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetAccessibleNamespaces
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.GetNamespace
-import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor.UpdateNamespace
-import com.convergencelabs.server.domain.Namespace
-import com.convergencelabs.server.domain.NamespaceAndDomains
-import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.security.Permissions
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorize
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.NamespaceStoreActor._
+import com.convergencelabs.server.domain.{Namespace, NamespaceAndDomains}
+import com.convergencelabs.server.security.{AuthorizationProfile, Permissions}
 import grizzled.slf4j.Logging
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object NamespaceService {
   case class CreateNamespacePost(id: String, displayName: String)
@@ -49,13 +28,13 @@ class NamespaceService(
   with Logging {
 
   import NamespaceService._
-  import akka.pattern.ask
   import akka.http.scaladsl.server.Directives.Segment
+  import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("namespaces") {
       pathEnd {
         get {
@@ -103,10 +82,8 @@ class NamespaceService(
   def getNamespace(namespaceId: String): Future[RestResponse] = {
     val request = GetNamespace(namespaceId)
     (namespaceActor ? request).mapTo[Option[Namespace]] map {
-      _ match {
-        case Some(namespace) => okResponse(namespace)
-        case None => notFoundResponse(Some(s"A namespaec with the id '${namespaceId}' does not exist"))
-      }
+      case Some(namespace) => okResponse(namespace)
+      case None => notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
     }
   }
 
@@ -123,7 +100,7 @@ class NamespaceService(
   }
 
   def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
-    debug(s"Got request to delete namespace ${namespaceId}")
+    debug(s"Got request to delete namespace $namespaceId")
     val request = DeleteNamespace(authProfile.username, namespaceId)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }

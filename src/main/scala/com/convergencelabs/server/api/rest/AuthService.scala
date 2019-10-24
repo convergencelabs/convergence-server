@@ -1,19 +1,11 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.AuthRequest
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.AuthResponse
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.AuthSuccess
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.GetSessionTokenExpirationRequest
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.InvalidateTokenRequest
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.LoginRequest
-import com.convergencelabs.server.datastore.convergence.AuthenticationActor.SessionTokenExpiration
-
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.datastore.convergence.AuthenticationActor._
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object AuthService {
   case class SessionTokenResponse(token: String, expiresIn: Long)
@@ -31,15 +23,15 @@ class AuthService(
   import akka.http.scaladsl.server.Directives._
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = pathPrefix("auth") {
+  val route: Route = pathPrefix("auth") {
     (path("login") & post) {
       handleWith(authRequest)
     } ~
       (path("validate") & post) {
-        handleWith(tokenExprirationCheck)
+        handleWith(tokenExpirationCheck)
       } ~
       (path("logout") & post) {
         handleWith(invalidateToken)
@@ -52,7 +44,7 @@ class AuthService(
   def authRequest(req: AuthRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[AuthResponse].map {
       case AuthSuccess(token, expiration) =>
-        okResponse(SessionTokenResponse(token, expiration.toMillis()))
+        okResponse(SessionTokenResponse(token, expiration.toMillis))
       case _ =>
         AuthFailureError
     }
@@ -67,18 +59,16 @@ class AuthService(
     }
   }
 
-  def tokenExprirationCheck(req: GetSessionTokenExpirationRequest): Future[RestResponse] = {
+  def tokenExpirationCheck(req: GetSessionTokenExpirationRequest): Future[RestResponse] = {
     (authActor ? req).mapTo[Option[SessionTokenExpiration]].map {
-      case Some(SessionTokenExpiration(username, exprieDelta)) =>
-        okResponse(ExpirationResponse(true, Some(username), Some(exprieDelta.toMillis())))
-      case _None =>
-        okResponse(ExpirationResponse(false, None, None))
+      case Some(SessionTokenExpiration(username, expireDelta)) =>
+        okResponse(ExpirationResponse(valid = true, Some(username), Some(expireDelta.toMillis)))
+      case None =>
+        okResponse(ExpirationResponse(valid = false, None, None))
     }
   }
 
   def invalidateToken(req: InvalidateTokenRequest): Future[RestResponse] = {
-    (authActor ? req).map {
-      _ => OkResponse
-    }
+    (authActor ? req).map(_ => OkResponse)
   }
 }

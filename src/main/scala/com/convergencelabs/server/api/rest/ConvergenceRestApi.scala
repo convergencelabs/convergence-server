@@ -18,7 +18,7 @@ import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.server.api.rest.domain.DomainService
 import com.convergencelabs.server.datastore.convergence._
 import com.convergencelabs.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueExcpetion}
-import com.convergencelabs.server.db.data.{ConvergenceImportService, ConvergenceImporterActor}
+import com.convergencelabs.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.server.domain.chat.ChatSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
@@ -82,6 +82,7 @@ class ConvergenceRestApi(
     val databaseManagerActor = createBackendRouter(DatabaseManagerActor.RelativePath, "databaseManagerActor")
     val importerActor = createBackendRouter(ConvergenceImporterActor.RelativePath, "importerActor")
     val roleActor = createBackendRouter(RoleStoreActor.RelativePath, "roleActor")
+    val userApiKeyActor = createBackendRouter(UserApiKeyStoreActor.RelativePath, "userApiKeyActor")
     val configActor = createBackendRouter(ConfigStoreActor.RelativePath, "configActor")
     val favoriteDomainsActor = createBackendRouter(UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
     val domainStoreActor = createBackendRouter(DomainStoreActor.RelativePath, "domainStoreActor")
@@ -94,6 +95,7 @@ class ConvergenceRestApi(
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val roleService = new RoleService(ec, roleActor, defaultRequestTimeout)
+    val userApiKeyService = new UserApiKeyService(ec, userApiKeyActor, defaultRequestTimeout)
     val configService = new ConfigService(ec, configActor, defaultRequestTimeout)
     val statusService = new ServerStatusService(ec, statusActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
@@ -142,6 +144,7 @@ class ConvergenceRestApi(
                 domainService.route(authProfile),
                 roleService.route(authProfile),
                 configService.route(authProfile),
+                userApiKeyService.route(authProfile),
                 keyGenService.route(),
                 convergenceImportService.route(authProfile),
                 databaseManagerService.route(authProfile))

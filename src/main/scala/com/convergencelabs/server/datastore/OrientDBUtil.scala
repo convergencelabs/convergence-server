@@ -1,31 +1,23 @@
 package com.convergencelabs.server.datastore
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.Buffer
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.server.util.TryWithResource
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.executor.OResultSet
-import com.orientechnologies.orient.core.metadata.security.OIdentity
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.index.OCompositeKey
-import com.orientechnologies.orient.core.command.script.OCommandScript
-import com.orientechnologies.orient.core.command.OCommandRequest
-import com.orientechnologies.orient.core.record.impl.ODocumentHelper
-import java.util.ArrayList
-import com.orientechnologies.orient.core.index.OIndex
+import com.orientechnologies.orient.core.index.{OCompositeKey, OIndex}
+import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.sql.executor.OResultSet
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
 object OrientDBUtil {
 
   val CountField = "count"
 
   def query(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
-    TryWithResource(db.query(query, params.asJava))(resultSetToDocList(_))
+    TryWithResource(db.query(query, params.asJava))(resultSetToDocList)
   }
 
   def queryAndMap[T](db: ODatabaseDocument, query: String, params: Map[String, Any] = Map())(m: ODocument => T): Try[List[T]] = {
@@ -40,19 +32,19 @@ object OrientDBUtil {
    */
   def command(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Long] = {
     Try(db.command(command, params.asJava)).flatMap { rs =>
-      val result = if (rs.hasNext()) {
+      val result = if (rs.hasNext) {
         val element = rs.next.toElement
-        if (rs.hasNext()) {
-          Failure(new DatabaseCommandException(command, params, "The result set unexpectedly contained more than one result"))
+        if (rs.hasNext) {
+          Failure(DatabaseCommandException(command, params, "The result set unexpectedly contained more than one result"))
         } else {
           rs.close()
           val count: Long = element.getProperty(CountField)
           Option(count)
             .map(Success(_))
-            .getOrElse(Failure(new DatabaseCommandException(command, params, "'count' field was not present in result set")))
+            .getOrElse(Failure(DatabaseCommandException(command, params, "'count' field was not present in result set")))
         }
       } else {
-        Failure(new DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
+        Failure(DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
       }
 
       rs.close()
@@ -62,23 +54,23 @@ object OrientDBUtil {
   }
 
   def executeMutation(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Long] = {
-    Try(db.execute("sql", script, params.asJava)).flatMap(getMutationCount(_))
+    Try(db.execute("sql", script, params.asJava)).flatMap(getMutationCount)
   }
 
   def execute(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
-    TryWithResource(db.execute("sql", script, params.asJava))(resultSetToDocList(_))
+    TryWithResource(db.execute("sql", script, params.asJava))(resultSetToDocList)
   }
 
   def getDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[ODocument] = {
     Try(db.query(query, params.asJava))
-      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
-      .flatMap(assertOneDoc(_))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList))
+      .flatMap(assertOneDoc)
   }
 
   def findDocument(db: ODatabaseDocument, query: String, params: Map[String, Any] = Map()): Try[Option[ODocument]] = {
     Try(db.query(query, params.asJava))
-      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList(_)))
-      .flatMap(assertZeroOrOneDoc(_))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList))
+      .flatMap(assertZeroOrOneDoc)
   }
 
   def findDocumentAndMap[T](db: ODatabaseDocument, query: String, params: Map[String, Any] = Map())(m: ODocument => T): Try[Option[T]] = {
@@ -119,10 +111,10 @@ object OrientDBUtil {
     for {
       oIndex <- getIndex(db, index)
       identity <- Try(Option(oIndex.get(key).asInstanceOf[OIdentifiable]))
-        .flatMap(_ match {
+        .flatMap {
           case Some(doc) => Success(doc.getIdentity)
           case None => Failure(EntityNotFoundException())
-        })
+        }
     } yield {
       identity
     }
@@ -132,7 +124,7 @@ object OrientDBUtil {
     if (keys.isEmpty) {
       Success(List())
     } else {
-      val processedKeys = keys.map(_ match {
+      val processedKeys = keys.map({
         // FIXME https://github.com/orientechnologies/orientdb/issues/8751
         case oc: OCompositeKey => oc.getKeys
         case l: List[_] => l.asJava
@@ -140,7 +132,7 @@ object OrientDBUtil {
       }).asJava
 
       val params = Map("keys" -> processedKeys)
-      val query = s"SELECT FROM INDEX:${index} WHERE key IN :keys"
+      val query = s"SELECT FROM INDEX:$index WHERE key IN :keys"
       OrientDBUtil.queryAndMap(db, query, params) { doc =>
         val rid = doc.eval("rid").asInstanceOf[ORID]
         rid
@@ -169,10 +161,10 @@ object OrientDBUtil {
 
   def getDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[ODocument] = {
     findDocumentFromSingleValueIndex(db, index, key)
-      .flatMap(_ match {
+      .flatMap {
         case Some(doc) => Success(doc)
         case None => Failure(EntityNotFoundException())
-      })
+      }
   }
 
   def findDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[Option[ODocument]] = {
@@ -192,14 +184,14 @@ object OrientDBUtil {
     if (keys.isEmpty) {
       Success(List())
     } else {
-      val processedKeys = keys.map(_ match {
+      val processedKeys = keys.map({
         // FIXME https://github.com/orientechnologies/orientdb/issues/8751
         case oc: OCompositeKey => new java.util.ArrayList(oc.getKeys)
         case l: List[_] => l.asJava
         case v: Any => v
       }).asJava
       val params = Map("keys" -> processedKeys)
-      val query = s"SELECT FROM INDEX:${index} WHERE key IN :keys"
+      val query = s"SELECT FROM INDEX:$index WHERE key IN :keys"
       OrientDBUtil.query(db, query, params).map(_.map(_.getProperty("rid").asInstanceOf[OIdentifiable].getRecord.asInstanceOf[ODocument]))
     }
   }
@@ -225,12 +217,12 @@ object OrientDBUtil {
     for {
       oIndex <- getIndex(db, index)
       rid <- Try(Option(oIndex.get(key).asInstanceOf[ORID]))
-      _ <- (rid match {
+      _ <- rid match {
         case Some(rid) =>
           Try(db.delete(rid)).map(_ => ())
         case None =>
           Failure(EntityNotFoundException())
-      })
+      }
     } yield {
       ()
     }
@@ -244,10 +236,8 @@ object OrientDBUtil {
     Try {
       Option(db.getMetadata.getIndexManager.getIndex(index).get(key).asInstanceOf[OIdentifiable]).map(_.getIdentity)
     }.flatMap {
-      _ match {
-        case Some(rid) => Try(db.delete(rid)).map(_ => ())
-        case None => Success(())
-      }
+      case Some(rid) => Try(db.delete(rid)).map(_ => ())
+      case None => Success(())
     }
   }
 
@@ -274,7 +264,7 @@ object OrientDBUtil {
 
   def sequenceNext(db: ODatabaseDocument, sequence: String): Try[Long] = {
     Try {
-      val seq = db.getMetadata().getSequenceLibrary().getSequence(sequence)
+      val seq = db.getMetadata.getSequenceLibrary.getSequence(sequence)
       val next = seq.next()
       next
     }
@@ -323,21 +313,19 @@ object OrientDBUtil {
   }
 
   private[this] def assertOneMutatedDoc(rs: OResultSet): Try[Unit] = {
-    getMutationCount(rs).flatMap { count =>
-      count match {
-        case 0 =>
-          Failure(EntityNotFoundException())
-        case 1 =>
-          Success(())
-        case _ =>
-          Failure(MultipleValuesException())
-      }
+    getMutationCount(rs).flatMap {
+      case 0 =>
+        Failure(EntityNotFoundException())
+      case 1 =>
+        Success(())
+      case _ =>
+        Failure(MultipleValuesException())
     }
   }
 
   private[this] def resultSetToDocList(rs: OResultSet): List[ODocument] = {
-    val docs = Buffer[ODocument]()
-    while (rs.hasNext()) {
+    val docs = mutable.Buffer[ODocument]()
+    while (rs.hasNext) {
       val doc = rs.next.toElement.asInstanceOf[ODocument]
       docs.append(doc)
     }

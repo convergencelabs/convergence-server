@@ -1,36 +1,18 @@
 package com.convergencelabs.server.api.rest
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.datastore.convergence.DomainRoleTarget
-import com.convergencelabs.server.datastore.convergence.NamespaceRoleTarget
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
 import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetAllUserRolesRequest
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.RemoveUserFromTarget
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.UpdateRolesForTargetRequest
-import com.convergencelabs.server.datastore.convergence.RoleTarget
-import com.convergencelabs.server.datastore.convergence.ServerRoleTarget
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor.{GetAllUserRolesRequest, RemoveUserFromTarget, UpdateRolesForTargetRequest}
+import com.convergencelabs.server.datastore.convergence.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
 import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.concat
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.util.Timeout
+import scala.concurrent.{ExecutionContext, Future}
 
 object RoleService {
   case class CreateNamespacePost(id: String, displayName: String)
@@ -46,14 +28,13 @@ class RoleService(
   private[this] val roleActor: ActorRef,
   private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
-  import RoleService._
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("roles") {
       concat(
         pathPrefix("server") {
@@ -85,14 +66,14 @@ class RoleService(
         path("domain" / Segment / Segment) { (namespace, domain) =>
           pathEnd {
             get {
-              complete(getUserRolesForTarget(authProfile, DomainRoleTarget(new DomainId(namespace, domain))))
+              complete(getUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain))))
             } ~ post {
               entity(as[Map[String, String]]) { userRoles =>
-                complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(new DomainId(namespace, domain)), userRoles))
+                complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), userRoles))
               }
             }
           } ~ path(Segment) { username =>
-            complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(new DomainId(namespace, domain)), username))
+            complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), username))
           }
         })
     }
@@ -102,7 +83,7 @@ class RoleService(
     val request = GetAllUserRolesRequest(target)
     (roleActor ? request).mapTo[Set[UserRoles]] map { userRoles =>
       val response = userRoles
-        .filter(!_.roles.isEmpty)
+        .filter(_.roles.nonEmpty)
         .map(userRole => (userRole.username, userRole.roles.head.role.name))
         .toMap
       okResponse(response)
@@ -110,7 +91,7 @@ class RoleService(
   }
 
   def updateUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
-    val request = UpdateRolesForTargetRequest(target, userRoles.map(entry => (entry._1 -> Set(entry._2))))
+    val request = UpdateRolesForTargetRequest(target, userRoles.map(entry => entry._1 -> Set(entry._2)))
     (roleActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
