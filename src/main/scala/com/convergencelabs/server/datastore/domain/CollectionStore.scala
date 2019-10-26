@@ -2,18 +2,11 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Duration
 
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.server.db.DatabaseProvider
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
-import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
+import com.convergencelabs.server.datastore.domain.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
+import com.convergencelabs.server.datastore.domain.schema.CollectionClass.{ClassName, Fields, Indices}
+import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -22,24 +15,23 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
-import com.convergencelabs.server.datastore.domain.schema.CollectionClass.ClassName
-import com.convergencelabs.server.datastore.domain.schema.CollectionClass.Fields
-import com.convergencelabs.server.datastore.domain.schema.CollectionClass.Indices
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object CollectionStore {
 
   val DefaultSnapshotConfig = ModelSnapshotConfig(
-    false,
-    false,
-    false,
+    snapshotsEnabled = false,
+    triggerByVersion = false,
+    limitedByVersion = false,
     1000,
     1000,
-    false,
-    false,
+    triggerByTime = false,
+    limitedByTime = false,
     Duration.ofMillis(600000),
     Duration.ofMillis(600000))
 
-  val DefaultWorldPermissions = CollectionPermissions(true, true, true, true, true)
+  val DefaultWorldPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
 
   def collectionToDoc(collection: Collection): ODocument = {
     val doc = new ODocument(ClassName)
@@ -56,8 +48,8 @@ object CollectionStore {
   }
 
   def docToCollection(doc: ODocument): Collection = {
-    val snapshotConfigDoc: ODocument = doc.getProperty(Fields.SnapshotConfig);
-    val snapshotConfig = Option(snapshotConfigDoc) map (_.asModelSnapshotConfig) getOrElse (CollectionStore.DefaultSnapshotConfig)
+    val snapshotConfigDoc: ODocument = doc.getProperty(Fields.SnapshotConfig)
+    val snapshotConfig = Option(snapshotConfigDoc) map (_.asModelSnapshotConfig) getOrElse CollectionStore.DefaultSnapshotConfig
     Collection(
       doc.getProperty(Fields.Id),
       doc.getProperty(Fields.Description),
@@ -71,15 +63,16 @@ object CollectionStore {
   }
 
   case class CollectionSummary(id: String, description: String, modelCount: Int)
+
 }
 
-class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore: ModelStore)
+class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: ModelStore)
   extends AbstractDatabasePersistence(dbProvider) {
 
   def collectionExists(id: String): Try[Boolean] = withDb { db =>
     val query = "SELECT id FROM Collection WHERE id = :id"
     val params = Map(Fields.Id -> id)
-    OrientDBUtil.query(db, query, params).map(!_.isEmpty)
+    OrientDBUtil.query(db, query, params).map(_.nonEmpty)
   }
 
   //TODO: Do we need to be passing permissions in here
@@ -88,7 +81,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
       case true =>
         Success(())
       case false =>
-        createCollection(Collection(collectionId, collectionId, false, CollectionStore.DefaultSnapshotConfig, CollectionStore.DefaultWorldPermissions)).map { _ => () }
+        createCollection(Collection(collectionId, collectionId, overrideSnapshotConfig = false, CollectionStore.DefaultSnapshotConfig, CollectionStore.DefaultWorldPermissions)).map { _ => () }
     }
   }
 
@@ -96,7 +89,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     val doc = CollectionStore.collectionToDoc(collection)
     db.save(doc)
     ()
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue
 
   def updateCollection(collectionId: String, collection: Collection): Try[Unit] = withDb { db =>
     val params = Map(Fields.Id -> collectionId)
@@ -107,7 +100,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
         existingDoc.save()
         ()
       }
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue
 
   def deleteCollection(id: String): Try[Unit] = withDb { db =>
     for {
@@ -117,7 +110,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
         val params = Map(Fields.Id -> id)
         OrientDBUtil.mutateOneDocument(db, query, params)
       }
-    } yield (())
+    } yield ()
   }
 
   def getCollection(id: String): Try[Option[Collection]] = withDb { db =>
@@ -125,7 +118,7 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
     val params = Map(Fields.Id -> id)
     OrientDBUtil
       .findDocument(db, query, params)
-      .map(_.map(CollectionStore.docToCollection(_)))
+      .map(_.map(CollectionStore.docToCollection))
   }
 
   def getOrCreateCollection(collectionId: String): Try[Collection] = {
@@ -134,19 +127,28 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
   }
 
   def getAllCollections(
-    offset: Option[Int],
-    limit: Option[Int]): Try[List[Collection]] = withDb { db =>
-    val queryString = "SELECT * FROM Collection ORDER BY id ASC"
+                         idFilter: Option[String],
+                         offset: Option[Int],
+                         limit: Option[Int]): Try[List[Collection]] = withDb { db =>
+    val (whereClause, whereParams) = idFilter match {
+      case Some(filter) =>
+        val w = " WHERE id.toLowerCase() LIKE :filter"
+        val p = Map("filter" -> s"%${filter.toLowerCase}%")
+        (w, p)
+      case None =>
+        ("", Map[String, Any]())
+    }
+    val queryString = s"SELECT * FROM Collection$whereClause ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(queryString, limit, offset)
     OrientDBUtil
-      .query(db, query, Map())
-      .map(_.map(CollectionStore.docToCollection(_)))
+      .query(db, query, whereParams)
+      .map(_.map(CollectionStore.docToCollection))
   }
 
   def getCollectionSummaries(
-    filter: Option[String],
-    offset: Option[Int],
-    limit: Option[Int]): Try[List[CollectionSummary]] = withDb { db =>
+                              filter: Option[String],
+                              offset: Option[Int],
+                              limit: Option[Int]): Try[List[CollectionSummary]] = withDb { db =>
 
     val modelCountQuery = "SELECT count(*) as count, collection.id as collectionId FROM Model GROUP BY (collection)"
     val (whereClause, whereParams) = filter match {
@@ -157,17 +159,17 @@ class CollectionStore private[domain] (dbProvider: DatabaseProvider, modelStore:
       case None =>
         ("", Map[String, Any]())
     }
-    val baseQuery = s"SELECT id, description FROM Collection${whereClause} ORDER BY id ASC"
+    val baseQuery = s"SELECT id, description FROM Collection$whereClause ORDER BY id ASC"
     val collectionsQuery = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     for {
       allCollections <- OrientDBUtil.query(db, collectionsQuery, whereParams)
       modelsPerCollection <- OrientDBUtil.query(db, modelCountQuery)
     } yield {
-      val modelCounts = modelsPerCollection.map(t => (t.getProperty("collectionId").asInstanceOf[String] -> t.getProperty("count"))).toMap
+      val modelCounts = modelsPerCollection.map(t => t.getProperty("collectionId").asInstanceOf[String] -> t.getProperty("count")).toMap
       allCollections map { doc =>
         val id: String = doc.getProperty(Fields.Id)
         val description: String = doc.getProperty(Fields.Description)
-        val count: Long = modelCounts.get(id).getOrElse(0)
+        val count: Long = modelCounts.getOrElse(id, 0)
         CollectionSummary(id, description, count.toInt)
       }
     }

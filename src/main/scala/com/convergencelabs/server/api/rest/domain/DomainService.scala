@@ -75,7 +75,7 @@ class DomainService(
   val domainKeyService = new DomainKeyService(ec, t, domainManagerActor)
   val domainAdminTokenService = new DomainAdminTokenService(ec, t, domainManagerActor)
   val domainChatService = new DomainChatService(ec, t, domainManagerActor, chatClusterRegion)
-  val domainSecurityService = new DomainSecurityService(ec, t, permissionStoreActor)
+  val domainSecurityService = new DomainMembersService(ec, t, permissionStoreActor)
 
   val route = { authProfile: AuthorizationProfile =>
     pathPrefix("domains") {

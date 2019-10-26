@@ -110,14 +110,14 @@ class DomainUserService(
 
   def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetUsers(filter, offset, limit))).mapTo[List[DomainUser]] map
-      (users => okResponse(users.map(toUserData(_))))
+      (users => okResponse(users.map(toUserData)))
   }
 
   def findUser(domain: DomainId, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
     val findUser = FindUser(filter, excludes.map(_.map(DomainUserId(DomainUserType.Normal, _))), offset, limit)
     (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[List[DomainUser]] map
-      (users => okResponse(users.map(toUserData(_))))
+      (users => okResponse(users.map(toUserData)))
   }
 
   def createUserRequest(createRequest: CreateUserRequest, domain: DomainId): Future[RestResponse] = {

@@ -2,45 +2,23 @@ package com.convergencelabs.server.api.rest.domain
 
 import java.time.Duration
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.convergencelabs.server.api.rest._
+import com.convergencelabs.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
 import com.convergencelabs.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.server.datastore.domain.CollectionStore.CollectionSummary
-import com.convergencelabs.server.datastore.domain.CollectionStoreActor.CreateCollection
-import com.convergencelabs.server.datastore.domain.CollectionStoreActor.DeleteCollection
-import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollection
-import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollectionSummaries
-import com.convergencelabs.server.datastore.domain.CollectionStoreActor.GetCollections
-import com.convergencelabs.server.datastore.domain.CollectionStoreActor.UpdateCollection
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.ModelSnapshotConfig
+import com.convergencelabs.server.datastore.domain.CollectionStoreActor._
+import com.convergencelabs.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.server.domain.model.Collection
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.api.rest._
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorize
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.Segment
-import akka.http.scaladsl.server.Route
-import akka.util.Timeout
-import com.convergencelabs.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainCollectionService {
   case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
@@ -76,7 +54,9 @@ class DomainCollectionService(
     pathPrefix("collections") {
       pathEnd {
         get {
-          complete(getCollections(domain))
+          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+            complete(getCollections(domain, filter, offset, limit))
+          }
         } ~ post {
           entity(as[CollectionData]) { collection =>
             complete(createCollection(domain, collection))
@@ -106,10 +86,10 @@ class DomainCollectionService(
     }
   }
 
-  def getCollections(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollections(None, None))
+  def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    val message = DomainRestMessage(domain, GetCollections(filter, offset, limit))
     (domainRestActor ? message).mapTo[List[Collection]] map (collections =>
-      okResponse(collections.map(collectionToCollectionData(_))))
+      okResponse(collections.map(collectionToCollectionData)))
   }
 
   def getCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {

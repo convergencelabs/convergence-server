@@ -12,7 +12,7 @@ object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
 
   trait CollectionStoreRequest
-  case class GetCollections(offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
+  case class GetCollections(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollection(id: String) extends CollectionStoreRequest
   case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
@@ -27,7 +27,7 @@ class CollectionStoreActor private[datastore] (
   import CollectionStoreActor._
 
   def receive: Receive = {
-    case GetCollections(offset, limit) => getCollections(offset, limit)
+    case GetCollections(filter, offset, limit) => getCollections(filter, offset, limit)
     case GetCollectionSummaries(filter, offset, limit) => getCollectionSummaries(filter, offset, limit)
     case GetCollection(collectionId) => getCollectionConfig(collectionId)
     case CreateCollection(collection) => createCollection(collection)
@@ -36,8 +36,8 @@ class CollectionStoreActor private[datastore] (
     case message: Any => unhandled(message)
   }
 
-  def getCollections(offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(collectionStore.getAllCollections(offset, limit))
+  def getCollections(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
+    reply(collectionStore.getAllCollections(filter, offset, limit))
   }
 
   def getCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {

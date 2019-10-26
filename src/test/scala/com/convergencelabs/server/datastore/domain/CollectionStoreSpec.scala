@@ -2,17 +2,14 @@ package com.convergencelabs.server.datastore.domain
 
 import java.time.Duration
 
-import org.scalatest.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
-
+import com.convergencelabs.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.schema.DeltaCategory
 import com.convergencelabs.server.domain.ModelSnapshotConfig
 import com.convergencelabs.server.domain.model.Collection
-import com.convergencelabs.server.datastore.DuplicateValueException
-import com.convergencelabs.server.datastore.EntityNotFoundException
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.{Matchers, WordSpecLike}
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
@@ -33,21 +30,21 @@ class CollectionStoreSpec
   val carsCollectionId = "cars"
 
   val snapshotConfig = ModelSnapshotConfig(
-    true,
-    true,
-    true,
+    snapshotsEnabled = true,
+    triggerByVersion = true,
+    limitedByVersion = true,
     250,
     500,
-    false,
-    false,
+    triggerByTime = false,
+    limitedByTime = false,
     Duration.ofSeconds(0),
     Duration.ofSeconds(0))
     
-  val collectionPermissions = CollectionPermissions(true, true, true, true, true)
+  val collectionPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
 
-  val peopleCollection = Collection(peopleCollectionId, "People", true, snapshotConfig, collectionPermissions)
-  val companyCollection = Collection(companyCollectionId, "Some Company", false, snapshotConfig, collectionPermissions)
-  val teamCollection = Collection(teamCollectionId, "Team", false, snapshotConfig, collectionPermissions)
+  val peopleCollection = Collection(peopleCollectionId, "People", overrideSnapshotConfig = true, snapshotConfig, collectionPermissions)
+  val companyCollection = Collection(companyCollectionId, "Some Company", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
+  val teamCollection = Collection(teamCollectionId, "Team", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
 
   "An CollectionStore" when {
 
@@ -90,8 +87,8 @@ class CollectionStoreSpec
       }
     }
 
-    "updatig a collection" must {
-      "getfully update an existing collection" in withPersistenceStore { store =>
+    "updating a collection" must {
+      "successfully update an existing collection" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
         val existing = store.getCollection(peopleCollectionId).get.value
         val updated = existing.copy(description = "updatedPeople", overrideSnapshotConfig = false, snapshotConfig = snapshotConfig)
@@ -99,7 +96,7 @@ class CollectionStoreSpec
         store.getCollection(peopleCollectionId).get.value shouldBe updated
       }
 
-      "getfully update an existing collection to a new id" in withPersistenceStore { store =>
+      "successfully update an existing collection to a new id" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
         val existing = store.getCollection(peopleCollectionId).get.value
         val newId = "newId"
@@ -123,7 +120,7 @@ class CollectionStoreSpec
 
 
       "return EntityNotFoundException on a collection that does not exist" in withPersistenceStore { store =>
-        val toUpdate = Collection(carsCollectionId, "", false, snapshotConfig, collectionPermissions)
+        val toUpdate = Collection(carsCollectionId, "", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
         store.updateCollection(carsCollectionId, toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
@@ -134,7 +131,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None, None).get
+        val list = store.getAllCollections(None, None, None).get
         list shouldBe List(
           companyCollection,
           peopleCollection,
@@ -146,7 +143,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None, Some(1)).get
+        val list = store.getAllCollections(None, None, Some(1)).get
         list shouldBe List(companyCollection)
       }
 
@@ -155,7 +152,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(Some(1), None).get
+        val list = store.getAllCollections(None,Some(1), None).get
         list shouldBe List(
           peopleCollection,
           teamCollection)
@@ -166,7 +163,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(Some(1), Some(1)).get
+        val list = store.getAllCollections(None, Some(1), Some(1)).get
         list shouldBe List(peopleCollection)
       }
     }

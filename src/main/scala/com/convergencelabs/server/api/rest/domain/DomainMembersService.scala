@@ -1,55 +1,33 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.convergencelabs.server.api.rest.{OkResponse, RestResponse, notFoundResponse, okResponse}
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.datastore.convergence.DomainRoleTarget
-import com.convergencelabs.server.datastore.convergence.RoleStore.Role
-import com.convergencelabs.server.datastore.convergence.RoleStore.UserRoles
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetAllUserRolesRequest
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.GetUserRolesForTargetRequest
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.RemoveUserFromTarget
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.SeUsersRolesForTargetRequest
-import com.convergencelabs.server.datastore.convergence.RoleStoreActor.SetAllUserRolesForTargetRequest
+import com.convergencelabs.server.datastore.convergence.RoleStore.{Role, UserRoles}
+import com.convergencelabs.server.datastore.convergence.RoleStoreActor._
 import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.security.AuthorizationProfile
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Route
-import akka.util.Timeout
+import scala.concurrent.{ExecutionContext, Future}
 
-object DomainSecurityService {
+object DomainMembersService {
   case class SetUserRole(role: String)
   case class UserRoleResponse(role: Option[String])
 }
 
-class DomainSecurityService(
+class DomainMembersService(
   private[this] val executionContext: ExecutionContext,
   private[this] val timeout: Timeout,
   private[this] val roleStoreActor: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
-  import DomainSecurityService._
+  import DomainMembersService._
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
@@ -68,7 +46,7 @@ class DomainSecurityService(
           complete(getRoleForUser(domain, username))
         } ~ put {
           entity(as[SetUserRole]) { memberRole =>
-            complete(setRoleForUesr(domain, username, memberRole.role))
+            complete(setRoleForUser(domain, username, memberRole.role))
           }
         } ~ delete {
           complete(removeUserRole(domain, username))
@@ -106,7 +84,7 @@ class DomainSecurityService(
     }
   }
 
-  def setRoleForUesr(domain: DomainId, username: String, role: String): Future[RestResponse] = {
+  def setRoleForUser(domain: DomainId, username: String, role: String): Future[RestResponse] = {
     val message = SeUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
     (roleStoreActor ? message) map { _ => OkResponse } recover {
       case _: EntityNotFoundException => notFoundResponse()

@@ -111,7 +111,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
   //FIXME: export permissions
   private[this] def exportCollections(): Try[List[CreateCollection]] = {
     logger.debug("exporting collections")
-    persistence.collectionStore.getAllCollections(None, None) map {
+    persistence.collectionStore.getAllCollections(None, None, None) map {
       _.map { col =>
         val Collection(collectionId, name, overrideSnapshot, snapshotConfig, CollectionPermissions(true, true, true, true, true)) = col
         CreateCollection(collectionId, name, overrideSnapshot)
