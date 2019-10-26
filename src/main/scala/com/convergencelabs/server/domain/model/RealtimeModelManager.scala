@@ -271,7 +271,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         this.permissions = p
         this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
 
-        // Fire of an update to any client whose permissions have changed.
+        // Send and update to any client that has permissions that have changed.
         this.connectedClients.foreach {
           case (session, client) =>
             val current = this.permissions.resolveSessionPermissions(session.userId)

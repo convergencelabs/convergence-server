@@ -309,7 +309,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def modelOverridesCollectionPermissions(id: String): Try[Boolean] = withDb { db =>
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, Classes.Model.Indices.Id, id)
-      .map(_.getProperty(Classes.Model.Fields.OverridePermissions).asInstanceOf[Boolean])
+      .map{doc =>
+        val foo = doc.getProperty(Classes.Model.Fields.OverridePermissions).asInstanceOf[Boolean]
+        foo
+      }
   }
 
   def setOverrideCollectionPermissions(id: String, overridePermissions: Boolean): Try[Unit] = withDb { db =>

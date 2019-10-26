@@ -531,7 +531,7 @@ class ModelClientActor(
       domainFqn,
       modelId,
       session,
-      Some(overridePermissions),
+      overridePermissions,
       mappedWorld,
       setAllUsers,
       mappedAddedUsers,
