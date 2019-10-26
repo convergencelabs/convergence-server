@@ -60,6 +60,11 @@ lazy val root = (project in file("."))
       (edit in EditSource).value
       compileAnalysis
     },
+    compile in Test := {
+      val compileAnalysis = (compile in Test).value
+      (edit in EditSource).value
+      compileAnalysis
+    },
     targetDirectory in EditSource := baseDirectory.value / "target/scala-2.12/classes/"
   )
   .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
