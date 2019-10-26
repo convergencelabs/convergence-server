@@ -52,4 +52,14 @@ lazy val root = (project in file("."))
     publishArtifact in (Compile, packageDoc) := false,
     publishArtifact in (Compile, packageSrc) := false
   )
+  .settings(
+    sources in EditSource ++= (baseDirectory.value / "src/main/resources" * "reference.conf").get,
+    variables in EditSource += "version" -> version.value,
+    compile in Compile := {
+      val compileAnalysis = (compile in Compile).value
+      (edit in EditSource).value
+      compileAnalysis
+    },
+    targetDirectory in EditSource := baseDirectory.value / "target/scala-2.12/classes/"
+  )
   .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
