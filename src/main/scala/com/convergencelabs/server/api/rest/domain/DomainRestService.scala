@@ -1,18 +1,16 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-
+import akka.util.Timeout
 import com.convergencelabs.server.api.rest.JsonSupport
 import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.security.AuthorizationProfile
-import com.convergencelabs.server.security.Permissions
+import com.convergencelabs.server.security.{AuthorizationProfile, Permissions}
 
-import akka.util.Timeout
+import scala.concurrent.ExecutionContext
 
 class DomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
   // Permission Checks
 

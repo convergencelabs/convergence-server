@@ -18,26 +18,26 @@ class ModelCreator {
 
   def createModel(
                    persistenceProvider: DomainPersistenceProvider,
-                   userId: Option[DomainUserId],
+                   creatorUserId: Option[DomainUserId],
                    collectionId: String,
                    modelId: String,
                    data: ObjectValue,
-                   overridePermissions: Option[Boolean],
+                   overrideWorld: Option[Boolean],
                    worldPermissions: Option[ModelPermissions],
                    userPermissions: Map[DomainUserId, ModelPermissions]): Try[Model] = {
 
-    verifyCanCreate(collectionId, userId, persistenceProvider) flatMap { _ =>
+    verifyCanCreate(collectionId, creatorUserId, persistenceProvider) flatMap { _ =>
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
     } flatMap { _ =>
-      val overrideWorld = overridePermissions.getOrElse(false)
+      val ow = overrideWorld.getOrElse(false)
       val worldPerms = worldPermissions.getOrElse(ModelPermissions(read = false, write = false, remove = false, manage = false))
-      val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, overrideWorld, worldPerms)
+      val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, ow, worldPerms)
       model
     } flatMap { model =>
-      val ModelMetaData(model.metaData.id, model.metaData.collection, version, created, modified, overrideWorldPermissions, worldPermissions, model.metaData.valuePrefix) = model.metaData
+      val ModelMetaData(model.metaData.id, model.metaData.collection, version, created, _, _, _, model.metaData.valuePrefix) = model.metaData
       val snapshot = ModelSnapshot(ModelSnapshotMetaData(model.metaData.id, version, created), model.data)
       persistenceProvider.modelSnapshotStore.createSnapshot(snapshot) flatMap { _ =>
-        userId match {
+        creatorUserId match {
           case Some(uid) =>
             persistenceProvider
               .modelPermissionsStore
@@ -72,7 +72,7 @@ class ModelCreator {
               if (permissions.create) {
                 Success(())
               } else {
-                val message = s"Cannot create the model because the user does not have permissions to create models in the specified collection: $collectionId";
+                val message = s"Cannot create the model because the user does not have permissions to create models in the specified collection: $collectionId"
                 Failure(UnauthorizedException(message))
               }
             }
@@ -80,8 +80,8 @@ class ModelCreator {
             Success(())
         }
       } else {
-        // todo Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
-        // collections.
+        // TODO Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
+        //  collections.
         if (true) {
           Success(())
         } else {

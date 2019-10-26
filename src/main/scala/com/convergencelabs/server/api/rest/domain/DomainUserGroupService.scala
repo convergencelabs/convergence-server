@@ -1,55 +1,21 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.CreatedResponse
-import com.convergencelabs.server.api.rest.ErrorResponse
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.datastore.domain.UserGroup
-import com.convergencelabs.server.datastore.domain.UserGroupInfo
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.AddUserToGroup
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.CreateUserGroup
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.DeleteUserGroup
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroup
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroupInfo
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroupSummaries
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.GetUserGroups
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.RemoveUserFromGroup
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUserGroup
-import com.convergencelabs.server.datastore.domain.UserGroupStoreActor.UpdateUserGroupInfo
-import com.convergencelabs.server.datastore.domain.UserGroupSummary
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.api.rest._
+import com.convergencelabs.server.datastore.domain.UserGroupStoreActor._
+import com.convergencelabs.server.datastore.domain.{UserGroup, UserGroupInfo, UserGroupSummary}
+import com.convergencelabs.server.domain.{DomainId, DomainUserId, DomainUserType}
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.security.AuthorizationProfile
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainUserGroupService {
   case class UserGroupData(id: String, description: String, members: Set[String])
@@ -119,7 +85,7 @@ class DomainUserGroupService(
       case "all" =>
         val message = DomainRestMessage(domain, GetUserGroups(filter, offset, limit))
         (domainRestActor ? message).mapTo[List[UserGroup]] map (groups =>
-          okResponse(groups.map(groupToUserGroupData(_))))
+          okResponse(groups.map(groupToUserGroupData)))
       case "summary" =>
         val message = DomainRestMessage(domain, GetUserGroupSummaries(None, limit, offset))
         (domainRestActor ? message).mapTo[List[UserGroupSummary]] map (groups =>

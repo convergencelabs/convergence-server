@@ -2,35 +2,22 @@ package com.convergencelabs.server.api.rest.domain
 
 import java.time.Instant
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.language.postfixOps
-
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, complete, get, parameters, pathEnd, pathPrefix}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.convergencelabs.server.api.rest.{RestResponse, notFoundResponse, okResponse}
 import com.convergencelabs.server.datastore.domain.DomainSession
 import com.convergencelabs.server.datastore.domain.SessionStore.SessionQueryType
-import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSession
-import com.convergencelabs.server.datastore.domain.SessionStoreActor.GetSessions
+import com.convergencelabs.server.datastore.domain.SessionStoreActor.{GetSession, GetSessions}
 import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Route
-import akka.util.Timeout
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 object DomainSessionService {
   case class DomainSessionData(
@@ -119,7 +106,7 @@ class DomainSessionService(
       offset)
     val message = DomainRestMessage(domain, getMessage)
     (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
-      okResponse(sessions.map(sessionToSessionData(_))))
+      okResponse(sessions.map(sessionToSessionData)))
   }
 
   def getSession(domain: DomainId, sessionId: String): Future[RestResponse] = {

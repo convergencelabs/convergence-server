@@ -1,7 +1,7 @@
 package com.convergencelabs.server.datastore.domain
 
 import java.util.ArrayList
-import java.util.{ List => JavaList }
+import java.util.{List => JavaList}
 
 import scala.collection.JavaConverters.asJavaCollectionConverter
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
@@ -31,6 +31,7 @@ import com.convergencelabs.server.domain.DomainUserId
 import com.convergencelabs.server.domain.DomainUserType
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+
 case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 
 case class UserRoles(username: String, roles: Set[String])
@@ -88,6 +89,7 @@ object ModelPermissionsStore {
 }
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+
   import schema.DomainSchema._
   import ModelPermissionsStore._
 
@@ -124,6 +126,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   }
 
   private[this] val CollectionWordPermissionsQuery = "SELECT worldPermissions FROM Collection WHERE id = :collectionId"
+
   def getCollectionWorldPermissions(collectionId: String): Try[CollectionPermissions] = withDb { db =>
     val params = Map("collectionId" -> collectionId)
     OrientDBUtil
@@ -230,8 +233,8 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     }.flatMap { _ =>
       val command =
         """UPDATE Collection 
-        |  SET userPermissions = (SELECT FROM CollectionUserPermissions WHERE collection.id = :collectionId) 
-        |  WHERE id = :collectionId""".stripMargin
+          |  SET userPermissions = (SELECT FROM CollectionUserPermissions WHERE collection.id = :collectionId)
+          |  WHERE id = :collectionId""".stripMargin
 
       val params = Map("collectionId" -> collectionId)
       OrientDBUtil.mutateOneDocument(db, command, params)
@@ -309,7 +312,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
   def modelOverridesCollectionPermissions(id: String): Try[Boolean] = withDb { db =>
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, Classes.Model.Indices.Id, id)
-      .map{doc =>
+      .map { doc =>
         val foo = doc.getProperty(Classes.Model.Fields.OverridePermissions).asInstanceOf[Boolean]
         foo
       }
@@ -386,11 +389,11 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
   def updateAllModelUserPermissions(modelId: String, userPermissions: Map[DomainUserId, Option[ModelPermissions]]): Try[Unit] = tryWithDb { db =>
     ModelStore.getModelRid(modelId, db).flatMap { modelRid =>
-      Try(userPermissions.map {
-        case (userId, permissions) =>
+      Try(userPermissions.map { case (userId, permissions) =>
+        DomainUserStore.getUserRid(userId.username, userId.userType, db).flatMap { userRid =>
           for {
-            userRid <- DomainUserStore.getUserRid(userId.username, userId.userType, db)
-            modelUserPermission <- OrientDBUtil.findDocumentFromSingleValueIndex(db, Classes.ModelUserPermissions.Indices.User_Model, List(userRid, modelRid))
+            modelUserPermission <-
+              OrientDBUtil.findDocumentFromSingleValueIndex(db, Classes.ModelUserPermissions.Indices.User_Model, List(userRid, modelRid))
             result <- Try {
               modelUserPermission match {
                 case Some(existingPermissions) =>
@@ -420,7 +423,11 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
                   }
               }
             }
-          } yield (result)
+          } yield result
+        } recoverWith {
+          // This simply ignores the case where a user did not exist.
+          case cause: EntityNotFoundException => Success()
+        }
       }.foreach(_.get))
     }.flatMap { _ =>
       val command = "UPDATE Model SET userPermissions = (SELECT FROM ModelUserPermissions WHERE model.id = :modelId) WHERE id = :modelId"

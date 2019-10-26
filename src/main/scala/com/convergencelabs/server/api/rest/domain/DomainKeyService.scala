@@ -1,41 +1,19 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.convergencelabs.server.api.rest.{OkResponse, RestResponse, notFoundResponse, okResponse}
 import com.convergencelabs.server.datastore.domain.JwtAuthKeyStore.KeyInfo
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.CreateDomainApiKey
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.DeleteDomainApiKey
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomainApiKey
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.GetDomainApiKeys
-import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor.UpdateDomainApiKey
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.JwtAuthKey
+import com.convergencelabs.server.datastore.domain.JwtAuthKeyStoreActor._
+import com.convergencelabs.server.domain.{DomainId, JwtAuthKey}
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Route
-import akka.util.Timeout
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainKeyService {
   case class UpdateInfo(description: String, key: String, enabled: Boolean)
@@ -77,7 +55,7 @@ class DomainKeyService(
 
   def getKeys(domain: DomainId): Future[RestResponse] = {
     (domainRestActor ? DomainRestMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtAuthKey]] map {
-      case keys: List[JwtAuthKey] => okResponse(keys)
+      keys => okResponse(keys)
     }
   }
 

@@ -1,47 +1,18 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.CreatedResponse
-import com.convergencelabs.server.api.rest.DomainRestData
-import com.convergencelabs.server.api.rest.JsonSupport
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.invalidValueResponse
-import com.convergencelabs.server.api.rest.namespaceNotFoundResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.server.datastore.convergence.DomainStoreActor.DeleteDomainRequest
-import com.convergencelabs.server.datastore.convergence.DomainStoreActor.GetDomainRequest
-import com.convergencelabs.server.datastore.convergence.DomainStoreActor.ListDomainsRequest
-import com.convergencelabs.server.datastore.convergence.DomainStoreActor.UpdateDomainRequest
-import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
-import com.convergencelabs.server.domain.Domain
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.authorize
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
-import akka.http.scaladsl.server.Directives.put
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.server.api.rest._
+import com.convergencelabs.server.datastore.convergence.DomainStoreActor._
+import com.convergencelabs.server.datastore.convergence.NamespaceNotFoundException
+import com.convergencelabs.server.domain.{Domain, DomainId}
+import com.convergencelabs.server.security.AuthorizationProfile
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainService {
   case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)
@@ -62,8 +33,8 @@ class DomainService(
   import akka.http.scaladsl.server.Directives.Segment
   import akka.pattern.ask
 
-  implicit val ec = executionContext
-  implicit val t = defaultTimeout
+  implicit val ec: ExecutionContext = executionContext
+  implicit val t: Timeout = defaultTimeout
 
   val domainConfigService = new DomainConfigService(ec, t, domainManagerActor)
   val domainUserService = new DomainUserService(ec, t, domainManagerActor)
@@ -77,7 +48,7 @@ class DomainService(
   val domainChatService = new DomainChatService(ec, t, domainManagerActor, chatClusterRegion)
   val domainSecurityService = new DomainMembersService(ec, t, permissionStoreActor)
 
-  val route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("domains") {
       pathEnd {
         get {
@@ -122,7 +93,7 @@ class DomainService(
   def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, id, displayName) = createRequest
     // FIXME check to make sure use has permissions to create domain in this namespace
-    val message = CreateDomainRequest(namespace, id, displayName, false)
+    val message = CreateDomainRequest(namespace, id, displayName, anonymousAuth = false)
     (domainStoreActor ? message)
       .map { _ => CreatedResponse }
       .recover {
@@ -148,7 +119,7 @@ class DomainService(
           domain.displayName,
           domain.domainFqn.namespace,
           domain.domainFqn.domainId,
-          domain.status.toString()))
+          domain.status.toString))
       case None =>
         notFoundResponse()
     }

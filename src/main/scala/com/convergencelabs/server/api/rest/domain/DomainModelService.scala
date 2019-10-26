@@ -22,44 +22,52 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object DomainModelService {
 
-  case class ModelPost(
-    collection: String,
-    data:       Map[String, Any])
+  case class ModelPost(collection: String,
+                       data: Map[String, Any],
+                       overrideWorld: Option[Boolean],
+                       worldPermissions: Option[ModelPermissions],
+                       userPermissions: Option[Map[String, ModelPermissions]])
 
-  case class ModelPut(
-    collection: String,
-    data:       Map[String, Any])
+  case class ModelPut(collection: String,
+                      data: Map[String, Any],
+                      overrideWorld: Option[Boolean],
+                      worldPermissions: Option[ModelPermissions],
+                      userPermissions: Option[Map[String, ModelPermissions]]
+                     )
 
-  case class ModelMetaDataResponse(
-    id:           String,
-    collection:   String,
-    version:      Long,
-    createdTime:  Instant,
-    modifiedTime: Instant)
+  case class ModelMetaDataResponse(id: String,
+                                   collection: String,
+                                   version: Long,
+                                   createdTime: Instant,
+                                   modifiedTime: Instant)
 
-  case class ModelData(
-    id:           String,
-    collection:   String,
-    version:      Long,
-    createdTime:  Instant,
-    modifiedTime: Instant,
-    data:         JObject)
+  case class ModelData(id: String,
+                       collection: String,
+                       version: Long,
+                       createdTime: Instant,
+                       modifiedTime: Instant,
+                       data: JObject)
 
   case class CreateModelResponse(id: String)
+
   case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
+
   case class GetPermissionsResponse(permissions: Option[ModelPermissions])
+
   case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions])
+
   case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean)
+
   case class SetOverrideWorldRequest(overrideWorld: Boolean)
 
   case class ModelQueryPost(query: String, offset: Option[Int], limit: Option[Int])
+
 }
 
-class DomainModelService(
-  private[this] val executionContext:   ExecutionContext,
-  private[this] val timeout:            Timeout,
-  private[this] val domainRestActor:    ActorRef,
-  private[this] val modelClusterRegion: ActorRef)
+class DomainModelService(private[this] val executionContext: ExecutionContext,
+                         private[this] val timeout: Timeout,
+                         private[this] val domainRestActor: ActorRef,
+                         private[this] val modelClusterRegion: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
   import DomainModelService._
@@ -199,23 +207,25 @@ class DomainModelService(
   }
 
   def postModel(domain: DomainId, model: ModelPost): Future[RestResponse] = {
-    val ModelPost(collectionIId, data) = model
-
-    // FIXME abstract this.
+    val ModelPost(collectionId, data, overrideWorld, worldPermissions, userPermissions) = model
     val modelId = UUID.randomUUID().toString
     val objectValue = ModelDataGenerator(data)
-    // FIXME need to pass in model permissions options.
-    val message = CreateRealtimeModel(domain, modelId, collectionIId, objectValue, None, None, Map(), None)
+    val userPerms = userPermissions.getOrElse(Map()).map { case (username, perms) =>
+      DomainUserId.normal(username) -> perms
+    }
+    val message = CreateRealtimeModel(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None)
     (modelClusterRegion ? message).mapTo[String] map {
-       modelId: String => createdResponse(CreateModelResponse(modelId))
+      modelId: String => createdResponse(CreateModelResponse(modelId))
     }
   }
 
   def putModel(domain: DomainId, modelId: String, modelPut: ModelPut): Future[RestResponse] = {
-    val ModelPut(collectionId, data) = modelPut
+    val ModelPut(collectionId, data, overrideWorld, worldPermissions, userPermissions) = modelPut
     val objectValue = ModelDataGenerator(data)
-    // FIXME need to pass id model permissions options.
-    val message = CreateOrUpdateRealtimeModel(domain, modelId, collectionId, objectValue, None, None, None, None)
+    val userPerms = userPermissions.getOrElse(Map()).map { case (username, perms) =>
+      DomainUserId.normal(username) -> perms
+    }
+    val message = CreateOrUpdateRealtimeModel(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None)
     (modelClusterRegion ? message) map { _ => OkResponse }
   }
 

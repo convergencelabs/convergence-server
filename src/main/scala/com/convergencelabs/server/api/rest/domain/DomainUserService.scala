@@ -1,31 +1,16 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.CreatedResponse
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.notFoundResponse
-import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.datastore.domain.UserStoreActor.CreateUser
-import com.convergencelabs.server.datastore.domain.UserStoreActor.DeleteDomainUser
-import com.convergencelabs.server.datastore.domain.UserStoreActor.FindUser
-import com.convergencelabs.server.datastore.domain.UserStoreActor.GetUserByUsername
-import com.convergencelabs.server.datastore.domain.UserStoreActor.GetUsers
-import com.convergencelabs.server.datastore.domain.UserStoreActor.SetPassword
-import com.convergencelabs.server.datastore.domain.UserStoreActor.UpdateUser
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.DomainUserType
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.api.rest._
+import com.convergencelabs.server.datastore.domain.UserStoreActor._
+import com.convergencelabs.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.security.AuthorizationProfile
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainUserService {
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: Option[String], email: Option[String], password: Option[String])

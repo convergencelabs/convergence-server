@@ -1,25 +1,18 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.datastore.domain.DomainStatsActor.DomainStats
-import com.convergencelabs.server.datastore.domain.DomainStatsActor.GetStats
+import akka.actor.ActorRef
+import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, path}
+import akka.http.scaladsl.server.Route
+import akka.util.Timeout
+import com.convergencelabs.server.api.rest.{RestResponse, okResponse}
+import com.convergencelabs.server.datastore.domain.DomainStatsActor.{DomainStats, GetStats}
 import com.convergencelabs.server.domain.DomainId
 import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.server.security.AuthorizationProfile
 
-import akka.actor.ActorRef
-import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directives._segmentStringToPathMatcher
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Route
-import akka.util.Timeout
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainStatsService {
   case class DomainStatsRestData(activeSessionCount: Long, userCount: Long, modelCount: Long, dbSize: Long)
@@ -31,8 +24,8 @@ class DomainStatsService(
   private[this] val domainRestActor: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
-  import akka.pattern.ask
   import DomainStatsService._
+  import akka.pattern.ask
   
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route =
     (path("stats") & get) {

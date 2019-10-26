@@ -2,15 +2,17 @@ package com.convergencelabs.server.api.rest
 
 import java.time.{Duration, Instant}
 
+import com.convergencelabs.server.domain.DomainUserType
+import com.convergencelabs.server.domain.DomainUserType.DomainUserType
 import com.convergencelabs.server.domain.model.data.DataValue
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
-import org.json4s.{CustomSerializer, DefaultFormats, FieldSerializer, Formats}
-import org.json4s.JsonAST.{JInt, JLong}
+import org.json4s.JsonAST.{JInt, JLong, JString}
 import org.json4s.jackson.Serialization
+import org.json4s.{CustomSerializer, DefaultFormats, FieldSerializer, Formats}
 
 trait JsonSupport extends Json4sSupport {
 
-  val instantSerializer = new CustomSerializer[Instant](formats => ({
+  val instantSerializer = new CustomSerializer[Instant](formats => ( {
     case JInt(num) =>
       Instant.ofEpochMilli(num.longValue())
     case JLong(num) =>
@@ -20,7 +22,7 @@ trait JsonSupport extends Json4sSupport {
       JLong(x.toEpochMilli)
   }))
 
-  val durationSerializer = new CustomSerializer[Duration](formats => ({
+  val durationSerializer = new CustomSerializer[Duration](formats => ( {
     case JInt(int) =>
       val l = int.longValue()
       Duration.ofMillis(l)
@@ -31,12 +33,21 @@ trait JsonSupport extends Json4sSupport {
       JLong(x.toMillis)
   }))
 
-  val dataValueSerializer = new CustomSerializer[DataValue](formats => ({
+  val dataValueSerializer = new CustomSerializer[DataValue](formats => ( {
     case x: Any =>
       ???
   }, {
     case x: DataValue =>
       DataValueToJValue.toJson(x)
+
+  }))
+
+  val domainUserTypeSerializer = new CustomSerializer[DomainUserType](formats => ( {
+    case JString(userType) =>
+      DomainUserType.withName(userType)
+  }, {
+    case domainUserType: DomainUserType =>
+      JString(domainUserType.toString)
 
   }))
 
@@ -46,5 +57,6 @@ trait JsonSupport extends Json4sSupport {
     instantSerializer +
     durationSerializer +
     dataValueSerializer +
+    domainUserTypeSerializer +
     FieldSerializer[ResponseMessage]()
 }

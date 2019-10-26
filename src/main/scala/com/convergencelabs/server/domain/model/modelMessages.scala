@@ -28,7 +28,7 @@ case class CreateOrUpdateRealtimeModel(
                                         data: ObjectValue,
                                         overridePermissions: Option[Boolean],
                                         worldPermissions: Option[ModelPermissions],
-                                        userPermissions: Option[Map[DomainUserId, ModelPermissions]],
+                                        userPermissions: Map[DomainUserId, ModelPermissions],
                                         session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
 case class CreateRealtimeModel(

@@ -1,51 +1,21 @@
 package com.convergencelabs.server.api.rest.domain
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-
-import com.convergencelabs.server.api.rest.CreatedResponse
-import com.convergencelabs.server.api.rest.RestResponse
-import com.convergencelabs.server.api.rest.domain.DomainChatService.CreateChatData
-import com.convergencelabs.server.api.rest.duplicateResponse
-import com.convergencelabs.server.api.rest.okResponse
-import com.convergencelabs.server.api.rest.OkResponse
-import com.convergencelabs.server.api.rest.unknownErrorResponse
-import com.convergencelabs.server.datastore.domain.ChatInfo
-import com.convergencelabs.server.datastore.domain.ChatMembership
-import com.convergencelabs.server.datastore.domain.ChatType
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.chat.ChatLookupActor.CreateChatRequest
-import com.convergencelabs.server.domain.chat.ChatLookupActor.CreateChatResponse
-import com.convergencelabs.server.domain.chat.ChatLookupActor.FindChatInfo
-import com.convergencelabs.server.domain.chat.ChatMessages.ChatAlreadyExistsException
-import com.convergencelabs.server.domain.chat.ChatMessages.RemoveChatlRequest
-import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.server.security.AuthorizationProfile
-
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
-import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives._enhanceRouteWithConcatenation
-import akka.http.scaladsl.server.Directives._string2NR
-import akka.http.scaladsl.server.Directives.as
-import akka.http.scaladsl.server.Directives.complete
-import akka.http.scaladsl.server.Directives.entity
-import akka.http.scaladsl.server.Directives.get
-import akka.http.scaladsl.server.Directives.delete
-import akka.http.scaladsl.server.Directives.put
-import akka.http.scaladsl.server.Directives.parameters
-import akka.http.scaladsl.server.Directives.path
-import akka.http.scaladsl.server.Directives.pathEnd
-import akka.http.scaladsl.server.Directives.pathPrefix
-import akka.http.scaladsl.server.Directives.post
+import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
+import com.convergencelabs.server.api.rest._
+import com.convergencelabs.server.datastore.domain.{ChatInfo, ChatMembership, ChatType}
+import com.convergencelabs.server.domain.{DomainId, DomainUserId}
+import com.convergencelabs.server.domain.chat.ChatLookupActor.{CreateChatRequest, CreateChatResponse, FindChatInfo, GetChatInfo}
+import com.convergencelabs.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, RemoveChatlRequest, SetChatNameRequest, SetChatTopicRequest}
+import com.convergencelabs.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
-import com.convergencelabs.server.domain.chat.ChatLookupActor.GetChatInfo
-import com.convergencelabs.server.domain.chat.ChatMessages.SetChatNameRequest
-import com.convergencelabs.server.domain.chat.ChatMessages.SetChatTopicRequest
+
+import scala.concurrent.{ExecutionContext, Future}
 
 object DomainChatService {
   case class ChatInfoData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
@@ -120,7 +90,7 @@ class DomainChatService(
       okResponse(ChatInfoData(
         id,
         chatType.toString.toLowerCase,
-        membership.toString().toLowerCase(),
+        membership.toString.toLowerCase(),
         name,
         topic,
         members.map(m => m.userId.username)))
@@ -136,7 +106,7 @@ class DomainChatService(
       ChatMembership.parse(membership),
       Some(name),
       Some(topic),
-      members.map(DomainUserId.normal(_)).toSet)
+      members.map(DomainUserId.normal).toSet)
     val message = DomainRestMessage(domain, request)
 
     domainRestActor.ask(message)

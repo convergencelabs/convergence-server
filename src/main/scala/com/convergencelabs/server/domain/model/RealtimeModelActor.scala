@@ -125,7 +125,7 @@ class RealtimeModelActor(
   }
 
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(_, modelId, session, overrideCollection, world, setAllUsers, addedUsers, removedUsers) = msg
+    val SetModelPermissionsRequest(_, modelId, session, overrideWorld, world, setAllUsers, addedUsers, removedUsers) = msg
     val users = scala.collection.mutable.Map[DomainUserId, Option[ModelPermissions]]()
     users ++= addedUsers.mapValues(Some(_))
     removedUsers.foreach(username => users += (username -> None))
@@ -134,7 +134,7 @@ class RealtimeModelActor(
         modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.manage).flatMap { canSet =>
           if (canSet) {
             for {
-              _ <- overrideCollection match {
+              _ <- overrideWorld match {
                 case Some(ov) => persistenceProvider.modelPermissionsStore.setOverrideCollectionPermissions(modelId, ov)
                 case None => Success(())
               }
@@ -309,6 +309,8 @@ class RealtimeModelActor(
             // FIXME we really need to actually create a synthetic operation
             //   and use the model operation processor to apply it.
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
+
+            // FIXME permissions
         }
       } else {
         modelCreator.createModel(
@@ -319,7 +321,7 @@ class RealtimeModelActor(
           data,
           overridePermissions,
           worldPermissions,
-          userPermissions.getOrElse(Map()))
+          userPermissions)
       }
     } map { _ =>
       sender ! (())
