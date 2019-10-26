@@ -119,7 +119,7 @@ class UserApiKeyStore(
   private[this] val SetLastUsedForKeyCommand = "UPDATE UserApiKey SET lastUsed = :lastUsed WHERE key = :key"
 
   def setLastUsedForKey(apiKey: String, lastUsed: Instant): Try[Unit] = withDb { db =>
-    val params = Map(Params.Key -> apiKey, Params.LastUsed -> lastUsed)
+    val params = Map(Params.Key -> apiKey, Params.LastUsed -> Date.from(lastUsed))
     OrientDBUtil.mutateOneDocument(db, SetLastUsedForKeyCommand, params)
   }
 

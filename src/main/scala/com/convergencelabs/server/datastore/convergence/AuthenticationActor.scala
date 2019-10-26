@@ -111,6 +111,7 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
   private[this] def validateApiKey(validateRequest: ValidateUserApiKeyRequest): Unit = {
     reply(for {
       username <- userApiKeyStore.validateUserApiKey(validateRequest.apiKey)
+      _ <- userApiKeyStore.setLastUsedForKey(validateRequest.apiKey, Instant.now())
       authProfile <- getAuthorizationProfile(username)
     } yield authProfile)
   }
