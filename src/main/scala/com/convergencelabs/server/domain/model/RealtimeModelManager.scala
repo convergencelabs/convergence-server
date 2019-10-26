@@ -37,7 +37,7 @@ object RealtimeModelManager {
   }
 
   object ForceModelCloseReasonCode extends Enumeration {
-    val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion  = Value
+    val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
   }
 
   trait RealtimeModelClient {
@@ -100,7 +100,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     def onOperationError(message: String): Unit = {
       workQueue.schedule {
         state = State.Error
-        forceCloseAllAfterError(message, ForceModelCloseReasonCode.ErrorApplyingOperation.id)
+        forceCloseAllAfterError(message, ForceModelCloseReasonCode.ErrorApplyingOperation)
       }
     }
   })
@@ -177,10 +177,9 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
             eventHandler.closeModel()
         }
       }
-    } recover {
-      case cause =>
-        error(s"$domainFqn/$modelId: Unable to determine if a model exists.", cause)
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+    } recover { case cause =>
+      error(s"$domainFqn/$modelId: Unable to determine if a model exists.", cause)
+      handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -209,12 +208,11 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         }
         // Else no action required, the model must have been persistent, which means we are in the process of
         // loading it from the database.
-      } recover {
-        case cause =>
-          error(
-            s"$domainFqn/$modelId: Unable to determine if model exists while handling an open request for an initializing model.",
-            cause)
-          handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      } recover { case cause =>
+        error(
+          s"$domainFqn/$modelId: Unable to determine if model exists while handling an open request for an initializing model.",
+          cause)
+        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
       }
     }
   }
@@ -250,19 +248,17 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           error(message, cause)
           this.handleInitializationFailure(DatabaseInitializationFailure)
       }
-    }) recover {
-      case cause =>
-        error(s"$domainFqn/$modelId: Error getting model data.", cause)
-        this.handleInitializationFailure(DatabaseInitializationFailure)
+    }) recover { case cause =>
+      error(s"$domainFqn/$modelId: Error getting model data.", cause)
+      this.handleInitializationFailure(DatabaseInitializationFailure)
     }
   }
 
   def reloadModelPermissions(): Try[Unit] = {
     // Build a map of all current permissions so we can detect what changes.
-    val currentPerms = this.connectedClients.map {
-      case (session, _) =>
-        val sessionPerms = this.permissions.resolveSessionPermissions(session.userId)
-        (session, sessionPerms)
+    val currentPerms = this.connectedClients.map { case (session, _) =>
+      val sessionPerms = this.permissions.resolveSessionPermissions(session.userId)
+      (session, sessionPerms)
     }
 
     this.permissionsResolver
@@ -272,21 +268,26 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
 
         // Send and update to any client that has permissions that have changed.
-        this.connectedClients.foreach {
-          case (session, client) =>
-            val current = this.permissions.resolveSessionPermissions(session.userId)
-            val previous = currentPerms.get(session)
-            if (!previous.contains(current)) {
-              val message = ModelPermissionsChanged(this.modelId, current)
-              client ! message
+        this.connectedClients.foreach { case (session, client) =>
+          val current = this.permissions.resolveSessionPermissions(session.userId)
+          val previous = currentPerms.get(session)
+          if (!previous.contains(current)) {
+            if (current.read) {
+              client ! ModelPermissionsChanged(this.modelId, current)
+            } else {
+              this.forceCloseModel(
+                session,
+                ForceModelCloseReasonCode.PermissionsChanged,
+                reason = "Permissions changed and this client no longer has read permissions.")
             }
+          }
         }
         ()
-      }.recover {
-      case cause =>
+      }
+      .recover { case cause =>
         error(s"$domainFqn/$modelId: Error updating permissions", cause)
-        this.forceCloseAllAfterError("Error updating permissions", ForceModelCloseReasonCode.PermissionError.id)
-    }
+        this.forceCloseAllAfterError("Error updating permissions", ForceModelCloseReasonCode.PermissionError)
+      }
   }
 
   /**
@@ -510,8 +511,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       }
     } recover {
       case cause =>
-        // fixme copy and paste code.
-        error(s"$domainFqn/$modelId: Unable to determine if a model exists.", cause)
+        error(s"$domainFqn/$modelId: Unable to determine if a model exists during a reconnect", cause)
         handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
@@ -658,14 +658,13 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
               }
             case Failure(cause) =>
               error(s"$domainFqn/$modelId: Error applying operation to model, kicking client from model: $request", cause)
-              forceClosedModel(
+              forceCloseModel(
                 session,
-                ForceModelCloseReasonCode.ErrorApplyingOperation.id,
-                s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + cause.getMessage,
-                notifyOthers = true)
+                ForceModelCloseReasonCode.ErrorApplyingOperation,
+                s"Error applying operation seqNo ${request.seqNo} to model, kicking client out of model: " + cause.getMessage)
           }
         } else {
-          forceClosedModel(session, ForceModelCloseReasonCode.Unauthorized.id, "Unauthorized to edit this model", notifyOthers = true)
+          forceCloseModel(session, ForceModelCloseReasonCode.Unauthorized, "Unauthorized to edit this model")
         }
     }
 
@@ -718,11 +717,10 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       // Event's no-op'ed
       case Failure(cause) =>
         error(s"$domainFqn/$modelId: Invalid reference event", cause)
-        forceClosedModel(
+        forceCloseModel(
           session,
-          ForceModelCloseReasonCode.InvalidReferenceEvent.id,
-          "invalid reference event",
-          notifyOthers = true
+          ForceModelCloseReasonCode.InvalidReferenceEvent,
+          "invalid reference event"
         )
     }
   }
@@ -762,7 +760,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   def commitVersion(version: Long): Unit = {
     if (version != this.committedVersion + 1) {
-      forceCloseAllAfterError(s"The committed version ($version) was not what was expected (${this.committedVersion + 1}).", ForceModelCloseReasonCode.UnexpectedCommittedVersion.id)
+      forceCloseAllAfterError(s"The committed version ($version) was not what was expected (${this.committedVersion + 1}).", ForceModelCloseReasonCode.UnexpectedCommittedVersion)
     } else {
       this.committedVersion = version
       this.checkForConnectionsAndClose()
@@ -776,25 +774,25 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   /**
    * Kicks all clients out of the model.
    */
-  def forceCloseAllAfterError(reason: String, reasonCode: Int = ForceModelCloseReasonCode.Unknown.id): Unit = {
+  def forceCloseAllAfterError(reason: String, reasonCode: ForceModelCloseReasonCode.Value = ForceModelCloseReasonCode.Unknown): Unit = {
     setState(State.Error)
     debug(s"$domainFqn/$modelId: Force closing all clients: $reason ($reasonCode)")
     connectedClients foreach {
-      case (clientId, _) => forceClosedModel(clientId, reasonCode, reason, notifyOthers = false)
+      case (clientId, _) => forceCloseModel(clientId, reasonCode, reason, notifyOthers = false)
     }
   }
 
   def modelDeleted(): Unit = {
-    this.forceCloseAllAfterError("The model was deleted", ForceModelCloseReasonCode.Deleted.id)
+    this.forceCloseAllAfterError("The model was deleted", ForceModelCloseReasonCode.Deleted)
   }
 
   /**
    * Kicks a specific client out of the model.
    */
-  private[this] def forceClosedModel(session: DomainUserSessionId, reasonCode: Int, reason: String, notifyOthers: Boolean): Unit = {
+  private[this] def forceCloseModel(session: DomainUserSessionId, reasonCode: ForceModelCloseReasonCode.Value, reason: String, notifyOthers: Boolean = true): Unit = {
     val closedActor = closeModel(session, notifyOthers)
 
-    val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode)
+    val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode.id)
     closedActor ! forceCloseMessage
 
     checkForConnectionsAndClose()

@@ -14,7 +14,6 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
-
 /**
   * Provides a factory method for creating the RealtimeModelActor
   */
@@ -307,6 +306,8 @@ class RealtimeModelActor(
           case Some(_) =>
             Failure(new RuntimeException("Cannot update an open model"))
           case None =>
+            // FIXME we really need to actually create a synthetic operation
+            //   and use the model operation processor to apply it.
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
         }
       } else {
