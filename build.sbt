@@ -47,24 +47,14 @@ lazy val root = (project in file("."))
         testingAkka
   )
   .settings(
-    mainClass in Compile := Some("com.convergencelabs.server.ConvergenceServerNode"),
+    mainClass in Compile := Some("com.convergencelabs.server.ConvergenceServer"),
     publishArtifact in (Compile, packageBin) := false,
     publishArtifact in (Compile, packageDoc) := false,
     publishArtifact in (Compile, packageSrc) := false
   )
-  .settings(
-    sources in EditSource ++= (baseDirectory.value / "src/main/resources" * "reference.conf").get,
-    variables in EditSource += "version" -> version.value,
-    compile in Compile := {
-      val compileAnalysis = (compile in Compile).value
-      (edit in EditSource).value
-      compileAnalysis
-    },
-    compile in Test := {
-      val compileAnalysis = (compile in Test).value
-      (edit in EditSource).value
-      compileAnalysis
-    },
-    targetDirectory in EditSource := baseDirectory.value / "target/scala-2.12/classes/"
-  )
   .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "com.convergencelabs.server"
+  )

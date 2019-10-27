@@ -426,7 +426,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
           } yield result
         } recoverWith {
           // This simply ignores the case where a user did not exist.
-          case cause: EntityNotFoundException => Success()
+          case cause: EntityNotFoundException => Success(())
         }
       }.foreach(_.get))
     }.flatMap { _ =>

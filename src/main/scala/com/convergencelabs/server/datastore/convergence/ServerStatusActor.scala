@@ -1,12 +1,11 @@
 package com.convergencelabs.server.datastore.convergence
 
-import scala.language.postfixOps
-
+import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.server.BuildInfo
 import com.convergencelabs.server.datastore.StoreActor
 import com.convergencelabs.server.db.DatabaseProvider
 
-import akka.actor.ActorLogging
-import akka.actor.Props
+import scala.language.postfixOps
 import scala.util.Try
 
 object ServerStatusActor {
@@ -29,20 +28,18 @@ class ServerStatusActor private[datastore] (
   
   def receive: Receive = {
     case GetStatusRequest =>
-      getStatus()
+      handleGetStatus()
     case message: Any =>
       unhandled(message)
   }
 
-  def getStatus(): Unit = {
-    
+  def handleGetStatus(): Unit = {
     reply(for {
       domains <- domainStore.domainCount()
       namespaces <- namespaceStore.namespaceCount()
-      version <- Try(this.context.system.settings.config.getString("convergence.version"))
       distribution <- Try(this.context.system.settings.config.getString("convergence.distribution"))
     } yield {
-      ServerStatusResponse(version, distribution, "healthy", namespaces, domains)
+      ServerStatusResponse(BuildInfo.version, distribution, "healthy", namespaces, domains)
     })
   }
 

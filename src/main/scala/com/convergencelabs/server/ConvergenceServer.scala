@@ -35,34 +35,68 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
+/**
+ * This is the main entry point for the Convergence Server. It contains the
+ * main method that will launch the server. Each instance of the Convergence
+ * Server can run one or more of the three Server Roles that the Convergence
+ * Server supports.  These are 1) the `backend` role which contains the core
+ * business logic of Convergence, 2) the `restApi` role which serves the
+ * Convergence Rest API, and 3) the `realtimeApi` role which serves the
+ * Convergence Realtime API. These roles are separated out such that, when
+ * clustered, the various roles of the system can be horizontally scaled
+ * independently.
+ */
 object ConvergenceServer extends Logging {
 
+  /**
+   * Defines the string constants for the Convergence Server roles.
+   */
   object Roles {
     val Backend = "backend"
     val RestApi = "restApi"
     val RealtimeApi = "realtimeApi"
   }
 
+  /**
+   * String constants for the environment variables that the Convergence Server
+   * will look for when initializing.
+   */
   object Environment {
     val ServerRoles = "SERVER_ROLES"
     val ClusterSeedNodes = "CLUSTER_SEED_NODES"
     val Log4jConfigFile = "LOG4J_CONFIG_FILE"
   }
 
+  /**
+   * String constants for various Akka baseConfig keys that are used during
+   * initialization.
+   */
   object AkkaConfig {
     val AkkaClusterRoles = "akka.cluster.roles"
     val AkkaClusterSeedNodes = "akka.cluster.seed-nodes"
   }
 
-  val ActorSystemName = "Convergence"
+  /**
+   * The name of the Akka ActorSystem.
+   */
+  private val ActorSystemName = "Convergence"
 
-  var server: Option[ConvergenceServer] = None
+  /**
+   * The currently running instance of the ConvergenceServer.
+   */
+  private var server: Option[ConvergenceServer] = None
 
+  /**
+   * The main entry point of the ConvergenceServer.
+   *
+   * @param args Command line arguments.
+   * @see [[ConvergenceServerCLIConf]]
+   */
   def main(args: Array[String]): Unit = {
     SystemOutRedirector.setOutAndErrToLog()
 
     scala.sys.addShutdownHook {
-      logger.info("JVM Shutdown Hook Invoked, stopping services")
+      logger.info("JVM Shutdown Hook invoked, stopping services")
       this.stop()
     }
 
@@ -80,74 +114,106 @@ object ConvergenceServer extends Logging {
     }
   }
 
+  /**
+   * Helper method that will shut down the server, if it was started.
+   */
   private[this] def stop(): Unit = {
     server.foreach(_.stop())
     LogManager.shutdown()
   }
 
+  /**
+   * Attempts to load the configuration file, as specified by the command
+   * line arguments.
+   * @param args The command line arguments supplied to the main method.
+   * @return The File reference to the baseConfig file if it exists.
+   */
   private[this] def getConfigFile(args: Array[String]): Try[File] = {
     Try {
-      val options = ServerCLIConf(args)
+      val options = ConvergenceServerCLIConf(args)
       new File(options.config.toOption.get)
     } flatMap { configFile =>
       if (!configFile.exists()) {
         Failure(new IllegalArgumentException(s"Config file not found: ${configFile.getAbsolutePath}."))
       } else {
-        info(s"Using config file: ${configFile.getAbsolutePath}")
+        info(s"Using baseConfig file: ${configFile.getAbsolutePath}")
         Success(configFile)
       }
     }
   }
 
-  private[this] def preprocessConfig(config: Config): Try[Config] = {
+  /**
+   * A helper method that will integrate the Akka / Lightbend baseConfig file with
+   * command line arguments and environment variables.
+   * @param baseConfig The loaded Config file.
+   * @return The merged Config object.
+   */
+  private[this] def preprocessConfig(baseConfig: Config): Try[Config] = {
     // This includes the reference.conf with the defaults.
-    val preProcessed = preProcessRoles(preprocessSeedNodes(config))
+    val preProcessed = mergeServerRoles(mergeSeedNodes(baseConfig))
     val loaded = ConfigFactory.load(preProcessed)
     Success(loaded)
   }
 
-  private[this] def preprocessSeedNodes(configFile: Config): Config = {
-    val configuredSeeds = configFile.getAnyRefList(AkkaConfig.AkkaClusterSeedNodes).asScala.toList
+  /**
+   * Merges the Akka Cluster Seed Nodes, with those specified in the environment variable.
+   * @param baseConfig The original Config object.
+   * @return The merged Config object.
+   */
+  private[this] def mergeSeedNodes(baseConfig: Config): Config = {
+    val configuredSeeds = baseConfig.getAnyRefList(AkkaConfig.AkkaClusterSeedNodes).asScala.toList
     if (configuredSeeds.isEmpty) {
-      logger.debug("No seed nodes specified in the akka config. Looking for an environment variable")
+      logger.debug("No seed nodes specified in the akka baseConfig. Looking for an environment variable")
       Option(System.getenv().get(Environment.ClusterSeedNodes)) match {
         case Some(seedNodesEnv) =>
           val seedNodes = seedNodesEnv.split(",").toList
           val seedsAddresses = seedNodes.map { hostname =>
             Address("akka.tcp", ConvergenceServer.ActorSystemName, hostname.trim, 2551).toString
           }
-          configFile.withValue(AkkaConfig.AkkaClusterSeedNodes, ConfigValueFactory.fromIterable(seedsAddresses.asJava))
+          baseConfig.withValue(AkkaConfig.AkkaClusterSeedNodes, ConfigValueFactory.fromIterable(seedsAddresses.asJava))
 
         case None =>
-          configFile
+          baseConfig
       }
     } else {
-      configFile
+      baseConfig
     }
   }
 
-  private[this] def preProcessRoles(configFile: Config): Config = {
-    val rolesInConfig = configFile.getStringList("akka.cluster.roles").asScala.toList
+  /**
+   * Merges the Convergence Server Roles from the supplied config with those
+   * set in the environment variable. Preference is given to what was
+   * explicitly set in the config file.
+   * @param baseConfig The original Config object.
+   * @return The merged config object.
+   */
+  private[this] def mergeServerRoles(baseConfig: Config): Config = {
+    val rolesInConfig = baseConfig.getStringList("akka.cluster.roles").asScala.toList
     if (rolesInConfig.isEmpty) {
       Option(System.getenv().get(Environment.ServerRoles)) match {
         case Some(rolesEnv) =>
           val roles = rolesEnv.split(",").toList map (_.trim)
-          val updated = configFile.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
+          val updated = baseConfig.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
           updated
         case None =>
-          configFile
+          baseConfig
       }
     } else {
-      configFile
+      baseConfig
     }
   }
 
+  /**
+   * A helper method to validate that at least one Server Role is set in the config.
+   * @param config The config to check.
+   * @return Success if at least one role is set, Failure otherwise.
+   */
   private[this] def validateRoles(config: Config): Try[Unit] = {
     val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toList
     if (roles.isEmpty) {
       Failure(
         new IllegalStateException("No cluster roles were defined. " +
-          s"Cluster roles must be defined in either the config '${ConvergenceServer.AkkaConfig.AkkaClusterRoles}s', " +
+          s"Cluster roles must be defined in either the baseConfig '${ConvergenceServer.AkkaConfig.AkkaClusterRoles}s', " +
           s"or the environment variable '${ConvergenceServer.Environment.ServerRoles}'"))
 
     } else {
@@ -155,27 +221,40 @@ object ConvergenceServer extends Logging {
     }
   }
 
+  /**
+   * A helper method to validate that at least one seed node is set in the config.
+   * @param config The config to check.
+   * @return Success if at least one seed node is set, Failure otherwise.
+   */
   private[this] def validateSeedNodes(config: Config): Try[Unit] = {
     val configuredSeeds = config.getAnyRefList(ConvergenceServer.AkkaConfig.AkkaClusterSeedNodes).asScala.toList
     if (configuredSeeds.isEmpty) {
       Failure(new IllegalStateException("No akka cluster seed nodes specified." +
-        s"seed nodes must be specified in the akka config '${ConvergenceServer.AkkaConfig.AkkaClusterSeedNodes}' " +
+        s"seed nodes must be specified in the akka baseConfig '${ConvergenceServer.AkkaConfig.AkkaClusterSeedNodes}' " +
         s"or the environment variable '${ConvergenceServer.Environment.ClusterSeedNodes}"))
     } else {
       Success(())
     }
   }
 
-  def configureLogging(configFile: Option[String] = None): Try[Unit] = {
-    // Check for the environment config.
+  /**
+   * A helper method too re-initialize log4j using the specified config file.
+   * The config file can either be specified as an Environment variable or a
+   * command line argument. Preferences is given to the command line argument.
+   * @param commandLineArg The potentially supplied command line argument.
+   * @return Success if either no options were supplied, or if they were
+   *         successfully applied; Failure otherwise.
+   */
+  def configureLogging(commandLineArg: Option[String] = None): Try[Unit] = {
+    // Check for the environment baseConfig.
     val env: Option[String] = Option(System.getenv().get(Environment.Log4jConfigFile))
 
     // Take one or the other
-    val config: Option[String] = (configFile orElse env) ensuring (_ => (configFile, env).zipped.isEmpty)
+    val config: Option[String] = (commandLineArg orElse env) ensuring (_ => (commandLineArg, env).zipped.isEmpty)
 
     Try {
       config.foreach { path =>
-        info(s"${Environment.Log4jConfigFile} is set. Attempting to load logging config from: $path")
+        info(s"${Environment.Log4jConfigFile} is set. Attempting to load logging baseConfig from: $path")
         val context = LogManager.getContext(false).asInstanceOf[org.apache.logging.log4j.core.LoggerContext]
         val file = new File(path)
         if (file.canRead) {
@@ -183,13 +262,19 @@ object ConvergenceServer extends Logging {
           // this will force a reconfiguration
           context.setConfigLocation(file.toURI)
         } else {
-          warn(s"Log4j config file '$path' does not exist. Ignoring.")
+          warn(s"Log4j baseConfig file '$path' does not exist. Ignoring.")
         }
       }
     }
   }
 }
 
+/**
+ * This is the main ConvergenceServer class. It is responsible for starting
+ * up all services including the Akka Actor System.
+ *
+ * @param config The configuration to use for the server.
+ */
 class ConvergenceServer(private[this] val config: Config) extends Logging {
 
   import ConvergenceServer.Roles._
@@ -201,9 +286,14 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
   private[this] var rest: Option[ConvergenceRestApi] = None
   private[this] var realtime: Option[ConvergenceRealtimeApi] = None
 
+  /**
+   * Starts the Convergence Server and returns itself, supporting
+   * a fluent API.
+   *
+   * @return This instance of the ConvergenceServer
+   */
   def start(): ConvergenceServer = {
-    val ver = config.getString("convergence.version")
-    info(s"Convergence Server ($ver) starting up...")
+    info(s"Convergence Server (${BuildInfo.version}) starting up...")
 
     val system = ActorSystem(ConvergenceServer.ActorSystemName, config)
     this.system = Some(system)
@@ -221,9 +311,9 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       val dbServerConfig = persistenceConfig.getConfig("server")
       val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
 
-      // TODO this only works is there is one ConvergenceServer with
-      // backend. This is fine for development, which is the only place this
-      // should exist, but it would be nice to do this elsewhere.
+      // TODO this only works is there is one ConvergenceServer with the
+      //  backend role. This is fine for development, which is the only place
+      //  this should exist, but it would be nice to do this elsewhere.
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
           bootstrapConvergenceDB(config) recover {
@@ -237,7 +327,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       val baseUri = dbServerConfig.getString("uri")
       orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
 
-      // FIXME figure out how to set the pool size
+      // TODO make the pool size configurable
       val convergenceDatabase = convergenceDbConfig.getString("database")
       val username = convergenceDbConfig.getString("username")
       val password = convergenceDbConfig.getString("password")
@@ -289,6 +379,11 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
     this
   }
 
+  /**
+   * A helper method that will install the Convergence database into OrientDB.
+   * @param config The server's configuration.
+   * @return An indication of success or failure.
+   */
   private[this] def bootstrapConvergenceDB(config: Config): Try[Unit] = Try {
     val persistenceConfig = config.getConfig("convergence.persistence")
     val dbServerConfig = persistenceConfig.getConfig("server")
@@ -361,6 +456,13 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
     ()
   }
 
+  /**
+   * Installs default data into the Convergence database.
+   * @param dbProvider A [[DatabaseProvider]] which is connected to the
+   *                   Convergence Database.
+   * @param config The server's config.
+   * @return An indication of success or failure.
+   */
   private[this] def bootstrapData(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
     val bootstrapConfig = config.getConfig("convergence.bootstrap")
     val defaultConfigs = bootstrapConfig.getConfig("default-configs")
