@@ -2,31 +2,35 @@ package com.convergencelabs.server.datastore.convergence
 
 import java.util.UUID
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Try
-
+import com.convergencelabs.server.datastore.InvalidValueExcpetion
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.server.domain.DomainDatabase
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.DomainStatus
+import com.convergencelabs.server.domain.{DomainDatabase, DomainId, DomainStatus}
 import com.convergencelabs.server.util.ExceptionUtils
 import com.typesafe.config.Config
-
 import grizzled.slf4j.Logging
-import scala.util.Success
-import com.convergencelabs.server.datastore.InvalidValueExcpetion
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
+
+/**
+ * A utility class that knows how to create Convergence Domains. This class is an
+ * abstract class that implements the main logic of creating a domain but leaves
+ * the details of how the domain database is created to subclasses.
+ *
+ * @param dbProvider The database provider that will produce a database connection.
+ * @param config The Convergence Server config.
+ * @param executionContext An execution context for asynchronous operations.
+ */
 abstract class DomainCreator(
     dbProvider: DatabaseProvider,
     config: Config,
     implicit val executionContext: ExecutionContext) extends Logging {
-  
-  val domainStore = new DomainStore(dbProvider)
-  val configStore = new ConfigStore(dbProvider)
-  val randomizeCredentials = config.getBoolean("convergence.persistence.domain-databases.randomize-credentials")
+
+  private[this] val domainStore = new DomainStore(dbProvider)
+  private[this] val configStore = new ConfigStore(dbProvider)
+  private[this] val randomizeCredentials = config.getBoolean("convergence.persistence.domain-databases.randomize-credentials")
+
   import ConfigKeys._
   
   def createDomain(
@@ -37,12 +41,11 @@ abstract class DomainCreator(
       ): Try[Future[Unit]] = {
     this.validate(namespace, id).flatMap { _ =>
       val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
-      val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = randomizeCredentials match {
-        case false =>
-          ("writer", "writer", "admin", "admin")
-        case true =>
-          (UUID.randomUUID().toString(), UUID.randomUUID().toString(),
-            UUID.randomUUID().toString(), UUID.randomUUID().toString())
+      val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = if (randomizeCredentials) {
+        (UUID.randomUUID().toString, UUID.randomUUID().toString,
+          UUID.randomUUID().toString, UUID.randomUUID().toString)
+      } else {
+        ("writer", "writer", "admin", "admin")
       }
   
       val domainId = DomainId(namespace, id)
@@ -54,12 +57,12 @@ abstract class DomainCreator(
         .mapTo[Unit]
         .map { _ =>
             debug(s"Domain created, setting status to online: $dbName")
-            this.updateStatusAfterProvisiong(domainId, DomainStatus.Online)
+            this.updateStatusAfterProvisioning(domainId, DomainStatus.Online)
          }.recover {
            case cause: Throwable =>
            error(s"Domain was not created successfully: $dbName", cause)
             val statusMessage = ExceptionUtils.stackTraceToString(cause)
-            this.updateStatusAfterProvisiong(domainId, DomainStatus.Error, statusMessage)
+            this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, statusMessage)
             ()
          }
       }
@@ -88,16 +91,16 @@ abstract class DomainCreator(
     }
   }
   
-  private[this] def updateStatusAfterProvisiong(domainId: DomainId, status: DomainStatus.Value, statusMessage: String = ""): Unit = {
+  private[this] def updateStatusAfterProvisioning(domainId: DomainId, status: DomainStatus.Value, statusMessage: String = ""): Unit = {
     domainStore
       .getDomainByFqn(domainId)
-      .flatMap (_ match {
+      .flatMap {
         case Some(domain) =>
           val updated = domain.copy(status = status, statusMessage = statusMessage)
           domainStore.updateDomain(updated)
         case None =>
           Failure(new IllegalStateException("Could not find domain after it was created to update its status."))
-      })
+      }
       .recover {
         case cause: Throwable =>
           logger.error("Could not update domain status after creation", cause)

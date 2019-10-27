@@ -1,38 +1,29 @@
 package com.convergencelabs.server
 
 import java.io.File
-import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, ActorSystem, Address, Props}
+import akka.actor.{ActorSystem, Address, Props}
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent._
 import com.convergencelabs.server.api.realtime.ConvergenceRealtimeApi
 import com.convergencelabs.server.api.rest.ConvergenceRestApi
-import com.convergencelabs.server.datastore.convergence.UserStore.User
 import com.convergencelabs.server.datastore.convergence._
 import com.convergencelabs.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.server.db.provision.DomainProvisioner
-import com.convergencelabs.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.server.db.schema.ConvergenceSchemaManager
-import com.convergencelabs.server.db.{ConnectedSingleDatabaseProvider, DatabaseProvider, PooledDatabaseProvider}
+import com.convergencelabs.server.db.PooledDatabaseProvider
+import com.convergencelabs.server.domain.DomainActorSharding
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.chat.ChatSharding
 import com.convergencelabs.server.domain.model.RealtimeModelSharding
 import com.convergencelabs.server.domain.rest.RestDomainActorSharding
-import com.convergencelabs.server.domain.{DomainActorSharding, DomainId}
-import com.convergencelabs.server.security.Roles
 import com.convergencelabs.server.util.SystemOutRedirector
-import com.convergencelabs.server.util.concurrent.FutureUtils
-import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
-import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValueFactory}
+import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
-import scala.collection.JavaConverters
 import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
+import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -301,12 +292,50 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
     val cluster = Cluster(system)
     this.cluster = Some(cluster)
 
-    system.actorOf(Props(new ClusterListener(cluster)), name = "clusterListener")
+    system.actorOf(Props(new AkkaClusterDebugListener(cluster)), name = "clusterListener")
 
-    val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toList
+    val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toSet
     info(s"Convergence Server Roles: ${roles.mkString(", ")}")
 
+    this.processBackendRole(roles, system)
+    this.activateShardProxies(roles, system)
+    this.processRestApiRole(roles, system)
+    this.processRealtimeApiRole(roles, system)
+
+    this
+  }
+
+  /**
+   * Stops the ConvergenceServer.
+   */
+  def stop(): Unit = {
+    logger.info(s"Stopping the Convergence Server")
+
+    this.backend.foreach(backend => backend.stop())
+    this.rest.foreach(rest => rest.stop())
+    this.realtime.foreach(realtime => realtime.stop())
+    this.orientDb.foreach(db => db.close())
+
+    logger.info(s"Leaving the cluster.")
+    cluster.foreach(c => c.leave(c.selfAddress))
+
+    system foreach { s =>
+      logger.info(s"Terminating actor system.")
+      s.terminate()
+      Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
+      logger.info(s"Actor system terminated.")
+    }
+  }
+
+  /**
+   * A helper method that will bootstrap the backend node.
+   *
+   * @param roles The roles this server is configured with.
+   * @param system The Akka [[ActorSystem]] this server is using.
+   */
+  private[this] def processBackendRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(Backend)) {
+      val initializer = new ConvergenceInitializer(config, system.dispatcher)
       val persistenceConfig = config.getConfig("convergence.persistence")
       val dbServerConfig = persistenceConfig.getConfig("server")
       val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
@@ -316,7 +345,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       //  this should exist, but it would be nice to do this elsewhere.
       if (convergenceDbConfig.hasPath("auto-install")) {
         if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          bootstrapConvergenceDB(config) recover {
+          initializer.bootstrapConvergenceDatabase(config) recover {
             case cause: Exception =>
               logger.error("Could not bootstrap database", cause)
               System.exit(0)
@@ -336,7 +365,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       dbProvider.connect().get
 
       if (config.hasPath("convergence.default-server-admin")) {
-        autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
+        initializer.autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
       }
 
       val domainStore = new DomainStore(dbProvider)
@@ -348,7 +377,22 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       val backend = new BackendNode(system, dbProvider)
       backend.start()
       this.backend = Some(backend)
-    } else if (roles.contains(RestApi) || roles.contains(RealtimeApi)) {
+    }
+  }
+
+  /**
+   * A helper method that start the Akka Cluster Shard Proxies if needed.
+   *
+   * @param roles The roles this server is configured with.
+   * @param system The Akka [[ActorSystem]] this server is using.
+   */
+  private[this] def activateShardProxies(roles: Set[String], system: ActorSystem): Unit = {
+    if (roles.contains(Backend) && (roles.contains(RestApi) || roles.contains(RealtimeApi))) {
+      // We only need to set up these proxies if we are NOT already on a
+      // backend node, because the backend node creates the real shard
+      // regions.  We only need the proxies if we are on a rest or realtime
+      // node  that isn't also a backend node.
+
       // TODO Re-factor This to some setting in the config
       val shards = 100
       DomainActorSharding.startProxy(system, shards)
@@ -357,7 +401,15 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       RestDomainActorSharding.startProxy(system, shards)
       ActivityActorSharding.startProxy(system, shards)
     }
+  }
 
+  /**
+   * A helper method that will bootstrap the Rest API.
+   *
+   * @param roles The roles this server is configured with.
+   * @param system The Akka [[ActorSystem]] this server is using.
+   */
+  private[this] def processRestApiRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(RestApi)) {
       info("Role 'restApi' configured on node, activating rest api.")
       val host = config.getString("convergence.rest.host")
@@ -366,7 +418,15 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       restFrontEnd.start()
       this.rest = Some(restFrontEnd)
     }
+  }
 
+  /**
+   * A helper method that will bootstrap the Realtime Api.
+   *
+   * @param roles The roles this server is configured with.
+   * @param system The Akka [[ActorSystem]] this server is using.
+   */
+  private[this] def processRealtimeApiRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(RealtimeApi)) {
       info("Role 'realtimeApi' configured on node, activating up realtime api.")
       val host = config.getString("convergence.realtime.host")
@@ -375,251 +435,5 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       realTimeFrontEnd.start()
       this.realtime = Some(realTimeFrontEnd)
     }
-
-    this
-  }
-
-  /**
-   * A helper method that will install the Convergence database into OrientDB.
-   * @param config The server's configuration.
-   * @return An indication of success or failure.
-   */
-  private[this] def bootstrapConvergenceDB(config: Config): Try[Unit] = Try {
-    val persistenceConfig = config.getConfig("convergence.persistence")
-    val dbServerConfig = persistenceConfig.getConfig("server")
-    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
-
-    logger.info("auto-install is configured, attempting to connect to the database to determine if the convergence database is installed.")
-
-    val convergenceDatabase = convergenceDbConfig.getString("database")
-    val username = convergenceDbConfig.getString("username")
-    val password = convergenceDbConfig.getString("password")
-    val adminUsername = convergenceDbConfig.getString("admin-username")
-    val adminPassword = convergenceDbConfig.getString("admin-password")
-    val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
-    val retryDelay = convergenceDbConfig.getDuration("retry-delay")
-
-    val uri = dbServerConfig.getString("uri")
-    val serverAdminUsername = dbServerConfig.getString("admin-username")
-    val serverAdminPassword = dbServerConfig.getString("admin-password")
-
-    val connectTries = Iterator.continually(attemptConnect(uri, serverAdminUsername, serverAdminPassword, retryDelay))
-    val orientDb = connectTries.dropWhile(_.isEmpty).next().get
-
-    logger.info("Checking for Convergence database")
-    if (!orientDb.exists(convergenceDatabase)) {
-      logger.info("Convergence database does not exists.  Creating.")
-      orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
-      logger.debug("Convergence database created, connecting as default admin user")
-
-      val db = orientDb.open(convergenceDatabase, "admin", "admin")
-      logger.info("Connected to convergence database.")
-
-      logger.debug("Deleting default 'reader' user.")
-      db.getMetadata.getSecurity.getUser("reader").getDocument.delete()
-
-      logger.debug("Setting 'writer' user credentials.")
-      val writerUser = db.getMetadata.getSecurity.getUser("writer")
-      writerUser.setName(username)
-      writerUser.setPassword(password)
-      writerUser.save()
-
-      logger.debug("Setting 'admin' user credentials.")
-      val adminUser = db.getMetadata.getSecurity.getUser("admin")
-      adminUser.setName(adminUsername)
-      adminUser.setPassword(adminPassword)
-      adminUser.save()
-
-      logger.info("Installing Convergence schema.")
-      val dbProvider = new ConnectedSingleDatabaseProvider(db)
-      val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
-      dbProvider.withDatabase { db =>
-        val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
-        schemaManager.install()
-      }.map { _ =>
-        logger.info("Schema installation complete")
-      }.get
-
-
-      // We may wind up doing this twice, consider refactoring.
-      if (config.hasPath("convergence.default-server-admin")) {
-        autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
-      }
-
-      bootstrapData(dbProvider, config)
-
-      dbProvider.shutdown()
-    } else {
-      logger.info("Convergence database already exists.")
-      orientDb.close()
-    }
-    ()
-  }
-
-  /**
-   * Installs default data into the Convergence database.
-   * @param dbProvider A [[DatabaseProvider]] which is connected to the
-   *                   Convergence Database.
-   * @param config The server's config.
-   * @return An indication of success or failure.
-   */
-  private[this] def bootstrapData(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
-    val bootstrapConfig = config.getConfig("convergence.bootstrap")
-    val defaultConfigs = bootstrapConfig.getConfig("default-configs")
-    implicit val ec: ExecutionContextExecutor = this.system.get.dispatcher
-
-    val configs = JavaConverters
-      .asScalaSet(defaultConfigs.entrySet())
-      .map(e => (e.getKey, e.getValue.unwrapped))
-      .toMap
-
-    val configStore = new ConfigStore(dbProvider)
-    val favoriteStore = new UserFavoriteDomainStore(dbProvider)
-    val domainCreator = new InlineDomainCreator(dbProvider, config, ec)
-    val namespaceStore = new NamespaceStore(dbProvider)
-    configStore.setConfigs(configs)
-
-    val namespaces = bootstrapConfig.getList("namespaces")
-    namespaces.forEach {
-      case obj: ConfigObject =>
-        val c = obj.toConfig
-        val id = c.getString("id")
-        val displayName = c.getString("displayName")
-        logger.info(s"bootstrapping namespace '$id'")
-        namespaceStore.createNamespace(id, displayName, userNamespace = false).get
-    }
-
-    val domains = bootstrapConfig.getList("domains")
-    JavaConverters.asScalaBuffer(domains).toList.foreach {
-      case obj: ConfigObject =>
-        val c = obj.toConfig
-        val namespace = c.getString("namespace")
-        val id = c.getString("id")
-        val displayName = c.getString("displayName")
-        val favorite = c.getBoolean("favorite")
-        val anonymousAuth = c.getBoolean("config.anonymousAuthEnabled")
-
-        logger.info(s"bootstrapping domain '$namespace/$id'")
-        (for {
-          exists <- namespaceStore.namespaceExists(namespace)
-          created <- if (!exists) {
-            Failure(new IllegalArgumentException("The namespace for a bootstrapped domain, must also be bootstraped"))
-          } else {
-            Success(())
-          }
-        } yield {
-          val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth).get.map { _ =>
-            logger.info(s"bootstrapped domain '$namespace/$id'")
-          }
-
-          Await.ready(f, FiniteDuration.apply(2, TimeUnit.MINUTES))
-
-          if (favorite) {
-            val username = config.getString("convergence.default-server-admin.username")
-            favoriteStore.addFavorite(username, DomainId(namespace, id)).get
-          }
-        }).get
-    }
-    Success(())
-  }
-
-  private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
-    info(s"Attempting to connect to the database at uri: $uri")
-
-    Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
-      case Success(db) =>
-        logger.info("Connected to database with Server Admin")
-        Some(db)
-      case Failure(e) =>
-        logger.error(s"Unable to connect to database, retrying in ${retryDelay.toMillis}ms", e)
-        Thread.sleep(retryDelay.toMillis)
-        None
-    }
-  }
-
-  private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Unit = {
-    logger.debug("Configuring default server admin user")
-    val userStore = new UserStore(dbProvider)
-
-    val username = config.getString("username")
-    val password = config.getString("password")
-    userStore.userExists(username).flatMap { exists =>
-      if (!exists) {
-        logger.debug("Admin user does not exist, creating.")
-        val userCreator = new UserCreator(dbProvider)
-
-        val firstName = config.getString("firstName")
-        val lastName = config.getString("lastName")
-        val displayName = if (config.hasPath("displayName")) {
-          config.getString("displayName")
-        } else {
-          "Server Admin"
-        }
-        val email = config.getString("email")
-
-        val user = User(username, email, firstName, lastName, displayName, None)
-        userCreator.createUser(user, password, Roles.Server.ServerAdmin)
-      } else {
-        logger.debug("Admin user exists, updating password.")
-        userStore.setUserPassword(username, password)
-      }
-    }.recover {
-      case cause: Throwable =>
-        logger.error("Error creating server admin user", cause)
-    }
-  }
-
-  def stop(): Unit = {
-    logger.info(s"Stopping the Convergence Server")
-
-    this.backend.foreach(backend => backend.stop())
-    this.rest.foreach(rest => rest.stop())
-    this.realtime.foreach(realtime => realtime.stop())
-    this.orientDb.foreach(db => db.close())
-
-    logger.info(s"Leaving the cluster.")
-    cluster.foreach(c => c.leave(c.selfAddress))
-
-    system foreach { s =>
-      logger.info(s"Terminating actor system.")
-      s.terminate()
-      Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
-      logger.info(s"Actor system terminated.")
-    }
-  }
-}
-
-private class ClusterListener(cluster: Cluster) extends Actor with ActorLogging {
-  override def preStart(): Unit = {
-    cluster.subscribe(
-      self,
-      initialStateMode = InitialStateAsEvents,
-      classOf[MemberEvent],
-      classOf[UnreachableMember])
-  }
-
-  override def postStop(): Unit = cluster.unsubscribe(self)
-
-  def receive: Receive = {
-    case MemberUp(member) =>
-      log.debug(s"Member with role '${member.roles}' is Up: ${member.address}")
-    case UnreachableMember(member) =>
-      log.debug("Member detected as unreachable: {}", member)
-    case MemberRemoved(member, previousStatus) =>
-      log.debug("Member is Removed: {} after {}", member.address, previousStatus)
-    case msg: MemberEvent =>
-      log.debug(msg.toString)
-  }
-}
-
-class InlineDomainCreator(
-                           provider: DatabaseProvider,
-                           config: Config,
-                           ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
-  val provisioner = new DomainProvisioner(provider, config)
-
-  def provisionDomain(request: ProvisionDomain): Future[Unit] = {
-    val ProvisionDomain(domainId, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = request
-    FutureUtils.tryToFuture(provisioner.provisionDomain(domainId, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth))
   }
 }
