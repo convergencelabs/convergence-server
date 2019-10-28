@@ -272,7 +272,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
 
   private[this] var system: Option[ActorSystem] = None
   private[this] var cluster: Option[Cluster] = None
-  private[this] var backend: Option[BackendNode] = None
+  private[this] var backend: Option[BackendServices] = None
   private[this] var orientDb: Option[OrientDB] = None
   private[this] var rest: Option[ConvergenceRestApi] = None
   private[this] var realtime: Option[ConvergenceRealtimeApi] = None
@@ -309,7 +309,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    * Stops the ConvergenceServer.
    */
   def stop(): Unit = {
-    logger.info(s"Stopping the Convergence Server")
+    logger.info(s"Stopping the Convergence Server...")
 
     this.backend.foreach(backend => backend.stop())
     this.rest.foreach(rest => rest.stop())
@@ -335,6 +335,8 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    */
   private[this] def processBackendRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(Backend)) {
+      info("Role 'backend' detected, activating Backend Services...")
+
       val initializer = new ConvergenceInitializer(config, system.dispatcher)
       val persistenceConfig = config.getConfig("convergence.persistence")
       val dbServerConfig = persistenceConfig.getConfig("server")
@@ -373,8 +375,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
         DomainPersistenceManagerActor.props(baseUri, domainStore),
         DomainPersistenceManagerActor.RelativePath)
 
-      info("Role 'backend' configured on node, starting up backend.")
-      val backend = new BackendNode(system, dbProvider)
+      val backend = new BackendServices(system, dbProvider)
       backend.start()
       this.backend = Some(backend)
     }
@@ -387,19 +388,18 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    * @param system The Akka [[ActorSystem]] this server is using.
    */
   private[this] def activateShardProxies(roles: Set[String], system: ActorSystem): Unit = {
-    if (roles.contains(Backend) && (roles.contains(RestApi) || roles.contains(RealtimeApi))) {
+    if (!roles.contains(Backend) && (roles.contains(RestApi) || roles.contains(RealtimeApi))) {
       // We only need to set up these proxies if we are NOT already on a
       // backend node, because the backend node creates the real shard
       // regions.  We only need the proxies if we are on a rest or realtime
       // node  that isn't also a backend node.
 
-      // TODO Re-factor This to some setting in the config
-      val shards = 100
-      DomainActorSharding.startProxy(system, shards)
-      RealtimeModelSharding.startProxy(system, shards)
-      ChatSharding.startProxy(system, shards)
-      RestDomainActorSharding.startProxy(system, shards)
-      ActivityActorSharding.startProxy(system, shards)
+      val shardCount = system.settings.config.getInt("convergence.shard-count")
+      DomainActorSharding.startProxy(system, shardCount)
+      RealtimeModelSharding.startProxy(system, shardCount)
+      ChatSharding.startProxy(system, shardCount)
+      RestDomainActorSharding.startProxy(system, shardCount)
+      ActivityActorSharding.startProxy(system, shardCount)
     }
   }
 
@@ -411,7 +411,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    */
   private[this] def processRestApiRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(RestApi)) {
-      info("Role 'restApi' configured on node, activating rest api.")
+      info("Role 'restApi' detected, activating REST API...")
       val host = config.getString("convergence.rest.host")
       val port = config.getInt("convergence.rest.port")
       val restFrontEnd = new ConvergenceRestApi(system, host, port)
@@ -428,7 +428,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    */
   private[this] def processRealtimeApiRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(RealtimeApi)) {
-      info("Role 'realtimeApi' configured on node, activating up realtime api.")
+      info("Role 'realtimeApi' detected, activating the Realtime API...")
       val host = config.getString("convergence.realtime.host")
       val port = config.getInt("convergence.realtime.port")
       val realTimeFrontEnd = new ConvergenceRealtimeApi(system, host, port)

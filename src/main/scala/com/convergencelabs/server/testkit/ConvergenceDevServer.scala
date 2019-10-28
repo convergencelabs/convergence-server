@@ -43,10 +43,10 @@ class ConvergenceDevServer() extends Logging {
     backend.start()
     frontend.start()
 
-    logger.info("Convergence Development Server started.")
+    logger.info("Convergence Development Server started")
 
     scala.sys.addShutdownHook {
-      logger.info("Convergence Development Server JVM Shutdown Hook called.")
+      logger.info("Convergence Development Server JVM Shutdown Hook called")
       this.stop()
     }
 
