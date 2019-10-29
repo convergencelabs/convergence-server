@@ -70,7 +70,7 @@ object ConvergenceServer extends Logging {
   /**
    * The name of the Akka ActorSystem.
    */
-  private val ActorSystemName = "Convergence"
+  val ActorSystemName: String = "Convergence"
 
   /**
    * The currently running instance of the ConvergenceServer.
