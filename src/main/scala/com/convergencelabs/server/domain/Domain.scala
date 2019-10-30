@@ -1,13 +1,13 @@
 package com.convergencelabs.server.domain
 
-
 object DomainStatus extends Enumeration {
-  val Initializing = Value("initializing");
-  val Error = Value("error");
-  val Online = Value("online");
-  val Offline = Value("offline");
-  val Maintenance = Value("maintenance");
-  val Deleting = Value("deleting");
+  type DomainStatus = Value
+  val Initializing: DomainStatus = Value("initializing")
+  val Error: DomainStatus = Value("error")
+  val Online: DomainStatus = Value("online")
+  val Offline: DomainStatus = Value("offline")
+  val Maintenance: DomainStatus = Value("maintenance")
+  val Deleting: DomainStatus = Value("deleting")
 }
 
 case class Domain(

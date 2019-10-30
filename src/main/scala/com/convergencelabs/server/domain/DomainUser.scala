@@ -28,48 +28,43 @@ case class DomainUserId(
 }
 
 object DomainUser {
-  def apply(
-             userId: DomainUserId,
-             firstName: Option[String],
-             lastName: Option[String],
-             displayName: Option[String],
-             email: Option[String]): DomainUser =
+  def apply(userId: DomainUserId,
+            firstName: Option[String],
+            lastName: Option[String],
+            displayName: Option[String],
+            email: Option[String]): DomainUser =
     DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, disabled = false, deleted = false, None)
 
-  def apply(
-             userId: DomainUserId,
-             firstName: Option[String],
-             lastName: Option[String],
-             displayName: Option[String],
-             email: Option[String],
-             disabled: Boolean,
-             deleted: Boolean,
-             deletedUsername: Option[String]): DomainUser = DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername)
+  def apply(userId: DomainUserId,
+            firstName: Option[String],
+            lastName: Option[String],
+            displayName: Option[String],
+            email: Option[String],
+            disabled: Boolean,
+            deleted: Boolean,
+            deletedUsername: Option[String]): DomainUser = DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername)
 
-  def apply(
-             userType: DomainUserType.Value,
-             username: String,
-             firstName: Option[String],
-             lastName: Option[String],
-             displayName: Option[String],
-             email: Option[String]): DomainUser =
+  def apply(userType: DomainUserType.Value,
+            username: String,
+            firstName: Option[String],
+            lastName: Option[String],
+            displayName: Option[String],
+            email: Option[String]): DomainUser =
     DomainUser(userType, username, firstName, lastName, displayName, email, disabled = false, deleted = false, None)
 }
 
-case class DomainUser(
-                       userType: DomainUserType.Value,
-                       username: String,
-                       firstName: Option[String],
-                       lastName: Option[String],
-                       displayName: Option[String],
-                       email: Option[String],
-                       disabled: Boolean,
-                       deleted: Boolean,
-                       deletedUsername: Option[String]) {
+case class DomainUser(userType: DomainUserType.Value,
+                      username: String,
+                      firstName: Option[String],
+                      lastName: Option[String],
+                      displayName: Option[String],
+                      email: Option[String],
+                      disabled: Boolean,
+                      deleted: Boolean,
+                      deletedUsername: Option[String]) {
 
   def toUserId: DomainUserId = DomainUserId(this.userType, this.username)
 }
 
-case class DomainUserSessionId(
-                                sessionId: String,
-                                userId: DomainUserId)
+case class DomainUserSessionId(sessionId: String,
+                               userId: DomainUserId)

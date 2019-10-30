@@ -3,7 +3,7 @@ package com.convergencelabs.server
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorSystem, Address, Props}
+import akka.actor.{ActorRef, ActorSystem, Address, PoisonPill, Props}
 import akka.cluster.Cluster
 import com.convergencelabs.server.api.realtime.ConvergenceRealtimeApi
 import com.convergencelabs.server.api.rest.ConvergenceRestApi
@@ -276,6 +276,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
   private[this] var orientDb: Option[OrientDB] = None
   private[this] var rest: Option[ConvergenceRestApi] = None
   private[this] var realtime: Option[ConvergenceRealtimeApi] = None
+  private[this] var clusterListener: Option[ActorRef] = None
 
   /**
    * Starts the Convergence Server and returns itself, supporting
@@ -292,7 +293,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
     val cluster = Cluster(system)
     this.cluster = Some(cluster)
 
-    system.actorOf(Props(new AkkaClusterDebugListener(cluster)), name = "clusterListener")
+    clusterListener = Some(system.actorOf(Props(new AkkaClusterDebugListener(cluster)), name = "clusterListener"))
 
     val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toSet
     info(s"Convergence Server Roles: ${roles.mkString(", ")}")
@@ -306,25 +307,29 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
   }
 
   /**
-   * Stops the ConvergenceServer.
+   * Stops the Convergence Server.
    */
-  def stop(): Unit = {
+  def stop(): ConvergenceServer = {
     logger.info(s"Stopping the Convergence Server...")
+
+    clusterListener.foreach(_ ! PoisonPill)
 
     this.backend.foreach(backend => backend.stop())
     this.rest.foreach(rest => rest.stop())
     this.realtime.foreach(realtime => realtime.stop())
     this.orientDb.foreach(db => db.close())
 
-    logger.info(s"Leaving the cluster.")
+    logger.info(s"Leaving the cluster")
     cluster.foreach(c => c.leave(c.selfAddress))
 
     system foreach { s =>
-      logger.info(s"Terminating actor system.")
+      logger.info(s"Terminating actor system")
       s.terminate()
       Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
-      logger.info(s"Actor system terminated.")
+      logger.info(s"ActorSystem terminated")
     }
+
+    this
   }
 
   /**

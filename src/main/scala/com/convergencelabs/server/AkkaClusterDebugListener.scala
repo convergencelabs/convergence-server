@@ -25,11 +25,11 @@ class AkkaClusterDebugListener(cluster: Cluster) extends Actor with ActorLogging
 
   def receive: Receive = {
     case MemberUp(member) =>
-      log.debug(s"ConvergenceServer with role '${member.roles}' is Up: ${member.address}")
+      log.debug(s"Akka Cluster Member with role '${member.roles}' is Up: ${member.address}")
     case UnreachableMember(member) =>
-      log.debug("ConvergenceServer detected as unreachable: {}", member)
+      log.debug("Akka Cluster Member detected as unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
-      log.debug("ConvergenceServer is Removed: {} after {}", member.address, previousStatus)
+      log.debug("Akka Cluster Member is Removed: {} after {}", member.address, previousStatus)
     case msg: MemberEvent =>
       log.debug(msg.toString)
   }
