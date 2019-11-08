@@ -1,51 +1,29 @@
 package com.convergencelabs.server.api.realtime
 
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.ask
+import akka.util.Timeout
+import com.convergencelabs.server.datastore.domain.UserGroup
+import com.convergencelabs.server.datastore.{EntityNotFoundException, SortOrder}
+import com.convergencelabs.server.domain._
+import com.convergencelabs.server.util.concurrent.AskFuture
+import io.convergence.proto.identity._
+import io.convergence.proto.{Identity, Request}
+
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
+import scala.util.{Failure, Success}
 
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.SortOrder
-import com.convergencelabs.server.datastore.domain.UserGroup
-import com.convergencelabs.server.domain.DomainUser
-import com.convergencelabs.server.domain.GetUsersByUsername
-import com.convergencelabs.server.domain.UserGroupsForUsersRequest
-import com.convergencelabs.server.domain.UserGroupsForUsersResponse
-import com.convergencelabs.server.domain.UserGroupsRequest
-import com.convergencelabs.server.domain.UserGroupsResponse
-import com.convergencelabs.server.domain.UserLookUpField
-import com.convergencelabs.server.domain.UserSearch
-import com.convergencelabs.server.util.concurrent.AskFuture
+/**
+ * A helper actor that handles identity service related requests from the client.
+ *
+ * @param userServiceActor The actor to use to resolve user identity requests.
+ */
+private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLogging {
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.util.Timeout
-import io.convergence.proto.Identity
-import io.convergence.proto.Request
-import io.convergence.proto.identity.GetUsersMessage
-import io.convergence.proto.identity.UserField
-import io.convergence.proto.identity.UserGroupData
-import io.convergence.proto.identity.UserGroupsEntry
-import io.convergence.proto.identity.UserGroupsForUsersRequestMessage
-import io.convergence.proto.identity.UserGroupsForUsersResponseMessage
-import io.convergence.proto.identity.UserGroupsRequestMessage
-import io.convergence.proto.identity.UserGroupsResponseMessage
-import io.convergence.proto.identity.UserListMessage
-import io.convergence.proto.identity.UserSearchMessage
-
-object IdentityClientActor {
-  def props(userServiceActor: ActorRef): Props =
-    Props(new IdentityClientActor(userServiceActor))
-}
-
-class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLogging {
-
-  implicit val timeout = Timeout(5 seconds)
-  implicit val ec = context.dispatcher
-  import akka.pattern.ask
+  implicit val timeout: Timeout = Timeout(5 seconds)
+  implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   def receive: Receive = {
     case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Identity] =>
@@ -71,9 +49,10 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
 
     val fields = fieldCodes.map { x => mapUserField(x) }
     val orderBy = mapUserField(orderField)
-    val sort = ascending match {
-      case true => SortOrder.Ascending
-      case _ => SortOrder.Descending
+    val sort = if (ascending) {
+      SortOrder.Ascending
+    } else {
+      SortOrder.Descending
     }
 
     val future = this.userServiceActor ?
@@ -81,7 +60,7 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
 
     future.mapResponse[List[DomainUser]] onComplete {
       case Success(users) =>
-        val userData = users.map(ImplicitMessageConversions.mapDomainUser(_))
+        val userData = users.map(ImplicitMessageConversions.mapDomainUser)
         cb.reply(UserListMessage(userData))
       case Failure(cause) =>
         val message = "Unexpected error searching users."
@@ -96,9 +75,9 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
     val future = this.userServiceActor ? GetUsersByUsername(userIds.toList)
     future.mapResponse[List[DomainUser]] onComplete {
       case Success(users) =>
-        val userData = users.map(ImplicitMessageConversions.mapDomainUser(_))
+        val userData = users.map(ImplicitMessageConversions.mapDomainUser)
         cb.reply(UserListMessage(userData))
-      case Failure(cause) => 
+      case Failure(cause) =>
         val message = "Unexpected error looking up users."
         log.error(cause, message)
         cb.unexpectedError(message)
@@ -118,17 +97,17 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
   }
 
   private[this] def onUserGroupsRequest(request: UserGroupsRequestMessage, cb: ReplyCallback): Unit = {
-    val UserGroupsRequestMessage(ids) = request;
+    val UserGroupsRequestMessage(ids) = request
     val message = UserGroupsRequest(Some(ids.toList))
     this.userServiceActor.ask(message).mapTo[UserGroupsResponse] onComplete {
       case Success(UserGroupsResponse(groups)) =>
-        val groupData = groups.map { case UserGroup(id, desc, memebers) => UserGroupData(id, desc, memebers.map(ImplicitMessageConversions.domainUserIdToData(_)).toSeq) }
+        val groupData = groups.map { case UserGroup(id, desc, memebers) => UserGroupData(id, desc, memebers.map(ImplicitMessageConversions.domainUserIdToData).toSeq) }
         cb.reply(UserGroupsResponseMessage(groupData))
       case Failure(EntityNotFoundException(_, Some(groupId))) =>
         cb.expectedError(
-            "group_not_found", 
-            s"Could not get groups because at least one group did not exist: ${groupId}", 
-            Map("id" -> groupId.toString))
+          "group_not_found",
+          s"Could not get groups because at least one group did not exist: $groupId",
+          Map("id" -> groupId.toString))
       case Failure(cause) =>
         val message = "Unexpected error getting groups."
         log.error(cause, message)
@@ -138,22 +117,27 @@ class IdentityClientActor(userServiceActor: ActorRef) extends Actor with ActorLo
 
   private[this] def onUserGroupsForUsersRequest(request: UserGroupsForUsersRequestMessage, cb: ReplyCallback): Unit = {
     val UserGroupsForUsersRequestMessage(users) = request;
-    val message = UserGroupsForUsersRequest(users.map(ImplicitMessageConversions.dataToDomainUserId(_)).toList)
+    val message = UserGroupsForUsersRequest(users.map(ImplicitMessageConversions.dataToDomainUserId).toList)
     this.userServiceActor.ask(message).mapTo[UserGroupsForUsersResponse] onComplete {
       case Success(UserGroupsForUsersResponse(groups)) =>
-        val entries = groups.map{case (user, groups) => 
+        val entries = groups.map { case (user, groups) =>
           (user, UserGroupsEntry(Some(ImplicitMessageConversions.domainUserIdToData(user)), groups.toSeq))
         }
         cb.reply(UserGroupsForUsersResponseMessage(entries.values.toSeq))
       case Failure(EntityNotFoundException(_, Some(userId))) =>
         cb.expectedError(
-            "user_not_found",
-            s"Could not get groups because at least one user did not exist: ${userId}", 
-            Map("id" -> userId.toString))
+          "user_not_found",
+          s"Could not get groups because at least one user did not exist: $userId",
+          Map("id" -> userId.toString))
       case Failure(cause) =>
         val message = "Unexpected error getting groups for users."
         log.error(cause, message)
         cb.unexpectedError(message)
     }
   }
+}
+
+private[realtime] object IdentityClientActor {
+  def props(userServiceActor: ActorRef): Props =
+    Props(new IdentityClientActor(userServiceActor))
 }

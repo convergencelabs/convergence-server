@@ -1,51 +1,39 @@
-package com.convergencelabs.server.api.realtime;
+package com.convergencelabs.server.api.realtime
 
-import scala.collection.mutable.Queue
-import scala.concurrent.ExecutionContext
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.server.domain.IdentityResolutionRequest
-import com.convergencelabs.server.domain.IdentityResolutionResponse
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.Timeout
+import com.convergencelabs.server.domain.{DomainUserId, IdentityResolutionRequest, IdentityResolutionResponse}
 import io.convergence.proto.chat.ChatEventData
-import io.convergence.proto.identity.IdentityCacheUpdateMessage
+import io.convergence.proto.identity.{DomainUserIdData, IdentityCacheUpdateMessage}
 import io.convergence.proto.message.ConvergenceMessage
 import io.convergence.proto.message.ConvergenceMessage.Body
-import akka.actor.Props
-import scala.collection.mutable.ListBuffer
-import com.convergencelabs.server.domain.DomainUserId
-import io.convergence.proto.identity.DomainUserIdData
 
-class MessageRecord(val message: ConvergenceMessage, var ready: Boolean)
+import scala.collection.mutable
+import scala.concurrent.ExecutionContextExecutor
+import scala.util.{Failure, Success}
 
-object IdentityCacheManager {
-  def props(
-    clientActor: ActorRef,
-    identityServiceActor: ActorRef,
-    timeout: Timeout): Props = {
-    Props(new IdentityCacheManager(clientActor, identityServiceActor, timeout))
-  }
-}
+/**
+ * A helper class that tracks which identities a particular client is aware of
+ * and ensures that the client is made aware of a users identity before a message
+ * about that user is sent over the wire.
+ *
+ * @param clientActor          The client actor for the client this objects is supporting.
+ * @param identityServiceActor The actor that is used to resolve identity.
+ * @param timeout              The timeout to user for identity resolution requests.
+ */
+private[realtime] class IdentityCacheManager(private[this] val clientActor: ActorRef,
+                                             private[this] val identityServiceActor: ActorRef,
+                                             private[this] implicit val timeout: Timeout) extends Actor with ActorLogging {
 
-class IdentityCacheManager(
-  private[this] val clientActor: ActorRef,
-  private[this] val identityServiceActor: ActorRef,
-  private[this] implicit val timeout: Timeout) extends Actor with ActorLogging {
-
-  import akka.pattern.ask
   import ImplicitMessageConversions._
+  import akka.pattern.ask
 
   private[this] val sessions: Set[String] = Set()
   private[this] val users: Set[DomainUserId] = Set()
 
-  private[this] val messages: Queue[MessageRecord] = Queue()
+  private[this] val messages: mutable.Queue[MessageRecord] = mutable.Queue()
 
-  private[this] implicit val ec = context.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   def receive: Receive = {
     case message: ConvergenceMessage =>
@@ -119,8 +107,9 @@ class IdentityCacheManager(
       // permissions
       case Body.GetAllUserPermissionsResponse(body) =>
         processMessage(message, Set(), body.users.map(u => dataToDomainUserId(u.user.get)).toSet)
-      case body =>
-        this.messages.enqueue(new MessageRecord(message, true))
+
+      case _ =>
+        this.messages.enqueue(MessageRecord(message, ready = true))
         this.flushQueue()
     }
   }
@@ -130,8 +119,8 @@ class IdentityCacheManager(
     chatData.map {
       _.event match {
         case ChatEventData.Event.Created(created) =>
-         usernames ++= created.members
-         usernames += created.user.get
+          usernames ++= created.members
+          usernames += created.user.get
         case ChatEventData.Event.Message(chatMessage) =>
           usernames += chatMessage.user.get
         case ChatEventData.Event.UserAdded(userAdded) =>
@@ -152,22 +141,21 @@ class IdentityCacheManager(
           ???
       }
     }
-    processMessage(message, Set(), usernames.map(dataToDomainUserId(_)).toSet)
+    processMessage(message, Set(), usernames.map(dataToDomainUserId).toSet)
   }
 
-  private[this] def processMessage(
-    message: ConvergenceMessage,
-    sessionIds: Set[String],
-    usernames: Set[DomainUserId]): Unit = {
+  private[this] def processMessage(message: ConvergenceMessage,
+                                   sessionIds: Set[String],
+                                   usernames: Set[DomainUserId]): Unit = {
     val requiredSessions = sessionIds.diff(this.sessions)
     val requiredUsers = usernames.diff(this.users)
 
     if (requiredSessions.isEmpty && requiredUsers.isEmpty) {
-      val record = new MessageRecord(message, true)
+      val record = MessageRecord(message, ready = true)
       this.messages.enqueue(record)
       this.flushQueue()
     } else {
-      val record = new MessageRecord(message, false)
+      val record = MessageRecord(message, ready = false)
       this.messages.enqueue(record)
       val request = IdentityResolutionRequest(requiredSessions, requiredUsers)
       (identityServiceActor ? request)
@@ -183,9 +171,9 @@ class IdentityCacheManager(
 
   private[this] def onIdentityResolved(message: IdentityResolved): Unit = {
     val IdentityResolved(record, response) = message
-    val users = response.users.map(ImplicitMessageConversions.mapDomainUser(_))
+    val users = response.users.map(ImplicitMessageConversions.mapDomainUser)
     val body = IdentityCacheUpdateMessage()
-      .withSessions(response.sessionMap.map{case (sessionId, userId) => (sessionId, ImplicitMessageConversions.domainUserIdToData(userId))})
+      .withSessions(response.sessionMap.map { case (sessionId, userId) => (sessionId, ImplicitMessageConversions.domainUserIdToData(userId)) })
       .withUsers(users.toSeq)
     val updateMessage = ConvergenceMessage()
       .withIdentityCacheUpdate(body)
@@ -196,11 +184,22 @@ class IdentityCacheManager(
   }
 
   private[this] def flushQueue(): Unit = {
-    while (!this.messages.isEmpty && this.messages.front.ready) {
+    while (this.messages.nonEmpty && this.messages.front.ready) {
       val message = this.messages.dequeue()
       this.clientActor ! SendProcessedMessage(message.message)
     }
   }
 }
+
+object IdentityCacheManager {
+
+  def props(clientActor: ActorRef,
+            identityServiceActor: ActorRef,
+            timeout: Timeout): Props = {
+    Props(new IdentityCacheManager(clientActor, identityServiceActor, timeout))
+  }
+}
+
+case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
 
 case class IdentityResolved(record: MessageRecord, response: IdentityResolutionResponse)

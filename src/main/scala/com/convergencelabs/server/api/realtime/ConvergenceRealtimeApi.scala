@@ -48,7 +48,7 @@ class ConvergenceRealtimeApi(private[this] val system: ActorSystem,
     val configActor = createBackendRouter(system, ConfigStoreActor.RelativePath, "realtimeConfigActor")
     routers += configActor
 
-    val service = new WebSocketService(protoConfig, configActor, materializer, system)
+    val service = new WebSocketService(protoConfig, materializer, system)
 
     Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
       case Success(b) ⇒

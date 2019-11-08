@@ -1,39 +1,54 @@
 package com.convergencelabs.server.api.realtime
 
+import akka.actor.{Cancellable, Scheduler}
 import grizzled.slf4j.Logging
+
 import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import akka.actor.Scheduler
-import akka.actor.Cancellable
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
+/**
+ * A sealed trait that represents the events that the heartbeat helper
+ * can generate.
+ */
 sealed trait HeartbeatEvent
+
+/**
+ * Signifies that the a ping should be sent to the client.
+ */
 case object PingRequest extends HeartbeatEvent
+
+/**
+ * Signifies that a message was not received before the pong
+ * timeout occurred.
+ */
 case object PongTimeout extends HeartbeatEvent
 
-class HeartbeatHelper(
-  private[this] val pingInterval: FiniteDuration,
-  private[this] val pongTimeout: FiniteDuration,
-  private[this] val scheduler: Scheduler,
-  private[this] val ec: ExecutionContext,
-  private[this] val handler: PartialFunction[HeartbeatEvent, Unit])
-    extends Logging {
+/**
+ * A helper class that will generate and consume the ping-pong heartbeat
+ * messages that keep the web socket open and detect disconnections.
+ *
+ * @param pingInterval The timespan after the last received message from
+ *                     client to generate a ping message.
+ * @param pongTimeout  How long to wait for a response from the client before
+ *                     considering the client disconnected.
+ * @param scheduler    The scheduler to use to schedule future events.
+ * @param ec           The execution context to use for asynchronous events.
+ * @param handler      The callback handler to handle events from the heartbeat helper.
+ */
+private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDuration,
+                                        private[this] val pongTimeout: FiniteDuration,
+                                        private[this] val scheduler: Scheduler,
+                                        private[this] val ec: ExecutionContext,
+                                        private[this] val handler: PartialFunction[HeartbeatEvent, Unit])
+  extends Logging {
 
   private[this] var pingFuture: Option[Cancellable] = None
   private[this] var timeoutFuture: Option[Cancellable] = None
   private[this] var _started: Boolean = false
 
-  def messageReceived(): Unit = {
-    if (_started) {
-      logger.trace("Message recieved, resetting timeouts.")
-      cancelPongTimeout()
-      restartPingTimeout()
-    } else {
-      throw new IllegalStateException("not started")
-    }
-  }
-
+  /**
+   * Starts the heartbeat helper.
+   */
   def start(): Unit = {
     if (!_started) {
       logger.debug(s"HeartbeatHelper started with Ping Interval $pingInterval and Pong Timeout $pongTimeout")
@@ -44,16 +59,42 @@ class HeartbeatHelper(
     }
   }
 
+  /**
+   * Determines if the heartbeat helper is started.
+   *
+   * @return True if the heartbeat helper is started; false otherwise.
+   */
   def started(): Boolean = _started
 
+  /**
+   * Determines if the heartbeat helper is stopped.
+   *
+   * @return True if the heartbeat helper is stopped; false otherwise.
+   */
   def stopped(): Boolean = !_started
 
+  /**
+   * Stops the heartbeat helper, ceasing all scheduled events and timeouts.
+   */
   def stop(): Unit = {
     if (_started) {
       logger.debug("HeartbeatHelper stopped.")
       this._started = false
       stopPingTimer()
       cancelPongTimeout()
+    } else {
+      throw new IllegalStateException("not started")
+    }
+  }
+
+  /**
+   * Signifies that a message has been received from the client.
+   */
+  def messageReceived(): Unit = {
+    if (_started) {
+      logger.trace("Message received, resetting heartbeat intervals.")
+      cancelPongTimeout()
+      restartPingTimeout()
     } else {
       throw new IllegalStateException("not started")
     }

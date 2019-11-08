@@ -1,57 +1,58 @@
 package com.convergencelabs.server.api.realtime
 
-import java.util.concurrent.TimeUnit
-
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.convergence.ConfigKeys
-import com.convergencelabs.server.datastore.convergence.ConfigStoreActor.GetConfigs
-import com.convergencelabs.server.domain.DomainId
-
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.RemoteAddress
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.ws.BinaryMessage
-import akka.http.scaladsl.model.ws.Message
-import akka.http.scaladsl.server.Directive.addByNameNullaryApply
+import akka.http.scaladsl.model.ws.{BinaryMessage, Message}
 import akka.http.scaladsl.server.Directive.addDirectiveApply
-import akka.http.scaladsl.server.Directives
-import akka.http.scaladsl.server.Route
-import akka.stream.Materializer
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Flow
-import akka.stream.scaladsl.Sink
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import akka.util.ByteStringBuilder
-import akka.util.Timeout
+import akka.http.scaladsl.server.{Directives, Route}
+import akka.stream.{Materializer, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.util.{ByteString, ByteStringBuilder}
+import com.convergencelabs.server.ProtocolConfiguration
+import com.convergencelabs.server.domain.DomainId
 import grizzled.slf4j.Logging
 
-case class IncomingBinaryMessage(message: Array[Byte])
-case class OutgoingBinaryMessage(message: Array[Byte])
+import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.duration.Duration
+import scala.language.postfixOps
 
-class WebSocketService(
-  private[this] val protocolConfig:  ProtocolConfiguration,
-  private[this] val configActor:     ActorRef,
-  private[this] implicit val fm:     Materializer,
-  private[this] implicit val system: ActorSystem)
+/**
+ * Represents an incoming binary message from the client.
+ *
+ * @param message The incoming binary web socket message data.
+ */
+private[realtime] case class IncomingBinaryMessage(message: Array[Byte])
+
+/**
+ * Represents an outgoing binary message from the client.
+ *
+ * @param message The outgoing binary web socket message data.
+ */
+private[realtime] case class OutgoingBinaryMessage(message: Array[Byte])
+
+/**
+ * The [[WebSocketService]] class handles incoming web socket connections and
+ * creates the server side representation of the client connection. It creates
+ * Akka Actors to represent the client, the connection, and the web socket.
+ *
+ * @param protocolConfig The configuration options for the Convergence Web
+ *                       Socket protocol.
+ * @param materializer   The materializer to use to materialize the web socket
+ *                       flow.
+ * @param system         The actor system in which to create the acttors.
+ */
+private[realtime] class WebSocketService(private[this] val protocolConfig: ProtocolConfiguration,
+                                         private[this] implicit val materializer: Materializer,
+                                         private[this] implicit val system: ActorSystem)
   extends Directives
-  with Logging {
-
-  import akka.pattern.ask
+    with Logging {
 
   private[this] val config = system.settings.config
   private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
   private[this] val maxStreamDuration = Duration.fromNanos(
     config.getDuration("convergence.realtime.websocket.max-stream-duration").toNanos)
 
-  private[this] implicit val ec = system.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   val route: Route = {
     path(Segment / Segment) { (namespace, domain) =>

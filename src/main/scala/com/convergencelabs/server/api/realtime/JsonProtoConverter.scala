@@ -1,13 +1,14 @@
 package com.convergencelabs.server.api.realtime
 
-import org.json4s.JsonAST._
-import com.google.protobuf.struct.Struct
-import com.google.protobuf.struct.Value
-import com.google.protobuf.struct.NullValue
-import com.google.protobuf.struct.ListValue
+import com.google.protobuf.struct.{ListValue, NullValue, Struct, Value}
 import grizzled.slf4j.Logging
+import org.json4s.JsonAST._
 
-object JsonProtoConverter extends Logging {
+/**
+ * A helper class to convert between json4s and google protocol buffer structs
+ * and values.
+ */
+private[realtime] object JsonProtoConverter extends Logging {
 
   def toStruct(jsonObject: JObject): Struct = {
     toValue(jsonObject).getStructValue
@@ -29,7 +30,7 @@ object JsonProtoConverter extends Logging {
         }
         Value().withStructValue(Struct().addAllFields(mappedFields))
       case JArray(values) =>
-        val mappedValues = values.map(toValue(_))
+        val mappedValues = values.map(toValue)
         Value().withListValue(ListValue(mappedValues))
       case x: Any =>
         error("Invalid JValue Value:" + json.toString)
@@ -53,9 +54,9 @@ object JsonProtoConverter extends Logging {
         }
         JObject(fields.toList)
       case Value.Kind.ListValue(lst) =>
-        JArray(lst.values.toList.map(toJValue(_)))
+        JArray(lst.values.toList.map(toJValue))
       case Value.Kind.Empty =>
-        error("Invalid Protocol JSON Value:" + value.toString)
+        error(s"Invalid Protocol JSON Value: $value" )
         JNull
     }
   }

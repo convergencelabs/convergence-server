@@ -1,9 +1,12 @@
 package com.convergencelabs.server.api.realtime
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, actorRef2Scala}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
 import akka.http.scaladsl.model.RemoteAddress
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.EntityNotFoundException
@@ -26,25 +29,21 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-object ClientActor {
-  def props(domainFqn: DomainId,
-            protocolConfig: ProtocolConfiguration,
-            remoteHost: RemoteAddress,
-            userAgent: String): Props = Props(
-    new ClientActor(
-      domainFqn,
-      protocolConfig,
-      remoteHost,
-      userAgent))
-}
-
-class ClientActor(private[this] val domainFqn: DomainId,
-                  private[this] val protocolConfig: ProtocolConfiguration,
-                  private[this] val remoteHost: RemoteAddress,
-                  private[this] val userAgent: String)
+/**
+ * The [[ClientActor]] is the serve side representation of a connected client.
+ *
+ * @param domainId       The id of the domain this client has connected to.
+ * @param protocolConfig The server side protocol configuration.
+ * @param remoteHost     The address of the remote host.
+ * @param userAgent      The HTTP user agent of the connected client.
+ */
+private[realtime] class ClientActor(private[this] val domainId: DomainId,
+                                    private[this] val protocolConfig: ProtocolConfiguration,
+                                    private[this] val remoteHost: RemoteAddress,
+                                    private[this] val userAgent: String)
   extends Actor with ActorLogging {
 
-  import akka.pattern.ask
+
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
 
@@ -52,15 +51,18 @@ class ClientActor(private[this] val domainFqn: DomainId,
   private[this] implicit val requestTimeout: Timeout = Timeout(protocolConfig.defaultRequestTimeout)
   private[this] implicit val ec: ExecutionContext = context.dispatcher
 
+  // FIXME hard-coded for model offline sync. This might be sent in the handshake?
+  private[this] val modelSyncInterval = FiniteDuration(5, TimeUnit.SECONDS)
+
   private[this] var connectionActor: ActorRef = _
 
   private[this] val mediator = DistributedPubSub(context.system).mediator
-  mediator ! Subscribe(domainTopic(domainFqn), self)
+  mediator ! Subscribe(domainTopic(domainId), self)
 
   // FIXME this should probably be for handshake and auth.
   private[this] val handshakeTimeoutTask =
     context.system.scheduler.scheduleOnce(protocolConfig.handshakeTimeout) {
-      log.debug(s"$domainFqn: Client handshake timeout")
+      log.debug(s"$domainId: Client handshake timeout")
       Option(connectionActor) match {
         case Some(connection) => connection ! CloseConnection
         case None =>
@@ -132,11 +134,13 @@ class ClientActor(private[this] val domainFqn: DomainId,
       onOutgoingMessage(message)
     case message: GeneratedMessage with Request =>
       onOutgoingRequest(message)
+
     case WebSocketClosed =>
-      log.debug(s"$domainFqn: WebSocketClosed for session: $sessionId")
+      log.debug(s"$domainId: WebSocketClosed for session: $sessionId")
       onConnectionClosed()
     case WebSocketError(cause) =>
       onConnectionError(cause)
+
     case SubscribeAck(_) =>
     // no-op
     case DomainDeleted(_) =>
@@ -197,24 +201,24 @@ class ClientActor(private[this] val domainFqn: DomainId,
   private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Unit = {
     val canceled = handshakeTimeoutTask.cancel()
     if (canceled) {
-      log.debug(s"$domainFqn: Handshaking with DomainActor")
-      val future = domainRegion ? HandshakeRequest(domainFqn, self, request.reconnect, request.reconnectToken)
+      log.debug(s"$domainId: Handshaking with DomainActor")
+      val future = domainRegion ? HandshakeRequest(domainId, self, request.reconnect, request.reconnectToken)
 
       future.mapResponse[HandshakeSuccess] onComplete {
         case Success(success) =>
-          log.debug(s"$domainFqn: Handshake success")
+          log.debug(s"$domainId: Handshake success")
           self ! InternalHandshakeSuccess(request.client, request.clientVersion, success, cb)
         case Failure(HandshakeFailureException(code, details)) =>
-          log.debug(s"$domainFqn: Handshake failure: {code: '$code', details: '$details'}")
+          log.debug(s"$domainId: Handshake failure: {code: '$code', details: '$details'}")
           cb.reply(HandshakeResponseMessage(success = false, Some(ErrorData(code, details)), retryOk = false))
           this.disconnect()
         case Failure(cause) =>
-          log.error(cause, s"$domainFqn: Error handshaking with DomainActor")
+          log.error(cause, s"$domainId: Error handshaking with DomainActor")
           cb.reply(HandshakeResponseMessage(success = false, Some(ErrorData("unknown", "unknown error")), retryOk = true))
           this.disconnect()
       }
     } else {
-      log.debug(s"$domainFqn: Not handshaking with domain because handshake timeout occurred")
+      log.debug(s"$domainId: Not handshaking with domain because handshake timeout occurred")
     }
   }
 
@@ -246,12 +250,12 @@ class ClientActor(private[this] val domainFqn: DomainId,
     this.identityServiceActor = identityActor
     this.presenceServiceActor = presenceActor
     this.chatLookupActor = chatLookupActor
-    log.debug(s"$domainFqn: Sending handshake response to client")
+    log.debug(s"$domainId: Sending handshake response to client")
 
     this.identityCacheManager = context.actorOf(IdentityCacheManager.props(self, identityActor, requestTimeout))
 
     // FIXME Protocol Config??
-    cb.reply(HandshakeResponseMessage(success = true, None, retryOk = true, this.domainFqn.namespace, this.domainFqn.domainId, None))
+    cb.reply(HandshakeResponseMessage(success = true, None, retryOk = true, this.domainId.namespace, this.domainId.domainId, None))
 
     this.messageHandler = handleAuthenticationMessage
     context.become(receiveWhileAuthenticating)
@@ -276,7 +280,7 @@ class ClientActor(private[this] val domainFqn: DomainId,
     }) match {
       case Some(authCredentials) =>
         val authRequest = AuthenticationRequest(
-          domainFqn,
+          domainId,
           self,
           remoteHost.toString,
           this.client,
@@ -292,7 +296,7 @@ class ClientActor(private[this] val domainFqn: DomainId,
           case Success(AuthenticationFailure) =>
             cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
           case Failure(cause) =>
-            log.error(cause, s"Error authenticating user for domain $domainFqn")
+            log.error(cause, s"Error authenticating user for domain $domainId")
             cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
         }
       case None =>
@@ -324,15 +328,15 @@ class ClientActor(private[this] val domainFqn: DomainId,
     val InternalAuthSuccess(user, session, reconnectToken, presence, cb) = message
     this.sessionId = session.sessionId
     this.reconnectToken = reconnectToken
-    this.modelClient = context.actorOf(ModelClientActor.props(domainFqn, session, modelStoreActor, requestTimeout))
+    this.modelClient = context.actorOf(ModelClientActor.props(domainId, session, modelStoreActor, requestTimeout, modelSyncInterval))
     this.userClient = context.actorOf(IdentityClientActor.props(identityServiceActor))
-    this.chatClient = context.actorOf(ChatClientActor.props(domainFqn, chatLookupActor, session, requestTimeout))
+    this.chatClient = context.actorOf(ChatClientActor.props(domainId, chatLookupActor, session, requestTimeout))
     this.activityClient = context.actorOf(ActivityClientActor.props(
       ActivityActorSharding.shardRegion(this.context.system),
-      domainFqn,
+      domainId,
       session))
     this.presenceClient = context.actorOf(PresenceClientActor.props(presenceServiceActor, session))
-    this.historyClient = context.actorOf(HistoricModelClientActor.props(session, domainFqn, modelStoreActor, operationStoreActor));
+    this.historyClient = context.actorOf(HistoricModelClientActor.props(session, domainId, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(
@@ -411,36 +415,48 @@ class ClientActor(private[this] val domainFqn: DomainId,
   //
 
   private[this] def onConnectionClosed(): Unit = {
-    log.debug(s"$domainFqn: Sending disconnect to domain and stopping: $sessionId")
-    domainRegion ! ClientDisconnected(domainFqn, self)
+    log.debug(s"$domainId: Sending disconnect to domain and stopping: $sessionId")
+    domainRegion ! ClientDisconnected(domainId, self)
 
     // TODO we may want to keep this client alive to smooth over reconnect in the future.
     self ! PoisonPill
   }
 
   private[this] def onConnectionError(cause: Throwable): Unit = {
-    log.debug(s"$domainFqn: Connection Error for: $sessionId - ${cause.getMessage}")
-    domainRegion ! ClientDisconnected(domainFqn, self)
+    log.debug(s"$domainId: Connection Error for: $sessionId - ${cause.getMessage}")
+    domainRegion ! ClientDisconnected(domainId, self)
     this.disconnect()
   }
 
   private[this] def invalidMessage(message: Any): Unit = {
-    log.error(s"$domainFqn: Invalid message: '$message'")
+    log.error(s"$domainId: Invalid message: '$message'")
     this.disconnect()
   }
 
   private[this] def domainDeleted(): Unit = {
-    log.error(s"$domainFqn: Domain deleted shutting down")
+    log.error(s"$domainId: Domain deleted shutting down")
     this.disconnect()
   }
 
   override def postStop(): Unit = {
-    log.debug(s"ClientActor($domainFqn/${this.sessionId}): Stopped")
+    log.debug(s"ClientActor($domainId/${this.sessionId}): Stopped")
     if (!handshakeTimeoutTask.isCancelled) {
       handshakeTimeoutTask.cancel()
     }
     Option(protocolConnection).foreach(_.dispose())
   }
+}
+
+private[realtime] object ClientActor {
+  def props(domainFqn: DomainId,
+            protocolConfig: ProtocolConfiguration,
+            remoteHost: RemoteAddress,
+            userAgent: String): Props = Props(
+    new ClientActor(
+      domainFqn,
+      protocolConfig,
+      remoteHost,
+      userAgent))
 }
 
 case class SendUnprocessedMessage(message: ConvergenceMessage)

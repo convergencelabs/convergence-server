@@ -1,24 +1,28 @@
 package com.convergencelabs.server.api.realtime
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.PoisonPill
-import akka.actor.Props
-import akka.actor.Terminated
-import akka.actor.actorRef2Scala
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated, actorRef2Scala}
 
 case object WebSocketClosed
 case class WebSocketOpened(ref: ActorRef)
 case class WebSocketError(cause: Throwable)
 case object CloseConnection
 
-object ConnectionActor {
-  def props(clientActor: ActorRef): Props = Props(new ConnectionActor(clientActor))
-}
-
+/**
+ * The [[ConnectionActor]] is a light weight actor that will receive
+ * web socket messages from the Akka HTTP Subsystem and forward them
+ * to the client actor. Conversely thee client actor will send this
+ * actor messages to forward on to the Akka HTTP system. This actor
+ * is essentially a bridge between the Akka HTTP web socket API
+ * and the Convergence Actors.
+ *
+ * The client actor reference is provided at construction time.  The
+ * web socket actor reference will be supplied through a message as
+ * the connection is completed.
+ *
+ * @param clientActor The client actor this connection is owned by.
+ */
 class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
-  var socketActor: Option[ActorRef] = None
+  private[this] var socketActor: Option[ActorRef] = None
 
   this.context.watch(clientActor)
 
@@ -54,4 +58,8 @@ class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
     socketActor.foreach(_ ! PoisonPill)
       this.context.stop(self)
   }
+}
+
+object ConnectionActor {
+  def props(clientActor: ActorRef): Props = Props(new ConnectionActor(clientActor))
 }

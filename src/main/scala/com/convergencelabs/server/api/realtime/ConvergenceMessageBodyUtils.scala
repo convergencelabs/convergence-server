@@ -14,10 +14,22 @@ import io.convergence.proto.presence._
 import io.convergence.proto.references._
 import scalapb.GeneratedMessage
 
+/**
+ * A helper class that wraps and unwraps the ConvergenceMessage Body
+ * which is the container for all protocol messages.
+ */
 object ConvergenceMessageBodyUtils {
-  def fromBody(body: Body): GeneratedMessage = {
-    body match {
+  /**
+   * Extracts the protocol buffer messages from the ConvergenceMessage
+   * Body.
+   *
+   * @param body The body which may be one of many messages.
+   * @return The extract message, or None if it was an empty message.
+   */
+  def fromBody(body: Body): Option[GeneratedMessage] = {
+    Option(body match {
       case Body.Error(message) => message
+      case Body.Ok(message) => message
       case Body.Ping(message) => message
       case Body.Pong(message) => message
       case Body.HandshakeRequest(message) => message
@@ -25,6 +37,7 @@ object ConvergenceMessageBodyUtils {
       case Body.AuthenticationRequest(message) => message
       case Body.AuthenticationResponse(message) => message
       case Body.IdentityCacheUpdate(message) => message
+
       // Model
       case Body.OpenRealTimeModelRequest(message) => message
       case Body.OpenRealTimeModelResponse(message) => message
@@ -52,10 +65,6 @@ object ConvergenceMessageBodyUtils {
       case Body.ReferenceUnshared(message) => message
       case Body.ModelsQueryRequest(message) => message
       case Body.ModelsQueryResponse(message) => message
-      case Body.HistoricalDataRequest(message) => message
-      case Body.HistoricalDataResponse(message) => message
-      case Body.HistoricalOperationsRequest(message) => message
-      case Body.HistoricalOperationsResponse(message) => message
       case Body.GetModelPermissionsRequest(message) => message
       case Body.GetModelPermissionsResponse(message) => message
       case Body.SetModelPermissionsRequest(message) => message
@@ -64,7 +73,15 @@ object ConvergenceMessageBodyUtils {
       case Body.ModelReconnectRequest(message) => message
       case Body.ModelReconnectResponse(message) => message
       case Body.ModelReconnectComplete(message) => message
-      
+      case Body.ModelOfflineSubscriptionChange(message) => message
+      case Body.ModelOfflineUpdated(message) => message
+      case Body.ModelDeleted(message) => message
+
+      case Body.HistoricalDataRequest(message) => message
+      case Body.HistoricalDataResponse(message) => message
+      case Body.HistoricalOperationsRequest(message) => message
+      case Body.HistoricalOperationsResponse(message) => message
+
       // Identity
       case Body.UsersGetRequest(message) => message
       case Body.UserSearchRequest(message) => message
@@ -73,6 +90,7 @@ object ConvergenceMessageBodyUtils {
       case Body.UserGroupsResponse(message) => message
       case Body.UserGroupsForUsersRequest(message) => message
       case Body.UserGroupsForUsersResponse(message) => message
+
       // Activity
       case Body.ActivityParticipantsRequest(message) => message
       case Body.ActivityParticipantsResponse(message) => message
@@ -83,7 +101,7 @@ object ConvergenceMessageBodyUtils {
       case Body.ActivitySessionLeft(message) => message
       case Body.ActivityUpdateState(message) => message
       case Body.ActivityStateUpdated(message) => message
-      
+
       // Presence
       case Body.PresenceSetState(message) => message
       case Body.PresenceClearState(message) => message
@@ -97,6 +115,7 @@ object ConvergenceMessageBodyUtils {
       case Body.PresenceSubscribeResponse(message) => message
       case Body.PresenceUnsubscribe(message) => message
       case Body.PresenceAvailabilityChanged(message) => message
+
       // Chat
       case Body.CreateChatRequest(message) => message
       case Body.CreateChatResponse(message) => message
@@ -137,6 +156,7 @@ object ConvergenceMessageBodyUtils {
       case Body.GetChatHistoryRequest(message) => message
       case Body.GetChatHistoryResponse(message) => message
       case Body.ChatRemoved(message) => message
+
       // Permissions
       case Body.GetClientPermissionsRequest(message) => message
       case Body.GetClientPermissionsResponse(message) => message
@@ -156,10 +176,17 @@ object ConvergenceMessageBodyUtils {
       case Body.GetAllGroupPermissionsResponse(message) => message
       case Body.GetGroupPermissionsRequest(message) => message
       case Body.GetGroupPermissionsResponse(message) => message
-      case Body.Empty => ???
-    }
+      case Body.Empty => null
+    })
   }
 
+  /**
+   * Wraps the protocol buffer message into the Body such that
+   * it can be added easily to the ConvergenceMessage.
+   *
+   * @param message The message to wrap in the Body.
+   * @return A Body element containing the supplied message.
+   */
   def toBody(message: GeneratedMessage): Body = {
     message match {
       case message: ErrorMessage => Body.Error(message)
@@ -170,6 +197,8 @@ object ConvergenceMessageBodyUtils {
       case message: AuthenticationRequestMessage => Body.AuthenticationRequest(message)
       case message: AuthenticationResponseMessage => Body.AuthenticationResponse(message)
       case message: IdentityCacheUpdateMessage => Body.IdentityCacheUpdate(message)
+      case message: OkResponse => Body.Ok(message)
+
       // Model
       case message: OpenRealtimeModelRequestMessage => Body.OpenRealTimeModelRequest(message)
       case message: OpenRealtimeModelResponseMessage => Body.OpenRealTimeModelResponse(message)
@@ -209,6 +238,10 @@ object ConvergenceMessageBodyUtils {
       case message: ModelReconnectRequestMessage => Body.ModelReconnectRequest(message)
       case message: ModelReconnectResponseMessage => Body.ModelReconnectResponse(message)
       case message: ModelReconnectCompleteMessage => Body.ModelReconnectComplete(message)
+      case message: ModelOfflineSubscriptionChangeRequestMessage=> Body.ModelOfflineSubscriptionChange(message)
+      case message: OfflineModelUpdatedMessage => Body.ModelOfflineUpdated(message)
+      case message: ModelDeleted => Body.ModelDeleted(message)
+
       // Identity
       case message: GetUsersMessage => Body.UsersGetRequest(message)
       case message: UserSearchMessage => Body.UserSearchRequest(message)
@@ -217,6 +250,7 @@ object ConvergenceMessageBodyUtils {
       case message: UserGroupsResponseMessage => Body.UserGroupsResponse(message)
       case message: UserGroupsForUsersRequestMessage => Body.UserGroupsForUsersRequest(message)
       case message: UserGroupsForUsersResponseMessage => Body.UserGroupsForUsersResponse(message)
+
       // Activity
       case message: ActivityParticipantsRequestMessage => Body.ActivityParticipantsRequest(message)
       case message: ActivityParticipantsResponseMessage => Body.ActivityParticipantsResponse(message)
@@ -227,6 +261,7 @@ object ConvergenceMessageBodyUtils {
       case message: ActivitySessionLeftMessage => Body.ActivitySessionLeft(message)
       case message: ActivityUpdateStateMessage => Body.ActivityUpdateState(message)
       case message: ActivityStateUpdatedMessage => Body.ActivityStateUpdated(message)
+
       // Presence
       case message: PresenceSetStateMessage => Body.PresenceSetState(message)
       case message: PresenceClearStateMessage => Body.PresenceClearState(message)
@@ -240,6 +275,7 @@ object ConvergenceMessageBodyUtils {
       case message: SubscribePresenceResponseMessage => Body.PresenceSubscribeResponse(message)
       case message: UnsubscribePresenceMessage => Body.PresenceUnsubscribe(message)
       case message: PresenceAvailabilityChangedMessage => Body.PresenceAvailabilityChanged(message)
+
       // Chat
       case message: CreateChatRequestMessage => Body.CreateChatRequest(message)
       case message: CreateChatResponseMessage => Body.CreateChatResponse(message)
@@ -280,6 +316,7 @@ object ConvergenceMessageBodyUtils {
       case message: ChatHistoryRequestMessage => Body.GetChatHistoryRequest(message)
       case message: ChatHistoryResponseMessage => Body.GetChatHistoryResponse(message)
       case message: ChatRemovedMessage => Body.ChatRemoved(message)
+
       // Permissions
       case message: GetClientPermissionsRequestMessage => Body.GetClientPermissionsRequest(message)
       case message: GetClientPermissionsResponseMessage => Body.GetClientPermissionsResponse(message)

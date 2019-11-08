@@ -5,15 +5,15 @@ import java.util.Date
 
 import com.convergencelabs.common.PagedData
 import com.convergencelabs.server.api.rest.DataValueToJValue
-import com.convergencelabs.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.server.datastore.domain.mapper.DataValueMapper.ODocumentToDataValue
 import com.convergencelabs.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
+import com.convergencelabs.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.server.db.DatabaseProvider
 import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.convergencelabs.server.domain.model.data.ObjectValue
 import com.convergencelabs.server.domain.model.query.Ast.SelectStatement
 import com.convergencelabs.server.domain.model.query.QueryParser
+import com.convergencelabs.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -92,12 +92,11 @@ object ModelStore {
   }
 }
 
-class ModelStore private[domain] (
-  dbProvider:     DatabaseProvider,
-  operationStore: ModelOperationStore,
-  snapshotStore:  ModelSnapshotStore)
+class ModelStore private[domain](dbProvider: DatabaseProvider,
+                                 operationStore: ModelOperationStore,
+                                 snapshotStore: ModelSnapshotStore)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import ModelStore._
   import com.convergencelabs.server.datastore.domain.schema.ModelClass._
@@ -111,11 +110,11 @@ class ModelStore private[domain] (
   }
 
   def createModel(
-    modelId:             String,
-    collectionId:        String,
-    data:                ObjectValue,
-    overridePermissions: Boolean,
-    worldPermissions:    ModelPermissions): Try[Model] = {
+                   modelId: String,
+                   collectionId: String,
+                   data: ObjectValue,
+                   overridePermissions: Boolean,
+                   worldPermissions: ModelPermissions): Try[Model] = {
 
     val createdTime = Instant.now()
     val modifiedTime = createdTime
@@ -155,29 +154,29 @@ class ModelStore private[domain] (
           logger.error(message, cause)
           Failure(new IllegalArgumentException(message))
       }.map { collectionRid =>
-        db.begin()
-        val modelDoc: ODocument = db.newInstance(ClassName)
-        modelDoc.setProperty(Fields.Collection, collectionRid)
-        modelDoc.setProperty(Fields.Id, modelId)
-        modelDoc.setProperty(Fields.Version, version)
-        modelDoc.setProperty(Fields.CreatedTime, Date.from(createdTime))
-        modelDoc.setProperty(Fields.ModifiedTime, Date.from(modifiedTime))
-        modelDoc.setProperty(Fields.OverridePermissions, overridePermissions)
-        modelDoc.setProperty(Fields.ValuePrefix, valuePrefix)
+      db.begin()
+      val modelDoc: ODocument = db.newInstance(ClassName)
+      modelDoc.setProperty(Fields.Collection, collectionRid)
+      modelDoc.setProperty(Fields.Id, modelId)
+      modelDoc.setProperty(Fields.Version, version)
+      modelDoc.setProperty(Fields.CreatedTime, Date.from(createdTime))
+      modelDoc.setProperty(Fields.ModifiedTime, Date.from(modifiedTime))
+      modelDoc.setProperty(Fields.OverridePermissions, overridePermissions)
+      modelDoc.setProperty(Fields.ValuePrefix, valuePrefix)
 
-        val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
-        modelDoc.setProperty(Fields.WorldPermissions, worldPermsDoc, OType.EMBEDDED)
+      val worldPermsDoc = ModelPermissionsStore.modelPermissionToDoc(worldPermissions)
+      modelDoc.setProperty(Fields.WorldPermissions, worldPermsDoc, OType.EMBEDDED)
 
-        val dataDoc = OrientDataValueBuilder.objectValueToODocument(data, modelDoc)
-        modelDoc.setProperty(Fields.Data, dataDoc, OType.LINK)
+      val dataDoc = OrientDataValueBuilder.objectValueToODocument(data, modelDoc)
+      modelDoc.setProperty(Fields.Data, dataDoc, OType.LINK)
 
-        // FIXME what about the user permissions LINKLIST?
+      // FIXME what about the user permissions LINKLIST?
 
-        dataDoc.save()
-        modelDoc.save()
-        db.commit()
-        ()
-      }.get
+      dataDoc.save()
+      modelDoc.save()
+      db.commit()
+      ()
+    }.get
   } recoverWith handleDuplicateValue()
 
   //FIXME: Add in overridePermissions flag
@@ -192,7 +191,7 @@ class ModelStore private[domain] (
         currentDoc.setProperty(Fields.Data, dataValueDoc)
 
         worldPermissions.foreach(wp => {
-          val worldPermissionsDoc =  ModelPermissionsStore.modelPermissionToDoc(wp)
+          val worldPermissionsDoc = ModelPermissionsStore.modelPermissionToDoc(wp)
           currentDoc.setProperty(Fields.WorldPermissions, worldPermissionsDoc, OType.EMBEDDED)
         })
 
@@ -244,16 +243,21 @@ class ModelStore private[domain] (
       .map(_.map(ModelStore.docToModel))
   }
 
+  def getModelIfNewer(id: String, currentVersion: Long): Try[Option[Model]] = withDb { db =>
+    val query = "SELECT FROM Model WHERE id = :id AND version > :version"
+    val params = Map(Fields.Version -> id, Fields.Version -> currentVersion)
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModel)
+  }
+
   def getModelMetaData(id: String): Try[Option[ModelMetaData]] = withDb { db =>
     ModelStore
       .findModelDocument(id, db)
       .map(_.map(ModelStore.docToModelMetaData))
   }
 
-  def getAllModelMetaDataInCollection(
-    collectionId: String,
-    offset:       Option[Int],
-    limit:        Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
+  def getAllModelMetaDataInCollection(collectionId: String,
+                                      offset: Option[Int],
+                                      limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 
     val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
@@ -262,9 +266,8 @@ class ModelStore private[domain] (
   }
 
   // TODO implement orderBy and ascending / descending
-  def getAllModelMetaData(
-    offset: Option[Int],
-    limit:  Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
+  def getAllModelMetaData(offset: Option[Int],
+                          limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 
     val baseQuery = "SELECT FROM Model ORDER BY collection.id ASC, id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
@@ -333,6 +336,7 @@ class ModelStore private[domain] (
   }
 
   private[this] val GetModelCountQuery = "SELECT count(*) as count FROM Model"
+
   def getModelCount(): Try[Long] = withDb { db =>
     OrientDBUtil.getDocument(db, GetModelCountQuery).map(_.getProperty("count").asInstanceOf[Long])
   }
