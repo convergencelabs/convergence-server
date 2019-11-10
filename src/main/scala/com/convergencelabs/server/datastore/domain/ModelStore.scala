@@ -245,7 +245,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
 
   def getModelIfNewer(id: String, currentVersion: Long): Try[Option[Model]] = withDb { db =>
     val query = "SELECT FROM Model WHERE id = :id AND version > :version"
-    val params = Map(Fields.Version -> id, Fields.Version -> currentVersion)
+    val params = Map(Fields.Id -> id, Fields.Version -> currentVersion)
     OrientDBUtil.findDocumentAndMap(db, query, params)(docToModel)
   }
 

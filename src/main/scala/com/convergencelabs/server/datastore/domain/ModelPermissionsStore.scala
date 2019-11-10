@@ -1,34 +1,21 @@
 package com.convergencelabs.server.datastore.domain
 
-import java.util.ArrayList
+import java.util
 import java.util.{List => JavaList}
 
-import scala.collection.JavaConverters.asJavaCollectionConverter
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.server.datastore.{AbstractDatabasePersistence, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.server.db.DatabaseProvider
-import com.orientechnologies.orient.core.db.record.OTrackedList
-import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.index.OCompositeKey
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.sql.OCommandSQL
-
-import grizzled.slf4j.Logging
-import com.convergencelabs.server.datastore.EntityNotFoundException
-import com.convergencelabs.server.datastore.OrientDBUtil
+import com.convergencelabs.server.domain.{DomainUserId, DomainUserType}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.convergencelabs.server.datastore.domain.ModelPermissionsStoreActor.ModelUserPermissions
-import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.db.record.{OIdentifiable, OTrackedList}
+import com.orientechnologies.orient.core.id.ORID
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OElement
-import com.convergencelabs.server.domain.DomainUserId
-import com.convergencelabs.server.domain.DomainUserType
+import com.orientechnologies.orient.core.record.impl.ODocument
+import grizzled.slf4j.Logging
+
+import scala.collection.JavaConverters.{asJavaCollectionConverter, collectionAsScalaIterableConverter}
+import scala.util.{Success, Try}
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
 
@@ -36,7 +23,7 @@ case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean,
 
 case class UserRoles(username: String, roles: Set[String])
 
-object ModelPermissionsStore {
+private[domain] object ModelPermissionsStore {
 
   import schema.DomainSchema._
 
@@ -90,38 +77,17 @@ object ModelPermissionsStore {
 
 class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
-  import schema.DomainSchema._
   import ModelPermissionsStore._
+  import schema.DomainSchema._
 
-  def getUsersCurrentModelPermissions(modelId: String, userId: DomainUserId): Try[ModelPermissions] = withDb { db =>
-    getModelRid(db, modelId).flatMap(rid => Try(rid.getRecord[ODocument])).flatMap { modelDoc =>
-      val overridesPermissions: Boolean = modelDoc.getProperty(Classes.Model.Fields.OverridePermissions)
-      if (overridesPermissions) {
-        getModelUserPermissions(modelId, userId).flatMap { userPerms =>
-          userPerms match {
-            case Some(p) =>
-              Success(p)
-            case None =>
-              getModelWorldPermissions(modelId)
-          }
+  def getUsersCurrentModelPermissions(modelId: String, userId: DomainUserId): Try[Option[ModelPermissions]] = withDb { db =>
+    getModelRid(db, modelId).flatMap {
+      case Some(rid) =>
+        Try(rid.getRecord[ODocument]).flatMap { modelDoc =>
+          resolveModelPermissions(modelId, userId, modelDoc).map(Some(_))
         }
-      } else {
-        val collectionDoc = modelDoc.getProperty(Classes.Model.Fields.Collection)
-        val collectionId: String = modelDoc.getProperty(Classes.Model.Fields.Id)
-        getCollectionUserPermissions(collectionId, userId).flatMap {
-          userPerms =>
-            userPerms match {
-              case Some(p) =>
-                val CollectionPermissions(create, read, write, remove, manage) = p
-                Success(ModelPermissions(read, write, remove, manage))
-              case None =>
-                getCollectionWorldPermissions(collectionId).map { collectionWorld =>
-                  val CollectionPermissions(create, read, write, remove, manage) = collectionWorld
-                  ModelPermissions(read, write, remove, manage)
-                }
-            }
-        }
-      }
+      case None =>
+        Success(None)
     }
   }
 
@@ -131,7 +97,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val params = Map("collectionId" -> collectionId)
     OrientDBUtil
       .getDocument(db, CollectionWordPermissionsQuery, params)
-      .map(docToCollectionWorldPermissions(_))
+      .map(docToCollectionWorldPermissions)
   }
 
   def getCollectionWorldPermissionsForModel(modelId: String): Try[CollectionPermissions] = withDb { db =>
@@ -165,12 +131,10 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
         Option(userPermissions).map { userPermissions =>
           userPermissions.asScala.map { userPermission =>
             val user: ODocument = userPermission.getProperty(Classes.CollectionUserPermissions.Fields.User)
-            val username: String = user.getProperty(Classes.User.Fields.Username)
-            val userType: String = user.getProperty(Classes.User.Fields.UserType)
-            val userId = DomainUserId(DomainUserType.withName(userType), username)
+            val userId = userDocToDomainUserId(user)
             val permissionsDoc: ODocument = userPermission.getProperty(Classes.CollectionUserPermissions.Fields.Permissions)
             val permissions = docToCollectionPermissions(permissionsDoc)
-            (userId -> permissions)
+            userId -> permissions
           }.toMap
         }.getOrElse(Map[DomainUserId, CollectionPermissions]())
       }
@@ -181,7 +145,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       .getDocumentFromSingleValueIndex(db, Classes.Collection.Indices.Id, collectionId)
       .flatMap { collectionDoc =>
         Try {
-          collectionDoc.field(Classes.Collection.Fields.UserPermissions, new ArrayList[ODocument]())
+          collectionDoc.field(Classes.Collection.Fields.UserPermissions, new util.ArrayList[ODocument]())
           collectionDoc.save()
           ()
         }
@@ -228,7 +192,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
                   }
               }
             }
-          } yield (result)
+          } yield result
       }.foreach(_.get))
     }.flatMap { _ =>
       val command =
@@ -276,14 +240,14 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             val collection = collectionRid.getRecord[ODocument]
             val userPermissions =
               Option(collection.getProperty(Classes.Collection.Fields.UserPermissions).asInstanceOf[JavaList[ODocument]])
-                .getOrElse(new ArrayList[ODocument]().asInstanceOf[JavaList[ODocument]])
+                .getOrElse(new util.ArrayList[ODocument]().asInstanceOf[JavaList[ODocument]])
             userPermissions.add(0, newPermissions)
             collection.setProperty(Classes.Collection.Fields.UserPermissions, userPermissions)
             collection.save()
             ()
         }
       }
-    } yield (result)
+    } yield result
   }
 
   def removeCollectionUserPermissions(collectionId: String, userId: DomainUserId): Try[Unit] = tryWithDb { db =>
@@ -302,11 +266,11 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             false
           }
         }
-        collection.setProperty(Classes.Collection.Fields.UserPermissions, new ArrayList(newPermissions.asJavaCollection))
+        collection.setProperty(Classes.Collection.Fields.UserPermissions, new util.ArrayList(newPermissions.asJavaCollection))
         collection.save()
         ()
       }
-    } yield (result)
+    } yield result
   }
 
   def modelOverridesCollectionPermissions(id: String): Try[Boolean] = withDb { db =>
@@ -335,7 +299,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     val params = Map("modelId" -> id)
     OrientDBUtil
       .getDocument(db, query, params)
-      .map(docToWorldPermissions(_))
+      .map(docToWorldPermissions)
   }
 
   def setModelWorldPermissions(id: String, permissions: ModelPermissions): Try[Unit] = withDb { db =>
@@ -359,16 +323,19 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
           .map { userPermissions =>
             userPermissions.asScala.map { userPermission =>
               val userRecord: OIdentifiable = userPermission.getProperty(Classes.ModelUserPermissions.Fields.User)
-              val user: OElement = userRecord.getRecord[OElement]
-              val username: String = user.getProperty(Classes.User.Fields.Username)
-              val userType: String = user.getProperty(Classes.User.Fields.UserType)
-              val userId = DomainUserId(DomainUserType.withName(userType), username)
+              val userId = userDocToDomainUserId(userRecord.getRecord[OElement])
               val permissions = docToModelPermissions(userPermission.getProperty(Classes.ModelUserPermissions.Fields.Permissions))
-              (userId -> permissions)
+              userId -> permissions
             }.toMap
           }
           .getOrElse(Map[DomainUserId, ModelPermissions]())
       }
+  }
+
+  private[this] def userDocToDomainUserId(user: OElement): DomainUserId = {
+    val username: String = user.getProperty(Classes.User.Fields.Username)
+    val userType: String = user.getProperty(Classes.User.Fields.UserType)
+    DomainUserId(DomainUserType.withName(userType), username)
   }
 
   def deleteAllModelUserPermissions(id: String): Try[Unit] = withDb { db =>
@@ -376,7 +343,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       .getDocumentFromSingleValueIndex(db, Classes.Model.Indices.Id, id)
       .flatMap { modelDoc =>
         Try {
-          modelDoc.field(Classes.Model.Fields.UserPermissions, new ArrayList[ODocument]())
+          modelDoc.field(Classes.Model.Fields.UserPermissions, new util.ArrayList[ODocument]())
           modelDoc.save()
         }
       }
@@ -426,7 +393,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
           } yield result
         } recoverWith {
           // This simply ignores the case where a user did not exist.
-          case cause: EntityNotFoundException => Success(())
+          case _: EntityNotFoundException => Success(())
         }
       }.foreach(_.get))
     }.flatMap { _ =>
@@ -467,14 +434,14 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
             val model = modelRID.getRecord[OElement]
             val currentPermissions = model.getProperty(Classes.Model.Fields.UserPermissions).asInstanceOf[JavaList[OElement]]
-            val userPermissions = Option(currentPermissions).getOrElse(new ArrayList[OElement]())
+            val userPermissions = Option(currentPermissions).getOrElse(new util.ArrayList[OElement]())
             userPermissions.add(0, newPermissions)
             model.setProperty(Classes.Model.Fields.UserPermissions, userPermissions)
             model.save()
             ()
         }
       }
-    } yield (result)
+    } yield result
   }
 
   def removeModelUserPermissions(id: String, userId: DomainUserId): Try[Unit] = tryWithDb { db =>
@@ -493,25 +460,37 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             false
           }
         }
-        model.setProperty(Classes.Model.Fields.UserPermissions, new ArrayList(newPermissions.asJavaCollection))
+        model.setProperty(Classes.Model.Fields.UserPermissions, new util.ArrayList(newPermissions.asJavaCollection))
         model.save()
         ()
       }
-    } yield (result)
+    } yield result
   }
 
-  private[this] def getCollectionRid(db: ODatabaseDocument, collectionId: String): Try[ORID] =
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Collection.Indices.Id, collectionId)
+  private[this] def getModelRid(db: ODatabaseDocument, modelId: String): Try[Option[ORID]] =
+    OrientDBUtil.findIdentityFromSingleValueIndex(db, Classes.Model.Indices.Id, modelId)
 
-  private[this] def findCollectionUserPermissionsRid(db: ODatabaseDocument, collectionId: String, userId: DomainUserId): Try[Option[ODocument]] = {
-    for {
-      collectionRid <- CollectionStore.getCollectionRid(collectionId, db)
-      userRid <- DomainUserStore.getUserRid(userId.username, userId.userType, db)
-      collectionRid <- OrientDBUtil
-        .findDocumentFromSingleValueIndex(db, Classes.CollectionUserPermissions.Indices.User_Collection, List(userRid, collectionRid))
-    } yield (collectionRid)
+  private[this] def resolveModelPermissions(modelId: String, userId: DomainUserId, modelDoc: ODocument): Try[ModelPermissions] = {
+    val overridesPermissions: Boolean = modelDoc.getProperty(Classes.Model.Fields.OverridePermissions)
+    if (overridesPermissions) {
+      getModelUserPermissions(modelId, userId).flatMap {
+        case Some(p) =>
+          Success(p)
+        case None =>
+          getModelWorldPermissions(modelId)
+      }
+    } else {
+      val collectionId = modelDoc.eval("collection.id").asInstanceOf[String]
+      getCollectionUserPermissions(collectionId, userId).flatMap {
+        case Some(p) =>
+          val CollectionPermissions(_, read, write, remove, manage) = p
+          Success(ModelPermissions(read, write, remove, manage))
+        case None =>
+          getCollectionWorldPermissions(collectionId).map { collectionWorld =>
+            val CollectionPermissions(_, read, write, remove, manage) = collectionWorld
+            ModelPermissions(read, write, remove, manage)
+          }
+      }
+    }
   }
-
-  private[this] def getModelRid(db: ODatabaseDocument, modelId: String): Try[ORID] =
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Model.Indices.Id, modelId)
 }

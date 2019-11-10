@@ -7,19 +7,19 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.common.PagedData
 import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
-import com.convergencelabs.server.api.realtime.ModelClientActor.SyncOfflineModels
-import com.convergencelabs.server.datastore.domain.ModelStoreActor.{GetModelUpdateRequest, QueryModelsRequest}
+import com.convergencelabs.server.api.realtime.ModelClientActor._
+import com.convergencelabs.server.datastore.domain.ModelStoreActor._
 import com.convergencelabs.server.datastore.domain.{ModelPermissions, QueryParsingException}
-import com.convergencelabs.server.domain.model.{Model => RtModel, _}
+import com.convergencelabs.server.domain.model._
 import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.server.util.concurrent.AskFuture
 import io.convergence.proto.common.{ErrorMessage, Int32List, OkResponse, StringList}
-import io.convergence.proto.model.{ModelReconnectRequestMessage, _}
+import io.convergence.proto.model._
 import io.convergence.proto.operations.{OperationAcknowledgementMessage, OperationSubmissionMessage, RemoteOperationMessage}
 import io.convergence.proto.references._
 import io.convergence.proto.{Model, Normal, Request}
 
-import scala.concurrent.{ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -47,7 +47,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   private[this] var nextResourceId = 0
   private[this] var resourceIdToModelId = Map[String, String]()
   private[this] var modelIdToResourceId = Map[String, String]()
-  private[this] var subscribedModels = Map[String, Long]()
+  private[this] var subscribedModels = Map[String, OfflineModelState]()
 
   private[this] val offlineSyncTask = context.system.scheduler.schedule(offlineModelSyncInterval, offlineModelSyncInterval, () => self ! SyncOfflineModels)
 
@@ -60,6 +60,8 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       onOutgoingModelMessage(message)
     case SyncOfflineModels =>
       syncOfflineModels()
+    case message: UpdateOfflineModel =>
+      handleOfflineModelSynced(message)
     case x: Any =>
       unhandled(x)
   }
@@ -69,31 +71,68 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     this.offlineSyncTask.cancel()
   }
 
+  private[this] def handleOfflineModelSynced(message: UpdateOfflineModel): Unit = {
+    val UpdateOfflineModel(modelId, action) = message
+    action match {
+      case OfflineModelUpdated(model, permissions) =>
+        val modelUpdate = model.map { m =>
+          ModelUpdateData(
+            m.metaData.version,
+            Some(m.metaData.createdTime),
+            Some(m.metaData.modifiedTime),
+            Some(m.data)
+          )
+        }
+
+        val permissionsUpdate = permissions.map { p =>
+          ModelPermissionsData(p.read, p.write, p.remove, p.manage)
+        }
+
+        val message = OfflineModelUpdatedMessage(
+          modelId,
+          OfflineModelUpdatedMessage.Action.Updated(OfflineModelUpdateData(modelUpdate, permissionsUpdate)))
+        context.parent ! message
+
+        this.subscribedModels.get(modelId).foreach {currentState =>
+          val version = model.map(_.metaData.version).getOrElse(currentState.currentVersion)
+          val perms = permissions.getOrElse(currentState.currentPermissions)
+          this.subscribedModels += modelId -> OfflineModelState(version, perms)
+        }
+
+      case OfflineModelDeleted() =>
+        val message = OfflineModelUpdatedMessage(
+          modelId,
+          OfflineModelUpdatedMessage.Action.Deleted(true))
+        context.parent ! message
+
+        this.subscribedModels -= modelId
+
+      case OfflineModelPermissionRevoked() =>
+        val message = OfflineModelUpdatedMessage(
+          modelId,
+          OfflineModelUpdatedMessage.Action.PermissionRevoked(true))
+        context.parent ! message
+
+        this.subscribedModels -= modelId
+      case OfflineModelNotUpdate() =>
+      // No update required
+    }
+  }
+
   private[this] def syncOfflineModels(): Unit = {
     val notOpen = this.subscribedModels.filter { case (modelId, _) => !this.modelIdToResourceId.contains(modelId)}
 
-    notOpen.foreach{ case (modelId, version) =>
-      val request = GetModelUpdateRequest(modelId, version)
+    notOpen.foreach{ case (modelId, OfflineModelState(version, permissions)) =>
+      val request = GetModelUpdateRequest(modelId, version, permissions, this.session.userId)
       val response = modelStoreActor ? request
-        response.mapTo[Option[RtModel]] onComplete {
-          case Success(Some(model)) =>
-            val response = OfflineModelUpdatedMessage(
-              modelId,
-              model.metaData.collection,
-              model.metaData.version,
-              Some(model.metaData.createdTime),
-              Some(model.metaData.modifiedTime),
-              Some(model.data)
-            )
-            context.parent ! response
-          case Success(None) =>
-            // No update required
+        response.mapTo[OfflineModelUpdateAction] onComplete {
+          case Success(action) =>
+            self ! action
           case Failure(cause) =>
             log.error("Error updating offline model", cause)
         }
     }
   }
-
 
   //
   // Outgoing Messages
@@ -375,8 +414,10 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
 
     unsubscribe.foreach(modelId => this.subscribedModels -= modelId)
 
-    subscribe.foreach { case ModelOfflineSubscriptionData(modelId, version) =>
-      this.subscribedModels += (modelId -> version)
+    subscribe.foreach { case ModelOfflineSubscriptionData(modelId, version, permissions) =>
+      val ModelPermissionsData(read, write, remove, manage) = permissions.getOrElse(ModelPermissionsData(false, false, false, false))
+      val state = OfflineModelState(version, ModelPermissions(read, write, remove, manage))
+      this.subscribedModels += modelId -> state
     }
 
     replyCallback.reply(OkResponse())
@@ -625,6 +666,7 @@ private[realtime] object ModelClientActor {
   private val ModelDeletedError = ErrorMessage("model_deleted", "The requested model was deleted.", Map())
 
   private case object SyncOfflineModels
-
+  private case class OfflineModelState(currentVersion: Long, currentPermissions: ModelPermissions)
+  private case class UpdateOfflineModel(modelId: String, action: OfflineModelUpdateAction)
 }
 

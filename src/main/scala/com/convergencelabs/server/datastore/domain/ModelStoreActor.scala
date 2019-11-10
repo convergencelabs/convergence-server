@@ -2,7 +2,7 @@ package com.convergencelabs.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.server.datastore.StoreActor
-import com.convergencelabs.server.datastore.domain.ModelStoreActor.GetModelUpdateRequest
+import com.convergencelabs.server.domain.model.Model
 import com.convergencelabs.server.domain.{DomainUserId, DomainUserType}
 
 import scala.util.Success
@@ -44,8 +44,40 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
   }
 
   private[this] def handleGetModelUpdate(request: GetModelUpdateRequest): Unit = {
-    val GetModelUpdateRequest(modelId, version) = request
-    reply(persistenceProvider.modelStore.getModelIfNewer(modelId, version))
+    val GetModelUpdateRequest(modelId, currentVersion, currentPermissions, userId) = request
+    val result = persistenceProvider.modelPermissionsStore.getUsersCurrentModelPermissions(modelId, userId).flatMap {
+      case Some(permissions) =>
+        if (permissions.read) {
+          // Model still exists and is still readable. Check to see if the
+          // permissions or model need to be updated.
+          val permissionsUpdate = if (permissions == currentPermissions) {
+            None
+          } else {
+            Some(permissions)
+          }
+
+          persistenceProvider.modelStore.getModelIfNewer(modelId, currentVersion) map { modelUpdate =>
+            (permissionsUpdate, modelUpdate) match {
+              case (None, None) =>
+                // No update to permissions or model.
+                OfflineModelNotUpdate()
+              case (p, m) =>
+                // At least one is different.
+                OfflineModelUpdated(m,p)
+            }
+          }
+        } else {
+          // This means the permissions were changed and now this
+          // user does not have read permissions. We don't even
+          // bother to look up the model.
+          Success(OfflineModelPermissionRevoked())
+        }
+      case None =>
+        // Model doesn't exist anymore
+        Success(OfflineModelDeleted())
+    }
+
+    reply(result)
   }
 }
 
@@ -63,6 +95,21 @@ object ModelStoreActor {
 
   case class QueryModelsRequest(userId: DomainUserId, query: String) extends ModelStoreRequest
 
-  case class GetModelUpdateRequest(modelId: String, currentVersion: Long) extends ModelStoreRequest
+
+  case class GetModelUpdateRequest(modelId: String,
+                                   currentVersion: Long,
+                                   currentPermissions: ModelPermissions,
+                                   userId: DomainUserId) extends ModelStoreRequest
+
+
+  sealed trait OfflineModelUpdateAction
+
+  case class OfflineModelPermissionRevoked() extends OfflineModelUpdateAction
+
+  case class OfflineModelNotUpdate() extends OfflineModelUpdateAction
+
+  case class OfflineModelDeleted() extends OfflineModelUpdateAction
+
+  case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends OfflineModelUpdateAction
 
 }
