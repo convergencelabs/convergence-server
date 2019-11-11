@@ -6,11 +6,12 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.RemoteAddress.IP
 import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.PasswordAuthRequestData
+import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.AuthSuccessData
 import com.convergencelabs.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.convergencelabs.server.domain._
-import io.convergence.proto.Response
-import io.convergence.proto.authentication.{AuthSuccess, AuthenticationRequestMessage, AuthenticationResponseMessage, PasswordAuthRequestMessage}
-import io.convergence.proto.connection.HandshakeRequestMessage
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.core._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.mockito.MockitoSugar
 import scalapb.GeneratedMessage
@@ -87,7 +88,7 @@ class ClientActorSpec
 
   class AuthenticatedClient(system: ActorSystem) extends HandshookClient(system: ActorSystem) {
     val authRequestMessage = AuthenticationRequestMessage()
-      .withPassword(PasswordAuthRequestMessage("testuser", "testpass"))
+      .withPassword(PasswordAuthRequestData("testuser", "testpass"))
 
     val authCallback = new TestReplyCallback()
     val authEvent = RequestReceived(authRequestMessage, authCallback)
@@ -99,17 +100,17 @@ class ClientActorSpec
 
     val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
     authResponse.response.isSuccess shouldBe true
-    val AuthSuccess(username, sessionId, reconnectToken, presenceState) = authResponse.getSuccess
+    val AuthSuccessData(username, sessionId, reconnectToken, presenceState) = authResponse.getSuccess
   }
 
   class TestReplyCallback() extends ReplyCallback {
-    val p = Promise[GeneratedMessage with Response]
+    val p = Promise[GeneratedMessage with ResponseMessage]
 
-    def result(): Future[GeneratedMessage with Response] = {
+    def result(): Future[GeneratedMessage with ResponseMessage] = {
       p.future
     }
 
-    def reply(message: GeneratedMessage with Response): Unit = {
+    def reply(message: GeneratedMessage with ResponseMessage): Unit = {
       p.success(message)
     }
 

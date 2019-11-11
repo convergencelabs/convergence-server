@@ -1,40 +1,22 @@
 package com.convergencelabs.server.api.realtime
 
+import akka.actor.ActorSystem
+import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.server.{HeartbeatConfiguration, ProtocolConfiguration}
+import com.google.protobuf.timestamp.Timestamp
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.{Assertions, BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.mockito.MockitoSugar
+
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
-import org.json4s.NoTypeHints
-import org.json4s.jackson.Serialization
-import org.scalatest.Assertions
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
-import org.scalatest.mockito.MockitoSugar
-
-import com.convergencelabs.server.HeartbeatConfiguration
-import com.convergencelabs.server.ProtocolConfiguration
-import com.google.protobuf.timestamp.Timestamp
-
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
-import io.convergence.proto.common.ErrorMessage
-import io.convergence.proto.connection.HandshakeRequestMessage
-import io.convergence.proto.connection.HandshakeResponseMessage
-import io.convergence.proto.connection.PingMessage
-import io.convergence.proto.connection.PongMessage
-import io.convergence.proto.message.ConvergenceMessage
-import io.convergence.proto.model.AutoCreateModelConfigRequestMessage
-import io.convergence.proto.model.AutoCreateModelConfigResponseMessage
-import io.convergence.proto.operations.CompoundOperationData
-import io.convergence.proto.operations.ObjectValue
-import io.convergence.proto.operations.OperationAcknowledgementMessage
-import io.convergence.proto.operations.OperationData
-import io.convergence.proto.operations.OperationSubmissionMessage
 
 // scalastyle:off magic.number
 class ProtocolConnectionSpec
