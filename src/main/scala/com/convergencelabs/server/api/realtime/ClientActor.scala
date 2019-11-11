@@ -8,6 +8,11 @@ import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
 import akka.http.scaladsl.model.RemoteAddress
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.{AnonymousAuthRequestData, JwtAuthRequestData, PasswordAuthRequestData, ReconnectTokenAuthRequestData}
+import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.{AuthFailureData, AuthSuccessData}
+import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.ErrorData
+import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.server.ProtocolConfiguration
 import com.convergencelabs.server.datastore.EntityNotFoundException
 import com.convergencelabs.server.db.provision.DomainProvisionerActor.{DomainDeleted, domainTopic}
@@ -15,13 +20,6 @@ import com.convergencelabs.server.domain._
 import com.convergencelabs.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.server.domain.presence.{PresenceRequest, UserPresence}
 import com.convergencelabs.server.util.concurrent.AskFuture
-import io.convergence.proto._
-import io.convergence.proto.authentication._
-import io.convergence.proto.common.ErrorMessage
-import io.convergence.proto.connection.HandshakeResponseMessage.ErrorData
-import io.convergence.proto.connection.{HandshakeRequestMessage, HandshakeResponseMessage}
-import io.convergence.proto.message.ConvergenceMessage
-import io.convergence.proto.permissions.PermissionType
 import scalapb.GeneratedMessage
 
 import scala.concurrent.duration._
@@ -130,9 +128,9 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
       }
     case SendProcessedMessage(convergenceMessage) =>
       this.protocolConnection.serializeAndSend(convergenceMessage)
-    case message: GeneratedMessage with Normal =>
+    case message: GeneratedMessage with NormalMessage =>
       onOutgoingMessage(message)
-    case message: GeneratedMessage with Request =>
+    case message: GeneratedMessage with RequestMessage =>
       onOutgoingRequest(message)
 
     case WebSocketClosed =>
@@ -187,8 +185,8 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
   }
 
   private[this] def handleMessagesWhenAuthenticated: MessageHandler = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[GeneratedMessage with Request with Authentication] => invalidMessage(message)
+    case RequestReceived(message, _) if message.isInstanceOf[HandshakeRequestMessage] => invalidMessage(message)
+    case RequestReceived(message, _) if message.isInstanceOf[GeneratedMessage with RequestMessage with AuthenticationMessage] => invalidMessage(message)
 
     case message: MessageReceived => onMessageReceived(message)
     case message: RequestReceived => onRequestReceived(message)
@@ -267,13 +265,13 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
 
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     (requestMessage.auth match {
-      case AuthenticationRequestMessage.Auth.Password(PasswordAuthRequestMessage(username, password)) =>
+      case AuthenticationRequestMessage.Auth.Password(PasswordAuthRequestData(username, password)) =>
         Some(PasswordAuthRequest(username, password))
-      case AuthenticationRequestMessage.Auth.Jwt(JwtAuthRequestMessage(jwt)) =>
+      case AuthenticationRequestMessage.Auth.Jwt(JwtAuthRequestData(jwt)) =>
         Some(JwtAuthRequest(jwt))
-      case AuthenticationRequestMessage.Auth.Reconnect(ReconnectTokenAuthRequestMessage(token)) =>
+      case AuthenticationRequestMessage.Auth.Reconnect(ReconnectTokenAuthRequestData(token)) =>
         Some(ReconnectTokenAuthRequest(token))
-      case AuthenticationRequestMessage.Auth.Anonymous(AnonymousAuthRequestMessage(displayName)) =>
+      case AuthenticationRequestMessage.Auth.Anonymous(AnonymousAuthRequestData(displayName)) =>
         Some(AnonymousAuthRequest(displayName))
       case AuthenticationRequestMessage.Auth.Empty =>
         None
@@ -294,14 +292,14 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
           case Success(AuthenticationSuccess(session, reconnectToken)) =>
             getPresenceAfterAuth(session, reconnectToken, cb)
           case Success(AuthenticationFailure) =>
-            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
+            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
           case Failure(cause) =>
             log.error(cause, s"Error authenticating user for domain $domainId")
-            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
+            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
         }
       case None =>
         log.error("Invalid authentication message: {}", requestMessage)
-        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
+        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
     }
   }
 
@@ -320,7 +318,7 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
     }).recover {
       case cause =>
         log.error(cause, "Error getting user data after successful authentication")
-        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailure("")))
+        cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
     }
   }
 
@@ -339,7 +337,7 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
     this.historyClient = context.actorOf(HistoricModelClientActor.props(session, domainId, modelStoreActor, operationStoreActor));
     this.messageHandler = handleMessagesWhenAuthenticated
 
-    val response = AuthenticationResponseMessage().withSuccess(AuthSuccess(
+    val response = AuthenticationResponseMessage().withSuccess(AuthSuccessData(
       Some(ImplicitMessageConversions.mapDomainUser(user)),
       session.sessionId,
       this.reconnectToken.getOrElse(""),
@@ -353,14 +351,14 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
   // Incoming / Outgoing Messages
   //
 
-  private[this] def onOutgoingMessage(message: GeneratedMessage with Normal): Unit = {
+  private[this] def onOutgoingMessage(message: GeneratedMessage with NormalMessage): Unit = {
     protocolConnection.send(message)
   }
 
-  private[this] def onOutgoingRequest(message: GeneratedMessage with Request): Unit = {
+  private[this] def onOutgoingRequest(message: GeneratedMessage with RequestMessage): Unit = {
     val askingActor = sender
     val f = protocolConnection.request(message)
-    f.mapTo[Response] onComplete {
+    f.mapTo[ResponseMessage] onComplete {
       case Success(response) =>
         askingActor ! response
       case Failure(cause) =>
@@ -373,13 +371,13 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
 
   private[this] def onMessageReceived(message: MessageReceived): Unit = {
     message match {
-      case MessageReceived(_: Model) =>
+      case MessageReceived(_: ModelMessage) =>
         modelClient.forward(message)
-      case MessageReceived(_: Activity) =>
+      case MessageReceived(_: ActivityMessage) =>
         activityClient.forward(message)
-      case MessageReceived(_: Presence) =>
+      case MessageReceived(_: PresenceMessage) =>
         presenceClient.forward(message)
-      case MessageReceived(_: Chat) =>
+      case MessageReceived(_: ChatMessage) =>
         chatClient.forward(message)
       case _: Any =>
       // TODO send an error back
@@ -388,17 +386,17 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
 
   private[this] def onRequestReceived(message: RequestReceived): Unit = {
     message match {
-      case RequestReceived(x: Model, _) =>
+      case RequestReceived(_: ModelMessage, _) =>
         modelClient.forward(message)
-      case RequestReceived(x: Identity, _) =>
+      case RequestReceived(_: IdentityMessage, _) =>
         userClient.forward(message)
-      case RequestReceived(x: Activity, _) =>
+      case RequestReceived(_: ActivityMessage, _) =>
         activityClient.forward(message)
-      case RequestReceived(x: Presence, _) =>
+      case RequestReceived(_: PresenceMessage, _) =>
         presenceClient.forward(message)
-      case RequestReceived(x: Chat, _) =>
+      case RequestReceived(_: ChatMessage, _) =>
         chatClient.forward(message)
-      case RequestReceived(x: Historical, _) =>
+      case RequestReceived(_: HistoricalMessage, _) =>
         historyClient.forward(message)
       case RequestReceived(x: PermissionRequest, _) =>
         val idType = x.idType

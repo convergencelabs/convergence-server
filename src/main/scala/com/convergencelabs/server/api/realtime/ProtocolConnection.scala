@@ -3,13 +3,11 @@ package com.convergencelabs.server.api.realtime
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, Cancellable, Scheduler, actorRef2Scala}
+import com.convergencelabs.convergence.proto.ConvergenceMessage._
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.server.ProtocolConfiguration
 import grizzled.slf4j.Logging
-import io.convergence.proto.{Normal, Request, Response}
-import io.convergence.proto.common._
-import io.convergence.proto.connection._
-import io.convergence.proto.message.ConvergenceMessage.Body
-import io.convergence.proto.message._
 import scalapb.GeneratedMessage
 
 import scala.collection.mutable
@@ -28,7 +26,7 @@ trait ReplyCallback {
    *
    * @param message The message to reply with.
    */
-  def reply(message: GeneratedMessage with Response): Unit
+  def reply(message: GeneratedMessage with ResponseMessage): Unit
 
   /**
    * Responds to the request with an unknown error response.
@@ -74,14 +72,14 @@ sealed trait ProtocolMessageEvent {
  *
  * @param message Thee incoming normal message.
  */
-case class MessageReceived(message: GeneratedMessage with Normal) extends ProtocolMessageEvent
+case class MessageReceived(message: GeneratedMessage with NormalMessage) extends ProtocolMessageEvent
 
 /**
  * Indicates an incoming message that expects a response.
  *
  * @param message Thee incoming request message.
  */
-case class RequestReceived(message: GeneratedMessage with Request, replyCallback: ReplyCallback) extends ProtocolMessageEvent
+case class RequestReceived(message: GeneratedMessage with RequestMessage, replyCallback: ReplyCallback) extends ProtocolMessageEvent
 
 /**
  * The [[ProtocolConnection]] class manages the Convergence Protocol Buffer,
@@ -131,7 +129,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
    *
    * @param message The message to send.
    */
-  def send(message: GeneratedMessage with Normal): Unit = {
+  def send(message: GeneratedMessage with NormalMessage): Unit = {
     val body = ConvergenceMessageBodyUtils.toBody(message)
     val convergenceMessage = ConvergenceMessage().withBody(body)
     sendMessage(convergenceMessage)
@@ -145,11 +143,11 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
    * @return A Future which will be completed with the response
    *         message from the client if successful.
    */
-  def request(message: GeneratedMessage with Request): Future[Response] = {
+  def request(message: GeneratedMessage with RequestMessage): Future[ResponseMessage] = {
     val requestId = nextRequestId
     nextRequestId += 1
 
-    val replyPromise = Promise[GeneratedMessage with Response]
+    val replyPromise = Promise[GeneratedMessage with ResponseMessage]
 
     val timeout = protocolConfig.defaultRequestTimeout
     val timeoutFuture = scheduler.scheduleOnce(timeout)(() => {
@@ -243,14 +241,14 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
         // No-Op
         None
 
-      case Some(message: Request) =>
+      case Some(message: RequestMessage) =>
         Some(RequestReceived(message, new ReplyCallbackImpl(convergenceMessage.requestId.get)))
 
-      case Some(message: Response) =>
+      case Some(message: ResponseMessage) =>
         onReply(message, convergenceMessage.responseId.get)
         None
 
-      case Some(message: Normal) =>
+      case Some(message: NormalMessage) =>
         if (convergenceMessage.requestId.isDefined) {
           throw new IllegalArgumentException("A normal message cannot have a requestId")
         }
@@ -270,7 +268,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
     clientActor ! SendUnprocessedMessage(convergenceMessage)
   }
 
-  private[this] def onReply(message: GeneratedMessage with Response, responseId: Int): Unit = {
+  private[this] def onReply(message: GeneratedMessage with ResponseMessage, responseId: Int): Unit = {
     requests.synchronized({
       requests.remove(responseId) match {
         case Some(record) =>
@@ -308,7 +306,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
    * @param reqId The request id this reply callback will respond to.
    */
   private[this] class ReplyCallbackImpl(reqId: Int) extends ReplyCallback {
-    def reply(message: GeneratedMessage with Response): Unit = {
+    def reply(message: GeneratedMessage with ResponseMessage): Unit = {
       sendMessage(ConvergenceMessage(None, Some(reqId), ConvergenceMessageBodyUtils.toBody(message)))
     }
 
@@ -339,6 +337,6 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
 
 object ProtocolConnection {
 
-  private case class RequestRecord(id: Long, promise: Promise[GeneratedMessage with Response], future: Cancellable)
+  private case class RequestRecord(id: Long, promise: Promise[GeneratedMessage with ResponseMessage], future: Cancellable)
 
 }

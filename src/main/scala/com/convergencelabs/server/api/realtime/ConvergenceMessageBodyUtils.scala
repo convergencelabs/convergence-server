@@ -1,17 +1,12 @@
 package com.convergencelabs.server.api.realtime
 
-import io.convergence.proto.activity._
-import io.convergence.proto.authentication._
-import io.convergence.proto.chat._
-import io.convergence.proto.common._
-import io.convergence.proto.connection._
-import io.convergence.proto.identity._
-import io.convergence.proto.message.ConvergenceMessage.Body
-import io.convergence.proto.model._
-import io.convergence.proto.operations._
-import io.convergence.proto.permissions._
-import io.convergence.proto.presence._
-import io.convergence.proto.references._
+import com.convergencelabs.convergence.proto.activity._
+import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.proto.chat._
+import com.convergencelabs.convergence.proto.identity._
+import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.convergence.proto.presence._
+import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import scalapb.GeneratedMessage
 
 /**
@@ -75,7 +70,6 @@ object ConvergenceMessageBodyUtils {
       case Body.ModelReconnectComplete(message) => message
       case Body.ModelOfflineSubscriptionChange(message) => message
       case Body.ModelOfflineUpdated(message) => message
-      case Body.ModelDeleted(message) => message
 
       case Body.HistoricalDataRequest(message) => message
       case Body.HistoricalDataResponse(message) => message
@@ -203,11 +197,11 @@ object ConvergenceMessageBodyUtils {
       case message: OpenRealtimeModelRequestMessage => Body.OpenRealTimeModelRequest(message)
       case message: OpenRealtimeModelResponseMessage => Body.OpenRealTimeModelResponse(message)
       case message: CloseRealtimeModelRequestMessage => Body.CloseRealTimeModelRequest(message)
-      case message: CloseRealTimeModelSuccessMessage => Body.CloseRealTimeModelResponse(message)
+      case message: CloseRealTimeModelResponseMessage => Body.CloseRealTimeModelResponse(message)
       case message: CreateRealtimeModelRequestMessage => Body.CreateRealTimeModelRequest(message)
-      case message: CreateRealtimeModelSuccessMessage => Body.CreateRealTimeModelResponse(message)
+      case message: CreateRealtimeModelResponseMessage => Body.CreateRealTimeModelResponse(message)
       case message: DeleteRealtimeModelRequestMessage => Body.DeleteRealtimeModelRequest(message)
-      case message: DeleteRealtimeModelSuccessMessage => Body.DeleteRealtimeModelResponse(message)
+      case message: DeleteRealtimeModelResponseMessage => Body.DeleteRealtimeModelResponse(message)
       case message: ModelForceCloseMessage => Body.ForceCloseRealTimeModel(message)
       case message: RemoteClientOpenedMessage => Body.RemoteClientOpenedModel(message)
       case message: RemoteClientClosedMessage => Body.RemoteClientClosedModel(message)
@@ -240,7 +234,6 @@ object ConvergenceMessageBodyUtils {
       case message: ModelReconnectCompleteMessage => Body.ModelReconnectComplete(message)
       case message: ModelOfflineSubscriptionChangeRequestMessage=> Body.ModelOfflineSubscriptionChange(message)
       case message: OfflineModelUpdatedMessage => Body.ModelOfflineUpdated(message)
-      case message: ModelDeleted => Body.ModelDeleted(message)
 
       // Identity
       case message: GetUsersMessage => Body.UsersGetRequest(message)

@@ -1,12 +1,14 @@
 package com.convergencelabs.server.api.realtime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.ConvergenceMessage._
+import com.convergencelabs.convergence.proto.chat._
+import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.server.domain.{DomainUserId, IdentityResolutionRequest, IdentityResolutionResponse}
-import io.convergence.proto.chat.ChatEventData
-import io.convergence.proto.identity.{DomainUserIdData, IdentityCacheUpdateMessage}
-import io.convergence.proto.message.ConvergenceMessage
-import io.convergence.proto.message.ConvergenceMessage.Body
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
@@ -26,7 +28,7 @@ private[realtime] class IdentityCacheManager(private[this] val clientActor: Acto
                                              private[this] implicit val timeout: Timeout) extends Actor with ActorLogging {
 
   import ImplicitMessageConversions._
-  import akka.pattern.ask
+
 
   private[this] val sessions: Set[String] = Set()
   private[this] val users: Set[DomainUserId] = Set()

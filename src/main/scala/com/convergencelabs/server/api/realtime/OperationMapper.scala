@@ -1,47 +1,8 @@
 package com.convergencelabs.server.api.realtime
 
-import com.convergencelabs.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.server.domain.model.ot.Operation
-import com.convergencelabs.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.server.domain.model.ot.StringSetOperation
-import org.json4s.JsonAST.JNumber
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonAST.JDouble
-import com.convergencelabs.server.domain.model.ot.DateSetOperation
-import io.convergence.proto.operations.ArrayReplaceOperationData
-import io.convergence.proto.operations.ArraySetOperationData
-import io.convergence.proto.operations.ObjectAddPropertyOperationData
-import io.convergence.proto.operations.CompoundOperationData
-import io.convergence.proto.operations.DateSetOperationData
-import io.convergence.proto.operations.ArrayMoveOperationData
-import io.convergence.proto.operations.ArrayRemoveOperationData
-import io.convergence.proto.operations.ObjectSetPropertyOperationData
-import io.convergence.proto.operations.ObjectSetOperationData
-import io.convergence.proto.operations.StringInsertOperationData
-import io.convergence.proto.operations.StringRemoveOperationData
-import io.convergence.proto.operations.NumberSetOperationData
-import io.convergence.proto.operations.BooleanSetOperationData
-import io.convergence.proto.operations.ObjectRemovePropertyOperationData
-import io.convergence.proto.operations.NumberDeltaOperationData
-import io.convergence.proto.operations.ArrayInsertOperationData
-import io.convergence.proto.operations.StringSetOperationData
-import io.convergence.proto.operations.DiscreteOperationData
-import io.convergence.proto.operations.OperationData
-import ImplicitMessageConversions._
+import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.server.api.realtime.ImplicitMessageConversions._
+import com.convergencelabs.server.domain.model.ot._
 
 private[realtime] object OperationMapper {
 
@@ -81,7 +42,7 @@ private[realtime] object OperationMapper {
       case DiscreteOperationData.Operation.ArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, newVal)) =>
         ArrayReplaceOperation(id, noOp, idx, newVal.get)
       case DiscreteOperationData.Operation.ArraySetOperation(ArraySetOperationData(id, noOp, array)) =>
-        ArraySetOperation(id, noOp, array.map(messageToDataValue(_)).toList)
+        ArraySetOperation(id, noOp, array.map(messageToDataValue).toList)
 
       case DiscreteOperationData.Operation.ObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, newVal)) =>
         ObjectSetPropertyOperation(id, noOp, prop, newVal.get)
@@ -143,7 +104,7 @@ private[realtime] object OperationMapper {
       case ArrayReplaceOperation(id, noOp, idx, newVal) =>
         DiscreteOperationData().withArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, Some(newVal)))
       case ArraySetOperation(id, noOp, array) =>
-        DiscreteOperationData().withArraySetOperation(ArraySetOperationData(id, noOp, array.map(dataValueToMessage(_))))
+        DiscreteOperationData().withArraySetOperation(ArraySetOperationData(id, noOp, array.map(dataValueToMessage)))
 
       case ObjectSetPropertyOperation(id, noOp, prop, newVal) =>
         DiscreteOperationData().withObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, Some(newVal)))

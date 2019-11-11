@@ -4,23 +4,16 @@ import java.net.URI
 import java.nio.ByteBuffer
 import java.util.concurrent.LinkedBlockingDeque
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.server.api.realtime.ConvergenceMessageBodyUtils
+import grizzled.slf4j.Logging
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.drafts.Draft_17
 import org.java_websocket.handshake.ServerHandshake
-
-import com.convergencelabs.server.api.realtime.ConvergenceMessageBodyUtils
-
-import grizzled.slf4j.Logging
-import io.convergence.proto.Normal
-import io.convergence.proto.Request
-import io.convergence.proto.Response
-import io.convergence.proto.connection.PongMessage
-import io.convergence.proto.message.ConvergenceMessage
 import scalapb.GeneratedMessage
+
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 
 class MockConvergenceClient(serverUri: String)
   extends WebSocketClient(new URI(serverUri), new Draft_17())
@@ -38,10 +31,10 @@ class MockConvergenceClient(serverUri: String)
   }
 
   override def onClose(code: Int, reason: String, remote: Boolean): Unit = {
-    logger.info("closed with exit code " + code + " additional info: " + reason);
+    logger.info("closed with exit code " + code + " additional info: " + reason)
   }
 
-  def sendNormal(message: GeneratedMessage with Normal): ConvergenceMessage = {
+  def sendNormal(message: GeneratedMessage with NormalMessage): ConvergenceMessage = {
     val convergenceMessage = ConvergenceMessage()
       .withBody(ConvergenceMessageBodyUtils.toBody(message))
     sendMessage(convergenceMessage)
@@ -50,7 +43,7 @@ class MockConvergenceClient(serverUri: String)
 
   var reqId = 0
 
-  def sendRequest(message: GeneratedMessage with Request): ConvergenceMessage = {
+  def sendRequest(message: GeneratedMessage with RequestMessage): ConvergenceMessage = {
     val convergenceMessage = ConvergenceMessage()
       .withBody(ConvergenceMessageBodyUtils.toBody(message))
       .withRequestId(reqId)
@@ -59,7 +52,7 @@ class MockConvergenceClient(serverUri: String)
     convergenceMessage
   }
 
-  def sendResponse(reqId: Int, message: GeneratedMessage with Response): ConvergenceMessage = {
+  def sendResponse(reqId: Int, message: GeneratedMessage with ResponseMessage): ConvergenceMessage = {
     val convergenceMessage = ConvergenceMessage()
       .withBody(ConvergenceMessageBodyUtils.toBody(message))
       .withResponseId(reqId)
@@ -95,7 +88,7 @@ class MockConvergenceClient(serverUri: String)
   }
 
   override def onError(ex: Exception): Unit = {
-    logger.error("an error occurred", ex);
+    logger.error("an error occurred", ex)
   }
 
   def expectMessage(max: FiniteDuration): ConvergenceMessage = receiveOne(max)

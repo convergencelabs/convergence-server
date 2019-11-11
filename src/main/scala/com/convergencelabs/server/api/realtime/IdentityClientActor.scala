@@ -3,12 +3,12 @@ package com.convergencelabs.server.api.realtime
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.server.datastore.domain.UserGroup
 import com.convergencelabs.server.datastore.{EntityNotFoundException, SortOrder}
 import com.convergencelabs.server.domain._
 import com.convergencelabs.server.util.concurrent.AskFuture
-import io.convergence.proto.identity._
-import io.convergence.proto.{Identity, Request}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
@@ -26,8 +26,8 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Identity] =>
-      onRequestReceived(message.asInstanceOf[Request with Identity], replyPromise)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with IdentityMessage] =>
+      onRequestReceived(message.asInstanceOf[RequestMessage with IdentityMessage], replyPromise)
     case x: Any => unhandled(x)
   }
 
@@ -35,7 +35,7 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
   // Incoming Messages
   //
 
-  def onRequestReceived(message: Request with Identity, replyCallback: ReplyCallback): Unit = {
+  def onRequestReceived(message: RequestMessage with IdentityMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case userSearch: UserSearchMessage => onUserSearch(userSearch, replyCallback)
       case getUsersMessage: GetUsersMessage => getUsers(getUsersMessage, replyCallback)

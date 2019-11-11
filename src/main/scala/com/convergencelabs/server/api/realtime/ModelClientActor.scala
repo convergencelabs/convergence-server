@@ -6,6 +6,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, actorRef2Scala}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.common.PagedData
+import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
+import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
+import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelUpdateData}
+import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.convergence.proto.{ModelMessage => ProtoModelMessage, _}
 import com.convergencelabs.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
 import com.convergencelabs.server.api.realtime.ModelClientActor._
 import com.convergencelabs.server.datastore.domain.ModelStoreActor._
@@ -13,11 +19,6 @@ import com.convergencelabs.server.datastore.domain.{ModelPermissions, QueryParsi
 import com.convergencelabs.server.domain.model._
 import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.server.util.concurrent.AskFuture
-import io.convergence.proto.common.{ErrorMessage, Int32List, OkResponse, StringList}
-import io.convergence.proto.model._
-import io.convergence.proto.operations.{OperationAcknowledgementMessage, OperationSubmissionMessage, RemoteOperationMessage}
-import io.convergence.proto.references._
-import io.convergence.proto.{Model, Normal, Request}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.FiniteDuration
@@ -52,10 +53,10 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   private[this] val offlineSyncTask = context.system.scheduler.schedule(offlineModelSyncInterval, offlineModelSyncInterval, () => self ! SyncOfflineModels)
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[Normal with Model] =>
-      onMessageReceived(message.asInstanceOf[Normal with Model])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[Request with Model] =>
-      onRequestReceived(message.asInstanceOf[Request with Model], replyPromise)
+    case MessageReceived(message) if message.isInstanceOf[NormalMessage with Model] =>
+      onMessageReceived(message.asInstanceOf[NormalMessage with ProtoModelMessage])
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with Model] =>
+      onRequestReceived(message.asInstanceOf[RequestMessage with Model], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
     case SyncOfflineModels =>
@@ -313,7 +314,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   // Incoming Messages
   //
 
-  private[this] def onRequestReceived(message: Request, replyCallback: ReplyCallback): Unit = {
+  private[this] def onRequestReceived(message: RequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
       case reconnectRequest: ModelReconnectRequestMessage => onModelReconnectRequest(reconnectRequest, replyCallback)
@@ -327,7 +328,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     }
   }
 
-  private[this] def onMessageReceived(message: Normal with Model): Unit = {
+  private[this] def onMessageReceived(message: NormalMessage with ProtoModelMessage): Unit = {
     message match {
       case message: OperationSubmissionMessage => onOperationSubmission(message)
       case message: ShareReferenceMessage => onShareReference(message)
@@ -432,7 +433,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
           case Success(()) =>
             resourceIdToModelId -= resourceId
             modelIdToResourceId -= modelId
-            cb.reply(CloseRealTimeModelSuccessMessage())
+            cb.reply(CloseRealTimeModelResponseMessage())
           case Failure(cause) =>
             log.error(cause, s"$domainId: Unexpected error closing model.")
             cb.unexpectedError("could not close model")
@@ -541,7 +542,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       Some(session))
     future.mapResponse[String] onComplete {
       case Success(_) =>
-        cb.reply(CreateRealtimeModelSuccessMessage(modelId))
+        cb.reply(CreateRealtimeModelResponseMessage(modelId))
       case Failure(ModelAlreadyExistsException(_)) =>
         cb.expectedError("model_already_exists", s"A model with the id '$modelId' already exists")
       case Failure(UnauthorizedException(message)) =>
@@ -557,7 +558,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     val future = modelClusterRegion ? DeleteRealtimeModel(domainId, modelId, Some(session))
     future.mapTo[Unit] onComplete {
       case Success(()) =>
-        cb.reply(DeleteRealtimeModelSuccessMessage())
+        cb.reply(DeleteRealtimeModelResponseMessage())
       case Failure(ModelNotFoundException(_)) =>
         cb.reply(ModelClientActor.ModelNotFoundError)
       case Failure(UnauthorizedException(message)) =>

@@ -1,112 +1,24 @@
 package com.convergencelabs.server.api.realtime
 
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.server.datastore.domain.ChatEvent
-import com.convergencelabs.server.datastore.domain.ChatInfo
-import com.convergencelabs.server.datastore.domain.ChatCreatedEvent
-import com.convergencelabs.server.datastore.domain.ChatMessageEvent
-import com.convergencelabs.server.datastore.domain.ChatNameChangedEvent
-import com.convergencelabs.server.datastore.domain.ChatTopicChangedEvent
-import com.convergencelabs.server.datastore.domain.ChatUserAddedEvent
-import com.convergencelabs.server.datastore.domain.ChatUserJoinedEvent
-import com.convergencelabs.server.datastore.domain.ChatUserLeftEvent
-import com.convergencelabs.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.server.domain.DomainId
-import com.convergencelabs.server.domain.chat.ChatActor
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, actorRef2Scala}
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
+import akka.pattern.ask
+import akka.util.Timeout
+import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.chat._
+import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.server.api.realtime.ImplicitMessageConversions._
+import com.convergencelabs.server.datastore.domain.{ChatMembership, ChatType}
+import com.convergencelabs.server.domain.{DomainId, DomainUserSessionId}
 import com.convergencelabs.server.domain.chat.ChatLookupActor._
 import com.convergencelabs.server.domain.chat.ChatMessages._
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
-import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
-import akka.util.Timeout
-import akka.pattern.ask
-import com.convergencelabs.server.domain.chat.ChatSharding
-import io.convergence.proto.Normal
-import io.convergence.proto.Chat
-import io.convergence.proto.Request
-import io.convergence.proto.Permissions
-import io.convergence.proto.permissions.GetGroupPermissionsRequestMessage
-import io.convergence.proto.permissions.AddPermissionsRequestMessage
-import io.convergence.proto.permissions.GetClientPermissionsRequestMessage
-import io.convergence.proto.permissions.AddPermissionsResponseMessage
-import io.convergence.proto.chat.PublishChatRequestMessage
-import io.convergence.proto.permissions.GetClientPermissionsResponseMessage
-import io.convergence.proto.chat.ChatRemovedMessage
-import io.convergence.proto.chat.ChatTopicSetMessage
-import io.convergence.proto.chat.ChatInfoData
-import io.convergence.proto.permissions.GetUserPermissionsResponseMessage
-import io.convergence.proto.chat.ChatTopicChangedEventData
-import io.convergence.proto.chat.UserJoinedChatMessage
-import io.convergence.proto.chat.ChatHistoryRequestMessage
-import io.convergence.proto.chat.RemoveChatResponseMessage
-import io.convergence.proto.chat.RemoteChatMessageMessage
-import io.convergence.proto.chat.ChatsExistResponseMessage
-import io.convergence.proto.chat.ChatUserLeftEventData
-import io.convergence.proto.chat.LeaveChatRequestMessage
-import io.convergence.proto.chat.JoinChatRequestMessage
-import io.convergence.proto.permissions.GetUserPermissionsRequestMessage
-import io.convergence.proto.chat.CreateChatRequestMessage
-import io.convergence.proto.permissions.SetPermissionsRequestMessage
-import io.convergence.proto.chat.MarkChatEventsSeenRequestMessage
-import io.convergence.proto.chat.JoinChatResponseMessage
-import io.convergence.proto.chat.ChatHistoryResponseMessage
-import io.convergence.proto.permissions.GetAllGroupPermissionsRequestMessage
-import io.convergence.proto.chat.ChatUserJoinedEventData
-import io.convergence.proto.chat.LeaveChatResponseMessage
-import io.convergence.proto.chat.GetChatsRequestMessage
-import io.convergence.proto.chat.PublishChatResponseMessage
-import io.convergence.proto.permissions.GetWorldPermissionsRequestMessage
-import io.convergence.proto.chat.SetChatTopicRequestMessage
-import io.convergence.proto.chat.ChatCreatedEventData
-import io.convergence.proto.permissions.RemovePermissionsResponseMessage
-import io.convergence.proto.chat.AddUserToChatChannelResponseMessage
-import io.convergence.proto.chat.UserAddedToChatChannelMessage
-import io.convergence.proto.chat.CreateChatResponseMessage
-import io.convergence.proto.chat.AddUserToChatChannelRequestMessage
-import io.convergence.proto.chat.ChatNameSetMessage
-import io.convergence.proto.chat.RemoveUserFromChatChannelResponseMessage
-import io.convergence.proto.chat.GetJoinedChatsRequestMessage
-import io.convergence.proto.permissions.GetAllUserPermissionsRequestMessage
-import io.convergence.proto.chat.ChatsExistRequestMessage
-import io.convergence.proto.chat.SetChatNameResponseMessage
-import io.convergence.proto.chat.ChatUserRemovedEventData
-import io.convergence.proto.chat.ChatUserAddedEventData
-import io.convergence.proto.chat.MarkChatEventsSeenResponseMessage
-import io.convergence.proto.permissions.GetAllUserPermissionsResponseMessage
-import io.convergence.proto.permissions.SetPermissionsResponseMessage
-import io.convergence.proto.permissions.GetAllGroupPermissionsResponseMessage
-import io.convergence.proto.chat.ChatMessageEventData
-import io.convergence.proto.chat.UserLeftChatMessage
-import io.convergence.proto.chat.GetChatsResponseMessage
-import io.convergence.proto.chat.RemoveUserFromChatChannelRequestMessage
-import io.convergence.proto.permissions.RemovePermissionsRequestMessage
-import io.convergence.proto.permissions.GetGroupPermissionsResponseMessage
-import io.convergence.proto.chat.UserRemovedFromChatChannelMessage
-import io.convergence.proto.chat.SetChatTopicResponseMessage
-import io.convergence.proto.chat.ChatNameChangedEventData
-import io.convergence.proto.chat.SetChatNameRequestMessage
-import io.convergence.proto.chat.RemoveChatRequestMessage
-import io.convergence.proto.chat.GetDirectChatsRequestMessage
-import io.convergence.proto.chat.ChatEventData
+import com.convergencelabs.server.domain.chat.{ChatActor, ChatSharding}
 import com.google.protobuf.timestamp.Timestamp
-import com.convergencelabs.server.api.realtime.ImplicitMessageConversions._
-import io.convergence.proto.permissions.PermissionsList
-import io.convergence.proto.permissions.UserPermissionsEntry
-import io.convergence.proto.permissions.GetWorldPermissionsResponseMessage
-import io.convergence.proto.Response
 import scalapb.GeneratedMessage
-import com.convergencelabs.server.domain.DomainUserSessionId
-import com.convergencelabs.server.datastore.domain.ChatType
-import com.convergencelabs.server.datastore.domain.ChatMembership
+
+import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 object ChatClientActor {
   def props(
@@ -136,11 +48,11 @@ class ChatClientActor(
     case SubscribeAck(Subscribe(chatTopicName, _, _)) ⇒
       log.debug("Subscribe to direct chat for user")
 
-    case MessageReceived(message: Normal with Chat) =>
+    case MessageReceived(message: NormalMessage with ChatMessage) =>
       onMessageReceived(message)
-    case RequestReceived(message: Request with Chat, replyPromise) =>
+    case RequestReceived(message: RequestMessage with ChatMessage, replyPromise) =>
       onRequestReceived(message, replyPromise)
-    case RequestReceived(message: Request with Permissions, replyPromise) =>
+    case RequestReceived(message: RequestMessage with PermissionsMessage, replyPromise) =>
       onPermissionsRequestReceived(message, replyPromise)
 
     case message: ChatBroadcastMessage =>
@@ -195,11 +107,11 @@ class ChatClientActor(
   // Incoming Messages
   //
 
-  def onMessageReceived(message: Normal with Chat): Unit = {
+  def onMessageReceived(message: NormalMessage with ChatMessage): Unit = {
     log.error("Chat client actor received a non-request message")
   }
 
-  def onRequestReceived(message: Request with Chat, replyCallback: ReplyCallback): Unit = {
+  def onRequestReceived(message: RequestMessage with ChatMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case message: CreateChatRequestMessage =>
         onCreateChannel(message, replyCallback)
@@ -234,7 +146,7 @@ class ChatClientActor(
     }
   }
 
-  def onPermissionsRequestReceived(message: Request with Permissions, replyCallback: ReplyCallback): Unit = {
+  def onPermissionsRequestReceived(message: RequestMessage with PermissionsMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case message: AddPermissionsRequestMessage =>
         onAddChatPermissions(message, replyCallback)
@@ -510,7 +422,7 @@ class ChatClientActor(
     ()
   }
 
-  private[this] def handleSimpleChannelRequest(request: Any, response: () => GeneratedMessage with Response, cb: ReplyCallback): Unit = {
+  private[this] def handleSimpleChannelRequest(request: Any, response: () => GeneratedMessage with ResponseMessage, cb: ReplyCallback): Unit = {
     chatChannelActor.ask(request).mapTo[Unit] onComplete {
       case Success(()) =>
         val r = response()
