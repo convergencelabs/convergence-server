@@ -14,7 +14,7 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
 
   "A ConvergenceScriptSerializerSpec" when {
     "deserializing a script" must {
-      "corrrectly parse" in {
+      "correctly parse" in {
         val serializer = new ConvergenceScriptSerializer()
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/convergence-with-domain.yaml")
         val value = serializer.deserialize(in).success.value

@@ -13,8 +13,8 @@ import com.convergencelabs.server.domain.DomainUserType
 class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
 
   "A CreateDomainScriptSerializer" when {
-    "deserializing a scropt" must {
-      "corrrectly parse" in {
+    "deserializing a script" must {
+      "correctly parse" in {
         val serializer = new DomainScriptSerializer()
         val in = getClass.getResourceAsStream("/com/convergencelabs/server/db/data/import-domain-test.yaml")
         val value = serializer.deserialize(in).success.value

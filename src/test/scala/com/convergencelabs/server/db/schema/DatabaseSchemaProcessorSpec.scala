@@ -1,26 +1,18 @@
 package com.convergencelabs.server.db.schema
 
-import org.scalatest.WordSpecLike
-import org.scalatest.Matchers
 import com.orientechnologies.common.log.OLogManager
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.index.OIndex
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
+import com.orientechnologies.orient.core.db._
 import com.orientechnologies.orient.core.metadata.function.OFunction
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.ODatabaseRecordThreadLocal
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.ODatabasePool
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
+import org.scalatest.{Matchers, WordSpecLike}
 
 class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
   OLogManager.instance().setConsoleLevel("WARNING")
 
   "An DatabaseSchemaProcessor" when {
     "Processing a CreateClass change" must {
-      "Corrrectly create class" in withDb { dbPool =>
+      "Correctly create class" in withDb { dbPool =>
         val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
           

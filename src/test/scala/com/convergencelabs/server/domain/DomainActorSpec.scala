@@ -2,30 +2,18 @@ package com.convergencelabs.server.domain
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
-
+import akka.actor.ActorSystem
+import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.server.{HeartbeatConfiguration, ProtocolConfiguration}
+import com.convergencelabs.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
+import com.typesafe.config.ConfigFactory
 import org.junit.runner.RunWith
-import org.mockito.Mockito
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Finders
-import org.scalatest.WordSpecLike
+import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mockito.MockitoSugar
 
-import com.convergencelabs.server.HeartbeatConfiguration
-import com.convergencelabs.server.ProtocolConfiguration
-import com.convergencelabs.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.server.util.MockDomainPersistenceManager
-
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
-import scala.util.Success
-import com.typesafe.config.ConfigFactory
-import com.convergencelabs.server.util.MockDomainPersistenceProvider
-import akka.cluster.sharding.ShardRegion.Passivate
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class DomainActorSpec
@@ -42,8 +30,8 @@ class DomainActorSpec
     "receiving an initial handshake request" must {
       "response with a handshake success" in new TestFixture {
         val client = new TestProbe(system)
-        domainActor.tell(HandshakeRequest(domainFqn, client.ref, false, None), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
+        domainActor.tell(HandshakeRequest(domainFqn, client.ref, reconnect = false, None), client.ref)
+        val response: HandshakeSuccess = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[HandshakeSuccess])
       }
     }
   }
@@ -58,7 +46,7 @@ class DomainActorSpec
       2 seconds,
       2 seconds,
       HeartbeatConfiguration(
-        false,
+        enabled = false,
         0 seconds,
         0 seconds))
 
