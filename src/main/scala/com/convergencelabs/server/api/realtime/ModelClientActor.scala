@@ -53,10 +53,10 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   private[this] val offlineSyncTask = context.system.scheduler.schedule(offlineModelSyncInterval, offlineModelSyncInterval, () => self ! SyncOfflineModels)
 
   def receive: Receive = {
-    case MessageReceived(message) if message.isInstanceOf[NormalMessage with Model] =>
+    case MessageReceived(message) if message.isInstanceOf[NormalMessage with ProtoModelMessage] =>
       onMessageReceived(message.asInstanceOf[NormalMessage with ProtoModelMessage])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with Model] =>
-      onRequestReceived(message.asInstanceOf[RequestMessage with Model], replyPromise)
+    case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with ProtoModelMessage] =>
+      onRequestReceived(message.asInstanceOf[RequestMessage with ProtoModelMessage], replyPromise)
     case message: RealtimeModelClientMessage =>
       onOutgoingModelMessage(message)
     case SyncOfflineModels =>
