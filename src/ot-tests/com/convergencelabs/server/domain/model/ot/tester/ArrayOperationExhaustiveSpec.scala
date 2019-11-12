@@ -1,9 +1,9 @@
-package com.convergencelabs.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot
 
 import scala.reflect.ClassTag
 
-import com.convergencelabs.server.domain.model.data.DataValue
-import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.convergence.server.domain.model.data.DataValue
+import com.convergencelabs.convergence.server.domain.model.data.StringValue
 
 import ArrayOperationExhaustiveSpec.ArrayLength
 import ArrayOperationExhaustiveSpec.Value1

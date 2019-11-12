@@ -1,4 +1,15 @@
-addSbtPlugin("com.typesafe.sbt" %% "sbt-native-packager" % "1.3.4")
+/*
+ * Copyright (c) 2019 - Convergence Labs, Inc.
+ *
+ * This file is part of the Convergence Server, which is released under
+ * the terms of the GNU General Public License version 3 (GPLv3). A copy
+ * of the GPLv3 should have been provided along with this file, typically
+ * located in the "LICENSE" file, which is part of this source code package.
+ * Alternatively, see <https://www.gnu.org/licenses/gpl-3.0.html> for the
+ * full text of the GPLv3 license, if it was not provided.
+ */
+
+addSbtPlugin("com.typesafe.sbt" %% "sbt-native-packager" % "1.4.0")
 addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "1.0.0")
 addSbtPlugin("org.scoverage" %% "sbt-scoverage" % "1.5.1")
 addSbtPlugin("com.timushev.sbt" %% "sbt-updates" % "0.3.1")

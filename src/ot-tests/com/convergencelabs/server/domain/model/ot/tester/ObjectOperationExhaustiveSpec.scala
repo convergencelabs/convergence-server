@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot
 
 import scala.math.BigInt.int2bigInt
 import org.json4s.JObject
@@ -6,7 +6,7 @@ import org.json4s.JsonAST.JInt
 import org.json4s.JsonDSL.int2jvalue
 import org.json4s.JsonDSL.pair2jvalue
 import ObjectOperationExhaustiveSpec.InitialState
-import com.convergencelabs.server.domain.model.data.DoubleValue
+import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
 import scala.reflect.ClassTag
 
 // scalastyle:off magic.number

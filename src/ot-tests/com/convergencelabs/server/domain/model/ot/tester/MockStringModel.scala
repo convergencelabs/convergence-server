@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot
 
 class MockStringModel(private var state: String) extends MockModel {
 

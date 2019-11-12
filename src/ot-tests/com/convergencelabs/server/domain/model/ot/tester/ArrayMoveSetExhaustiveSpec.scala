@@ -1,8 +1,8 @@
-package com.convergencelabs.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot
 
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JString
-import com.convergencelabs.server.domain.model.data.StringValue
+import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import OperationPairExhaustiveSpec.ValueId
 import ArrayOperationExhaustiveSpec.ArrayValue
 

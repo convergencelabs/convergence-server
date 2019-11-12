@@ -1,4 +1,4 @@
-package com.convergencelabs.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot
 
 import ObjectOperationExhaustiveSpec.ExistingProperties
 import ObjectOperationExhaustiveSpec.SetObjects
