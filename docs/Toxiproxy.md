@@ -1,5 +1,5 @@
-
-A quite handy tool for throttling / disabling network resources.
+# Toxiproxy 
+[Toxiproxy](http://toxiproxy.io) is a handy tool for throttling / disabling network resources. It can be used to test out Convergence in a constrained network environment. 
 
 # Installation
 See documentation here:
@@ -35,4 +35,3 @@ toxiproxy-cli toxic add convergence_ws -t latency -a latency=3000
 ```
 toxiproxy-cli toxic remove convergence_ws -n latency_downstream
 ```
-

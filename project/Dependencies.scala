@@ -11,12 +11,11 @@ object Dependencies {
   }
 
   object Compile {
-    
-    // Protobuf
-    val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.8.4"                     // Apache 2.0
-
     // Convergence
     val convergenceProto   = "com.convergencelabs"      %% "convergence-proto"            % "1.0.0-SNAPSHOT"            // Apache 2.0
+
+    // Protobuf
+    val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.8.4"                     // Apache 2.0
 
     // Akka
     val akkaActor          = "com.typesafe.akka"        %% "akka-actor"                   % Versions.akka               // Apache 2.0
@@ -25,7 +24,7 @@ object Dependencies {
     val akkaClusterTools   = "com.typesafe.akka"        %% "akka-cluster-tools"           % Versions.akka               // Apache 2.0
     val akkaPersistence    = "com.typesafe.akka"        %% "akka-persistence"             % Versions.akka               // Apache 2.0
     val akkaSharding       = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Versions.akka               // Apache 2.0
-    val akkaCore = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding)
+    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding)
 
     val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp           // Apache 2.0
     val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp           // Apache 2.0
@@ -38,7 +37,7 @@ object Dependencies {
     val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                % Versions.orientDb            // Apache 2.0
     val orientDbServer     = "com.orientechnologies"    % "orientdb-server"              % Versions.orientDb            // Apache 2.0
     val orientDbStudio     = "com.orientechnologies"    % "orientdb-studio"              % Versions.orientDb            // Apache 2.0
-    val orientDb = Seq(orientDbClient, orientDbCore, orientDbServer, orientDbStudio)
+    val orientDb: Seq[ModuleID] = Seq(orientDbClient, orientDbCore, orientDbServer, orientDbStudio)
 
     // Logging
     val grizzledSlf4j      = "org.clapper"              %% "grizzled-slf4j"               % "1.3.4"                     // BSD
@@ -46,7 +45,7 @@ object Dependencies {
     val log4jApi           = "org.apache.logging.log4j" % "log4j-api"                     % Versions.log4j              // Apache 2.0
     val log4jCore          = "org.apache.logging.log4j" % "log4j-core"                    % Versions.log4j              // Apache 2.0
 	  val log4jJul           = "org.apache.logging.log4j" % "log4j-jul"                     % Versions.log4j              // Apache 2.0
-    val loggingAll = Seq(grizzledSlf4j, log4jSlf4J, log4jApi, log4jCore, log4jJul)
+    val loggingAll: Seq[ModuleID] = Seq(grizzledSlf4j, log4jSlf4J, log4jApi, log4jCore, log4jJul)
 
     // Crypto
     val jose4j             = "org.bitbucket.b_c"        % "jose4j"                        % "0.6.5"                     // Apache 2.0
@@ -74,7 +73,7 @@ object Dependencies {
     val metricsJvm         = "com.codahale.metrics"     % "metrics-jvm"                   % "3.0.2"                     // Apache 2.0
     val latencyUtils       = "org.latencyutils"         % "LatencyUtils"                  % "1.0.3"                     // Free BSD
     val hdrHistogram       = "org.hdrhistogram"          % "HdrHistogram"                 % "1.1.4"                     // CC0
-    val metricsAll         = Seq(metrics, metricsJvm, latencyUtils, hdrHistogram)
+    val metricsAll: Seq[ModuleID] = Seq(metrics, metricsJvm, latencyUtils, hdrHistogram)
 
     // Testing Dependencies
     val akkaTestKit       = "com.typesafe.akka"           %% "akka-testkit"                % Versions.akka              // Apache 2.0
@@ -82,7 +81,7 @@ object Dependencies {
     val scalatest         = "org.scalatest"               %% "scalatest"                   % "3.0.5"                    // Apache 2.0
     val mockito           = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"               // MIT
     val junit             = "junit"                       % "junit"                        % "4.12"                     // EPL 1.0
-    val testingCore = Seq(scalatest, mockito, junit)
-    val testingAkka = testingCore ++ Seq(akkaTestKit, akkaMockScheduler)
+    val testingCore: Seq[ModuleID] = Seq(scalatest, mockito, junit)
+    val testingAkka: Seq[ModuleID] = testingCore ++ Seq(akkaTestKit, akkaMockScheduler)
   }
 }
