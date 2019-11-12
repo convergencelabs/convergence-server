@@ -6,7 +6,7 @@ object Dependencies {
   object Versions {
     val akka      = "2.5.25"
     val akkaHttp  = "10.1.9"
-    val orientDb  = "3.0.23"
+    val orientDb  = "3.0.25"
     val log4j     = "2.12.1"
   }
 
@@ -16,7 +16,7 @@ object Dependencies {
     val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.8.4"                     // Apache 2.0
 
     // Convergence
-    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto"            % "1.0.0-SNAPSHOT"
+    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto"            % "1.0.0-SNAPSHOT"            // Apache 2.0
 
     // Akka
     val akkaActor          = "com.typesafe.akka"        %% "akka-actor"                   % Versions.akka               // Apache 2.0
@@ -38,7 +38,7 @@ object Dependencies {
     val orientDbCore       = "com.orientechnologies"    % "orientdb-core"                % Versions.orientDb            // Apache 2.0
     val orientDbServer     = "com.orientechnologies"    % "orientdb-server"              % Versions.orientDb            // Apache 2.0
     val orientDbStudio     = "com.orientechnologies"    % "orientdb-studio"              % Versions.orientDb            // Apache 2.0
-    val orientDb = Seq(orientDbClient, orientDbCore, orientDbServer)
+    val orientDb = Seq(orientDbClient, orientDbCore, orientDbServer, orientDbStudio)
 
     // Logging
     val grizzledSlf4j      = "org.clapper"              %% "grizzled-slf4j"               % "1.3.4"                     // BSD
@@ -64,8 +64,8 @@ object Dependencies {
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                   % "3.4"                     // Apache 2.0
     val json4s             = "org.json4s"               %% "json4s-jackson"                 % "3.5.4"                   // Apache 2.0
     val json4sExt          = "org.json4s"               %% "json4s-ext"                     % "3.5.4"                   // Apache 2.0
-    val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.7.4"
-    val parboiled          = "org.parboiled"           %% "parboiled"                       % "2.1.4"
+    val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.7.4"                   // Apache 2.0
+    val parboiled          = "org.parboiled"            %% "parboiled"                      % "2.1.4"                   // Apache 2.0
   }
 
   object Test {

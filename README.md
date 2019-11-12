@@ -1,27 +1,26 @@
+<div align="center">
+  <img  alt="Convergence Logo" height="80" src="docs/images/logo.png" >
+</div>
+
 # Convergence Server
-
-<img src="docs/images/logo.png" width="100" />
-
-
-This is the main repository for the Convergence Server. [Convergence](https://convergence.io) enables realtime collaboration within modern applications. 
-
-## License
-
-This repository is GPL-licensed.  It is intended to be used primarily over a WebSocket connection with an official Convergence client, which is itself licensed more permissively.  There is additionally a REST API exposed for various administrative functions.
+The Convergence Server is the main server side component of the [Convergence](https://convergence.io) Realtime Collaboration Framework. Convergence enables developers to rapidly integrate realtime collaboration directly into their applications. 
 
 ## Languages and Frameworks
-The server is developed primarily in Scala and leverages [Akka](https://akka.io) as the major application framework. Akka provides the primary ability for multiple Convergence Servers to cluster together, providing horizontal scalability. [OrientDB](https://orientdb.org/) is used as the database. [Google Protocol Buffers](https://developers.google.com/protocol-buffers/) are used as the communications protocol for realtime collaboration over web sockets.
+* **[Scala](https://www.scala-lang.org/)**: The Convergence Server is developed primarily in Scala.
+* **[SBT](https://www.scala-sbt.org/)**: SBT is the build tool used by the Convergence Server.
+* **[Akka](https://akka.io)**: Akka is the main development framework used by the Convergence Server. Akka provides the primary ability for multiple Convergence Servers to cluster together, providing horizontal scalability. 
+* **[OrientDB](https://orientdb.org/)**: Orient DB is used as the backing database. 
+* **[Google Protocol Buffers](https://developers.google.com/protocol-buffers/)**: Protocol Buffers are used as the communications protocol for realtime collaboration over Web Sockets.
 
 ## Development Requirements
 The following development tools are required to build the Convergence Server:
 
 * [Java](https://openjdk.java.net/) 11.x
 * [Scala](http://www.scala-lang.org/download/) 2.12.x 
-* [SBT](http://www.scala-sbt.org/) 1.2.x
-* [Docker](https://docker.com) >= 19.0
+* [SBT](http://www.scala-sbt.org/) 1.3.x
 
 ## Convergence Dev Server
-The Convergence Dev Server runs an all-in-one instance of Convergence along with an embedded OrientDB Database. The Convergence Dev Server will start up and OrientDB database and initialized it. It will also start a backend node, a rest api, and a realtime API. In order to better reflect a typical deployment, th Convergence Dev Server actually starts up three instances of the Convergence Server (cluster see, backend, and api server). These three instances are tied together using Akka clustering. By default ports 2551, 2552, and 2553 are used by the akka remoting subsystem (each port being used by one of the three ConvergenceServer instances).
+The Convergence Dev Server runs an all-in-one instance of Convergence along with an embedded OrientDB Database. The Convergence Dev Server will start up and OrientDB database and initialize it. It will also start a backend node, a rest API, and a realtime API. In order to better reflect a typical deployment, th Convergence Dev Server actually starts up three instances of the Convergence Server (cluster see, backend, and api server). These three instances are tied together using Akka clustering. By default ports 2551, 2552, and 2553 are used by the akka remoting subsystem (each port being used by one of the three ConvergenceServer instances).
 
 By default, when the Convergence Dev Server successfully starts, it will provide two endpoints:
 
@@ -29,12 +28,21 @@ By default, when the Convergence Dev Server successfully starts, it will provide
 * Rest API: http://localhost:8081
 
 ### Running the Convergence Dev Server
-The Convergence Dev Server can be run from your IDE of choice by executing the `com.convergencelabs.server.testkit.ConvergenceDevServer` class.
+The Convergence Dev Server can be run from your IDE of choice by executing the following main class:
+```
+com.convergencelabs.server.testkit.ConvergenceDevServer
+```
 
 ### Embedded Orient DB
+In order to use the OrientDB web interface, the OrientDB Studio plugin must be loaded. The plugin is a dependency of the Convergence Server project but must be copied into the "target/orientdb/plugins" directory.  As a convenience, there is an SBT task available to do this. To initialize the Orient DB plugins run the following SBT Command:
+
+```shell
+sbt orientDbPlugins
+```
+
 The embedded OrientDB can be accessed at: http://localhost:2480/
 
-The credentials `root` / `password` can be used to access the database.
+The credentials `root` / `password` can be used to access the databases.
 
 ### Persistent Data
 By default the Convergence Dev Server will delete the OrientDB database(s) when it starts up. IF you would like to retain data between runs set the following java property:
@@ -42,22 +50,7 @@ By default the Convergence Dev Server will delete the OrientDB database(s) when 
 `-Dconvergence.dev-server.persistent = true`
 
 
-## Docker
-To build a local Docker container execute the `scripts/docker-build.sh` file.  If you are not running on a machine with bash, you  can simply execute the commands in that file to  create the Docker image.
-
-The docker container will be named `convergence-server`.  
-
-
-You can run it as follows:
-
-```bash
-docker run -p 0.0.0.0:8080-8081:8080-8081 convergence-server
-```
-
-The -p 8080:8080 links the port on the localhost to the port 8080 in the container.  If you are running on OSX or Windows, you will be running docker in a VM that has an ip address other than local host.  The container will then be running on some other IP.
-
 ## Support
-
 [Convergence Labs](https://convergencelabs.com) provides several different channels for support:
 
 - Please use the [Discourse Forum](https://forum.convergence.io) for general and technical questions, so the whole community can benefit.

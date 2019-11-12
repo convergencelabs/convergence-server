@@ -142,7 +142,7 @@
         <entry name="profiler.enabled" value="false"/>
         
         <entry name="orientdb.www.path" value="src/orientdb/www" />
-        <entry name="plugin.directory" value="src/orientdb/plugins/" />
+        <entry name="plugin.directory" value="target/orientdb/plugins/" />
         <entry name="server.security.file" value="src/orientdb/config/security.json" />
     
 	    <entry name="server.cache.staticResources" value="false" />
