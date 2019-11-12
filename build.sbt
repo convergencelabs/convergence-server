@@ -3,8 +3,13 @@ import Dependencies.Test._
 
 lazy val root = (project in file("."))
   .settings(
-    organization := "com.convergencelabs",
     name := "convergence-server",
+    description := "Convergence Server",
+    homepage := Some(url("https://convergence.io")),
+
+    organization := "com.convergencelabs",
+    organizationName := "Convergence Labs, Inc.",
+    organizationHomepage := Some(url("http://convergencelabs.com")),
 
     scalaVersion := "2.12.10",
 

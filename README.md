@@ -65,6 +65,6 @@ The -p 8080:8080 links the port on the localhost to the port 8080 in the contain
 - Email <support@convergencelabs.com> for all other inquiries.
 
 ## License
-The Convergence Server is licensed under the [GNU Public License v3](LICENSE.txt) (GPLv3) license. Refer to the [LICENSE.txt](LICENSE.txt) for the specific terms and conditions of the license.
+The Convergence Server is licensed under the [GNU Public License v3](LICENSE) (GPLv3) license. Refer to the [LICENSE](LICENSE) for the specific terms and conditions of the license.
 
 The Convergence Server is also available under a Commercial License. If you are interested in a non-open source license please contact us at [Convergence Labs](https://convergencelabs.com).
