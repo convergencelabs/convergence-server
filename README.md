@@ -12,20 +12,21 @@ The Convergence Server is the main server side component of the [Convergence](ht
 * **[OrientDB](https://orientdb.org/)**: Orient DB is used as the backing database. 
 * **[Google Protocol Buffers](https://developers.google.com/protocol-buffers/)**: Protocol Buffers are used as the communications protocol for realtime collaboration over Web Sockets.
 
-## Development Requirements
+
+## Development
 The following development tools are required to build the Convergence Server:
 
 * [Java](https://openjdk.java.net/) 11.x
 * [Scala](http://www.scala-lang.org/download/) 2.12.x 
 * [SBT](http://www.scala-sbt.org/) 1.3.x
 
-## Development
-The main entry point of the Convergence Server is the `com.convergencelabs.server.ConvergenceServer` class. This is a good place to start if you are new to the code base. 
 
 The standard SBT tasks can be used to compile and test the server.
 
 * `sbt compile`
 * `sbt test`
+
+The main entry point of the Convergence Server is the `com.convergencelabs.server.ConvergenceServer` class. This is a good place to start if you are new to the code base. 
 
 
 ## Binary Distribution
