@@ -60,7 +60,7 @@ publishArtifact in (Compile, packageDoc) := false
 publishArtifact in (Compile, packageSrc) := false
 
 buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-buildInfoPackage := "com.convergencelabs.server"
+buildInfoPackage := "com.convergencelabs.convergence.server"
 
 enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
 enablePlugins(BuildInfoPlugin)
