@@ -11,15 +11,12 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissions
+import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProvider, ModelPermissions}
 import com.convergencelabs.convergence.server.domain.DomainUserId
 
-case class ModelPemrissionResult(
+import scala.util.{Success, Try}
+
+case class ModelPermissionResult(
     overrideCollection: Boolean,
     modelWorld: ModelPermissions,
     modelUsers: Map[DomainUserId, ModelPermissions])
@@ -27,18 +24,16 @@ case class ModelPemrissionResult(
 class ModelPermissionResolver() {
   def getModelUserPermissions(id: String, userId: DomainUserId, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
     if (userId.isConvergence) {
-      Success(ModelPermissions(true, true, true, true))
+      Success(ModelPermissions(read = true, write = true, remove = true, manage = true))
     } else {
       val permissionsStore = persistenceProvider.modelPermissionsStore
       permissionsStore.modelOverridesCollectionPermissions(id).flatMap { overrides =>
         if (overrides) {
-          permissionsStore.getModelUserPermissions(id, userId).flatMap { userPerms =>
-            userPerms match {
-              case Some(p) =>
-                Success(p)
-              case None =>
-                permissionsStore.getModelWorldPermissions(id)
-            }
+          permissionsStore.getModelUserPermissions(id, userId).flatMap {
+            case Some(p) =>
+              Success(p)
+            case None =>
+              permissionsStore.getModelWorldPermissions(id)
           }
         } else {
           permissionsStore.getCollectionWorldPermissionsForModel(id).flatMap { collectionPerms =>
@@ -66,14 +61,14 @@ class ModelPermissionResolver() {
         modelUsers)
     }
   }
-  
-  def getModelPermissions(modelId: String, persistenceProvider: DomainPersistenceProvider): Try[ModelPemrissionResult] = {
+
+  def getModelPermissions(modelId: String, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissionResult] = {
     for {
       overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
       modelWorld <- persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)
       modelUsers <- persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {
-      ModelPemrissionResult(
+      ModelPermissionResult(
         overrideCollection,
         modelWorld,
         modelUsers)

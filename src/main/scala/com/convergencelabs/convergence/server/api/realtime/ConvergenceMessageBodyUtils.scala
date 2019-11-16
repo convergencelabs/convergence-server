@@ -76,9 +76,12 @@ object ConvergenceMessageBodyUtils {
       case Body.SetModelPermissionsRequest(message) => message
       case Body.SetModelPermissionsResponse(message) => message
       case Body.ModelPermissionsChanged(message) => message
-      case Body.ModelReconnectRequest(message) => message
-      case Body.ModelReconnectResponse(message) => message
-      case Body.ModelReconnectComplete(message) => message
+      case Body.ModelResyncRequest(message) => message
+      case Body.ModelResyncResponse(message) => message
+      case Body.ModelResyncCompleteRequest(message) => message
+      case Body.ModelResyncCompleteResponse(message) => message
+      case Body.RemoteClientResyncStartedMessage(message) => message
+      case Body.RemoteClientResyncCompletedMessage(message) => message
       case Body.ModelOfflineSubscriptionChange(message) => message
       case Body.ModelOfflineUpdated(message) => message
 
@@ -240,9 +243,12 @@ object ConvergenceMessageBodyUtils {
       case message: SetModelPermissionsRequestMessage => Body.SetModelPermissionsRequest(message)
       case message: SetModelPermissionsResponseMessage => Body.SetModelPermissionsResponse(message)
       case message: ModelPermissionsChangedMessage => Body.ModelPermissionsChanged(message)
-      case message: ModelReconnectRequestMessage => Body.ModelReconnectRequest(message)
-      case message: ModelReconnectResponseMessage => Body.ModelReconnectResponse(message)
-      case message: ModelReconnectCompleteMessage => Body.ModelReconnectComplete(message)
+      case message: ModelResyncRequestMessage => Body.ModelResyncRequest(message)
+      case message: ModelResyncResponseMessage => Body.ModelResyncResponse(message)
+      case message: ModelResyncCompleteRequestMessage => Body.ModelResyncCompleteRequest(message)
+      case message: ModelResyncCompleteResponseMessage => Body.ModelResyncCompleteResponse(message)
+      case message: RemoteClientResyncStartedMessage => Body.RemoteClientResyncStartedMessage(message)
+      case message: RemoteClientResyncCompletedMessage => Body.RemoteClientResyncCompletedMessage(message)
       case message: ModelOfflineSubscriptionChangeRequestMessage=> Body.ModelOfflineSubscriptionChange(message)
       case message: OfflineModelUpdatedMessage => Body.ModelOfflineUpdated(message)
 

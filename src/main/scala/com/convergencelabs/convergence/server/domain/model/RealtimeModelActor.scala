@@ -71,7 +71,7 @@ class RealtimeModelActor(
       this.passivate()
     case msg: StatelessModelMessage =>
       handleStatelessMessage(msg)
-    case msg @ (_: OpenRealtimeModelRequest | _:ModelReconnectRequest) =>
+    case msg @ (_: OpenRealtimeModelRequest | _:ModelResyncRequest) =>
       this.becomeOpened()
       this.receiveOpened(msg)
     case unknown: Any =>
@@ -115,7 +115,7 @@ class RealtimeModelActor(
         modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
             modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
-              val ModelPemrissionResult(overrideCollection, modelWorld, modelUsers) = p
+              val ModelPermissionResult(overrideCollection, modelWorld, modelUsers) = p
               GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
             }
           } else {
@@ -183,8 +183,10 @@ class RealtimeModelActor(
     msg match {
       case openRequest: OpenRealtimeModelRequest =>
         modelManager.onOpenRealtimeModelRequest(openRequest, sender)
-      case reconnectRequest: ModelReconnectRequest =>
-        modelManager.onModelReconnectRequest(reconnectRequest, sender)
+      case resyncRequest: ModelResyncRequest =>
+        modelManager.onModelResyncRequest(resyncRequest, sender)
+      case resyncCompleteRequest: ModelResyncCompleteRequest =>
+        modelManager.onModelResyncCompleteRequest(resyncCompleteRequest, sender)
       case closeRequest: CloseRealtimeModelRequest =>
         modelManager.onCloseModelRequest(closeRequest, sender)
       case operationSubmission: OperationSubmission =>

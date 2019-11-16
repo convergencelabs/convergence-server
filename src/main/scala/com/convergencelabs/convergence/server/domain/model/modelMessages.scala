@@ -78,7 +78,9 @@ case class OpenRealtimeModelRequest(domainId: DomainId,
                                     session: DomainUserSessionId,
                                     clientActor: ActorRef) extends RealTimeModelMessage
 
-case class ModelReconnectRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId, contextVersion: Long, clientActor: ActorRef) extends RealTimeModelMessage
+case class ModelResyncRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId, contextVersion: Long, clientActor: ActorRef) extends RealTimeModelMessage
+
+case class ModelResyncCompleteRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId, open: Boolean) extends RealTimeModelMessage
 
 case class CloseRealtimeModelRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
 
@@ -110,12 +112,9 @@ case class OpenModelSuccess(valuePrefix: Long,
                             modelData: ObjectValue,
                             modelPermissions: ModelPermissions)
 
-case class ModelReconnectResponse(currentVersion: Long)
+case class ModelResyncResponse(currentVersion: Long, modelPermissions: ModelPermissions)
 
-case class ModelReconnectComplete(modelId: String,
-                                  connectedClients: Set[DomainUserSessionId],
-                                  references: Set[ReferenceState],
-                                  permissions: ModelPermissions) extends RealtimeModelClientMessage
+case class ModelResyncCompleteResponse(connectedClients: Set[DomainUserSessionId], references: Set[ReferenceState])
 
 case class GetModelPermissionsResponse(overridesCollection: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[DomainUserId, ModelPermissions])
 
@@ -135,7 +134,15 @@ case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) ext
 
 case class RemoteClientOpened(modelId: String, session: DomainUserSessionId) extends RealtimeModelClientMessage
 
-case class ModelForceClose(modelId: String, reason: String, reasonCode: Int) extends RealtimeModelClientMessage
+case class RemoteClientResyncStarted(modelId: String, session: DomainUserSessionId) extends RealtimeModelClientMessage
+
+case class RemoteClientResyncCompleted(modelId: String, session: DomainUserSessionId) extends RealtimeModelClientMessage
+
+object ForceModelCloseReasonCode extends Enumeration {
+  val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
+}
+
+case class ModelForceClose(modelId: String, reason: String, reasonCode: ForceModelCloseReasonCode.Value) extends RealtimeModelClientMessage
 
 case class ModelPermissionsChanged(modelId: String, permissions: ModelPermissions) extends RealtimeModelClientMessage
 

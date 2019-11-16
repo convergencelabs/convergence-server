@@ -296,7 +296,7 @@ class RealtimeModelActorSpec
 
       "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new MockDatabaseWithModel {
         Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
-          Success(ModelPemrissionResult(false, ModelPermissions(true, true, true, true), Map())))
+          Success(ModelPermissionResult(false, ModelPermissions(true, true, true, true), Map())))
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
           .thenReturn(Success(ModelPermissions(true, true, true, true)))
         val client = new TestProbe(system)

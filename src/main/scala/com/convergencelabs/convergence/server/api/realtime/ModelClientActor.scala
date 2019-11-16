@@ -21,13 +21,13 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
 import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelUpdateData}
-import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.convergence.proto.model.{ModelResyncCompleteRequestMessage, _}
 import com.convergencelabs.convergence.proto.{ModelMessage => ProtoModelMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
 import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor._
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, QueryParsingException}
-import com.convergencelabs.convergence.server.domain.model._
+import com.convergencelabs.convergence.server.domain.model.{RemoteClientResyncStarted, _}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
 
@@ -105,7 +105,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
           OfflineModelUpdatedMessage.Action.Updated(OfflineModelUpdateData(modelUpdate, permissionsUpdate)))
         context.parent ! message
 
-        this.subscribedModels.get(modelId).foreach {currentState =>
+        this.subscribedModels.get(modelId).foreach { currentState =>
           val version = model.map(_.metaData.version).getOrElse(currentState.currentVersion)
           val perms = permissions.getOrElse(currentState.currentPermissions)
           this.subscribedModels += modelId -> OfflineModelState(version, perms)
@@ -132,17 +132,17 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   }
 
   private[this] def syncOfflineModels(): Unit = {
-    val notOpen = this.subscribedModels.filter { case (modelId, _) => !this.modelIdToResourceId.contains(modelId)}
+    val notOpen = this.subscribedModels.filter { case (modelId, _) => !this.modelIdToResourceId.contains(modelId) }
 
-    notOpen.foreach{ case (modelId, OfflineModelState(version, permissions)) =>
+    notOpen.foreach { case (modelId, OfflineModelState(version, permissions)) =>
       val request = GetModelUpdateRequest(modelId, version, permissions, this.session.userId)
       val response = modelStoreActor ? request
-        response.mapTo[OfflineModelUpdateAction] onComplete {
-          case Success(action) =>
-            self ! action
-          case Failure(cause) =>
-            log.error("Error updating offline model", cause)
-        }
+      response.mapTo[OfflineModelUpdateAction] onComplete {
+        case Success(action) =>
+          self ! action
+        case Failure(cause) =>
+          log.error("Error updating offline model", cause)
+      }
     }
   }
 
@@ -162,7 +162,8 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
       case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
-      case modelReconnectComplete: ModelReconnectComplete => onModelReconnectComplete(modelReconnectComplete)
+      case resyncStarted: RemoteClientResyncStarted => onRemoteClientResyncStarted(resyncStarted)
+      case resyncCompleted: RemoteClientResyncCompleted => onRemoteClientResyncCompleted(resyncCompleted)
     }
   }
 
@@ -175,22 +176,6 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         contextVersion,
         Some(timestamp),
         Some(OperationMapper.mapOutgoing(operation)))
-    }
-  }
-
-  private[this] def onModelReconnectComplete(reconnectComplete: ModelReconnectComplete): Unit = {
-    val ModelReconnectComplete(modelId, connectedClients, references, permissions) = reconnectComplete
-    val convertedReferences = convertReferences(references)
-    resourceId(modelId) foreach { resourceId =>
-      context.parent ! ModelReconnectCompleteMessage(
-        resourceId,
-        connectedClients.map(s => s.sessionId).toSeq,
-        convertedReferences,
-        Some(ModelPermissionsData(
-          permissions.read,
-          permissions.write,
-          permissions.remove,
-          permissions.manage)))
     }
   }
 
@@ -227,7 +212,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     resourceId(modelId) foreach { resourceId =>
       modelIdToResourceId -= modelId
       resourceIdToModelId -= resourceId
-      context.parent ! ModelForceCloseMessage(resourceId, reason, reasonCode)
+      context.parent ! ModelForceCloseMessage(resourceId, reason, reasonCode.id)
     }
   }
 
@@ -280,6 +265,22 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     }
   }
 
+  private[this] def onRemoteClientResyncStarted(message: RemoteClientResyncStarted): Unit = {
+    val RemoteClientResyncStarted(modelId, remoteSession) = message
+    resourceId(modelId) foreach { resourceId =>
+      val outgoing = RemoteClientResyncStartedMessage(resourceId, remoteSession.sessionId)
+      context.parent ! outgoing
+    }
+  }
+
+  private[this] def onRemoteClientResyncCompleted(message: RemoteClientResyncCompleted): Unit = {
+    val RemoteClientResyncCompleted(modelId, remoteSession) = message
+    resourceId(modelId) foreach { resourceId =>
+      val outgoing = RemoteClientResyncCompletedMessage(resourceId, remoteSession.sessionId)
+      context.parent ! outgoing
+    }
+  }
+
   private[this] def mapOutgoingReferenceValue(refType: ReferenceType.Value, values: Any): ReferenceValues = {
     refType match {
       case ReferenceType.Index =>
@@ -328,7 +329,8 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   private[this] def onRequestReceived(message: RequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case reconnectRequest: ModelReconnectRequestMessage => onModelReconnectRequest(reconnectRequest, replyCallback)
+      case resyncRequest: ModelResyncRequestMessage => onModelResyncRequest(resyncRequest, replyCallback)
+      case resyncCompleteRequest: ModelResyncCompleteRequestMessage => onModelResyncCompleteRequest(resyncCompleteRequest, replyCallback)
       case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
       case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
       case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
@@ -507,18 +509,20 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     }.toSeq
   }
 
-  private[this] def onModelReconnectRequest(request: ModelReconnectRequestMessage, cb: ReplyCallback): Unit = {
-    val ModelReconnectRequestMessage(modelId, contextVersion) = request
+  private[this] def onModelResyncRequest(request: ModelResyncRequestMessage, cb: ReplyCallback): Unit = {
+    val ModelResyncRequestMessage(modelId, contextVersion) = request
 
-    val reconnectRequest = ModelReconnectRequest(domainId, modelId, this.session, contextVersion, this.self)
+    val reconnectRequest = ModelResyncRequest(domainId, modelId, this.session, contextVersion, this.self)
 
     val future = modelClusterRegion ? reconnectRequest
-    future.mapResponse[ModelReconnectResponse] onComplete {
-      case Success(ModelReconnectResponse(currentVersion)) =>
+    future.mapResponse[ModelResyncResponse] onComplete {
+      case Success(ModelResyncResponse(currentVersion, permissions)) =>
         val resourceId = generateNextResourceId()
         resourceIdToModelId += (resourceId -> modelId)
         modelIdToResourceId += (modelId -> resourceId)
-        val responseMessage = ModelReconnectResponseMessage(resourceId, currentVersion)
+        val ModelPermissions(read, write, remove, manage) = permissions
+        val permissionData = ModelPermissionsData(read, write, remove, manage)
+        val responseMessage = ModelResyncResponseMessage(resourceId, currentVersion, Some(permissionData))
         cb.reply(responseMessage)
       case Failure(ModelAlreadyOpenException()) =>
         cb.reply(ModelClientActor.ModelAlreadyOpenError)
@@ -531,6 +535,30 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         cb.unknownError()
     }
   }
+
+  private[this] def onModelResyncCompleteRequest(message: ModelResyncCompleteRequestMessage, cb: ReplyCallback): Unit = {
+    val ModelResyncCompleteRequestMessage(resourceId, open) = message
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val request = ModelResyncCompleteRequest(domainId, modelId, session, open)
+
+        val future = modelClusterRegion ? request
+        future.mapResponse[ModelResyncCompleteResponse] onComplete {
+          case Success(ModelResyncCompleteResponse(connectedClients, references)) =>
+            val convertedReferences = convertReferences(references)
+            val responseMessage = ModelResyncCompleteResponseMessage(
+              connectedClients.map(s => s.sessionId).toSeq,
+              convertedReferences)
+            cb.reply(responseMessage)
+          case Failure(cause) =>
+            log.error("Error completing model sync", cause)
+            cb.unexpectedError("Could not complete the model resynchronization")
+        }
+      case None =>
+        cb.expectedError("resource_not_found", "The requested resource id was not found")
+    }
+  }
+
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateRealtimeModelRequestMessage(collectionId, optionalModelId, data, overridePermissions, worldPermissionsData, userPermissionsData) = request
@@ -564,7 +592,9 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     }
   }
 
-  private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit
+
+  = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
     val future = modelClusterRegion ? DeleteRealtimeModel(domainId, modelId, Some(session))
     future.mapTo[Unit] onComplete {
@@ -678,7 +708,10 @@ private[realtime] object ModelClientActor {
   private val ModelDeletedError = ErrorMessage("model_deleted", "The requested model was deleted.", Map())
 
   private case object SyncOfflineModels
+
   private case class OfflineModelState(currentVersion: Long, currentPermissions: ModelPermissions)
+
   private case class UpdateOfflineModel(modelId: String, action: OfflineModelUpdateAction)
+
 }
 

@@ -47,10 +47,6 @@ object RealtimeModelManager {
     val Uninitialized, Initializing, InitializationError, Initialized, Error = Value
   }
 
-  object ForceModelCloseReasonCode extends Enumeration {
-    val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
-  }
-
   trait RealtimeModelClient {
     def send(message: Any): Unit
 
@@ -333,6 +329,9 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         concurrencyControl,
         modelData.data)
 
+      // We need too respond to the opening clients first
+      // this way the opening clients will get notified of
+      // the resyncing clients.
       queuedOpeningClients foreach {
         case (session, record) =>
           respondToClientOpenRequest(session, modelData, record)
@@ -341,7 +340,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
       queuedReconnectingClients foreach {
         case (session, record) =>
-          respondToModelReconnectRequest(session, record)
+          respondToModelResyncRequest(session, record)
       }
       this.queuedReconnectingClients = HashMap[DomainUserSessionId, ReconnectRequestRecord]()
 
@@ -490,27 +489,24 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
     // Let other clients know
     val msg = RemoteClientOpened(modelId, session)
-    connectedClients filterKeys (_ != session) foreach {
-      case (_, clientActor) =>
-        clientActor ! msg
-    }
+    broadcastToAllOthers(msg, session)
   }
 
-  def onModelReconnectRequest(request: ModelReconnectRequest, replyTo: ActorRef) {
+  def onModelResyncRequest(request: ModelResyncRequest, replyTo: ActorRef) {
     state match {
       case State.Uninitialized =>
-        onReconnectWhileUninitialized(request, replyTo)
+        onResyncWhileUninitialized(request, replyTo)
       case State.Initializing =>
-        onReconnectWhileInitializing(request, replyTo)
+        onResyncWhileInitializing(request, replyTo)
       case State.Initialized =>
-        onReconnectWhileInitialized(request, replyTo)
+        onResynctWhileInitialized(request, replyTo)
       case State.Error | State.InitializationError =>
         replyTo ! Status.Failure(UnexpectedErrorException(
           "The model can't be open, because it is currently shutting down after an error. You may be able to reopen the model."))
     }
   }
 
-  private[this] def onReconnectWhileUninitialized(request: ModelReconnectRequest, replyTo: ActorRef): Unit = {
+  private[this] def onResyncWhileUninitialized(request: ModelResyncRequest, replyTo: ActorRef): Unit = {
     debug(s"$domainFqn/$modelId: Handling a request to reconnect to the model while it is uninitialized.")
 
     modelStore.modelExists(modelId) map { exists =>
@@ -527,7 +523,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     }
   }
 
-  private[this] def onReconnectWhileInitializing(request: ModelReconnectRequest, replyTo: ActorRef): Unit = {
+  private[this] def onResyncWhileInitializing(request: ModelResyncRequest, replyTo: ActorRef): Unit = {
     if (queuedOpeningClients.contains(request.session) ||
       queuedReconnectingClients.contains(request.session)) {
       replyTo ! Status.Failure(ModelAlreadyOpeningException())
@@ -537,46 +533,84 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     }
   }
 
-  private[this] def onReconnectWhileInitialized(request: ModelReconnectRequest, requester: ActorRef): Unit = {
+  private[this] def onResynctWhileInitialized(request: ModelResyncRequest, requester: ActorRef): Unit = {
     debug(s"$domainFqn/$modelId: Handling a request to reconnect to the model while it is initialized.")
 
     val session = request.session
     if (connectedClients.contains(session)) {
       requester ! Status.Failure(ModelAlreadyOpenException())
     } else {
-      respondToModelReconnectRequest(session, ReconnectRequestRecord(request.contextVersion, request.clientActor, requester))
+      respondToModelResyncRequest(session, ReconnectRequestRecord(request.contextVersion, request.clientActor, requester))
     }
   }
 
-  def respondToModelReconnectRequest(session: DomainUserSessionId, record: ReconnectRequestRecord): Unit = {
+  def respondToModelResyncRequest(session: DomainUserSessionId, record: ReconnectRequestRecord): Unit = {
     this.reconnectingClients += (session -> record.clientActor)
 
     // TODO after we add a model fingerprint, we should be making sure this is
     //  actually the same model.
-    val currentVersion = this.model.contextVersion()
-    record.replyTo ! ModelReconnectResponse(currentVersion)
 
-    val helper = new ModelOperationReplayHelper(
-      this.persistenceProvider.modelOperationStore,
-      this.modelId,
-      record.clientActor,
-      this.sender,
-      this.ec
-    )
+    this.permissionsResolver
+      .getModelUserPermissions(this.modelId, session.userId, this.persistenceProvider).map { permissions =>
 
-    helper.sendOperationsInRange(record.contextVersion + 1, currentVersion) onComplete {
-      case Success(_) =>
-        // We can now treat this model as open.
-        this.reconnectingClients -= session
-        this.onClientOpened(session, record.clientActor)
-        val referencesBySession = this.model.references()
-        val permissions = this.permissions.resolveSessionPermissions(session.userId)
-        record.clientActor ! ModelReconnectComplete(this.modelId, connectedClients.keySet, referencesBySession, permissions)
-      case Failure(cause) =>
-        this.reconnectingClients -= session
-        checkForConnectionsAndClose()
-        record.replyTo ! Status.Failure(cause)
+      val currentVersion = this.model.contextVersion()
+      record.replyTo ! ModelResyncResponse(currentVersion, permissions)
+
+      val message = RemoteClientResyncStarted(modelId, session)
+      broadcastToAllOthers(message, session)
+
+      val helper = new ModelOperationReplayHelper(
+        this.persistenceProvider.modelOperationStore,
+        this.modelId,
+        record.clientActor,
+        this.sender,
+        this.ec
+      )
+
+      helper.sendOperationsInRange(record.contextVersion + 1, currentVersion) onComplete {
+        case Success(_) =>
+        // TODO set a timeout for the client to complete.
+        case Failure(cause) =>
+          error("error resending operations during model resynchronization", cause)
+          record.clientActor ! ModelForceClose(this.modelId, "Error resending operations", ForceModelCloseReasonCode.Unknown)
+          reconnectComplete(session)
+      }
+    }.recover {
+      case cause: Throwable =>
+        error("error getting user permissions during model resynchronization", cause)
+        record.clientActor ! ModelForceClose(this.modelId, "Error resending operations", ForceModelCloseReasonCode.Unknown)
+        reconnectComplete(session)
     }
+  }
+
+  private[this] def reconnectComplete(session: DomainUserSessionId): Unit = {
+    this.reconnectingClients -= session
+    val message = RemoteClientResyncCompleted(modelId, session)
+    broadcastToAllOthers(message, session)
+    checkForConnectionsAndClose()
+  }
+
+  def onModelResyncCompleteRequest(message: ModelResyncCompleteRequest, replyTo: ActorRef): Unit = {
+    val ModelResyncCompleteRequest(_, _, session, open) = message
+
+    this.reconnectingClients.get(session) match {
+      case Some(clientActor) =>
+        if (open) {
+          this.onClientOpened(session, clientActor)
+          val referencesBySession = this.model.references()
+          replyTo ! ModelResyncCompleteResponse(connectedClients.keySet, referencesBySession)
+        } else {
+          replyTo ! ModelResyncCompleteResponse(Set(), Set())
+        }
+
+        reconnectComplete(session)
+      case None =>
+        // TODO perhaps a specific exception
+        replyTo ! Status.Failure(ModelNotOpenException())
+    }
+
+    this.reconnectingClients -= session
+    checkForConnectionsAndClose()
   }
 
   /**
@@ -678,7 +712,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           forceCloseModel(session, ForceModelCloseReasonCode.Unauthorized, "Unauthorized to edit this model")
         }
     }
-
   }
 
   /**
@@ -803,7 +836,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] def forceCloseModel(session: DomainUserSessionId, reasonCode: ForceModelCloseReasonCode.Value, reason: String, notifyOthers: Boolean = true): Unit = {
     val closedActor = closeModel(session, notifyOthers)
 
-    val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode.id)
+    val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode)
     closedActor ! forceCloseMessage
 
     checkForConnectionsAndClose()
