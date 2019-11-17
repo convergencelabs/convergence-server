@@ -60,11 +60,18 @@ private[realtime] class IdentityCacheManager(private[this] val clientActor: Acto
   private[this] def onConvergenceMessage(message: ConvergenceMessage): Unit = {
     message.body match {
       case Body.OpenRealTimeModelResponse(body) =>
-        val sessions = body.connectedClients.toSet
+        val sessions = body.connectedClients.toSet ++ body.resyncingClients.toSet
         processMessage(message, sessions, Set())
       case Body.RemoteClientOpenedModel(body) =>
         processMessage(message, Set(body.sessionId), Set())
       case Body.RemoteOperation(body) =>
+        processMessage(message, Set(body.sessionId), Set())
+      case Body.ModelResyncCompleteResponse(body) =>
+        val sessions = body.connectedClients.toSet ++ body.resyncingClients.toSet
+        processMessage(message, sessions, Set())
+      case Body.RemoteClientResyncStarted(body) =>
+        processMessage(message, Set(body.sessionId), Set())
+      case Body.RemoteClientResyncCompleted(body) =>
         processMessage(message, Set(body.sessionId), Set())
       case Body.HistoricalOperationsResponse(body) =>
         processMessage(message, body.operations.map(op => op.sessionId).toSet, Set())

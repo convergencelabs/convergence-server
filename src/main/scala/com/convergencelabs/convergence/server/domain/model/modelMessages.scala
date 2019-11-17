@@ -108,13 +108,16 @@ sealed trait InternalRealTimeModelMessage
 case class OpenModelSuccess(valuePrefix: Long,
                             metaData: OpenModelMetaData,
                             connectedClients: Set[DomainUserSessionId],
+                            resyncingClients: Set[DomainUserSessionId],
                             referencesBySession: Set[ReferenceState],
                             modelData: ObjectValue,
                             modelPermissions: ModelPermissions)
 
 case class ModelResyncResponse(currentVersion: Long, modelPermissions: ModelPermissions)
 
-case class ModelResyncCompleteResponse(connectedClients: Set[DomainUserSessionId], references: Set[ReferenceState])
+case class ModelResyncCompleteResponse(connectedClients: Set[DomainUserSessionId],
+                                       resyncingClients: Set[DomainUserSessionId],
+                                       references: Set[ReferenceState])
 
 case class GetModelPermissionsResponse(overridesCollection: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[DomainUserId, ModelPermissions])
 

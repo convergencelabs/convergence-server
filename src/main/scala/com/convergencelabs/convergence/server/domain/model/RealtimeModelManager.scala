@@ -116,7 +116,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
 
   private[this] var connectedClients = HashMap[DomainUserSessionId, ActorRef]()
-  private[this] var reconnectingClients = HashMap[DomainUserSessionId, ActorRef]()
+  private[this] var resyncingClients = HashMap[DomainUserSessionId, ActorRef]()
   private[this] var clientToSessionId = HashMap[ActorRef, DomainUserSessionId]()
   private[this] var queuedOpeningClients = HashMap[DomainUserSessionId, OpenRequestRecord]()
   private[this] var queuedReconnectingClients = HashMap[DomainUserSessionId, ReconnectRequestRecord]()
@@ -344,7 +344,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       }
       this.queuedReconnectingClients = HashMap[DomainUserSessionId, ReconnectRequestRecord]()
 
-      if (this.connectedClients.isEmpty && this.reconnectingClients.isEmpty) {
+      if (this.connectedClients.isEmpty && this.resyncingClients.isEmpty) {
         error(s"$domainFqn/$modelId: The model was initialized, but no clients are connected.")
         this.handleInitializationFailure(UnknownErrorResponse("Model was initialized, but no clients connected"))
       } else {
@@ -466,6 +466,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         valuePrefix,
         metaData,
         connectedClients.keySet,
+        resyncingClients.keySet,
         referencesBySession,
         modelData.data,
         permissions)
@@ -545,7 +546,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   }
 
   def respondToModelResyncRequest(session: DomainUserSessionId, record: ReconnectRequestRecord): Unit = {
-    this.reconnectingClients += (session -> record.clientActor)
+    this.resyncingClients += (session -> record.clientActor)
 
     // TODO after we add a model fingerprint, we should be making sure this is
     //  actually the same model.
@@ -584,7 +585,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   }
 
   private[this] def reconnectComplete(session: DomainUserSessionId): Unit = {
-    this.reconnectingClients -= session
+    this.resyncingClients -= session
     val message = RemoteClientResyncCompleted(modelId, session)
     broadcastToAllOthers(message, session)
     checkForConnectionsAndClose()
@@ -593,14 +594,14 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   def onModelResyncCompleteRequest(message: ModelResyncCompleteRequest, replyTo: ActorRef): Unit = {
     val ModelResyncCompleteRequest(_, _, session, open) = message
 
-    this.reconnectingClients.get(session) match {
+    this.resyncingClients.get(session) match {
       case Some(clientActor) =>
         if (open) {
           this.onClientOpened(session, clientActor)
           val referencesBySession = this.model.references()
-          replyTo ! ModelResyncCompleteResponse(connectedClients.keySet, referencesBySession)
+          replyTo ! ModelResyncCompleteResponse(connectedClients.keySet, resyncingClients.keySet, referencesBySession)
         } else {
-          replyTo ! ModelResyncCompleteResponse(Set(), Set())
+          replyTo ! ModelResyncCompleteResponse(Set(), Set(), Set())
         }
 
         reconnectComplete(session)
@@ -609,7 +610,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         replyTo ! Status.Failure(ModelNotOpenException())
     }
 
-    this.reconnectingClients -= session
+    this.resyncingClients -= session
     checkForConnectionsAndClose()
   }
 
@@ -655,12 +656,12 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         }
       case State.Initialized =>
         val committed = Option(this.model).forall(m => m.contextVersion() == this.committedVersion)
-        if (connectedClients.isEmpty && reconnectingClients.isEmpty && committed) {
+        if (connectedClients.isEmpty && resyncingClients.isEmpty && committed) {
           // We will disconnect after all clients are disconnected and the model is committed.
           executeClose()
         }
       case State.Error =>
-        if (connectedClients.isEmpty && reconnectingClients.isEmpty) {
+        if (connectedClients.isEmpty && resyncingClients.isEmpty) {
           // We will disconnect after all clients are disconnected.
           executeClose()
         }

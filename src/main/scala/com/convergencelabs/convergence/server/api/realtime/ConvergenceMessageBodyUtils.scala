@@ -80,8 +80,8 @@ object ConvergenceMessageBodyUtils {
       case Body.ModelResyncResponse(message) => message
       case Body.ModelResyncCompleteRequest(message) => message
       case Body.ModelResyncCompleteResponse(message) => message
-      case Body.RemoteClientResyncStartedMessage(message) => message
-      case Body.RemoteClientResyncCompletedMessage(message) => message
+      case Body.RemoteClientResyncStarted(message) => message
+      case Body.RemoteClientResyncCompleted(message) => message
       case Body.ModelOfflineSubscriptionChange(message) => message
       case Body.ModelOfflineUpdated(message) => message
 
@@ -247,8 +247,8 @@ object ConvergenceMessageBodyUtils {
       case message: ModelResyncResponseMessage => Body.ModelResyncResponse(message)
       case message: ModelResyncCompleteRequestMessage => Body.ModelResyncCompleteRequest(message)
       case message: ModelResyncCompleteResponseMessage => Body.ModelResyncCompleteResponse(message)
-      case message: RemoteClientResyncStartedMessage => Body.RemoteClientResyncStartedMessage(message)
-      case message: RemoteClientResyncCompletedMessage => Body.RemoteClientResyncCompletedMessage(message)
+      case message: RemoteClientResyncStartedMessage => Body.RemoteClientResyncStarted(message)
+      case message: RemoteClientResyncCompletedMessage => Body.RemoteClientResyncCompleted(message)
       case message: ModelOfflineSubscriptionChangeRequestMessage=> Body.ModelOfflineSubscriptionChange(message)
       case message: OfflineModelUpdatedMessage => Body.ModelOfflineUpdated(message)
 

@@ -462,7 +462,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     val openRequest = OpenRealtimeModelRequest(domainId, modelId, autoCreateId, session, self)
     val future = modelClusterRegion ? openRequest
     future.mapResponse[OpenModelSuccess] onComplete {
-      case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, references, modelData, modelPermissions)) =>
+      case Success(OpenModelSuccess(valueIdPrefix, metaData, connectedClients, resyncingClients, references, modelData, modelPermissions)) =>
         val resourceId = generateNextResourceId()
         resourceIdToModelId += (resourceId -> modelId)
         modelIdToResourceId += (modelId -> resourceId)
@@ -479,6 +479,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
             Some(metaData.modifiedTime),
             Some(modelData),
             connectedClients.map(s => s.sessionId).toSeq,
+            resyncingClients.map(s => s.sessionId).toSeq,
             convertedReferences,
             Some(ModelPermissionsData(
               modelPermissions.read,
@@ -544,10 +545,11 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
 
         val future = modelClusterRegion ? request
         future.mapResponse[ModelResyncCompleteResponse] onComplete {
-          case Success(ModelResyncCompleteResponse(connectedClients, references)) =>
+          case Success(ModelResyncCompleteResponse(connectedClients, resyncingClients, references)) =>
             val convertedReferences = convertReferences(references)
             val responseMessage = ModelResyncCompleteResponseMessage(
               connectedClients.map(s => s.sessionId).toSeq,
+              resyncingClients.map(s => s.sessionId).toSeq,
               convertedReferences)
             cb.reply(responseMessage)
           case Failure(cause) =>
