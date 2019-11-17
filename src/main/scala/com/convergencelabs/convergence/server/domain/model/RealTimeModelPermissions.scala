@@ -11,8 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissions
+import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, ModelPermissions}
 import com.convergencelabs.convergence.server.domain.DomainUserId
 
 case class RealTimeModelPermissions(
@@ -24,7 +23,7 @@ case class RealTimeModelPermissions(
 
   def resolveSessionPermissions(userId: DomainUserId): ModelPermissions = {
     if (userId.isConvergence) {
-      ModelPermissions(true, true, true, true)
+      ModelPermissions(read = true, write = true, remove = true, manage = true)
     } else {
       if (overrideCollection) {
         modelUsers.getOrElse(userId, modelWorld)

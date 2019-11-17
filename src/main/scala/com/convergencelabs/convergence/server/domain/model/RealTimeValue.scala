@@ -11,22 +11,17 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.reference.ModelReference
-import com.convergencelabs.convergence.server.domain.model.reference.ReferenceManager
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model.data.DataValue
+import com.convergencelabs.convergence.server.domain.model.ot.{AppliedDiscreteOperation, DiscreteOperation}
+import com.convergencelabs.convergence.server.domain.model.reference.{ModelReference, ReferenceManager}
 
-abstract class RealTimeValue(
-  private[model] val id: String,
-  private[model] var parent: Option[RealTimeContainerValue],
-  private[model] var parentField: Option[Any],
-  validReferenceTypes: List[ReferenceType.Value]) {
+import scala.util.{Failure, Try}
+
+abstract class RealTimeValue(private[model] val id: String,
+                             private[model] var parent: Option[RealTimeContainerValue],
+                             private[model] var parentField: Option[Any],
+                             validReferenceTypes: List[ReferenceType.Value]) {
 
   protected val referenceManager = new ReferenceManager(this, validReferenceTypes)
   protected var listeners: List[String => Unit] = Nil
@@ -47,7 +42,7 @@ abstract class RealTimeValue(
   }
 
   def detach(): Unit = {
-    listeners.foreach(_(id))
+    listeners.foreach(_ (id))
   }
 
   def data(): Any
@@ -79,6 +74,6 @@ abstract class RealTimeValue(
       this.referenceManager.handleReferenceEvent(event, session)
     }
   }
-  
+
   protected def processValidatedOperation(operation: DiscreteOperation): Try[AppliedDiscreteOperation]
 }

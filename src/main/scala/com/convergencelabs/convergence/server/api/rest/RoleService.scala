@@ -14,8 +14,9 @@ package com.convergencelabs.convergence.server.api.rest
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor.{GetAllUserRolesRequest, RemoveUserFromTarget, UpdateRolesForTargetRequest}
@@ -26,24 +27,25 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import scala.concurrent.{ExecutionContext, Future}
 
 object RoleService {
+
   case class CreateNamespacePost(id: String, displayName: String)
+
   case class UpdateNamespacePut(displayName: String)
+
   case class NamespaceRestData(id: String, displayName: String)
+
   case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
 
   case class UserRoleData(username: String, role: String)
+
 }
 
-class RoleService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val roleActor: ActorRef,
-  private[this] val defaultTimeout: Timeout) extends JsonSupport {
+class RoleService(private[this] val executionContext: ExecutionContext,
+                  private[this] val roleActor: ActorRef,
+                  private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
-
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("roles") {
@@ -90,7 +92,7 @@ class RoleService(
     }
   }
 
-  def getUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget): Future[RestResponse] = {
+  private[this] def getUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget): Future[RestResponse] = {
     val request = GetAllUserRolesRequest(target)
     (roleActor ? request).mapTo[Set[UserRoles]] map { userRoles =>
       val response = userRoles
@@ -101,12 +103,12 @@ class RoleService(
     }
   }
 
-  def updateUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
+  private[this] def updateUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
     val request = UpdateRolesForTargetRequest(target, userRoles.map(entry => entry._1 -> Set(entry._2)))
     (roleActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def deleteUserRoleForTarget(authProfile: AuthorizationProfile, target: RoleTarget, username: String): Future[RestResponse] = {
+  private[this] def deleteUserRoleForTarget(authProfile: AuthorizationProfile, target: RoleTarget, username: String): Future[RestResponse] = {
     val request = RemoveUserFromTarget(target, username)
     (roleActor ? request).mapTo[Unit] map (_ => OkResponse)
   }

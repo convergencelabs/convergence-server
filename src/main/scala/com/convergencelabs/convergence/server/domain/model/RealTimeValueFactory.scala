@@ -11,14 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
+import com.convergencelabs.convergence.server.domain.model.data._
 
 class RealTimeValueFactory {
    def createValue(

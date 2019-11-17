@@ -24,21 +24,21 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 object ServerStatusService {
+
   case class ServerStatus(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
+
 }
 
-class ServerStatusService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val statusActor:      ActorRef,
-  private[this] val defaultTimeout:   Timeout)
-  extends JsonSupport
-  with Logging {
+class ServerStatusService(private[this] val executionContext: ExecutionContext,
+                          private[this] val statusActor: ActorRef,
+                          private[this] val defaultTimeout: Timeout)
+  extends JsonSupport with Logging {
 
   import ServerStatusService._
   import akka.pattern.ask
 
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("status") {
@@ -50,7 +50,7 @@ class ServerStatusService(
     }
   }
 
-  def getServerStatus(authProfile: AuthorizationProfile): Future[RestResponse] = {
+  private[this] def getServerStatus(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val message = GetStatusRequest
     (statusActor ? message).mapTo[ServerStatusResponse].map { status =>
       val ServerStatusResponse(version, distribution, serverStatus, namespaces, domains) = status

@@ -11,17 +11,15 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import java.time.Duration
-import java.time.Instant
+import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 
 class ModelSnapshotCalculator(snapshotConfig: ModelSnapshotConfig) {
-  def snapshotRequired(
-    previousVersion: Long,
-    currentVersion: Long,
-    previousTime: Instant,
-    currentTime: Instant): scala.Boolean = {
+  def snapshotRequired(previousVersion: Long,
+                       currentVersion: Long,
+                       previousTime: Instant,
+                       currentTime: Instant): scala.Boolean = {
 
     if (!snapshotConfig.snapshotsEnabled) {
       false

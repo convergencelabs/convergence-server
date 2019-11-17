@@ -49,9 +49,9 @@ import scala.util.{Failure, Success}
  * @param interface The network interface to bind to.
  * @param port      The network port to bind to.
  */
-class ConvergenceRestApi(val system: ActorSystem,
-                         val interface: String,
-                         val port: Int)
+class ConvergenceRestApi(private[this] val system: ActorSystem,
+                         private[this] val interface: String,
+                         private[this] val port: Int)
   extends Logging with JsonSupport {
 
   private[this] implicit val s: ActorSystem = system
@@ -61,7 +61,6 @@ class ConvergenceRestApi(val system: ActorSystem,
 
   private[this] val routers = ListBuffer[ActorRef]()
   private[this] var binding: Option[Http.ServerBinding] = None
-
 
   private[this] val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: DuplicateValueException =>

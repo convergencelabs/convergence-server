@@ -11,23 +11,20 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.convergence.server.domain.model.ot.{AppliedDiscreteOperation, DiscreteOperation}
 
-class RealTimeNull(
-  private[this] val value: NullValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any])
-    extends RealTimeValue(value.id, parent, parentField, List()) {
+import scala.util.{Failure, Try}
+
+class RealTimeNull(private[this] val value: NullValue,
+                   private[this] val parent: Option[RealTimeContainerValue],
+                   private[this] val parentField: Option[Any])
+  extends RealTimeValue(value.id, parent, parentField, List()) {
 
   def data(): Null = {
-    null  // scalastyle:ignore null
+    null // scalastyle:ignore null
   }
-  
+
   def dataValue(): NullValue = {
     value
   }

@@ -11,20 +11,14 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.convergence.server.domain.model.ot.{AppliedBooleanOperation, AppliedBooleanSetOperation, BooleanSetOperation, DiscreteOperation}
 
-class RealTimeBoolean(
-  private[this] val value: BooleanValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any])
+import scala.util.{Failure, Success, Try}
+
+class RealTimeBoolean(private[this] val value: BooleanValue,
+                      private[this] val parent: Option[RealTimeContainerValue],
+                      private[this] val parentField: Option[Any])
   extends RealTimeValue(value.id, parent, parentField, List()) {
 
   private[this] var boolean = value.value

@@ -11,38 +11,23 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import com.convergencelabs.convergence.server.domain.model.data.{ArrayValue, DataValue}
+import com.convergencelabs.convergence.server.domain.model.ot._
 
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayMoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
+import scala.util.{Failure, Success, Try}
 
-class RealTimeArray(
-  private[this] val value: ArrayValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] val valueFactory: RealTimeValueFactory)
+class RealTimeArray(private[this] val value: ArrayValue,
+                    private[this] val parent: Option[RealTimeContainerValue],
+                    private[this] val parentField: Option[Any],
+                    private[this] val valueFactory: RealTimeValueFactory)
   extends RealTimeContainerValue(value.id, parent, parentField, List()) {
 
-  var i = 0;
-  private[this] var childValues = value.children.map {
-    x => this.valueFactory.createValue(x, Some(this), Some({ i += 1; i }))
-  }
+  private[this] var childValues: List[RealTimeValue] = _
 
-  def children(): List[RealTimeValue] = {
-    childValues.toList
+  this.setValue(value.children)
+
+  def children: List[RealTimeValue] = {
+    childValues
   }
 
   def valueAt(path: List[Any]): Option[RealTimeValue] = {
@@ -66,7 +51,9 @@ class RealTimeArray(
   }
 
   def dataValue(): ArrayValue = {
-    ArrayValue(id, children map { _.dataValue() })
+    ArrayValue(id, children map {
+      _.dataValue()
+    })
   }
 
   def child(childPath: Any): Try[Option[RealTimeValue]] = {
@@ -156,15 +143,22 @@ class RealTimeArray(
 
     this.detachChildren()
 
-    var i = 0;
-    childValues = value.map {
-      v => this.valueFactory.createValue(v, Some(this), Some({ i += 1; i }))
-    }
+    this.setValue(value)
+
     Success(AppliedArraySetOperation(id, noOp, value, Some(oldValue.children)))
   }
 
+  private[this] def setValue(value: List[DataValue]): Unit = {
+    var i = 0
+    childValues = value.map {
+      v => this.valueFactory.createValue(v, Some(this), Some({
+        i += 1; i
+      }))
+    }
+  }
+
   private[this] def updateIndices(fromIndex: Int, toIndex: Int): Unit = {
-    for { i <- fromIndex to toIndex } {
+    for {i <- fromIndex to toIndex} {
       childValues(i).parentField = Some(i)
     }
   }

@@ -11,22 +11,14 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.convergence.server.domain.model.ot.NumberSetOperation
+import com.convergencelabs.convergence.server.domain.model.ot._
 
-class RealTimeDouble(
-  private[this] val value: DoubleValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any])
+import scala.util.{Failure, Success, Try}
+
+class RealTimeDouble(private[this] val value: DoubleValue,
+                     private[this] val parent: Option[RealTimeContainerValue],
+                     private[this] val parentField: Option[Any])
   extends RealTimeValue(value.id, parent, parentField, List()) {
 
   var double: Double = value.value

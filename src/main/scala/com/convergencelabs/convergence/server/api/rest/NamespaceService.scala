@@ -14,8 +14,9 @@ package com.convergencelabs.convergence.server.api.rest
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.NamespaceStoreActor._
 import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceAndDomains}
@@ -25,25 +26,26 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 object NamespaceService {
+
   case class CreateNamespacePost(id: String, displayName: String)
+
   case class UpdateNamespacePut(displayName: String)
+
   case class NamespaceRestData(id: String, displayName: String)
+
   case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
+
 }
 
-class NamespaceService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val namespaceActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-  extends JsonSupport
-  with Logging {
+class NamespaceService(private[this] val executionContext: ExecutionContext,
+                       private[this] val namespaceActor: ActorRef,
+                       private[this] val defaultTimeout: Timeout)
+  extends JsonSupport with Logging {
 
   import NamespaceService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
 
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("namespaces") {
@@ -79,7 +81,7 @@ class NamespaceService(
     }
   }
 
-  def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     val request = GetAccessibleNamespaces(authProfile, filter, offset, limit)
     (namespaceActor ? request).mapTo[Set[NamespaceAndDomains]] map { namespaces =>
       val response = namespaces.map { n =>
@@ -90,7 +92,7 @@ class NamespaceService(
     }
   }
 
-  def getNamespace(namespaceId: String): Future[RestResponse] = {
+  private[this] def getNamespace(namespaceId: String): Future[RestResponse] = {
     val request = GetNamespace(namespaceId)
     (namespaceActor ? request).mapTo[Option[Namespace]] map {
       case Some(namespace) => okResponse(namespace)
@@ -98,25 +100,25 @@ class NamespaceService(
     }
   }
 
-  def createNamespace(authProfile: AuthorizationProfile, create: CreateNamespacePost): Future[RestResponse] = {
+  private[this] def createNamespace(authProfile: AuthorizationProfile, create: CreateNamespacePost): Future[RestResponse] = {
     val CreateNamespacePost(id, displayName) = create
     val request = CreateNamespace(authProfile.username, id, displayName)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, create: UpdateNamespacePut): Future[RestResponse] = {
+  private[this] def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, create: UpdateNamespacePut): Future[RestResponse] = {
     val UpdateNamespacePut(displayName) = create
     val request = UpdateNamespace(authProfile.username, namespaceId, displayName)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
+  private[this] def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
     debug(s"Got request to delete namespace $namespaceId")
     val request = DeleteNamespace(authProfile.username, namespaceId)
     (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {
+  private[this] def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)
   }
 }

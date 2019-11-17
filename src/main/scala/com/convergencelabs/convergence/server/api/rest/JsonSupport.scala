@@ -21,9 +21,12 @@ import org.json4s.JsonAST.{JInt, JLong, JString}
 import org.json4s.jackson.Serialization
 import org.json4s.{CustomSerializer, DefaultFormats, FieldSerializer, Formats}
 
+/**
+ * A helper trait the supports JSON serialization in the REST API.
+ */
 trait JsonSupport extends Json4sSupport {
 
-  val instantSerializer = new CustomSerializer[Instant](formats => ( {
+  val instantSerializer = new CustomSerializer[Instant](_ => ( {
     case JInt(num) =>
       Instant.ofEpochMilli(num.longValue())
     case JLong(num) =>
@@ -33,7 +36,7 @@ trait JsonSupport extends Json4sSupport {
       JLong(x.toEpochMilli)
   }))
 
-  val durationSerializer = new CustomSerializer[Duration](formats => ( {
+  val durationSerializer = new CustomSerializer[Duration](_ => ( {
     case JInt(int) =>
       val l = int.longValue()
       Duration.ofMillis(l)
@@ -44,8 +47,8 @@ trait JsonSupport extends Json4sSupport {
       JLong(x.toMillis)
   }))
 
-  val dataValueSerializer = new CustomSerializer[DataValue](formats => ( {
-    case x: Any =>
+  val dataValueSerializer = new CustomSerializer[DataValue](_ => ( {
+    case _: Any =>
       ???
   }, {
     case x: DataValue =>
@@ -53,7 +56,7 @@ trait JsonSupport extends Json4sSupport {
 
   }))
 
-  val domainUserTypeSerializer = new CustomSerializer[DomainUserType](formats => ( {
+  val domainUserTypeSerializer = new CustomSerializer[DomainUserType](_ => ( {
     case JString(userType) =>
       DomainUserType.withName(userType)
   }, {

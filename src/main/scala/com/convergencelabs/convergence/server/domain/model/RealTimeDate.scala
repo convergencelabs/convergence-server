@@ -13,20 +13,14 @@ package com.convergencelabs.convergence.server.domain.model
 
 import java.time.Instant
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DateSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
+import com.convergencelabs.convergence.server.domain.model.ot.{AppliedDateOperation, AppliedDateSetOperation, DateSetOperation, DiscreteOperation}
 
-class RealTimeDate(
-  private[this] val value: DateValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any])
+import scala.util.{Failure, Success, Try}
+
+class RealTimeDate(private[this] val value: DateValue,
+                   private[this] val parent: Option[RealTimeContainerValue],
+                   private[this] val parentField: Option[Any])
   extends RealTimeValue(value.id, parent, parentField, List()) {
 
   private[this] var date = value.value

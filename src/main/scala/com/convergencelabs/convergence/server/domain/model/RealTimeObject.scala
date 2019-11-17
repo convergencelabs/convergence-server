@@ -11,35 +11,23 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectSetPropertyOperation
+import com.convergencelabs.convergence.server.domain.model.ot._
 import com.convergencelabs.convergence.server.domain.model.reference.PropertyRemoveAware
 
-class RealTimeObject(
-  private[this] val value: ObjectValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any],
-  private[this] val valueFactory: RealTimeValueFactory)
+import scala.util.{Failure, Success, Try}
+
+class RealTimeObject(private[this] val value: ObjectValue,
+                     private[this] val parent: Option[RealTimeContainerValue],
+                     private[this] val parentField: Option[Any],
+                     private[this] val valueFactory: RealTimeValueFactory)
   extends RealTimeContainerValue(value.id, parent, parentField, List(ReferenceType.Property)) {
 
   private[this] var childValues: Map[String, RealTimeValue] = value.children.map {
     case (k, v) => (k, this.valueFactory.createValue(v, Some(this), Some(k)))
-  }.toMap
+  }
 
-  def children(): List[RealTimeValue] = {
+  def children: List[RealTimeValue] = {
     childValues.values.toList
   }
 
@@ -94,7 +82,7 @@ class RealTimeObject(
   private[this] def processAddPropertyOperation(op: ObjectAddPropertyOperation): Try[AppliedObjectAddPropertyOperation] = {
     val ObjectAddPropertyOperation(id, noOp, property, value) = op
     if (childValues.contains(property)) {
-      Failure(new IllegalArgumentException(s"Object already contains property ${property}"))
+      Failure(new IllegalArgumentException(s"Object already contains property $property"))
     } else {
       val child = this.valueFactory.createValue(value, Some(this), Some(property))
       this.childValues = this.childValues + (property -> child)
@@ -106,12 +94,12 @@ class RealTimeObject(
   private[this] def processRemovePropertyOperation(op: ObjectRemovePropertyOperation): Try[AppliedObjectRemovePropertyOperation] = {
     val ObjectRemovePropertyOperation(id, noOp, property) = op
     if (!childValues.contains(property)) {
-      Failure(new IllegalArgumentException(s"Object does not contain property ${property}"))
+      Failure(new IllegalArgumentException(s"Object does not contain property $property"))
     } else {
       val child = this.childValues(property)
       childValues = this.childValues - property
 
-      this.referenceManager.referenceMap.getAll().foreach {
+      this.referenceManager.referenceMap().getAll().foreach {
         case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
       }
 
@@ -124,7 +112,7 @@ class RealTimeObject(
   private[this] def processSetPropertyOperation(op: ObjectSetPropertyOperation): Try[AppliedObjectSetPropertyOperation] = {
     val ObjectSetPropertyOperation(id, noOp, property, value) = op
     if (!childValues.contains(property)) {
-      Failure(new IllegalArgumentException(s"Object does not contain property ${property}"))
+      Failure(new IllegalArgumentException(s"Object does not contain property $property"))
     } else {
       val oldChild = childValues(op.property)
       val child = this.valueFactory.createValue(op.value, Some(this), Some(property))
@@ -144,7 +132,7 @@ class RealTimeObject(
 
     childValues = op.value.map {
       case (k, v) => (k, this.valueFactory.createValue(v, Some(this), Some(k)))
-    }.toMap
+    }
 
     Success(AppliedObjectSetOperation(id, noOp, value, Some(oldValue.children)))
   }

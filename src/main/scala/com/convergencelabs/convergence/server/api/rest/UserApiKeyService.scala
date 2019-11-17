@@ -20,9 +20,9 @@ import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatena
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.datastore.convergence.UserApiKey
 import com.convergencelabs.convergence.server.datastore.convergence.UserApiKeyStoreActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
-import com.convergencelabs.convergence.server.datastore.convergence.UserApiKey
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -39,15 +39,14 @@ object UserApiKeyService {
 
 }
 
-class UserApiKeyService(
-                         private[this] val executionContext: ExecutionContext,
+class UserApiKeyService(private[this] val executionContext: ExecutionContext,
                          private[this] val userApiKeyStoreActor: ActorRef,
                          private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
   import UserApiKeyService._
 
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("apiKeys") {
@@ -79,7 +78,7 @@ class UserApiKeyService(
     }
   }
 
-  def getApiKeysForUser(authProfile: AuthorizationProfile): Future[RestResponse] = {
+  private[this] def getApiKeysForUser(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val request = GetApiKeysForUser(authProfile.username)
     (userApiKeyStoreActor ? request).mapTo[Set[UserApiKey]] map { keys =>
       val keyData = keys.map(key => {
@@ -90,7 +89,7 @@ class UserApiKeyService(
     }
   }
 
-  def getApiKey(authProfile: AuthorizationProfile, key: String): Future[RestResponse] = {
+  private[this] def getApiKey(authProfile: AuthorizationProfile, key: String): Future[RestResponse] = {
     val request = GetApiKeyRequest(authProfile.username, key)
     (userApiKeyStoreActor ? request).mapTo[Option[UserApiKey]] map {
       case Some(UserApiKey(_, name, keyId, enabled, lastUsed)) =>
@@ -100,7 +99,7 @@ class UserApiKeyService(
     }
   }
 
-  def createApiKey(authProfile: AuthorizationProfile, keyData: CreateKeyData): Future[RestResponse] = {
+  private[this] def createApiKey(authProfile: AuthorizationProfile, keyData: CreateKeyData): Future[RestResponse] = {
     val request = CreateApiKeyRequest(authProfile.username, keyData.name, keyData.enabled)
     (userApiKeyStoreActor ? request).mapTo[UserApiKey] map {
       case UserApiKey(_, key, name, enabled, lastUsed) =>
@@ -108,12 +107,12 @@ class UserApiKeyService(
     }
   }
 
-  def updateApiKey(authProfile: AuthorizationProfile, keyId: String, updateData: UpdateKeyData): Future[RestResponse] = {
+  private[this] def updateApiKey(authProfile: AuthorizationProfile, keyId: String, updateData: UpdateKeyData): Future[RestResponse] = {
     val request = UpdateKeyRequest(authProfile.username, keyId, updateData.name, updateData.enabled)
     (userApiKeyStoreActor ? request).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def deleteApiKey(authProfile: AuthorizationProfile, keyId: String): Future[RestResponse] = {
+  private[this] def deleteApiKey(authProfile: AuthorizationProfile, keyId: String): Future[RestResponse] = {
     val request = DeleteApiKeyRequest(authProfile.username, keyId)
     (userApiKeyStoreActor ? request).mapTo[Unit] map (_ => OkResponse)
   }

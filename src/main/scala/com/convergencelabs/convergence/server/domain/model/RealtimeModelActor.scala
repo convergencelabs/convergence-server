@@ -26,15 +26,14 @@ import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
 /**
-  * Provides a factory method for creating the RealtimeModelActor
-  */
+ * Provides a factory method for creating the RealtimeModelActor
+ */
 object RealtimeModelActor {
-  def props(
-             modelPermissionResolver: ModelPermissionResolver,
-             modelCreator: ModelCreator,
-             persistenceManager: DomainPersistenceManager,
-             clientDataResponseTimeout: FiniteDuration,
-             receiveTimeout: FiniteDuration): Props =
+  def props(modelPermissionResolver: ModelPermissionResolver,
+            modelCreator: ModelCreator,
+            persistenceManager: DomainPersistenceManager,
+            clientDataResponseTimeout: FiniteDuration,
+            receiveTimeout: FiniteDuration): Props =
     Props(new RealtimeModelActor(
       modelPermissionResolver,
       modelCreator,
@@ -44,15 +43,14 @@ object RealtimeModelActor {
 }
 
 /**
-  * An instance of the RealtimeModelActor manages the lifecycle of a single
-  * realtime model.
-  */
-class RealtimeModelActor(
-                          private[this] val modelPermissionResolver: ModelPermissionResolver,
-                          private[this] val modelCreator: ModelCreator,
-                          private[this] val persistenceManager: DomainPersistenceManager,
-                          private[this] val clientDataResponseTimeout: FiniteDuration,
-                          private[this] val receiveTimeout: FiniteDuration)
+ * An instance of the RealtimeModelActor manages the lifecycle of a single
+ * realtime model.
+ */
+class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermissionResolver,
+                         private[this] val modelCreator: ModelCreator,
+                         private[this] val persistenceManager: DomainPersistenceManager,
+                         private[this] val clientDataResponseTimeout: FiniteDuration,
+                         private[this] val receiveTimeout: FiniteDuration)
   extends ShardedActor(classOf[ModelMessage]) {
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
@@ -71,7 +69,7 @@ class RealtimeModelActor(
       this.passivate()
     case msg: StatelessModelMessage =>
       handleStatelessMessage(msg)
-    case msg @ (_: OpenRealtimeModelRequest | _:ModelResyncRequest) =>
+    case msg@(_: OpenRealtimeModelRequest | _: ModelResyncRequest) =>
       this.becomeOpened()
       this.receiveOpened(msg)
     case unknown: Any =>
@@ -153,7 +151,7 @@ class RealtimeModelActor(
                 case Some(perms) => persistenceProvider.modelPermissionsStore.setModelWorldPermissions(modelId, perms)
                 case None => Success(())
               }
-              _ <- if(setAllUsers) {
+              _ <- if (setAllUsers) {
                 persistenceProvider.modelPermissionsStore.deleteAllModelUserPermissions(modelId)
               } else {
                 Success(())
@@ -323,7 +321,7 @@ class RealtimeModelActor(
             //   and use the model operation processor to apply it.
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
 
-            // FIXME permissions
+          // FIXME permissions
         }
       } else {
         modelCreator.createModel(

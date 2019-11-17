@@ -11,26 +11,15 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.convergence.server.domain.model.reference.PositionalInsertAware
-import com.convergencelabs.convergence.server.domain.model.reference.PositionalRemoveAware
+import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.reference.{PositionalInsertAware, PositionalRemoveAware}
 
-class RealTimeString(
-  private[this] val value: StringValue,
-  private[this] val parent: Option[RealTimeContainerValue],
-  private[this] val parentField: Option[Any])
+import scala.util.{Failure, Success, Try}
+
+class RealTimeString(private[this] val value: StringValue,
+                     private[this] val parent: Option[RealTimeContainerValue],
+                     private[this] val parentField: Option[Any])
   extends RealTimeValue(
     value.id,
     parent,
@@ -68,7 +57,7 @@ class RealTimeString(
     } else {
       this.string = this.string.slice(0, index) + value + this.string.slice(index, this.string.length)
 
-      this.referenceManager.referenceMap.getAll().foreach {
+      this.referenceManager.referenceMap().getAll().foreach {
         case x: PositionalInsertAware => x.handlePositionalInsert(index, value.length)
       }
 
@@ -84,7 +73,7 @@ class RealTimeString(
     } else {
       this.string = this.string.slice(0, index) + this.string.slice(index + value.length, this.string.length)
 
-      this.referenceManager.referenceMap.getAll().foreach {
+      this.referenceManager.referenceMap().getAll().foreach {
         case x: PositionalRemoveAware => x.handlePositionalRemove(index, value.length)
       }
 
@@ -97,7 +86,7 @@ class RealTimeString(
 
     val oldValue = string
     this.string = value
-    this.referenceManager.referenceMap.getAll().foreach { x => x.handleSet() }
+    this.referenceManager.referenceMap().getAll().foreach { x => x.handleSet() }
 
     Success(AppliedStringSetOperation(id, noOp, value, Some(oldValue)))
   }

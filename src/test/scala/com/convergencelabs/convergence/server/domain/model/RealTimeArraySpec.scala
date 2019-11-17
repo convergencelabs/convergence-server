@@ -40,7 +40,7 @@ class RealTimeArraySpec
 
         rta.parent shouldBe None
         rta.parentField shouldBe None
-        rta.children().size shouldBe 3
+        rta.children.size shouldBe 3
 
         val c1 = rta.child(child1Index).get.get
         c1 shouldBe a[RealTimeString]

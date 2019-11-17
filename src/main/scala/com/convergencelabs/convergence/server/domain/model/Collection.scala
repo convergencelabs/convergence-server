@@ -14,10 +14,8 @@ package com.convergencelabs.convergence.server.domain.model
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
 
-case class Collection(
-  id: String,
-  description: String,
-  overrideSnapshotConfig: Boolean,
-  snapshotConfig: ModelSnapshotConfig,
-  worldPermissions: CollectionPermissions
-)
+case class Collection(id: String,
+                      description: String,
+                      overrideSnapshotConfig: Boolean,
+                      snapshotConfig: ModelSnapshotConfig,
+                      worldPermissions: CollectionPermissions)

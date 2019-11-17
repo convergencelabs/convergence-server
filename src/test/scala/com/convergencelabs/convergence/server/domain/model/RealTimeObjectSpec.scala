@@ -40,7 +40,7 @@ class RealTimeObjectSpec
 
         rto.parent shouldBe None
         rto.parentField shouldBe None
-        rto.children().size shouldBe 3
+        rto.children.size shouldBe 3
 
         val c1 = rto.child(child1Key).get.get
         c1 shouldBe a[RealTimeString]

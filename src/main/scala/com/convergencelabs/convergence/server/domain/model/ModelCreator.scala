@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.domain.model
 import java.util.UUID
 
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, ModelPermissions}
-import com.convergencelabs.convergence.server.domain.{DomainUserId, UnauthorizedException}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
+import com.convergencelabs.convergence.server.domain.{DomainUserId, UnauthorizedException}
 
 import scala.util.{Failure, Success, Try}
 

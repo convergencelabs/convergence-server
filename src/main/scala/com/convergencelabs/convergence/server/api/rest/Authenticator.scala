@@ -21,6 +21,7 @@ import akka.http.scaladsl.server.directives.BasicDirectives.provide
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor.{ValidateSessionTokenRequest, ValidateUserApiKeyRequest, ValidateUserBearerTokenRequest}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -31,13 +32,10 @@ import scala.concurrent.{ExecutionContext, Future}
  * This class provides a helper directive to authenticate users and validate
  * tokens
  */
-class Authenticator(
-                     private[this] val authActor: ActorRef,
-                     private[this] val timeout: Timeout,
-                     private[this] val executionContext: ExecutionContext)
+class Authenticator(private[this] val authActor: ActorRef,
+                    private[this] val timeout: Timeout,
+                    private[this] val executionContext: ExecutionContext)
   extends JsonSupport {
-
-  import akka.pattern.ask
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = timeout

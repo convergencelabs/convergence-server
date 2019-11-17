@@ -11,68 +11,67 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationProcessor
-import com.convergencelabs.convergence.server.datastore.domain.ModelSnapshotStore
-import com.convergencelabs.convergence.server.datastore.domain.ModelStore
+import akka.actor.{ActorRef, ActorSystem, Status}
+import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationProcessor, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
-
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.Status
-import akka.stream.ActorMaterializer
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Flow
-import akka.stream.scaladsl.Sink
-import akka.stream.scaladsl.Source
 import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Success, Try}
 
 trait RealtimeModelPersistenceFactory {
   def create(handler: PersistenceEventHandler): RealtimeModelPersistence
 }
 
 object RealtimeModelPersistence {
+
   trait PersistenceEventHandler {
     def onError(message: String): Unit
+
     def onClosed(): Unit
+
     def onOperationCommitted(version: Long): Unit
+
     def onOperationError(message: String): Unit
   }
+
 }
 
 trait RealtimeModelPersistence {
   def processOperation(op: NewModelOperation): Unit
+
   def executeSnapshot(): Unit
+
   def close(): Unit
 }
 
 object RealtimeModelPersistenceStream {
+
   sealed trait ModelPersistenceCommand
+
   case class ProcessOperation(op: NewModelOperation) extends ModelPersistenceCommand
+
   case object ExecuteSnapshot extends ModelPersistenceCommand
 
 }
 
-class RealtimeModelPersistenceStream(
-                                      private[this] val handler: PersistenceEventHandler,
-                                      private[this] val domainFqn: DomainId,
-                                      private[this] val modelId: String,
-                                      private[this] implicit val system: ActorSystem,
-                                      private[this] val modelStore: ModelStore,
-                                      private[this] val modelSnapshotStore: ModelSnapshotStore,
-                                      private[this] val modelOperationProcessor: ModelOperationProcessor)
+class RealtimeModelPersistenceStream(private[this] val handler: PersistenceEventHandler,
+                                     private[this] val domainId: DomainId,
+                                     private[this] val modelId: String,
+                                     private[this] implicit val system: ActorSystem,
+                                     private[this] val modelStore: ModelStore,
+                                     private[this] val modelSnapshotStore: ModelSnapshotStore,
+                                     private[this] val modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistence
-  with Logging {
+    with Logging {
 
   import RealtimeModelPersistenceStream._
 
-  private[this] implicit val materializer = ActorMaterializer()
+  private[this] implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  logger.debug(s"Persistence stream started ${domainFqn}/${modelId}")
+  logger.debug(s"Persistence stream started $domainId/$modelId")
 
   def processOperation(op: NewModelOperation): Unit = {
     streamActor ! ProcessOperation(op)
@@ -94,21 +93,21 @@ class RealtimeModelPersistenceStream(
         case ExecuteSnapshot =>
           onExecuteSnapshot()
       }.to(Sink.onComplete {
-        case Success(_) =>
-          logger.debug(s"${domainFqn}/${modelId}: Persistence stream completed successfully.")
-          handler.onClosed()
-        case Failure(cause) =>
-          logger.error(s"${domainFqn}/${modelId}: Persistence stream completed with an error.", cause)
-          handler.onError("There was an unexpected error in the persistence stream")
-      }).runWith(Source
-        .actorRef[ModelPersistenceCommand](bufferSize = 1000, OverflowStrategy.fail))
+      case Success(_) =>
+        logger.debug(s"$domainId/$modelId: Persistence stream completed successfully.")
+        handler.onClosed()
+      case Failure(cause) =>
+        logger.error(s"$domainId/$modelId: Persistence stream completed with an error.", cause)
+        handler.onError("There was an unexpected error in the persistence stream")
+    }).runWith(Source
+      .actorRef[ModelPersistenceCommand](bufferSize = 1000, OverflowStrategy.fail))
 
   private[this] def onProcessOperation(modelOperation: NewModelOperation): Unit = {
     modelOperationProcessor.processModelOperation(modelOperation)
       .map(_ => handler.onOperationCommitted(modelOperation.version))
       .recover {
         case cause: Throwable =>
-          logger.error(s"${domainFqn}/${modelId}: Error applying operation: ${modelOperation}", cause)
+          logger.error(s"$domainId/$modelId: Error applying operation: $modelOperation", cause)
           handler.onOperationError("There was an unexpected persistence error applying an operation.")
           ()
       }
@@ -118,32 +117,32 @@ class RealtimeModelPersistenceStream(
     Try {
       // FIXME: Handle Failure from try and None from option.
       val modelData = modelStore.getModel(this.modelId).get.get
-      val snapshotMetaData = new ModelSnapshotMetaData(
+      val snapshotMetaData = ModelSnapshotMetaData(
         modelId,
         modelData.metaData.version,
         modelData.metaData.modifiedTime)
 
-      val snapshot = new ModelSnapshot(snapshotMetaData, modelData.data)
+      val snapshot = ModelSnapshot(snapshotMetaData, modelData.data)
       modelSnapshotStore.createSnapshot(snapshot)
       snapshotMetaData
     } map { snapshotMetaData =>
-      logger.debug(s"${domainFqn}/${modelId}: Snapshot successfully taken for model " +
+      logger.debug(s"$domainId/$modelId: Snapshot successfully taken for model " +
         s"at version: ${snapshotMetaData.version}, timestamp: ${snapshotMetaData.timestamp}")
     } recover {
 
       case cause: Throwable =>
-        logger.error(s"${domainFqn}/${modelId}: Error taking snapshot of model.", cause)
+        logger.error(s"$domainId/$modelId: Error taking snapshot of model.", cause)
     }
   }
 }
 
 class RealtimeModelPersistenceStreamFactory(
-  private[this] val domainFqn: DomainId,
-  private[this] val modelId: String,
-  private[this] implicit val system: ActorSystem,
-  private[this] val modelStore: ModelStore,
-  private[this] val modelSnapshotStore: ModelSnapshotStore,
-  private[this] val modelOperationProcessor: ModelOperationProcessor)
+                                             private[this] val domainFqn: DomainId,
+                                             private[this] val modelId: String,
+                                             private[this] implicit val system: ActorSystem,
+                                             private[this] val modelStore: ModelStore,
+                                             private[this] val modelSnapshotStore: ModelSnapshotStore,
+                                             private[this] val modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistenceFactory {
 
   def create(handler: PersistenceEventHandler): RealtimeModelPersistence = {

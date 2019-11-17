@@ -31,22 +31,23 @@ import org.json4s.jackson.Serialization
 import scala.concurrent.{ExecutionContext, Future}
 
 object DatabaseManagerRestService {
+
   case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
+
   case class VersionResponse(databaseVersion: Int)
+
 }
 
-class DatabaseManagerRestService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val databaseManager: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends Json4sSupport
-    with Logging {
+class DatabaseManagerRestService(private[this] val executionContext: ExecutionContext,
+                                 private[this] val databaseManager: ActorRef,
+                                 private[this] val defaultTimeout: Timeout)
+  extends Json4sSupport with Logging {
 
-  implicit val serialization: Serialization.type = Serialization
-  implicit val formats: Formats = JsonFormats.format
+  private[this] implicit val serialization: Serialization.type = Serialization
+  private[this] implicit val formats: Formats = JsonFormats.format
 
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("schema") {
@@ -70,14 +71,14 @@ class DatabaseManagerRestService(
     }
   }
 
-  def upgradeConvergence(request: UpgradeRequest): Future[RestResponse] = {
+  private[this] def upgradeConvergence(request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade convergence database to version: $to")
     (databaseManager ? UpgradeConvergence(version, preRelease.getOrElse(false))).mapTo[Unit].map(_ => OkResponse)
   }
 
-  def upgradeDomain(namespace: String, domainId: String, request: UpgradeRequest): Future[RestResponse] = {
+  private[this] def upgradeDomain(namespace: String, domainId: String, request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade domain database to version: $to")
@@ -85,7 +86,7 @@ class DatabaseManagerRestService(
     (databaseManager ? message).mapTo[Unit].map(_ => OkResponse)
   }
 
-  def upgradeDomains(request: UpgradeRequest): Future[RestResponse] = {
+  private[this] def upgradeDomains(request: UpgradeRequest): Future[RestResponse] = {
     val UpgradeRequest(version, preRelease) = request
     val to = toVersion(version, preRelease)
     logger.debug(s"Received an request to upgrade all domain databases to version: $to")
@@ -93,14 +94,14 @@ class DatabaseManagerRestService(
     (databaseManager ? message).mapTo[Unit].map(_ => OkResponse)
   }
 
-  def getConvergenceVersion(): Future[RestResponse] = {
+  private[this] def getConvergenceVersion(): Future[RestResponse] = {
     val message = GetConvergenceVersion
     (databaseManager ? message).mapTo[Int].map { version =>
       okResponse(VersionResponse(version))
     }
   }
 
-  def getDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
+  private[this] def getDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
     val message = GetDomainVersion(DomainId(namespace, domainId))
     (databaseManager ? message).mapTo[Int].map { version =>
       okResponse(VersionResponse(version))

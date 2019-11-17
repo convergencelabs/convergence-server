@@ -11,23 +11,30 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import com.convergencelabs.convergence.server.domain.model.data.{DataValue, ObjectValue}
 import com.convergencelabs.convergence.server.domain.model.ot._
 import com.convergencelabs.convergence.server.domain.model.reference._
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 
 import scala.util.{Failure, Success, Try}
 
-class RealTimeModel(
-  private[this] val domainFqn: DomainId,
-  private[this] val modelId: String,
-  private[this] val cc: ServerConcurrencyControl,
-  private val obj: ObjectValue) extends RealTimeValueFactory {
+/**
+ * The [[RealTimeModel]] class represents an in memory version of a model.
+ *
+ * @param domainId The id of the domain this model belongs to.
+ * @param modelId  The unique model id of this model.
+ * @param cc       the server side concurrency control that will transform operations.
+ * @param root     The root value of this model.
+ */
+class RealTimeModel(private[this] val domainId: DomainId,
+                    private[this] val modelId: String,
+                    private[this] val cc: ServerConcurrencyControl,
+                    private val root: ObjectValue) extends RealTimeValueFactory {
 
   val idToValue: collection.mutable.HashMap[String, RealTimeValue] = collection.mutable.HashMap[String, RealTimeValue]()
   private val elementReferenceManager = new ElementReferenceManager(this, List(ReferenceType.Element))
 
-  val data: RealTimeObject = this.createValue(obj, None, None).asInstanceOf[RealTimeObject]
+  val data: RealTimeObject = this.createValue(root, None, None).asInstanceOf[RealTimeObject]
 
   def contextVersion(): Long = {
     this.cc.contextVersion
@@ -43,10 +50,9 @@ class RealTimeModel(
     this.elementReferenceManager.sessionDisconnected(session)
   }
 
-  override def createValue(
-    value: DataValue,
-    parent: Option[RealTimeContainerValue],
-    parentField: Option[Any]): RealTimeValue = {
+  override def createValue(value: DataValue,
+                           parent: Option[RealTimeContainerValue],
+                           parentField: Option[Any]): RealTimeValue = {
     val result = super.createValue(value, parent, parentField)
     this.registerValue(result)
     result.addDetachListener(_ => this.unregisterValue(result))
@@ -60,7 +66,7 @@ class RealTimeModel(
     // FIXME this isn't quite right, if applying the operation fails, just rolling back
     // the CC may not be enough, especially in the case of a compound operation,
     // we may have partially mutated the model.
-    applyOpperation(processed.operation) match {
+    applyOperation(processed.operation) match {
       case Success(appliedOperation) =>
         cc.commit()
         Success(processed, appliedOperation)
@@ -94,7 +100,7 @@ class RealTimeModel(
     }
   }
 
-  private[this] def applyOpperation(op: Operation): Try[AppliedOperation] = {
+  private[this] def applyOperation(op: Operation): Try[AppliedOperation] = {
     op match {
       case c: CompoundOperation =>
         Try {
@@ -141,7 +147,7 @@ class RealTimeModel(
                 val refVal: ReferenceValue = ReferenceValue(set.id, set.key, set.referenceType, set.values, set.contextVersion)
                 this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
                   case Some(xformed) =>
-                    val setRef: SetReference = SetReference(domainFqn, modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
+                    val setRef: SetReference = SetReference(domainId, modelId, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
                     realTimeValue.processReferenceEvent(setRef, session)
                     Some(RemoteReferenceSet(this.modelId, session, setRef.id, setRef.key, setRef.referenceType, setRef.values))
                   case None =>
@@ -164,8 +170,10 @@ class RealTimeModel(
           case share: ShareReference =>
             elementReferenceManager.handleReferenceEvent(share, session)
             val ShareReference(_, _, id, key, refType, values, contextVersion) = share
-            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains }
-            val xformedSet = SetReference(domainFqn, modelId, id, key, refType, xformedValue, contextVersion)
+            val xformedValue = values.asInstanceOf[List[String]] filter {
+              idToValue.contains
+            }
+            val xformedSet = SetReference(domainId, modelId, id, key, refType, xformedValue, contextVersion)
             elementReferenceManager.handleReferenceEvent(xformedSet, session)
             Some(RemoteReferenceShared(modelId, session, id, key, refType, xformedValue))
 
@@ -175,7 +183,9 @@ class RealTimeModel(
             Some(RemoteReferenceUnshared(modelId, session, id, key))
           case set: SetReference =>
             val SetReference(d, m, id, key, refType, values, version) = set
-            val xformedValue = values.asInstanceOf[List[String]] filter { idToValue.contains }
+            val xformedValue = values.asInstanceOf[List[String]] filter {
+              idToValue.contains
+            }
             val xformedSet = SetReference(d, m, id, key, refType, xformedValue, version)
             elementReferenceManager.handleReferenceEvent(xformedSet, session)
             Some(RemoteReferenceSet(modelId, session, id, key, refType, xformedValue))
@@ -187,7 +197,7 @@ class RealTimeModel(
     }
   }
 
-  def applyDiscreteOperation(op: DiscreteOperation): Try[AppliedDiscreteOperation] = {
+  private[this] def applyDiscreteOperation(op: DiscreteOperation): Try[AppliedDiscreteOperation] = {
     if (!op.noOp) {
       val value = this.idToValue(op.id)
       value.processOperation(op)
@@ -222,7 +232,7 @@ class RealTimeModel(
     value match {
       case v: RealTimeContainerValue =>
         val mine = v.references().map { x => toReferenceState(x) }
-        val mappedChildren = v.children().flatMap { child =>
+        val mappedChildren = v.children.flatMap { child =>
           references(child)
         }.toSet
         mine ++ mappedChildren
@@ -231,7 +241,7 @@ class RealTimeModel(
     }
   }
 
-  def toReferenceState(r: ModelReference[_]): ReferenceState = {
+  private[this] def toReferenceState(r: ModelReference[_]): ReferenceState = {
     val refType = r match {
       case _: IndexReference => ReferenceType.Index
       case _: RangeReference => ReferenceType.Range

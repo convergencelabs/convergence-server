@@ -13,7 +13,9 @@ package com.convergencelabs.convergence.server.api.rest
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor._
 import com.convergencelabs.convergence.server.db.data.{ConvergenceScript, JsonFormats}
@@ -26,21 +28,16 @@ import org.json4s.jackson.Serialization
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ConvergenceImportService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val importerActor: ActorRef,
-  private[this] val defaultTimeout: Timeout)
-    extends Json4sSupport
-    with Logging {
+class ConvergenceImportService(private[this] val executionContext: ExecutionContext,
+                               private[this] val importerActor: ActorRef,
+                               private[this] val defaultTimeout: Timeout)
+  extends Json4sSupport with Logging {
 
-  import akka.http.scaladsl.server.Directives._
-  import akka.pattern.ask
-  
-  implicit val serialization: Serialization.type = Serialization
-  implicit val formats: Formats = JsonFormats.format
+  private[this] implicit val serialization: Serialization.type = Serialization
+  private[this] implicit val formats: Formats = JsonFormats.format
 
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("data") {
@@ -58,19 +55,19 @@ class ConvergenceImportService(
     }
   }
 
-  def importConvergence(script: ConvergenceScript): Future[RestResponse] = {
+  private[this] def importConvergence(script: ConvergenceScript): Future[RestResponse] = {
     logger.debug(s"Received a convergence import request")
     (importerActor ? ConvergenceImport(script)).mapTo[Unit].map(_ => OkResponse)
   }
 
-  def exportDomain(namespace: String, domainId: String): Future[RestResponse] = {
+  private[this] def exportDomain(namespace: String, domainId: String): Future[RestResponse] = {
     logger.debug(s"Received a domain export request: $namespace/$domainId")
     (importerActor ? DomainExport(DomainId(namespace, domainId))).mapTo[DomainExportResponse].map {
       case DomainExportResponse(script) => okResponse(script)
     }
   }
 
-  def exportUser(username: String): Future[RestResponse] = {
+  private[this] def exportUser(username: String): Future[RestResponse] = {
     logger.debug(s"Received a convergence export request for user: $username")
     (importerActor ? ConvergenceExport(Some(username))).mapTo[ConvergenceExportResponse].map {
       case ConvergenceExportResponse(script) => okResponse(script)

@@ -13,9 +13,8 @@ package com.convergencelabs.convergence.server.domain.model
 
 import java.time.Instant
 
-case class OpenModelMetaData(
-  id: String,
-  collection: String,
-  version: Long,
-  createdTime: Instant,
-  modifiedTime: Instant)
+case class OpenModelMetaData(id: String,
+                             collection: String,
+                             version: Long,
+                             createdTime: Instant,
+                             modifiedTime: Instant)

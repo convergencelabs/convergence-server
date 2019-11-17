@@ -22,14 +22,15 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object KeyGenService {
+
   case class CreateTokenResponse(publicKey: String, privateKey: String)
+
 }
 
-class KeyGenService(
-  private[this] val executionContext: ExecutionContext)
-    extends JsonSupport {
+class KeyGenService(private[this] val executionContext: ExecutionContext)
+  extends JsonSupport {
 
-  implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val ec: ExecutionContext = executionContext
 
   def route(): Route = {
     pathPrefix("util" / "keygen") {
@@ -41,7 +42,7 @@ class KeyGenService(
     }
   }
 
-  def createKey(): Future[RestResponse] = {
+  private[this] def createKey(): Future[RestResponse] = {
     Future {
       JwtUtil.createKey().flatMap { rsaJsonWebKey =>
         for {
