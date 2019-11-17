@@ -3,7 +3,10 @@
 </div>
 
 # Convergence Server
-The Convergence Server is the main server side component of the [Convergence](https://convergence.io) Realtime Collaboration Framework. Convergence enables developers to rapidly integrate realtime collaboration directly into their applications. 
+The Convergence Server is the main server side component of the [Convergence](https://convergence.io) Realtime Collaboration Framework. Convergence enables developers to rapidly integrate realtime collaboration directly into their applications.
+
+## Issue Reporting
+The core Convergence capability is composed of multiple individual projects that are released together. To simplify things, there is a central project that is used for issues, project planning, and road mapping.  To report an issue please use the [convergence-project](https://github.com/convergencelabs/convergence-project) repository.
 
 ## Languages and Frameworks
 * **[Scala](https://www.scala-lang.org/)**: The Convergence Server is developed primarily in Scala.
@@ -11,7 +14,6 @@ The Convergence Server is the main server side component of the [Convergence](ht
 * **[Akka](https://akka.io)**: Akka is the main development framework used by the Convergence Server. Akka provides the primary ability for multiple Convergence Servers to cluster together, providing horizontal scalability, and high availability. 
 * **[OrientDB](https://orientdb.org/)**: Orient DB is used as the backing database. 
 * **[Google Protocol Buffers](https://developers.google.com/protocol-buffers/)**: Protocol Buffers are used as the communications protocol for realtime collaboration over Web Sockets.
-
 
 ## Development
 The following development tools are required to build the Convergence Server:
@@ -27,7 +29,6 @@ The standard SBT tasks can be used to compile and test the server.
 * `sbt test`
 
 The main entry point of the Convergence Server is the `com.convergencelabs.server.ConvergenceServer` class. This is a good place to start if you are new to the code base. 
-
 
 ## Binary Distribution
 TThe Convergence Server uses the [SBT Native Packager](https://github.com/sbt/sbt-native-packager) to build its binary distribution. To stage the build run:
