@@ -13,53 +13,33 @@ package com.convergencelabs.convergence.server.domain
 
 import java.time.Instant
 
-import scala.collection.mutable
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
+import akka.actor.SupervisorStrategy.Resume
+import akka.actor.{ActorRef, OneForOneStrategy, Props, ReceiveTimeout, Status, Terminated}
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
-import com.convergencelabs.convergence.server.actor.ShardedActor
-import com.convergencelabs.convergence.server.actor.ShardedActorStatUpPlan
-import com.convergencelabs.convergence.server.actor.StartUpNotRequired
-import com.convergencelabs.convergence.server.actor.StartUpRequired
-import com.convergencelabs.convergence.server.datastore.domain.DomainNotFoundException
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.datastore.domain.DomainSession
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor
-import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.DomainDeleted
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.domainTopic
+import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpNotRequired, StartUpRequired}
+import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor.DomainNotFoundException
+import com.convergencelabs.convergence.server.datastore.domain._
+import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DomainDeleted, domainTopic}
 import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor
 import com.convergencelabs.convergence.server.domain.presence.PresenceServiceActor
 
-import akka.actor.ActorRef
-import akka.actor.OneForOneStrategy
-import akka.actor.Props
-import akka.actor.ReceiveTimeout
-import akka.actor.Status
-import akka.actor.SupervisorStrategy.Resume
-import akka.actor.Terminated
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
-import akka.cluster.pubsub.DistributedPubSubMediator.SubscribeAck
+import scala.collection.mutable
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
+import scala.util.{Failure, Success, Try}
 
 object DomainActor {
-  case class DomainActorChildren(
-    modelStoreActor: ActorRef,
-    operationStoreActor: ActorRef,
-    identityServiceActor: ActorRef,
-    presenceServiceActor: ActorRef,
-    chatChannelLookupActor: ActorRef)
 
-  def props(
-    protocolConfig: ProtocolConfiguration,
-    domainPersistenceManager: DomainPersistenceManager,
-    receiveTimeout: FiniteDuration): Props = Props(
+  case class DomainActorChildren(modelStoreActor: ActorRef,
+                                 operationStoreActor: ActorRef,
+                                 identityServiceActor: ActorRef,
+                                 presenceServiceActor: ActorRef,
+                                 chatChannelLookupActor: ActorRef)
+
+  def props(protocolConfig: ProtocolConfiguration,
+            domainPersistenceManager: DomainPersistenceManager,
+            receiveTimeout: FiniteDuration): Props = Props(
     new DomainActor(
       protocolConfig,
       domainPersistenceManager,
@@ -67,21 +47,22 @@ object DomainActor {
 }
 
 /**
- * The [[com.convergencelabs.convergence.server.domain.DomainActor]] is the supervisor for
- * all actor that comprise the services provided by a particular domain.
+ * The [[DomainActor]] is the supervisor for all actor that comprise the
+ * services provided by a particular domain. It is responsible for
+ * authenticating users into the domain and handling client connections
+ * and disconnections.
  */
-class DomainActor(
-  private[this] val protocolConfig: ProtocolConfiguration,
-  private[this] val domainPersistenceManager: DomainPersistenceManager,
-  private[this] val receiveTimeout: FiniteDuration)
+class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
+                  private[this] val domainPersistenceManager: DomainPersistenceManager,
+                  private[this] val receiveTimeout: FiniteDuration)
   extends ShardedActor(classOf[DomainMessage]) {
 
   import DomainActor._
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
       case e: Throwable => {
-        log.error(e, s"Actor at '${sender.path}' threw error")
+        log.error(e, s"Actor at '${sender.path}' threw exception")
         Resume
       }
     }
@@ -95,7 +76,7 @@ class DomainActor(
   private[this] var authenticator: AuthenticationHandler = _
   private[this] var children: DomainActorChildren = _
 
-  val mediator = DistributedPubSub(context.system).mediator
+  private[this] val mediator = DistributedPubSub(context.system).mediator
 
   def receiveInitialized: Receive = {
     case message: HandshakeRequest =>
@@ -110,9 +91,9 @@ class DomainActor(
       onReceiveTimeout()
     case SubscribeAck(_) =>
     // no-op
-    case DomainDeleted(domainFqn) =>
+    case DomainDeleted(_) =>
       domainDeleted()
-    case message: DomainStatusRequest =>
+    case _: DomainStatusRequest =>
       onStatusRequest()
     case message: Any =>
       unhandled(message)
@@ -133,71 +114,65 @@ class DomainActor(
         this.children.chatChannelLookupActor)
     } recover {
       case cause: Throwable =>
-        log.error(cause, s"${identityString}: Could not connect to domain database")
+        log.error(cause, s"$identityString: Could not connect to domain database")
         sender ! Status.Failure(HandshakeFailureException("domain_unavailable", "Could not connect to database."))
     }
   }
 
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Unit = {
-    log.debug(s"${identityString}: Processing authentication request: ${message.credentials.getClass.getSimpleName}")
+    log.debug(s"$identityString: Processing authentication request: ${message.credentials.getClass.getSimpleName}")
 
-    val asker = sender
+    val replyTo = sender
     val connected = Instant.now()
 
-    // FIXME Remove this try
-    try {
-      authenticator.authenticate(message.credentials) map {
-        case authSuccess @ AuthenticationSuccess(DomainUserSessionId(sessionId, userId), recconectToken) =>
-          log.debug(s"${identityString}: Authenticated user successfully, creating session")
+    authenticator.authenticate(message.credentials) map {
+      case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), reconnectToken) =>
+        log.debug(s"$identityString: Authenticated user successfully, creating session")
 
-          val method = message.credentials match {
-            case x: JwtAuthRequest => "jwt"
-            case x: ReconnectTokenAuthRequest => "reconnect"
-            case x: PasswordAuthRequest => "password"
-            case x: AnonymousAuthRequest => "anonymous"
-          }
+        val method = message.credentials match {
+          case _: JwtAuthRequest => "jwt"
+          case _: ReconnectTokenAuthRequest => "reconnect"
+          case _: PasswordAuthRequest => "password"
+          case _: AnonymousAuthRequest => "anonymous"
+        }
 
-          val session = DomainSession(
-            sessionId,
-            userId,
-            connected,
-            None,
-            method,
-            message.client,
-            message.clientVersion,
-            message.clientMetaData,
-            message.remoteAddress)
+        val session = DomainSession(
+          sessionId,
+          userId,
+          connected,
+          None,
+          method,
+          message.client,
+          message.clientVersion,
+          message.clientMetaData,
+          message.remoteAddress)
 
-          persistenceProvider.sessionStore.createSession(session) map { _ =>
-            log.debug(s"${identityString}: Session created replying to ClientActor")
-            authenticatedClients.put(message.clientActor, sessionId)
-            asker ! authSuccess
-          } recover {
-            case cause: Throwable =>
-              log.error(cause, s"${identityString} Unable to authenticate user because a session could not be created.")
-              asker ! AuthenticationFailure
-              ()
-          }
-        case AuthenticationFailure =>
-          log.debug(s"${identityString}: AuthenticationFailure")
-          asker ! AuthenticationFailure
-          ()
-      } recover {
-        case e: Throwable =>
-          log.error(e, s"There was an error authenticating the client")
-          asker ! AuthenticationFailure
-          ()
-      }
-    } catch {
+        persistenceProvider.sessionStore.createSession(session) map { _ =>
+          log.debug(s"$identityString: Session created replying to ClientActor")
+          authenticatedClients.put(message.clientActor, sessionId)
+          replyTo ! authSuccess
+        } recover {
+          case cause: Throwable =>
+            log.error(cause, s"$identityString Unable to authenticate user because a session could not be created.")
+            replyTo ! AuthenticationFailure
+            ()
+        }
+      case AuthenticationFailure =>
+        log.debug(s"$identityString: AuthenticationFailure")
+        replyTo ! AuthenticationFailure
+        ()
+    } recover {
       case e: Throwable =>
         log.error(e, s"There was an error authenticating the client")
+        replyTo ! AuthenticationFailure
+        ()
     }
-    
-    log.debug(s"${identityString}: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
+
+    log.debug(s"$identityString: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
   }
-  
+
   private[this] def onStatusRequest(): Unit = {
-      sender ! DomainStatusResponse(this.connectedClients.size)
+    sender ! DomainStatusResponse(this.connectedClients.size)
   }
 
   //
@@ -206,29 +181,29 @@ class DomainActor(
 
   private[this] def handleActorTermination(actorRef: ActorRef): Unit = {
     if (this.connectedClients.contains(actorRef)) {
-      log.debug(s"${identityString}: ClientActor Terminated without cleanly disconnecting. Removing it from the Domain.")
+      log.debug(s"$identityString: ClientActor Terminated without cleanly disconnecting. Removing it from the Domain.")
       removeClient(actorRef)
     }
   }
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
-    log.debug(s"${identityString}: Recevied ClientDisconnected message, disconnecting client")
+    log.debug(s"$identityString: Recevied ClientDisconnected message, disconnecting client")
     removeClient(message.clientActor)
   }
 
   private[this] def removeClient(client: ActorRef): Unit = {
     authenticatedClients.remove(client) match {
       case Some(sessionId) =>
-        log.debug(s"${identityString}: Disconnecting authenticated client : ${sessionId}")
+        log.debug(s"$identityString: Disconnecting authenticated client : $sessionId")
         persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
       case None =>
-        log.debug(s"${identityString}: Disconnecting unathenticated clienmt.")
+        log.debug(s"$identityString: Disconnecting unauthenticated client.")
     }
 
     connectedClients.remove(client)
 
     if (connectedClients.isEmpty) {
-      log.debug(s"${identityString}: Last client disconnected from domain, setting receive timeout for passivation.")
+      log.debug(s"$identityString: Last client disconnected from domain, setting receive timeout for passivation.")
       this.context.setReceiveTimeout(this.receiveTimeout)
     }
   }
@@ -238,7 +213,7 @@ class DomainActor(
   //
 
   private[this] def onReceiveTimeout(): Unit = {
-    log.debug(s"${identityString}: Receive timeout triggered, passivating")
+    log.debug(s"$identityString: Receive timeout triggered, passivating")
     this.context.setReceiveTimeout(Duration.Undefined)
     passivate()
   }
@@ -249,7 +224,7 @@ class DomainActor(
   }
 
   private[this] def domainDeleted(): Unit = {
-    log.error(s"${identityString}: Domain deleted, immediately passivating.")
+    log.error(s"$identityString: Domain deleted, immediately passivating.")
     passivate()
   }
 
@@ -265,9 +240,9 @@ class DomainActor(
   override def initialize(msg: DomainMessage): Try[ShardedActorStatUpPlan] = {
     mediator ! Subscribe(domainTopic(domainFqn), self)
 
-    log.debug(s"${identityString}: Aquiring domain persistence provider")
+    log.debug(s"$identityString: Acquiring domain persistence provider")
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
-      log.debug(s"${identityString}: Aquired domain persistence provider")
+      log.debug(s"$identityString: Acquired domain persistence provider")
 
       this.persistenceProvider = provider
       this.authenticator = new AuthenticationHandler(
@@ -280,8 +255,8 @@ class DomainActor(
         context.dispatcher)
 
       val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainFqn), IdentityServiceActor.RelativePath)
-      val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn),PresenceServiceActor.RelativePath)
-      val chatChannelLookupActor = context.actorOf(ChatLookupActor.props(provider),ChatLookupActor.RelativePath)
+      val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn), PresenceServiceActor.RelativePath)
+      val chatChannelLookupActor = context.actorOf(ChatLookupActor.props(provider), ChatLookupActor.RelativePath)
       val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
 
@@ -302,14 +277,14 @@ class DomainActor(
     } recoverWith {
       // This is a special case, we know the domain was not found. In theory this
       // should have been a handshake message, and we want to respond.
-      case cause: DomainNotFoundException =>
+      case _: DomainNotFoundException =>
         msg match {
           case msg: HandshakeRequest =>
             sender ! Status.Failure(HandshakeFailureException(
               "domain_not_found",
               s"The domain '${msg.domainFqn.namespace}/${msg.domainFqn.domainId}' does not exist."))
           case _ =>
-            log.warning(s"${identityString}: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
+            log.warning(s"$identityString: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
         }
         Success(StartUpNotRequired)
       case cause: Throwable =>
