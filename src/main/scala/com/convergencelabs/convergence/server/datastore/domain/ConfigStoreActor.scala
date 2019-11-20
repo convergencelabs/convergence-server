@@ -11,11 +11,9 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
-
-import akka.actor.ActorLogging
-import akka.actor.Props
 
 object ConfigStoreActor {
   def props(store: DomainConfigStore): Props = Props(new ConfigStoreActor(store))

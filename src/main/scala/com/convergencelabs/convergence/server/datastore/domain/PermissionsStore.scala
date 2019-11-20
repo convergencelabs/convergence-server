@@ -11,28 +11,17 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import scala.util.Try
+import java.util
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.setAsJavaSetConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore._
-import com.convergencelabs.convergence.server.domain.DomainUser
+import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
-import java.util.{ Set => JavaSet }
-
 import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.sql.OCommandSQL
-import java.util.HashSet
-import java.util.function.Predicate
-import com.orientechnologies.orient.core.sql.parser.ORid
-import com.orientechnologies.orient.core.index.OCompositeKey
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import scala.util.Success
-import com.convergencelabs.convergence.server.domain.DomainUserId
+
+import scala.util.{Success, Try}
 
 sealed trait Permission {
   val permission: String
@@ -249,7 +238,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         case Some(fr) =>
           Try {
             val forDoc = fr.getRecord[ODocument]
-            val permissions: JavaSet[ORID] = forDoc.field(Classes.Permission.Fields.Permissions)
+            val permissions: util.Set[ORID] = forDoc.field(Classes.Permission.Fields.Permissions)
             permissions.removeAll(permissions)
             forDoc.field(Classes.Permission.Fields.Permissions, permissions)
             forDoc.save()
@@ -257,7 +246,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         case None => Success(())
       }).flatMap { _ =>
         Try {
-          permissionRids foreach { db.delete(_) }
+          permissionRids foreach db.delete
         }
       }
     }
@@ -287,7 +276,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil
-      .queryAndMap(db, sb.toString(), params)(docToWorldPermission(_))
+      .queryAndMap(db, sb.toString(), params)(docToWorldPermission)
       .map(_.toSet)
   }
 
@@ -299,7 +288,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil
-      .queryAndMap(db, sb.toString(), params)(docToGroupPermission(_))
+      .queryAndMap(db, sb.toString(), params)(docToGroupPermission)
       .map(_.toSet)
   }
 
@@ -311,7 +300,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil
-      .queryAndMap(db, sb.toString(), params)(docToUserPermission(_))
+      .queryAndMap(db, sb.toString(), params)(docToUserPermission)
       .map(_.toSet)
   }
 
@@ -351,23 +340,23 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     params = addOptionFieldParam(sb, params, Classes.Permission.Fields.ForRecord, forRecord)
 
     OrientDBUtil
-      .queryAndMap(db, sb.toString(), params)(docToPermission(_))
+      .queryAndMap(db, sb.toString(), params)(docToPermission)
       .map(_.toSet)
   }
 
   private[this] def addPermissionsToSet(forRecord: ORID, permissions: Set[ORID]): Try[Unit] = tryWithDb { db =>
     val forDoc = forRecord.getRecord[ODocument]
-    val existingPermissions = Option(forDoc.getProperty(Classes.Permission.Fields.Permissions).asInstanceOf[JavaSet[ORID]])
-      .getOrElse(new HashSet[ORID].asInstanceOf[JavaSet[ORID]])
-    permissions.foreach(existingPermissions.add(_))
+    val existingPermissions = Option(forDoc.getProperty(Classes.Permission.Fields.Permissions).asInstanceOf[util.Set[ORID]])
+      .getOrElse(new util.HashSet[ORID].asInstanceOf[util.Set[ORID]])
+    permissions.foreach(existingPermissions.add)
     forDoc.setProperty(Classes.Permission.Fields.Permissions, existingPermissions)
     forDoc.save()
     ()
   }
 
   def getPermissionRid(permission: String, assignedTo: Option[ORID], forRecord: Option[ORID]): Try[ORID] = withDb { db =>
-    val assignedToRID = assignedTo.getOrElse(null)
-    val forRecordRID = forRecord.getOrElse(null)
+    val assignedToRID = assignedTo.orNull
+    val forRecordRID = forRecord.orNull
     OrientDBUtil.getIdentityFromSingleValueIndex(
       db,
       Classes.Permission.Indices.AssignedTo_ForRecord_Permission,

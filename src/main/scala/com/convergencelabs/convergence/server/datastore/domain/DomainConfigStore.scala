@@ -11,20 +11,16 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
+import com.convergencelabs.convergence.server.datastore.domain.DomainConfigStore.Fields
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import com.convergencelabs.convergence.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
-import com.convergencelabs.convergence.server.datastore.domain.mapper.ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
-import com.convergencelabs.convergence.server.domain.JwtKeyPair
-import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.domain.{JwtKeyPair, ModelSnapshotConfig}
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import DomainConfigStore.Fields
 import grizzled.slf4j.Logging
+
+import scala.util.Try
 
 object DomainConfigStore {
   object Fields {

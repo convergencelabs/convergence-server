@@ -195,7 +195,7 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
     authenticatedClients.remove(client) match {
       case Some(sessionId) =>
         log.debug(s"$identityString: Disconnecting authenticated client : $sessionId")
-        persistenceProvider.sessionStore.setSessionDisconneted(sessionId, Instant.now())
+        persistenceProvider.sessionStore.setSessionDisconnected(sessionId, Instant.now())
       case None =>
         log.debug(s"$identityString: Disconnecting unauthenticated client.")
     }

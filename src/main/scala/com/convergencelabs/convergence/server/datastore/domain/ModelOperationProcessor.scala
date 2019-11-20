@@ -17,7 +17,6 @@ import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersist
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.model.NewModelOperation
 import com.convergencelabs.convergence.server.domain.model.ot._
-import com.orientechnologies.common.io.OIOUtils
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument

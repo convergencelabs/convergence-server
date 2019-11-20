@@ -65,7 +65,7 @@ class SessionStoreSpec
         val session = DomainSession(sessionId, userId, truncatedInstantNow, None, authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         val disconnected = truncatedInstantNow
-        provider.sessionStore.setSessionDisconneted(sessionId, disconnected).get
+        provider.sessionStore.setSessionDisconnected(sessionId, disconnected).get
         val queried = provider.sessionStore.getSession(sessionId).get.value
         queried shouldBe session.copy(disconnected = Some(disconnected))
       }
@@ -76,7 +76,7 @@ class SessionStoreSpec
         val session = DomainSession(sessionId, userId, truncatedInstantNow, Some(originalTime), authMethod, client, clientVersion, "", remoteHost)
         provider.sessionStore.createSession(session).get
         provider.sessionStore.getSession(sessionId).get.value shouldBe session
-        provider.sessionStore.setSessionDisconneted(sessionId, newTime).failure 
+        provider.sessionStore.setSessionDisconnected(sessionId, newTime).failure
       }
     }
 

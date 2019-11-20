@@ -49,7 +49,7 @@ object ModelSnapshotStore {
         val doc: ODocument = db.newInstance(Classes.ModelSnapshot.ClassName)
         doc.setProperty(Classes.ModelSnapshot.Fields.Model, modelRid)
         doc.setProperty(Classes.ModelSnapshot.Fields.Version, modelSnapshot.metaData.version)
-        doc.setProperty(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli()))
+        doc.setProperty(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli))
         doc.setProperty(Classes.ModelSnapshot.Fields.Data, modelSnapshot.data.asODocument)
         doc
       }
@@ -80,7 +80,7 @@ object ModelSnapshotStore {
  * Manages the persistence of model snapshots.
  *
  * @constructor Creates a new ModelSnapshotStore using the provided database pool.
- * @param dbPool The database pool to use for connections.
+ * @param dbProvider The database pool to use for connections.
  */
 class ModelSnapshotStore private[domain] (
   private[this] val dbProvider: DatabaseProvider)
@@ -97,7 +97,7 @@ class ModelSnapshotStore private[domain] (
    * Creates a new snapshot in the database.  The combination of modelId and
    * version must be unique in the database.
    *
-   * @param snapshotData The snapshot to create.
+   * @param modelSnapshot The snapshot to create.
    */
   def createSnapshot(modelSnapshot: ModelSnapshot): Try[Unit] = withDb { db =>
     modelSnapshotToDoc(modelSnapshot, db)
@@ -117,24 +117,23 @@ class ModelSnapshotStore private[domain] (
    * version if it exists, or None if it does not.
    */
   def getSnapshot(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
-    val query = s"SELECT ${AllFields} FROM ModelSnapshot WHERE model.id = :modelId AND version = :version"
+    val query = s"SELECT $AllFields FROM ModelSnapshot WHERE model.id = :modelId AND version = :version"
     val params = Map(Constants.ModelId -> id, Classes.ModelSnapshot.Fields.Version -> version)
-    OrientDBUtil.findDocumentAndMap(db, query, params)(ModelSnapshotStore.docToModelSnapshot(_))
+    OrientDBUtil.findDocumentAndMap(db, query, params)(ModelSnapshotStore.docToModelSnapshot)
   }
 
   /**
    * Gets snapshots for the specified model.
    *
-   * @param ud The model id of the snapshot to get.
-   * @param version The version of the snapshot to get.
+   * @param id The model id of the snapshot to get.
    *
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
    * version if it exists, or None if it does not.
    */
   def getSnapshots(id: String): Try[List[ModelSnapshot]] = withDb { db =>
-    val query = s"SELECT ${AllFields} FROM ModelSnapshot WHERE model.id = :modelId"
+    val query = s"SELECT $AllFields FROM ModelSnapshot WHERE model.id = :modelId"
     val params = Map(Constants.ModelId -> id)
-    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshot(_))
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshot)
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -156,14 +155,14 @@ class ModelSnapshotStore private[domain] (
     limit: Option[Int],
     offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = withDb { db =>
     val baseQuery =
-      s"""SELECT ${MetaDataFields}
+      s"""SELECT $MetaDataFields
         |FROM ModelSnapshot
         |WHERE
         |  model.id = :modelId
         |ORDER BY version ASC""".stripMargin
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(Constants.ModelId -> id)
-    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData(_))
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData)
   }
 
   /**
@@ -174,7 +173,7 @@ class ModelSnapshotStore private[domain] (
    * @param startTime The lower time bound (defaults to the unix epoc)
    * @param endTime The upper time bound (defaults to now)
    * @param limit The maximum number of results to return.  If None, then all results are returned.
-   * @param offset The offest into the result list.  If None, the default is 0.
+   * @param offset The offset into the result list.  If None, the default is 0.
    *
    * @return A list of (paged) meta data for the specified model.
    */
@@ -185,7 +184,7 @@ class ModelSnapshotStore private[domain] (
     limit: Option[Int],
     offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = withDb { db =>
     val baseQuery =
-      s"""SELECT ${MetaDataFields}
+      s"""SELECT $MetaDataFields
         |FROM ModelSnapshot
         |WHERE
         |  model.id = :modelId AND
@@ -197,7 +196,7 @@ class ModelSnapshotStore private[domain] (
       Constants.ModelId -> id,
       "startTime" -> new java.util.Date(startTime.getOrElse(0L)),
       "endTime" -> new java.util.Date(endTime.getOrElse(Long.MaxValue)))
-    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData(_))
+    OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData)
   }
 
   /**
@@ -210,13 +209,13 @@ class ModelSnapshotStore private[domain] (
    */
   def getLatestSnapshotMetaDataForModel(id: String): Try[Option[ModelSnapshotMetaData]] = withDb { db =>
     val query =
-      s"""SELECT ${MetaDataFields}
+      s"""SELECT $MetaDataFields
         |FROM ModelSnapshot
         |WHERE
         |  model.id = :modelId
         |ORDER BY version DESC LIMIT 1""".stripMargin
     val params = Map(Constants.ModelId -> id)
-    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshotMetaData(_))
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshotMetaData)
   }
 
   def getClosestSnapshotByVersion(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
@@ -224,7 +223,7 @@ class ModelSnapshotStore private[domain] (
       s"""SELECT
         |  abs($$current.version - $version) as abs_delta,
         |  $$current.version - $version as delta,
-        |  ${AllFields}
+        |  $AllFields
         |FROM ModelSnapshot
         |WHERE
         |  model.id = :modelId
@@ -233,7 +232,7 @@ class ModelSnapshotStore private[domain] (
         |  delta DESC
         |LIMIT 1""".stripMargin
     val params = Map(Constants.ModelId -> id, Classes.ModelSnapshot.Fields.Version -> version)
-    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshot(_))
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshot)
   }
 
   /////////////////////////////////////////////////////////////////////////////

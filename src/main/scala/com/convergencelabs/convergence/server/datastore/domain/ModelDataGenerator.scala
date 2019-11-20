@@ -13,14 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
+import com.convergencelabs.convergence.server.domain.model.data._
 
 
 object ModelDataGenerator {
@@ -31,8 +24,8 @@ object ModelDataGenerator {
 }
 
 class ModelDataGenerator() {
-  val ServerIdPrefix = "0:";
-  var id: Int = 0;
+  val ServerIdPrefix = "0:"
+  var id: Int = 0
 
   def create(data: Map[String, Any]): ObjectValue = {
     map(data).asInstanceOf[ObjectValue]
@@ -42,7 +35,7 @@ class ModelDataGenerator() {
     value match {
       case obj: Map[Any, Any] @ unchecked =>
         if (obj.contains("$convergenceType")) {
-          DateValue(nextId(), Instant.parse(obj.get("value").toString()))
+          DateValue(nextId(), Instant.parse(obj.get("value").toString))
         } else {
           val children = obj map {
             case (k, v) => (k.toString, this.map(v))

@@ -11,11 +11,9 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
-
-import akka.actor.ActorLogging
-import akka.actor.Props
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
+import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 
 object JwtAuthKeyStoreActor {
   def props(keyStore: JwtAuthKeyStore): Props = Props(new JwtAuthKeyStoreActor(keyStore))

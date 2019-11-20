@@ -12,34 +12,21 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
-import java.util.Date
-import java.util.{ Set => JavaSet }
+import java.util.{Date, Set => JavaSet}
 
-import scala.collection.JavaConverters.asScalaSetConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.collection.JavaConverters.setAsJavaSetConverter
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.MultipleValuesException
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
 import grizzled.slf4j.Logging
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserId
+
+import scala.collection.JavaConverters.{asScalaSetConverter, seqAsJavaListConverter, setAsJavaSetConverter}
+import scala.util.{Failure, Success, Try}
 
 case class Chat(
   id:         String,
@@ -182,10 +169,11 @@ object ChatStore {
     Chat(
       doc.getProperty(Classes.Chat.Fields.Id),
       ChatType.parse(doc.getProperty(Classes.Chat.Fields.Type)),
-      created.toInstant(),
-      doc.getProperty(Classes.Chat.Fields.Private).asInstanceOf[Boolean] match {
-        case true  => ChatMembership.Private
-        case false => ChatMembership.Public
+      created.toInstant,
+      if (doc.getProperty(Classes.Chat.Fields.Private).asInstanceOf[Boolean]) {
+        ChatMembership.Private
+      } else {
+        ChatMembership.Public
       },
       doc.getProperty(Classes.Chat.Fields.Name),
       doc.getProperty(Classes.Chat.Fields.Topic))
@@ -223,28 +211,28 @@ object ChatStore {
           val userType = doc.getProperty(Classes.User.Fields.UserType).asInstanceOf[String]
           DomainUserId(DomainUserType.withName(userType), username)
         }
-        ChatCreatedEvent(eventNo, chatId, user, timestamp.toInstant(), name, topic, userIds)
+        ChatCreatedEvent(eventNo, chatId, user, timestamp.toInstant, name, topic, userIds)
       case Classes.ChatMessageEvent.ClassName =>
         val message: String = doc.getProperty(Classes.ChatMessageEvent.Fields.Message)
-        ChatMessageEvent(eventNo, chatId, user, timestamp.toInstant(), message)
+        ChatMessageEvent(eventNo, chatId, user, timestamp.toInstant, message)
       case Classes.ChatUserJoinedEvent.ClassName =>
-        ChatUserJoinedEvent(eventNo, chatId, user, timestamp.toInstant())
+        ChatUserJoinedEvent(eventNo, chatId, user, timestamp.toInstant)
       case Classes.ChatUserLeftEvent.ClassName =>
-        ChatUserLeftEvent(eventNo, chatId, user, timestamp.toInstant())
+        ChatUserLeftEvent(eventNo, chatId, user, timestamp.toInstant)
       case Classes.ChatUserAddedEvent.ClassName =>
         val userAdded = doc.eval("userAdded.username").asInstanceOf[String]
         val userType = doc.eval("userAdded.userType").asInstanceOf[String]
-        ChatUserAddedEvent(eventNo, chatId, user, timestamp.toInstant(), DomainUserId(DomainUserType.withName(userType), userAdded))
+        ChatUserAddedEvent(eventNo, chatId, user, timestamp.toInstant, DomainUserId(DomainUserType.withName(userType), userAdded))
       case Classes.ChatUserRemovedEvent.ClassName =>
         val userRemoved = doc.eval("userRemoved.username").asInstanceOf[String]
         val userType = doc.eval("userRemoved.userType").asInstanceOf[String]
-        ChatUserRemovedEvent(eventNo, chatId, user, timestamp.toInstant(), DomainUserId(DomainUserType.withName(userType), userRemoved))
+        ChatUserRemovedEvent(eventNo, chatId, user, timestamp.toInstant, DomainUserId(DomainUserType.withName(userType), userRemoved))
       case Classes.ChatTopicChangedEvent.ClassName =>
         val topic: String = doc.getProperty(Classes.ChatTopicChangedEvent.Fields.Topic)
-        ChatTopicChangedEvent(eventNo, chatId, user, timestamp.toInstant(), topic)
+        ChatTopicChangedEvent(eventNo, chatId, user, timestamp.toInstant, topic)
       case Classes.ChatNameChangedEvent.ClassName =>
         val name: String = doc.getProperty(Classes.ChatNameChangedEvent.Fields.Name)
-        ChatNameChangedEvent(eventNo, chatId, user, timestamp.toInstant(), name)
+        ChatNameChangedEvent(eventNo, chatId, user, timestamp.toInstant, name)
       case _ =>
         throw new IllegalArgumentException(s"Unknown Chat Event class name: ${className}")
     }
@@ -272,9 +260,10 @@ object ChatStore {
       id,
       ChatType.parse(chatType),
       created,
-      isPrivate match {
-        case true  => ChatMembership.Private
-        case false => ChatMembership.Public
+      if (isPrivate) {
+        ChatMembership.Private
+      } else {
+        ChatMembership.Public
       },
       name,
       topic,
@@ -289,11 +278,11 @@ object ChatStore {
 }
 
 class ChatStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
-  import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
   import ChatStore._
+  import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
 
   def findChats(types: Option[Set[String]], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[ChatInfo]] = withDb { db =>
-    val chatTypes = types.getOrElse(Set(ChatType.Channel.toString().toLowerCase(), ChatType.Room.toString().toLowerCase()))
+    val chatTypes = types.getOrElse(Set(ChatType.Channel.toString.toLowerCase(), ChatType.Room.toString.toLowerCase()))
 
     val (whereClause, whereParams) = filter match {
       case Some(filter) =>
@@ -370,13 +359,13 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
        |  chat.id == :chatId""".stripMargin
   def getChatInfo(chatId: String): Try[ChatInfo] = withDb { db =>
     val params = Map("chatId" -> chatId)
-    OrientDBUtil.getDocument(db, GetChatInfoQuery, params).map(toChatInfo(_))
+    OrientDBUtil.getDocument(db, GetChatInfoQuery, params).map(toChatInfo)
   }
 
   def getChat(chatId: String): Try[Chat] = withDb { db =>
     ChatStore.getChatRid(chatId, db)
       .flatMap(rid => Try(rid.getRecord[ODocument]))
-      .map(docToChat(_))
+      .map(docToChat)
   }
 
   def createChat(
@@ -440,13 +429,11 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       OrientDBUtil
         .findDocument(db, query, params)
         .flatMap {
-          _ match {
-            case Some(doc) =>
-              val id: String = doc.getProperty("id")
-              this.getChatInfo(id).map(Some(_))
-            case None =>
-              Success(None)
-          }
+          case Some(doc) =>
+            val id: String = doc.getProperty("id")
+            this.getChatInfo(id).map(Some(_))
+          case None =>
+            Success(None)
         }
     }
   }
@@ -693,7 +680,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       .flatMap { chatRid =>
         val results = userIds.map { userId =>
           DomainUserStore.getUserRid(userId, db)
-            .flatMap(userRid => addChatMemeber(db, chatRid, userRid, seen))
+            .flatMap(userRid => addChatMember(db, chatRid, userRid, seen))
         }
 
         Try(results.map(_.get)).map(_ => ())
@@ -704,11 +691,11 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     for {
       chatRid <- ChatStore.getChatRid(chatId, db)
       userRid <- DomainUserStore.getUserRid(userId, db)
-      _ <- addChatMemeber(db, chatRid, userRid, seen)
+      _ <- addChatMember(db, chatRid, userRid, seen)
     } yield (())
   }
 
-  private[this] def addChatMemeber(db: ODatabaseDocument, chatRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {
+  private[this] def addChatMember(db: ODatabaseDocument, chatRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {
     val doc = db.newElement(Classes.ChatMember.ClassName)
     doc.setProperty(Classes.ChatMember.Fields.Chat, chatRid)
     doc.setProperty(Classes.ChatMember.Fields.User, userRid)
@@ -732,7 +719,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       |UPDATE Chat REMOVE members = $member WHERE id = $chatId;
       |DELETE FROM (SELECT expand($member));
       |COMMIT;
-      """.stripMargin;
+      """.stripMargin
     
     val params = Map("chatId" -> chatId, "username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil.execute(db, script, params).map(_ => ())
@@ -766,26 +753,28 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
 
     val fwd = forward.getOrElse(false)
-    val eventNoClaue = startEvent map { eventNo =>
-      val operator = fwd match {
-        case true  => ">="
-        case false => "<="
+    val eventNoClause = startEvent map { eventNo =>
+      val operator = if (fwd) {
+        ">="
+      } else {
+        "<="
       }
       params("startEventNo") = eventNo
-      s" AND eventNo ${operator} :startEventNo"
-    } getOrElse ("")
+      s" AND eventNo $operator :startEventNo"
+    } getOrElse ""
 
-    val orderBy = fwd match {
-      case true  => "ASC"
-      case false => "DESC"
+    val orderBy = if (fwd) {
+      "ASC"
+    } else {
+      "DESC"
     }
 
-    val baseQuery = s"SELECT FROM ChatEvent WHERE chat.id = :chatId ${eventTypesClause} ${eventNoClaue} ORDER BY eventNo ${orderBy}"
+    val baseQuery = s"SELECT FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause ORDER BY eventNo $orderBy"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), Some(0))
 
     OrientDBUtil
       .query(db, query, params.toMap)
-      .map(_.map(docToChatEvent(_)).sortWith((e1, e2) => e1.eventNumber < e2.eventNumber))
+      .map(_.map(docToChatEvent).sortWith((e1, e2) => e1.eventNumber < e2.eventNumber))
   }
 
   def getChatRid(channelId: String): Try[ORID] = withDb { db =>

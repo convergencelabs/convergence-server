@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.datastore.domain
 import java.time.Instant
 import java.util.Date
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.mapper.OrientDBOperationMapper
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.model.{ModelOperation, NewModelOperation}

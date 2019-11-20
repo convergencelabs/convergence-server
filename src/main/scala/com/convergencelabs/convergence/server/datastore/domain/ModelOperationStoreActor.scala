@@ -11,10 +11,8 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
-
-import akka.actor.ActorLogging
-import akka.actor.Props
 
 object ModelOperationStoreActor {
   val RelativePath = "ModelOperationStoreActor"

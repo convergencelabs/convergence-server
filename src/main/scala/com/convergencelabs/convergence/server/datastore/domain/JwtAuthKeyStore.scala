@@ -14,22 +14,15 @@ package com.convergencelabs.convergence.server.datastore.domain
 import java.time.Instant
 import java.util.Date
 
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
+import com.convergencelabs.convergence.server.datastore.domain.schema.JwtAuthKeyClass.{ClassName, Fields, Indices}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import com.convergencelabs.convergence.server.datastore.domain.schema.JwtAuthKeyClass.ClassName
-import com.convergencelabs.convergence.server.datastore.domain.schema.JwtAuthKeyClass.Fields
-import com.convergencelabs.convergence.server.datastore.domain.schema.JwtAuthKeyClass.Indices
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
-import JwtAuthKeyStore.KeyInfo
 import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Try}
 
 object JwtAuthKeyStore {
 
@@ -39,7 +32,7 @@ object JwtAuthKeyStore {
     val doc = new ODocument(ClassName)
     doc.setProperty(Fields.Id, jwtAuthKey.id)
     doc.setProperty(Fields.Description, jwtAuthKey.description)
-    doc.setProperty(Fields.Updated, new Date(jwtAuthKey.updated.toEpochMilli()))
+    doc.setProperty(Fields.Updated, new Date(jwtAuthKey.updated.toEpochMilli))
     doc.setProperty(Fields.Key, jwtAuthKey.key)
     doc.setProperty(Fields.Enabled, jwtAuthKey.enabled)
     doc
@@ -68,7 +61,7 @@ class JwtAuthKeyStore private[datastore] (
     val query = OrientDBUtil.buildPagedQuery(GetKeysQuery, limit, offset)
     OrientDBUtil
       .query(db, query)
-      .map(_.map(docToJwtAuthKey(_)))
+      .map(_.map(docToJwtAuthKey))
   }
 
   private[this] val GetKeyQuery = "SELECT * FROM JwtAuthKey WHERE id = :id"
@@ -76,7 +69,7 @@ class JwtAuthKeyStore private[datastore] (
     val params = Map(Fields.Id -> id)
     OrientDBUtil
       .findDocument(db, GetKeyQuery, params)
-      .map(_.map(docToJwtAuthKey(_)))
+      .map(_.map(docToJwtAuthKey))
   }
 
   def createKey(key: KeyInfo): Try[Unit] = {

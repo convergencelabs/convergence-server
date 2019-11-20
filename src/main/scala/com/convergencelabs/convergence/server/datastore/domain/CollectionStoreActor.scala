@@ -11,13 +11,9 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.model.Collection
-
-import CollectionStoreActor.GetCollection
-import CollectionStoreActor.GetCollections
-import akka.actor.ActorLogging
-import akka.actor.Props
 
 object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))

@@ -11,19 +11,14 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import scala.collection.JavaConverters._
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
 import java.util.Date
+
+import com.convergencelabs.convergence.server.domain.model.data._
+import com.orientechnologies.orient.core.db.record.OIdentifiable
+import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import scala.collection.JavaConverters._
 
 object OrientDataValueBuilder {
 

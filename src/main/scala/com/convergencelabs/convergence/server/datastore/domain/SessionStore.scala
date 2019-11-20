@@ -11,28 +11,23 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import java.lang.{ Long => JavaLong }
+import java.lang.{Long => JavaLong}
 import java.time.Instant
 import java.util.Date
 
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
+import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
+import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
 import grizzled.slf4j.Logging
-import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
+
 import scala.collection.JavaConverters._
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserType
+import scala.util.{Failure, Try}
 
 case class DomainSession(
   id: String,
@@ -78,7 +73,7 @@ object SessionStore {
     DomainSession(
       doc.field(Fields.Id),
       DomainUserId(DomainUserType.withName(userType), username),
-      connected.toInstant(),
+      connected.toInstant,
       disconnected map { _.toInstant() },
       doc.field(Fields.AuthMethod),
       doc.field(Fields.Client),
@@ -115,24 +110,24 @@ class SessionStore(dbProvider: DatabaseProvider)
         ()
       }
     }
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue
 
   def getSession(sessionId: String): Try[Option[DomainSession]] = withDb { db =>
     val query = "SELECT * FROM DomainSession WHERE id = :id"
     val params = Map("id" -> sessionId)
-    OrientDBUtil.findDocumentAndMap(db, query, params)(SessionStore.docToSession(_))
+    OrientDBUtil.findDocumentAndMap(db, query, params)(SessionStore.docToSession)
   }
 
   def getAllSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = withDb { db =>
     val baseQuery = s"SELECT * FROM DomainSession ORDER BY connected DESC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    OrientDBUtil.queryAndMap(db, query, Map())(SessionStore.docToSession(_))
+    OrientDBUtil.queryAndMap(db, query, Map())(SessionStore.docToSession)
   }
 
   private[this] val GetSessionsQuery = "SELECT * FROM DomainSession WHERE id IN :ids"
   def getSessions(sessionIds: Set[String]): Try[List[DomainSession]] = withDb { db =>
     val params = Map("ids" -> sessionIds.toList.asJava)
-    OrientDBUtil.queryAndMap(db, GetSessionsQuery, params)(SessionStore.docToSession(_))
+    OrientDBUtil.queryAndMap(db, GetSessionsQuery, params)(SessionStore.docToSession)
   }
   
   def getSessions(
@@ -148,22 +143,22 @@ class SessionStore(dbProvider: DatabaseProvider)
     var terms = List[String]()
 
     sessionId.foreach(sId => {
-      params = params + ("id" -> s"%${sId}%")
+      params = params + ("id" -> s"%$sId%")
       terms = "id LIKE :id" :: terms
     })
 
     username.foreach(un => {
-      params = params + ("username" -> s"%${un}%")
+      params = params + ("username" -> s"%$un%")
       terms = "user.username LIKE :username" :: terms
     })
 
     remoteHost.foreach(rh => {
-      params = params + ("remoteHost" -> s"%${rh}%")
+      params = params + ("remoteHost" -> s"%$rh%")
       terms = "remoteHost LIKE :remoteHost" :: terms
     })
 
     authMethod.foreach(am => {
-      params = params + ("authMethod" -> s"%${am}%")
+      params = params + ("authMethod" -> s"%$am%")
       terms = "authMethod LIKE :authMethod" :: terms
     })
 
@@ -183,26 +178,26 @@ class SessionStore(dbProvider: DatabaseProvider)
         "WHERE " + list.mkString(" AND ")
     }
 
-    val baseQuery = s"SELECT * FROM DomainSession ${where} ORDER BY connected DESC"
+    val baseQuery = s"SELECT * FROM DomainSession $where ORDER BY connected DESC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    OrientDBUtil.queryAndMap(db, query, params)(SessionStore.docToSession(_))
+    OrientDBUtil.queryAndMap(db, query, params)(SessionStore.docToSession)
   }
 
   def getConnectedSessionsCount(sessionType: SessionQueryType.Value): Try[Long] = withDb { db =>
-    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND ${t} ").getOrElse("")
-    val query = s"SELECT count(*) as count FROM DomainSession WHERE disconnected IS NOT DEFINED ${typeWhere}"
+    val typeWhere = this.getSessionTypeClause(sessionType).map(t => s"AND $t ").getOrElse("")
+    val query = s"SELECT count(*) as count FROM DomainSession WHERE disconnected IS NOT DEFINED $typeWhere"
     OrientDBUtil
       .getDocument(db, query, Map())
       .map(_.field("count").asInstanceOf[Long])
   }
 
-  def setSessionDisconneted(sessionId: String, disconnectedTime: Instant): Try[Unit] = withDb { db =>
+  def setSessionDisconnected(sessionId: String, disconnectedTime: Instant): Try[Unit] = withDb { db =>
     val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id = :sessionId"
     val params = Map("disconnected" -> Date.from(disconnectedTime), "sessionId" -> sessionId)
     OrientDBUtil.mutateOneDocument(db, query, params)
   }
 
-  private def getSessionTypeClause(sessionType: SessionQueryType.Value): Option[String] = {
+  private[this] def getSessionTypeClause(sessionType: SessionQueryType.Value): Option[String] = {
     sessionType match {
       case SessionQueryType.All =>
         None

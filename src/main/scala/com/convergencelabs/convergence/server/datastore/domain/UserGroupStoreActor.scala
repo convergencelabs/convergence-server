@@ -12,11 +12,9 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
-
-import akka.actor.ActorLogging
-import akka.actor.Props
 
 object UserGroupStoreActor {
   def props(groupStore: UserGroupStore): Props = Props(new UserGroupStoreActor(groupStore))

@@ -11,16 +11,12 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import scala.util.Success
-
-import com.convergencelabs.convergence.server.datastore.SortOrder
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.UpdateDomainUser
-
-import akka.actor.ActorLogging
-import akka.actor.Props
+import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.datastore.{SortOrder, StoreActor}
+import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.domain.DomainUserId
+
+import scala.util.Success
 
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
@@ -98,8 +94,8 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def createUser(message: CreateUser): Unit = {
     val CreateUser(username, firstName, lastName, displayName, email, password) = message
-    val domainuser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
-    val result = userStore.createNormalDomainUser(domainuser) flatMap { createResult =>
+    val domainUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
+    val result = userStore.createNormalDomainUser(domainUser) flatMap { createResult =>
       // FIXME this only works as a hack because of the way our create result works.
       password match {
         case None =>
@@ -115,8 +111,8 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def updateUser(message: UpdateUser): Unit = {
     val UpdateUser(username, firstName, lastName, displayName, email, disabled) = message
-    val domainuser = UpdateDomainUser(DomainUserId.normal(username), firstName, lastName, displayName, email, disabled);
-    reply(userStore.updateDomainUser(domainuser))
+    val domainUser = UpdateDomainUser(DomainUserId.normal(username), firstName, lastName, displayName, email, disabled);
+    reply(userStore.updateDomainUser(domainUser))
   }
 
   def setPassword(message: SetPassword): Unit = {

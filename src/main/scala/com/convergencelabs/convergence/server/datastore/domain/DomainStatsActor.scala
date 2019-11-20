@@ -11,15 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import scala.util.Try
-
+import akka.actor.{Actor, ActorLogging, Props, Status}
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.util.concurrent.UnexpectedErrorException
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.actor.Status
+import scala.util.Try
 
 object DomainStatsActor {
   def props(persistence: DomainPersistenceProvider): Props =

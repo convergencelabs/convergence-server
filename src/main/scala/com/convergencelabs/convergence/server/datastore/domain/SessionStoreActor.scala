@@ -11,13 +11,9 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
+import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
-
-import akka.actor.ActorLogging
-import akka.actor.Props
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserType
 
 object SessionStoreActor {
   def props(sessionStore: SessionStore): Props = Props(new SessionStoreActor(sessionStore))
