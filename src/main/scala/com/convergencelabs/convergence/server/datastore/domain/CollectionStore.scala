@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Duration
 
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.domain.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
@@ -137,10 +138,9 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
       .flatMap(_ => getCollection(collectionId).map(_.get))
   }
 
-  def getAllCollections(
-                         idFilter: Option[String],
-                         offset: Option[Int],
-                         limit: Option[Int]): Try[List[Collection]] = withDb { db =>
+  def getAllCollections(idFilter: Option[String],
+                        offset: Option[Int],
+                        limit: Option[Int]): Try[PagedData[Collection]] = withDb { db =>
     val (whereClause, whereParams) = idFilter match {
       case Some(filter) =>
         val w = " WHERE id.toLowerCase() LIKE :filter"
@@ -151,17 +151,20 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
     }
     val queryString = s"SELECT * FROM Collection$whereClause ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(queryString, limit, offset)
-    OrientDBUtil
-      .query(db, query, whereParams)
-      .map(_.map(CollectionStore.docToCollection))
+    val countQuery = s"SELECT count(*) as count FROM Collection$whereClause ORDER BY id ASC"
+    for {
+      count <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(_.getProperty("count").asInstanceOf[Long])
+      collections <- OrientDBUtil
+        .query(db, query, whereParams)
+        .map(_.map(CollectionStore.docToCollection))
+    } yield {
+      PagedData[Collection](collections, offset.getOrElse(0).asInstanceOf[Long], count)
+    }
   }
 
-  def getCollectionSummaries(
-                              filter: Option[String],
-                              offset: Option[Int],
-                              limit: Option[Int]): Try[List[CollectionSummary]] = withDb { db =>
-
-    val modelCountQuery = "SELECT count(*) as count, collection.id as collectionId FROM Model GROUP BY (collection)"
+  def getCollectionSummaries(filter: Option[String],
+                             offset: Option[Int],
+                             limit: Option[Int]): Try[PagedData[CollectionSummary]] = withDb { db =>
     val (whereClause, whereParams) = filter match {
       case Some(filter) =>
         val w = " WHERE id.toLowerCase() LIKE :filter OR description.toLowerCase() LIKE :filter"
@@ -171,18 +174,27 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
         ("", Map[String, Any]())
     }
     val baseQuery = s"SELECT id, description FROM Collection$whereClause ORDER BY id ASC"
+    val countQuery = s"SELECT count(*) as count FROM Collection$whereClause ORDER BY id ASC"
     val collectionsQuery = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     for {
       allCollections <- OrientDBUtil.query(db, collectionsQuery, whereParams)
-      modelsPerCollection <- OrientDBUtil.query(db, modelCountQuery)
+      collectionCount <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(_.getProperty("count").asInstanceOf[Long])
+      modelsPerCollection <- {
+        val collectionRids = allCollections.map(_.getIdentity)
+        val modelCountQuery = "SELECT count(*) as count, collection.id as collectionId FROM Model WHERE collection IN :collections GROUP BY (collection)"
+        val params = Map("collections" -> collectionRids)
+        OrientDBUtil.query(db, modelCountQuery, params)
+      }
     } yield {
       val modelCounts = modelsPerCollection.map(t => t.getProperty("collectionId").asInstanceOf[String] -> t.getProperty("count")).toMap
-      allCollections map { doc =>
+      val summaries = allCollections map { doc =>
         val id: String = doc.getProperty(Fields.Id)
         val description: String = doc.getProperty(Fields.Description)
         val count: Long = modelCounts.getOrElse(id, 0)
         CollectionSummary(id, description, count.toInt)
       }
+
+      PagedData[CollectionSummary](summaries, offset.getOrElse(0).asInstanceOf[Long], collectionCount)
     }
   }
 

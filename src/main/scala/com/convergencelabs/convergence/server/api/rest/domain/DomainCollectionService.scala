@@ -18,48 +18,49 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
 import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor._
-import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.domain.model.Collection
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object DomainCollectionService {
+
   case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
-  case class CollectionData(
-    id: String,
-    description: String,
-    worldPermissions: CollectionPermissionsData,
-    overrideSnapshotPolicy: Boolean,
-    snapshotPolicy: ModelSnapshotPolicyData)
 
-  case class CollectionUpdateData(
-    description: String,
-    worldPermissions: CollectionPermissionsData,
-    overrideSnapshotPolicy: Boolean,
-    snapshotPolicy: ModelSnapshotPolicyData)
+  case class CollectionData(id: String,
+                            description: String,
+                            worldPermissions: CollectionPermissionsData,
+                            overrideSnapshotPolicy: Boolean,
+                            snapshotPolicy: ModelSnapshotPolicyData)
 
-  case class CollectionSummaryData(
-    id: String,
-    description: String,
-    modelCount: Int)
+  case class CollectionUpdateData(description: String,
+                                  worldPermissions: CollectionPermissionsData,
+                                  overrideSnapshotPolicy: Boolean,
+                                  snapshotPolicy: ModelSnapshotPolicyData)
+
+  case class CollectionSummaryData(id: String,
+                                   description: String,
+                                   modelCount: Int)
+
 }
 
-class DomainCollectionService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val timeout: Timeout,
-  private[this] val domainRestActor: ActorRef)
+class DomainCollectionService(private[this] val executionContext: ExecutionContext,
+                              private[this] val timeout: Timeout,
+                              private[this] val domainRestActor: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
   import DomainCollectionService._
-  import akka.pattern.ask
+
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("collections") {
@@ -97,13 +98,16 @@ class DomainCollectionService(
     }
   }
 
-  def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollections(filter, offset, limit))
-    (domainRestActor ? message).mapTo[List[Collection]] map (collections =>
-      okResponse(collections.map(collectionToCollectionData)))
+    (domainRestActor ? message).mapTo[PagedData[Collection]] map { results =>
+      val collections = results.data.map(collectionToCollectionData)
+      val response = PagedRestResponse(collections, results.offset, results.count)
+      okResponse(response)
+    }
   }
 
-  def getCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
+  private[this] def getCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollection(collectionId))
     (domainRestActor ? message).mapTo[Option[Collection]] map {
       case Some(collection) => okResponse(collectionToCollectionData(collection))
@@ -111,52 +115,55 @@ class DomainCollectionService(
     }
   }
 
-  def createCollection(domain: DomainId, collectionData: CollectionData): Future[RestResponse] = {
+  private[this] def createCollection(domain: DomainId, collectionData: CollectionData): Future[RestResponse] = {
     val collection = this.collectionDataToCollection(collectionData)
     val message = DomainRestMessage(domain, CreateCollection(collection))
     (domainRestActor ? message) map { _ => CreatedResponse }
   }
 
-  def updateCollection(domain: DomainId, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
-    val CollectionUpdateData(description, worldPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData;
+  private[this] def updateCollection(domain: DomainId, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
+    val CollectionUpdateData(description, worldPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData
     val collectionData = CollectionData(collectionId, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     val collection = this.collectionDataToCollection(collectionData)
     val message = DomainRestMessage(domain, UpdateCollection(collectionId, collection))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def deleteCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
+  private[this] def deleteCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, DeleteCollection(collectionId))
     (domainRestActor ? message) map { _ => OkResponse }
   }
 
-  def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetCollectionSummaries(filter, offset, limit))
-    (domainRestActor ? message).mapTo[List[CollectionSummary]] map (collections =>
-      okResponse(collections.map { c =>
+    (domainRestActor ? message).mapTo[PagedData[CollectionSummary]] map { results =>
+      val collections = results.data.map { c =>
         val CollectionSummary(id, desc, count) = c
         CollectionSummaryData(id, desc, count)
-      }))
+      }
+      val response = PagedRestResponse(collections, results.offset, results.count)
+      okResponse(response)
+    }
   }
 
-  def collectionDataToCollection(collectionData: CollectionData): Collection = {
+  private[this] def collectionDataToCollection(collectionData: CollectionData): Collection = {
     val CollectionData(
-      id,
-      description,
-      CollectionPermissionsData(read, write, remove, manage, create),
-      overrideSnapshotConfig,
-      ModelSnapshotPolicyData(
-        snapshotsEnabled,
-        triggerByVersion,
-        maximumVersionInterval,
-        limitByVersion,
-        minimumVersionInterval,
-        triggerByTime,
-        maximumTimeInterval,
-        limitByTime,
-        minimumTimeInterval
-        )
-      ) = collectionData
+    id,
+    description,
+    CollectionPermissionsData(read, write, remove, manage, create),
+    overrideSnapshotConfig,
+    ModelSnapshotPolicyData(
+    snapshotsEnabled,
+    triggerByVersion,
+    maximumVersionInterval,
+    limitByVersion,
+    minimumVersionInterval,
+    triggerByTime,
+    maximumTimeInterval,
+    limitByTime,
+    minimumTimeInterval
+    )
+    ) = collectionData
     val snapshotConfig = ModelSnapshotConfig(
       snapshotsEnabled,
       triggerByVersion,
@@ -171,24 +178,24 @@ class DomainCollectionService(
     collection
   }
 
-  def collectionToCollectionData(collection: Collection): CollectionData = {
+  private[this] def collectionToCollectionData(collection: Collection): CollectionData = {
     val Collection(
-      id,
-      description,
-      overrideSnapshotConfig,
-      ModelSnapshotConfig(
-        snapshotsEnabled,
-        triggerByVersion,
-        limitByVersion,
-        minimumVersionInterval,
-        maximumVersionInterval,
-        triggerByTime,
-        limitByTime,
-        minimumTimeInterval,
-        maximumTimeInterval
-        ),
-      CollectionPermissions(create, read, write, remove, manage)
-      ) = collection
+    id,
+    description,
+    overrideSnapshotConfig,
+    ModelSnapshotConfig(
+    snapshotsEnabled,
+    triggerByVersion,
+    limitByVersion,
+    minimumVersionInterval,
+    maximumVersionInterval,
+    triggerByTime,
+    limitByTime,
+    minimumTimeInterval,
+    maximumTimeInterval
+    ),
+    CollectionPermissions(create, read, write, remove, manage)
+    ) = collection
     val snapshotConfig = ModelSnapshotPolicyData(
       snapshotsEnabled,
       triggerByVersion,

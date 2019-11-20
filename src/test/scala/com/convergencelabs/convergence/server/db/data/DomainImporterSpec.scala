@@ -81,7 +81,7 @@ class DomainImporterSpec extends WordSpecLike with Matchers {
         provider.userStore.validateCredentials("test1", "somePassword").get shouldBe true
         provider.userStore.getDomainUserPasswordHash("test2").get.value shouldBe "someHash"
 
-        val collections = provider.collectionStore.getAllCollections(None, None, None).get
+        val collections = provider.collectionStore.getAllCollections(None, None, None).get.data
         collections.size shouldBe 1
         collections.head shouldBe Collection(
           "collection1",
