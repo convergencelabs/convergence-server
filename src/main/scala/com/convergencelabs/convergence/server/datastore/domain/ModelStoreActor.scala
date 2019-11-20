@@ -46,11 +46,12 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
 
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
     val QueryModelsRequest(userId, query) = request
+    val uid: Option[DomainUserId] = if (userId.userType == DomainUserType.Convergence) {
+      None
+    } else {
+      Some(userId)
+    }
 
-    val uid = Option(userId).flatMap(u => u match {
-      case DomainUserType.Convergence => None
-      case _ => Some(u)
-    })
     reply(persistenceProvider.modelStore.queryModels(query, uid))
   }
 
@@ -74,7 +75,7 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
                 OfflineModelNotUpdate()
               case (p, m) =>
                 // At least one is different.
-                OfflineModelUpdated(m,p)
+                OfflineModelUpdated(m, p)
             }
           }
         } else {

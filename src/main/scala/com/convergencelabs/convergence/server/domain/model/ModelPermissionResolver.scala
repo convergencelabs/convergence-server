@@ -37,7 +37,7 @@ class ModelPermissionResolver() {
           }
         } else {
           permissionsStore.getCollectionWorldPermissionsForModel(id).flatMap { collectionPerms =>
-            val CollectionPermissions(create, read, write, remove, manage) = collectionPerms
+            val CollectionPermissions(_, read, write, remove, manage) = collectionPerms
             Success(ModelPermissions(read, write, remove, manage))
           }
         }
