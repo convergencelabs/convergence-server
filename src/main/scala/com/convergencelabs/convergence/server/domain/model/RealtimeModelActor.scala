@@ -199,11 +199,11 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
   }
 
   private[this] def domainFqn = this._domainFqn.getOrElse {
-    throw new IllegalStateException("Can not access domainFqn before the model is initialized.")
+    throw new IllegalStateException("Can not access domainId before the model is initialized.")
   }
 
   private[this] def modelId = this._modelId.getOrElse {
-    throw new IllegalStateException("Can not access domainFqn before the model is initialized.")
+    throw new IllegalStateException("Can not access modelId before the model is initialized.")
   }
 
   private[this] def persistenceProvider = this._persistenceProvider.getOrElse {
