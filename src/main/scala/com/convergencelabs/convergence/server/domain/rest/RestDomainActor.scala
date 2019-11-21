@@ -72,7 +72,6 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
   private[this] var statsActor: ActorRef = _
   private[this] var collectionStoreActor: ActorRef = _
   private[this] var modelStoreActor: ActorRef = _
-  private[this] var modelLookupActor: ActorRef = _
   private[this] var modelPermissionsStoreActor: ActorRef = _
   private[this] var keyStoreActor: ActorRef = _
   private[this] var sessionStoreActor: ActorRef = _
@@ -136,7 +135,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
   }
 
   override protected def initialize(msg: DomainRestMessage): Try[ShardedActorStatUpPlan] = {
-    log.debug(s"DomainActor initializing: '{}'", msg.domainFqn)
+    log.debug("RestDomainActor initializing: '{}'", msg.domainFqn)
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       domainConfigStore = provider.configStore
       statsActor = context.actorOf(DomainStatsActor.props(provider))
@@ -161,9 +160,9 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
 
   override protected def passivate(): Unit = {
     super.passivate()
-    Option(this.domainFqn).map { d =>
+    Option(this.domainFqn).foreach( d =>
       domainPersistenceManager.releasePersistenceProvider(self, context, d)
-    }
+    )
   }
   
   override protected def setIdentityData(message: DomainRestMessage): Try[String] = {

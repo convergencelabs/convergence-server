@@ -57,15 +57,14 @@ case class DeleteRealtimeModel(domainId: DomainId, modelId: String, session: Opt
 // Incoming Permissions Messages
 case class GetModelPermissionsRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId) extends StatelessModelMessage
 
-case class SetModelPermissionsRequest(
-                                       domainId: DomainId,
-                                       modelId: String,
-                                       session: DomainUserSessionId,
-                                       overrideCollection: Option[Boolean],
-                                       worldPermissions: Option[ModelPermissions],
-                                       setAllUsers: Boolean,
-                                       addedUserPermissions: Map[DomainUserId, ModelPermissions],
-                                       removedUserPermissions: List[DomainUserId]) extends StatelessModelMessage
+case class SetModelPermissionsRequest(domainId: DomainId,
+                                      modelId: String,
+                                      session: DomainUserSessionId,
+                                      overrideCollection: Option[Boolean],
+                                      worldPermissions: Option[ModelPermissions],
+                                      setAllUserPermissions: Boolean,
+                                      addedUserPermissions: Map[DomainUserId, ModelPermissions],
+                                      removedUserPermissions: List[DomainUserId]) extends StatelessModelMessage
 
 //
 // Messages targeted specifically at "open" models.

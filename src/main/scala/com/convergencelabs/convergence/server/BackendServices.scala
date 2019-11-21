@@ -134,7 +134,7 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
 
     // This bootstraps the subsystem that handles REST calls for domains.
     // Since the number of domains is unbounded, these actors are sharded.
-    RestDomainActorSharding.start(system, shardCount, RestDomainActor.props(DomainPersistenceManagerActor, receiveTimeout))
+    RestDomainActorSharding.start(system, shardCount, List(DomainPersistenceManagerActor, receiveTimeout))
 
     logger.info("Convergence Backend Services started up.")
   }
