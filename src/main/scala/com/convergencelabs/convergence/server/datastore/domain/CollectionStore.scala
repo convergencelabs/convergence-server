@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Duration
+import java.util
 
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
@@ -27,6 +28,7 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
+import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -173,16 +175,16 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
       case None =>
         ("", Map[String, Any]())
     }
-    val baseQuery = s"SELECT id, description FROM Collection$whereClause ORDER BY id ASC"
+    val baseQuery = s"SELECT @rid, id, description FROM Collection$whereClause ORDER BY id ASC"
     val countQuery = s"SELECT count(*) as count FROM Collection$whereClause ORDER BY id ASC"
     val collectionsQuery = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     for {
       allCollections <- OrientDBUtil.query(db, collectionsQuery, whereParams)
       collectionCount <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(_.getProperty("count").asInstanceOf[Long])
       modelsPerCollection <- {
-        val collectionRids = allCollections.map(_.getIdentity)
+        val collectionRids = allCollections.map(_.getProperty("@rid").asInstanceOf[ORID])
         val modelCountQuery = "SELECT count(*) as count, collection.id as collectionId FROM Model WHERE collection IN :collections GROUP BY (collection)"
-        val params = Map("collections" -> collectionRids)
+        val params = Map("collections" -> new util.ArrayList(collectionRids.asJava))
         OrientDBUtil.query(db, modelCountQuery, params)
       }
     } yield {
