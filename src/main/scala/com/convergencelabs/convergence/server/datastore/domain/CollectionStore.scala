@@ -153,7 +153,7 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
     }
     val queryString = s"SELECT * FROM Collection$whereClause ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(queryString, limit, offset)
-    val countQuery = s"SELECT count(*) as count FROM Collection$whereClause ORDER BY id ASC"
+    val countQuery = s"SELECT count(*) as count FROM Collection$whereClause"
     for {
       count <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(_.getProperty("count").asInstanceOf[Long])
       collections <- OrientDBUtil
