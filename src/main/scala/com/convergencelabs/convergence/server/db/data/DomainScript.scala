@@ -37,6 +37,7 @@ case class CreateDomainUser(
   lastName: Option[String],
   displayName: Option[String],
   email: Option[String],
+  lastLogin: Option[Instant],
   disabled: Boolean,
   deleted: Boolean,
   deletedUsername: Option[String],

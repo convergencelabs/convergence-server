@@ -82,6 +82,7 @@ object DomainUserStore {
     obj.lastName.foreach(doc.setProperty(Fields.LastName, _))
     obj.displayName.foreach(doc.setProperty(Fields.DisplayName, _))
     obj.email.foreach(doc.setProperty(Fields.Email, _))
+    obj.lastLogin.foreach(doc.setProperty(Fields.LastLogin, _))
     doc.setProperty(Fields.Disabled, obj.disabled)
     doc.setProperty(Fields.Deleted, obj.deleted)
     obj.deletedUsername.foreach(doc.setProperty(Fields.DeletedUsername, _))
@@ -96,6 +97,7 @@ object DomainUserStore {
       Option(doc.getProperty(Fields.LastName)),
       Option(doc.getProperty(Fields.DisplayName)),
       Option(doc.getProperty(Fields.Email)),
+      Option(doc.getProperty(Fields.LastLogin)),
       doc.getProperty(Fields.Disabled),
       doc.getProperty(Fields.Deleted),
       Option(doc.getProperty(Fields.DeletedUsername)))
@@ -154,6 +156,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
       domainUser.lastName,
       domainUser.displayName,
       domainUser.email,
+      None,
       disabled = false,
       deleted = false,
       None)
@@ -170,6 +173,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
         None,
         displayName,
         None,
+        None,
         disabled = false,
         deleted = false,
         None)
@@ -185,6 +189,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
       None,
       None,
       Some(convergenceUsername),
+      None,
       None,
       disabled = false,
       deleted = false,

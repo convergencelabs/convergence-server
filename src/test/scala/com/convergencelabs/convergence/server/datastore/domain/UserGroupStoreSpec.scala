@@ -11,27 +11,22 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import org.scalatest.Matchers
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
+import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
-
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import org.scalatest.{Matchers, WordSpecLike}
 
 class UserGroupStoreSpec
     extends PersistenceStoreSpec[(UserGroupStore, DomainUserStore)](DeltaCategory.Domain)
     with WordSpecLike
     with Matchers {
 
-  val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
-  val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
-  val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"))
+  val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
+  val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
+  val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"), None)
 
   val group1 = UserGroup("id1", "group 1", Set(User1.toUserId, User2.toUserId))
   val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.toUserId, User2.toUserId))

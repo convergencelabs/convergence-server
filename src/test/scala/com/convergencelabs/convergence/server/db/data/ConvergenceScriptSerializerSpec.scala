@@ -52,8 +52,8 @@ class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
         jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", true))
 
         domainUsers.value shouldBe List(
-          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), false, false, None, Some(SetPassword("plaintext", "somePassword"))),
-          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), false, false, None, Some(SetPassword("hash", "someHash"))))
+          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None, false, false, None, Some(SetPassword("plaintext", "somePassword"))),
+          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None, false, false, None, Some(SetPassword("hash", "someHash"))))
 
         sessions.value shouldBe List(
           CreateDomainSession(

@@ -16,8 +16,9 @@ import java.time.Instant
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor._
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
@@ -39,8 +40,6 @@ class ConvergenceUserService(
   private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
   import ConvergenceUserService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
@@ -107,7 +106,7 @@ class ConvergenceUserService(
 
   private[this] def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
     val message = DeleteConvergenceUserRequest(username)
-    (userManagerActor ? message) map { _ => CreatedResponse }
+    (userManagerActor ? message) map { _ => DeletedResponse }
   }
 
   private[this] def updateUser(username: String, updateData: UpdateUserData): Future[RestResponse] = {

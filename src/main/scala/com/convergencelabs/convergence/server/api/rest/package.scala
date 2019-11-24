@@ -49,6 +49,7 @@ package object rest {
 
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val CreatedResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
+  val DeletedResponse: RestResponse = (StatusCodes.Gone, SuccessRestResponse())
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
   val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
   val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))
@@ -68,6 +69,7 @@ package object rest {
   def namespaceNotFoundResponse(namespace: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("namespace_not_found", None, Some(Map("namespace" -> namespace))))
   
   def okResponse(data: Any): RestResponse = (StatusCodes.OK, SuccessRestResponse(data))
+  def deletedResponse(data: Any): RestResponse = (StatusCodes.Gone, SuccessRestResponse(data))
   def createdResponse(data: Any): RestResponse = (StatusCodes.Created, SuccessRestResponse(data))
   def response(code: StatusCode, data: Any): RestResponse = (code, SuccessRestResponse(data))
 

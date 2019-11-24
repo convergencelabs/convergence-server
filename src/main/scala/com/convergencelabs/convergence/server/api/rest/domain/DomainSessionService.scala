@@ -16,8 +16,9 @@ import java.time.Instant
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, complete, get, parameters, pathEnd, pathPrefix}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, complete, get, parameters, pathEnd, pathPrefix}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{RestResponse, notFoundResponse, okResponse}
 import com.convergencelabs.convergence.server.datastore.domain.DomainSession
@@ -31,28 +32,26 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
 object DomainSessionService {
-  case class DomainSessionData(
-    id: String,
-    username: String,
-    userType: String,
-    connected: Instant,
-    disconnected: Option[Instant],
-    authMethod: String,
-    client: String,
-    clientVersion: String,
-    clientMetaData: String,
-    remoteHost: String)
+
+  case class DomainSessionData(id: String,
+                               username: String,
+                               userType: String,
+                               connected: Instant,
+                               disconnected: Option[Instant],
+                               authMethod: String,
+                               client: String,
+                               clientVersion: String,
+                               clientMetaData: String,
+                               remoteHost: String)
+
 }
 
-class DomainSessionService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val timeout: Timeout,
-  private[this] val domainRestActor: ActorRef)
+class DomainSessionService(private[this] val executionContext: ExecutionContext,
+                           private[this] val timeout: Timeout,
+                           private[this] val domainRestActor: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
   import DomainSessionService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("sessions") {
@@ -63,23 +62,22 @@ class DomainSessionService(
             "username".as[String].?,
             "remoteHost".as[String].?,
             "authMethod".as[String].?,
-            "excludeDisconnected".as[Boolean]?,
-            "sessionType".as[String]?,
+            "excludeDisconnected".as[Boolean] ?,
+            "sessionType".as[String] ?,
             "limit".as[Int].?,
-            "offset".as[Int].?) { (sessionId, sessionUsername, remoteHost, authMethod, excludeDisconnected, sessionType, limit, offset) =>
-              {
-                complete(getSessions(
-                  domain,
-                  sessionId,
-                  sessionUsername,
-                  remoteHost,
-                  authMethod,
-                  excludeDisconnected,
-                  sessionType,
-                  limit,
-                  offset))
-              }
-            }
+            "offset".as[Int].?) { (sessionId, sessionUsername, remoteHost, authMethod, excludeDisconnected, sessionType, limit, offset) => {
+            complete(getSessions(
+              domain,
+              sessionId,
+              sessionUsername,
+              remoteHost,
+              authMethod,
+              excludeDisconnected,
+              sessionType,
+              limit,
+              offset))
+          }
+          }
         }
       } ~ pathPrefix(Segment) { sessionId =>
         pathEnd {
@@ -91,16 +89,15 @@ class DomainSessionService(
     }
   }
 
-  def getSessions(
-    domain: DomainId,
-    sessionId: Option[String],
-    username: Option[String],
-    remoteHost: Option[String],
-    authMethod: Option[String],
-    excludeDisconnected: Option[Boolean],
-    sessionType: Option[String],
-    limit: Option[Int],
-    offset: Option[Int]): Future[RestResponse] = {
+  private[this] def getSessions(domain: DomainId,
+                                sessionId: Option[String],
+                                username: Option[String],
+                                remoteHost: Option[String],
+                                authMethod: Option[String],
+                                excludeDisconnected: Option[Boolean],
+                                sessionType: Option[String],
+                                limit: Option[Int],
+                                offset: Option[Int]): Future[RestResponse] = {
 
     val st = sessionType
       .flatMap(t => SessionQueryType.withNameOpt(t))
@@ -120,7 +117,7 @@ class DomainSessionService(
       okResponse(sessions.map(sessionToSessionData)))
   }
 
-  def getSession(domain: DomainId, sessionId: String): Future[RestResponse] = {
+  private[this] def getSession(domain: DomainId, sessionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetSession(sessionId))
     (domainRestActor ? message).mapTo[Option[DomainSession]] map {
       case Some(sessions) => okResponse(sessionToSessionData(sessions))
@@ -128,17 +125,17 @@ class DomainSessionService(
     }
   }
 
-  def sessionToSessionData(session: DomainSession): DomainSessionData = {
+  private[this] def sessionToSessionData(session: DomainSession): DomainSessionData = {
     val DomainSession(
-      id,
-      userId,
-      connected,
-      disconnected,
-      authMethod,
-      client,
-      clientVersion,
-      clientMetaData,
-      remoteHost) = session
+    id,
+    userId,
+    connected,
+    disconnected,
+    authMethod,
+    client,
+    clientVersion,
+    clientMetaData,
+    remoteHost) = session
 
     DomainSessionData(
       id,

@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Duration
 
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
@@ -24,7 +25,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
-    extends PersistenceStoreSpec[CollectionStore](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[CollectionStore](DeltaCategory.Domain)
     with WordSpecLike
     with Matchers {
 
@@ -50,7 +51,7 @@ class CollectionStoreSpec
     limitedByTime = false,
     Duration.ofSeconds(0),
     Duration.ofSeconds(0))
-    
+
   val collectionPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
 
   val peopleCollection = Collection(peopleCollectionId, "People", overrideSnapshotConfig = true, snapshotConfig, collectionPermissions)
@@ -112,10 +113,10 @@ class CollectionStoreSpec
         val existing = store.getCollection(peopleCollectionId).get.value
         val newId = "newId"
         val updated = existing.copy(
-            id = newId,
-            description = "updatedPeople",
-            overrideSnapshotConfig = false,
-            snapshotConfig = snapshotConfig)
+          id = newId,
+          description = "updatedPeople",
+          overrideSnapshotConfig = false,
+          snapshotConfig = snapshotConfig)
         store.updateCollection(existing.id, updated).get
         store.getCollection(newId).get.value shouldBe updated
         store.getCollection(peopleCollectionId).get shouldBe None
@@ -143,10 +144,10 @@ class CollectionStoreSpec
         store.createCollection(teamCollection).get
 
         val list = store.getAllCollections(None, None, None).get
-        list shouldBe List(
+        list shouldBe PagedData(List(
           companyCollection,
           peopleCollection,
-          teamCollection)
+          teamCollection), 0, 3)
       }
 
       "return only the limited number of meta data when limit provided" in withPersistenceStore { store =>
@@ -155,7 +156,7 @@ class CollectionStoreSpec
         store.createCollection(teamCollection).get
 
         val list = store.getAllCollections(None, None, Some(1)).get
-        list shouldBe List(companyCollection)
+        list shouldBe PagedData(List(companyCollection), 0, 3)
       }
 
       "return only the limited number of meta data when offset provided" in withPersistenceStore { store =>
@@ -163,10 +164,8 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None,Some(1), None).get
-        list shouldBe List(
-          peopleCollection,
-          teamCollection)
+        val list = store.getAllCollections(None, Some(1), None).get
+        list shouldBe PagedData(List(peopleCollection, teamCollection), 1, 3)
       }
 
       "return only the limited number of meta data when limit and offset provided" in withPersistenceStore { store =>
@@ -175,7 +174,7 @@ class CollectionStoreSpec
         store.createCollection(teamCollection).get
 
         val list = store.getAllCollections(None, Some(1), Some(1)).get
-        list shouldBe List(peopleCollection)
+        list shouldBe PagedData(List(peopleCollection), 1, 3)
       }
     }
 
@@ -184,7 +183,7 @@ class CollectionStoreSpec
         store.createCollection(companyCollection).get
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
-        
+
         store.getCollection(peopleCollectionId).get shouldBe defined
         store.getCollection(companyCollectionId).get shouldBe defined
         store.getCollection(teamCollectionId).get shouldBe defined

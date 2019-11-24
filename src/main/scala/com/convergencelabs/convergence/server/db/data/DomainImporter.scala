@@ -11,71 +11,29 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import java.time.{ Duration => JavaDuration }
 import java.time.temporal.ChronoUnit
+import java.time.{Duration}
+
+import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProvider, DomainSession, ModelPermissions}
+import com.convergencelabs.convergence.server.domain._
+import com.convergencelabs.convergence.server.domain.model._
+import com.convergencelabs.convergence.server.domain.model.data._
+import com.convergencelabs.convergence.server.domain.model.ot._
+import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.domain.JwtAuthKey
-import com.convergencelabs.convergence.server.domain.JwtKeyPair
-import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
-import com.convergencelabs.convergence.server.domain.model.Collection
-import com.convergencelabs.convergence.server.domain.model.Model
-import com.convergencelabs.convergence.server.domain.model.ModelMetaData
-import com.convergencelabs.convergence.server.domain.model.ModelOperation
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshot
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshotMetaData
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayMoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDiscreteOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringSetOperation
-
-import grizzled.slf4j.Logging
-import com.convergencelabs.convergence.server.datastore.domain.DomainSession
-import com.convergencelabs.convergence.server.domain.model.NewModelOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import java.time.Duration
-import com.sun.media.sound.ModelPerformer
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissions
-import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.convergence.server.domain.DomainUserId
-
 object DomainImporter {
   // FIXME we actually need to import / export this.
-  // right now we are not exporting it, and hard coding this on the way in.
+  //  right now we are not exporting it, and hard coding this on the way in.
   val DefaultSnapshotConfig = ModelSnapshotConfig(
-    false,
-    false,
-    false,
+    snapshotsEnabled = false,
+    triggerByVersion = false,
+    limitedByVersion = false,
     1000,
     1000,
-    false,
-    false,
+    triggerByTime = false,
+    limitedByTime = false,
     Duration.ofMillis(600000),
     Duration.ofMillis(600000))
 }
@@ -111,16 +69,16 @@ class DomainImporter(
       case false =>
         // FIXME we need to abstract how the DomainDBController is doing this.
         val defaultSnapshotConfig = ModelSnapshotConfig(
-          false,
-          false,
-          false,
+          snapshotsEnabled = false,
+          triggerByVersion = false,
+          limitedByVersion = false,
           250,
           1000,
-          false,
-          false,
-          JavaDuration.of(0, ChronoUnit.MINUTES),
-          JavaDuration.of(0, ChronoUnit.MINUTES))
-        persistence.configStore.initializeDomainConfig(keyPair, defaultSnapshotConfig, false)
+          triggerByTime = false,
+          limitedByTime = false,
+          Duration.of(0, ChronoUnit.MINUTES),
+          Duration.of(0, ChronoUnit.MINUTES))
+        persistence.configStore.initializeDomainConfig(keyPair, defaultSnapshotConfig, anonymousAuthEnabled = false)
     } flatMap { _ =>
       persistence.configStore.setAnonymousAuthEnabled(data.config.anonymousAuth)
     }
@@ -141,7 +99,7 @@ class DomainImporter(
   }
 
   def createUsers(): Try[Unit] = Try {
-    logger.debug("Importting domain users")
+    logger.debug("Importing domain users")
     data.users foreach (_.foreach { userData =>
       val user = DomainUser(
         DomainUserType.withNameOpt(userData.userType).get,
@@ -150,6 +108,7 @@ class DomainImporter(
         userData.lastName,
         userData.displayName,
         userData.email,
+        userData.lastLogin,
         userData.disabled,
         userData.deleted,
         userData.deletedUsername)
@@ -184,16 +143,16 @@ class DomainImporter(
       val collection = Collection(
         collectionData.id,
         collectionData.name,
-        false,
+        overrideSnapshotConfig = false,
         DomainImporter.DefaultSnapshotConfig,
-        CollectionPermissions(true, true, true, true, true))
+        CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true))
       persistence.collectionStore.createCollection(collection).get
     })
   }
 
   def createModels(): Try[Unit] = Try {
-    logger.debug("Importting models")
-    data.models foreach (_.foreach(createModel(_)))
+    logger.debug("Importing models")
+    data.models foreach (_.foreach(createModel))
   }
 
   //FIXME: import permissions
@@ -207,8 +166,8 @@ class DomainImporter(
         modelData.version,
         modelData.created,
         modelData.modified,
-        true,
-        ModelPermissions(true, true, true, true),
+        overridePermissions = true,
+        ModelPermissions(read = true, write = true, remove = true, manage = true),
         1),
       data)
 
@@ -224,7 +183,7 @@ class DomainImporter(
         val converted = children map { case (k, v) => (k, createDataValue(v)) }
         ObjectValue(vId, converted)
       case CreateArrayValue(vId, children) =>
-        val converted = children map (createDataValue(_))
+        val converted = children map createDataValue
         ArrayValue(vId, converted)
       case CreateDoubleValue(vId, value) =>
         DoubleValue(vId, value)
@@ -274,13 +233,13 @@ class DomainImporter(
         AppliedStringSetOperation(vId, noOp, value, oldValue)
 
       case CreateObjectSetPropertyOperation(vId, noOp, property, value, oldValue) =>
-        AppliedObjectSetPropertyOperation(vId, noOp, property, createDataValue(value), oldValue map (createDataValue(_)))
+        AppliedObjectSetPropertyOperation(vId, noOp, property, createDataValue(value), oldValue map createDataValue)
 
       case CreateObjectAddPropertyOperation(vId, noOp, property, value) =>
         AppliedObjectAddPropertyOperation(vId, noOp, property, createDataValue(value))
 
       case CreateObjectRemovePropertyOperation(vId, noOp, property, oldValue) =>
-        AppliedObjectRemovePropertyOperation(vId, noOp, property, oldValue map (createDataValue(_)))
+        AppliedObjectRemovePropertyOperation(vId, noOp, property, oldValue map createDataValue)
 
       case CreateObjectSetOperation(vId, noOp, value, oldValue) =>
         val convertedValue = value map (x => (x._1, createDataValue(x._2)))
@@ -300,16 +259,16 @@ class DomainImporter(
         AppliedArrayInsertOperation(vId, noOp, index, createDataValue(value))
 
       case CreateArrayRemoveOperation(vId, noOp, index, oldValue) =>
-        AppliedArrayRemoveOperation(vId, noOp, index, oldValue map (createDataValue(_)))
+        AppliedArrayRemoveOperation(vId, noOp, index, oldValue map createDataValue)
 
       case CreateArrayReplaceOperation(vId, noOp, index, value, oldValue) =>
-        AppliedArrayReplaceOperation(vId, noOp, index, createDataValue(value), oldValue map (createDataValue(_)))
+        AppliedArrayReplaceOperation(vId, noOp, index, createDataValue(value), oldValue map createDataValue)
 
       case CreateArrayReorderOperation(vId, noOp, fromIndex, toIndex) =>
         AppliedArrayMoveOperation(vId, noOp, fromIndex, toIndex)
 
       case CreateArraySetOperation(vId, noOp, value, oldValue) =>
-        AppliedArraySetOperation(vId, noOp, value map (createDataValue(_)), oldValue map (_.map(createDataValue(_))))
+        AppliedArraySetOperation(vId, noOp, value map createDataValue, oldValue map (_.map(createDataValue)))
 
       case CreateDateSetOperation(vId, noOp, value, oldValue) =>
         AppliedDateSetOperation(vId, noOp, value, oldValue)

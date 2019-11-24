@@ -100,8 +100,8 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         val pwHash = persistence.userStore.getDomainUserPasswordHash(domainUser.username).get map { hash =>
           SetPassword("hash", hash)
         }
-        val DomainUser(userType, username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername) = domainUser
-        CreateDomainUser(userType.toString.toLowerCase, username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername, pwHash)
+        val DomainUser(userType, username, firstName, lastName, displayName, email, lastLogin, disabled, deleted, deletedUsername) = domainUser
+        CreateDomainUser(userType.toString.toLowerCase, username, firstName, lastName, displayName, email, lastLogin, disabled, deleted, deletedUsername, pwHash)
       }
     }
   }

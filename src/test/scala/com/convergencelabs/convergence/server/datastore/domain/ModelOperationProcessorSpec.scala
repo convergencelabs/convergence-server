@@ -66,12 +66,12 @@ class ModelOperationProcessorSpec
   with Matchers {
 
   val username = "test"
-  val user = DomainUser(DomainUserType.Normal, username, None, None, None, None)
+  val user = DomainUser(DomainUserType.Normal, username, None, None, None, None, None)
 
   val sid = "u1-1"
-  val session = DomainSession(sid, DomainUserId.normal(username), truncatedInstantNow, None, "jwt", "js", "1.0", "", "127.0.0.1")
+  val session = DomainSession(sid, DomainUserId.normal(username), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
-  val modelPermissions = ModelPermissions(true, true, true, true)
+  val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
   val startingVersion = 100
 
@@ -81,9 +81,9 @@ class ModelOperationProcessorSpec
     person1Id,
     peopleCollectionId,
     startingVersion,
-    truncatedInstantNow,
-    truncatedInstantNow,
-    true,
+    truncatedInstantNow(),
+    truncatedInstantNow(),
+    overridePermissions = true,
     modelPermissions,
     1)
 
@@ -107,14 +107,14 @@ class ModelOperationProcessorSpec
   val marriedField = "married"
   val bornField = "born"
 
-  val bornDate = truncatedInstantNow.minus(Duration.ofDays(6000))
+  val bornDate: Instant = truncatedInstantNow().minus(Duration.ofDays(6000))
 
   val person1Data = ObjectValue(person1VID, Map(
     fnameField -> StringValue(fnameVID, "john"),
     lnameField -> StringValue(lnameVID, "smith"),
     ageField -> DoubleValue(ageVID, 26),
     bornField -> DateValue(bornVID, bornDate),
-    marriedField -> BooleanValue(marriedVID, false),
+    marriedField -> BooleanValue(marriedVID, value = false),
     spouseField -> NullValue(spouseVID),
     emailsField -> ArrayValue(emailsVID, List(
       StringValue(email1VID, "first@email.com"),
@@ -128,8 +128,8 @@ class ModelOperationProcessorSpec
 
     "applying a noOp'ed discrete operation" must {
       "not apply the operation" in withTestData { provider =>
-        val op = AppliedStringInsertOperation(fnameVID, true, 0, "abc")
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedStringInsertOperation(fnameVID, noOp = true, 0, "abc")
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "john")
@@ -138,36 +138,36 @@ class ModelOperationProcessorSpec
 
     "applying a compound operation" must {
       "apply all operations in the compound operation" in withTestData { provider =>
-        val op1 = AppliedStringInsertOperation(fnameVID, false, 0, "x")
-        val op2 = AppliedStringInsertOperation(fnameVID, false, 1, "y")
+        val op1 = AppliedStringInsertOperation(fnameVID, noOp = false, 0, "x")
+        val op2 = AppliedStringInsertOperation(fnameVID, noOp = false, 1, "y")
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, compound)
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xyjohn")
       }
 
       "apply all operations in rename compound operation" in withTestData { provider =>
-        val op1 = AppliedObjectRemovePropertyOperation(person1VID, false, lnameField, Some(StringValue("oldId", "oldValue")))
-        val op2 = AppliedObjectAddPropertyOperation(person1VID, false, "newName", StringValue("idididi", "somethingelse"))
+        val op1 = AppliedObjectRemovePropertyOperation(person1VID, noOp = false, lnameField, Some(StringValue("oldId", "oldValue")))
+        val op2 = AppliedObjectAddPropertyOperation(person1VID, noOp = false, "newName", StringValue("idididi", "somethingelse"))
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, compound)
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children("newName") shouldEqual StringValue("idididi", "somethingelse")
       }
 
       "not apply noOp'ed operations in the compound operation" in withTestData { provider =>
-        val op1 = AppliedStringInsertOperation(fnameVID, false, 0, "x")
-        val op2 = AppliedStringInsertOperation(fnameVID, true, 1, "y")
+        val op1 = AppliedStringInsertOperation(fnameVID, noOp = false, 0, "x")
+        val op2 = AppliedStringInsertOperation(fnameVID, noOp = true, 1, "y")
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, compound)
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, compound)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "xjohn")
@@ -176,8 +176,8 @@ class ModelOperationProcessorSpec
 
     "applying string operations" must {
       "correctly update the model on StringInsert" in withTestData { provider =>
-        val op = AppliedStringInsertOperation(fnameVID, false, 0, "abc")
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedStringInsertOperation(fnameVID, noOp = false, 0, "abc")
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -185,8 +185,8 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on StringRemove" in withTestData { provider =>
-        val op = AppliedStringRemoveOperation(fnameVID, false, 1, 2, Some("Oh"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedStringRemoveOperation(fnameVID, noOp = false, 1, 2, Some("Oh"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -194,8 +194,8 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on StringSet" in withTestData { provider =>
-        val op = AppliedStringSetOperation(fnameVID, false, "new string", Some("oldValue"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedStringSetOperation(fnameVID, noOp = false, "new string", Some("oldValue"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -206,52 +206,49 @@ class ModelOperationProcessorSpec
     "applying array operations" must {
       "correctly update the model on ArrayInsert" in withTestData { provider =>
         val insertVal = ObjectValue("pp1-f1", Map("field1" -> StringValue("pp1-sv", "someValue"), "field2" -> DoubleValue("pp1-5", 5)))
-        val op = AppliedArrayInsertOperation(emailsVID, false, 0, insertVal)
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArrayInsertOperation(emailsVID, noOp = false, 0, insertVal)
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) => {
-            children(0) shouldBe insertVal
-          }
+          case ArrayValue(vid, children) =>
+            children.head shouldBe insertVal
           case _ => fail
         }
       }
 
       "correctly update the model on ArrayRemove" in withTestData { provider =>
-        val op = AppliedArrayRemoveOperation(emailsVID, false, 0, Some(StringValue("oldId", "removedValue")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArrayRemoveOperation(emailsVID, noOp = false, 0, Some(StringValue("oldId", "removedValue")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) => {
+          case ArrayValue(vid, children) =>
             children.size shouldBe 2
-          }
           case _ => fail
         }
       }
 
       "correctly update the model on ArrayReplace" in withTestData { provider =>
         val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
-        val op = AppliedArrayReplaceOperation(emailsVID, false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArrayReplaceOperation(emailsVID, noOp = false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) => {
-            children(0) shouldBe replaceVal
+          case ArrayValue(vid, children) =>
+            children.head shouldBe replaceVal
             children.size shouldBe 3
-          }
           case _ => fail
         }
       }
 
       "correctly update the model on ArrayMove" in withTestData { provider =>
-        val op = AppliedArrayMoveOperation(emailsVID, false, 0, 2)
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArrayMoveOperation(emailsVID, noOp = false, 0, 2)
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -263,15 +260,14 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ArraySet" in withTestData { provider =>
         val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
-        val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArraySetOperation(emailsVID, noOp = false, setValue, Some(List[DataValue]()))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) => {
+          case ArrayValue(vid, children) =>
             children shouldEqual setValue
-          }
           case _ => fail
         }
       }
@@ -279,8 +275,8 @@ class ModelOperationProcessorSpec
 
     "applying object operations" must {
       "correctly update the model on ObjectAddProperty" in withTestData { provider =>
-        val op = AppliedObjectAddPropertyOperation(person1VID, false, "addedProperty", StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectAddPropertyOperation(person1VID, noOp = false, "addedProperty", StringValue("aoo-value", "value"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -288,8 +284,8 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on ObjectAddProperty with a special char" in withTestData { provider =>
-        val op = AppliedObjectAddPropertyOperation(person1VID, false, "prop-with-dash", StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectAddPropertyOperation(person1VID, noOp = false, "prop-with-dash", StringValue("aoo-value", "value"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -297,8 +293,8 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on ObjectSetProperty" in withTestData { provider =>
-        val op = AppliedObjectSetPropertyOperation(person1VID, false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectSetPropertyOperation(person1VID, noOp = false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -306,8 +302,8 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on ObjectRemoveProperty" in withTestData { provider =>
-        val op = AppliedObjectRemovePropertyOperation(person1VID, false, fnameField, Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectRemovePropertyOperation(person1VID, noOp = false, fnameField, Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -317,11 +313,11 @@ class ModelOperationProcessorSpec
       "correctly update the model on ObjectRemoveProperty with dash" in withTestData { provider =>
         val propWithDash = "prop-with-dash"
 
-        val addOp = AppliedObjectAddPropertyOperation(person1VID, false, propWithDash, StringValue("aoo-value", "value"))
-        provider.modelOperationProcessor.processModelOperation(NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, addOp)).get
+        val addOp = AppliedObjectAddPropertyOperation(person1VID, noOp = false, propWithDash, StringValue("aoo-value", "value"))
+        provider.modelOperationProcessor.processModelOperation(NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, addOp)).get
 
-        val op = AppliedObjectRemovePropertyOperation(person1VID, false, propWithDash, Some(StringValue("aoo-value", "value")))
-        val modelOp = NewModelOperation(person1Id, startingVersion + 1, truncatedInstantNow, sid, op)
+        val op = AppliedObjectRemovePropertyOperation(person1VID, noOp = false, propWithDash, Some(StringValue("aoo-value", "value")))
+        val modelOp = NewModelOperation(person1Id, startingVersion + 1, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -330,8 +326,8 @@ class ModelOperationProcessorSpec
 
       "correctly update the model on ObjectSet" in withTestData { provider =>
         val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
-        val op = AppliedObjectSetOperation(person1VID, false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectSetOperation(person1VID, noOp = false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -341,8 +337,8 @@ class ModelOperationProcessorSpec
 
     "applying number operations" must {
       "correctly update the model on NumberAdd" in withTestData { provider =>
-        val op = AppliedNumberAddOperation(ageVID, false, 5)
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedNumberAddOperation(ageVID, noOp = false, 5)
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -350,8 +346,8 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on NumberSet" in withTestData { provider =>
-        val op = AppliedNumberSetOperation(ageVID, false, 33, Some(22))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedNumberSetOperation(ageVID, noOp = false, 33, Some(22))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -361,20 +357,20 @@ class ModelOperationProcessorSpec
 
     "applying boolean operations" must {
       "correctly update the model on BooleanSet" in withTestData { provider =>
-        val op = AppliedBooleanSetOperation(marriedVID, false, true, Some(false))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedBooleanSetOperation(marriedVID, noOp = false, value = true, Some(false))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp)
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
-        modelData.children(marriedField) shouldBe BooleanValue(marriedVID, true)
+        modelData.children(marriedField) shouldBe BooleanValue(marriedVID, value = true)
       }
     }
 
     "applying date operations" must {
       "correctly update the model on DateSet" in withTestData { provider =>
-        val newDate = truncatedInstantNow
-        val op = AppliedDateSetOperation(bornVID, false, newDate, Some(bornDate))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val newDate = truncatedInstantNow()
+        val op = AppliedDateSetOperation(bornVID, noOp = false, newDate, Some(bornDate))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -386,8 +382,8 @@ class ModelOperationProcessorSpec
 
       "correctly add property names that start with a period" in withTestData { provider =>
         val property = "my-prop!"
-        val addOp = AppliedObjectAddPropertyOperation(person1VID, false, ".value", StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, addOp)
+        val addOp = AppliedObjectAddPropertyOperation(person1VID, noOp = false, ".value", StringValue("aoo-value", "value"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, addOp)
 
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -396,15 +392,15 @@ class ModelOperationProcessorSpec
 
       "correctly update property names that start with a period" in withTestData { provider =>
         val property = "my-prop!"
-        val addOp = AppliedObjectAddPropertyOperation(person1VID, false, ".value", StringValue("aoo-value", "initial"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, addOp)
+        val addOp = AppliedObjectAddPropertyOperation(person1VID, noOp = false, ".value", StringValue("aoo-value", "initial"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, addOp)
 
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(".value") shouldBe StringValue("aoo-value", "initial")
 
-        val setOp = AppliedObjectSetPropertyOperation(person1VID, false, ".value", StringValue("aoo-value1", "updated"), Some(StringValue("aoo-value", "initial")))
-        val setModelOp = NewModelOperation(person1Id, startingVersion + 1, truncatedInstantNow, sid, setOp)
+        val setOp = AppliedObjectSetPropertyOperation(person1VID, noOp = false, ".value", StringValue("aoo-value1", "updated"), Some(StringValue("aoo-value", "initial")))
+        val setModelOp = NewModelOperation(person1Id, startingVersion + 1, truncatedInstantNow(), sid, setOp)
 
         provider.modelOperationProcessor.processModelOperation(setModelOp).get
         val updatedModelData = provider.modelStore.getModelData(person1Id).get.value
@@ -414,8 +410,8 @@ class ModelOperationProcessorSpec
       "correctly handle property names in the path that are numeric" in withTestData { provider =>
 
         val property = "4"
-        val op = AppliedObjectAddPropertyOperation(person1VID, false, property, StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectAddPropertyOperation(person1VID, noOp = false, property, StringValue("aoo-value", "value"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -424,8 +420,8 @@ class ModelOperationProcessorSpec
 
       "correctly handle property names in the path that have a dash" in withTestData { provider =>
         val property = "a-dash"
-        val op = AppliedObjectAddPropertyOperation(person1VID, false, property, StringValue("aoo-value", "value"))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectAddPropertyOperation(person1VID, noOp = false, property, StringValue("aoo-value", "value"))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -437,8 +433,8 @@ class ModelOperationProcessorSpec
       "remove a single object when issuing an ObjectSetProperty on a string field" in withTestData { provider =>
         vidExists(fnameVID, provider.dbProvider).get shouldBe true
 
-        val op = AppliedObjectSetPropertyOperation(person1VID, false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectSetPropertyOperation(person1VID, noOp = false, fnameField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidExists(fnameVID, provider.dbProvider).get shouldBe false
@@ -450,8 +446,8 @@ class ModelOperationProcessorSpec
         vidExists(email2VID, provider.dbProvider).get shouldBe true
         vidExists(email3VID, provider.dbProvider).get shouldBe true
 
-        val op = AppliedObjectSetPropertyOperation(person1VID, false, emailsField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectSetPropertyOperation(person1VID, noOp = false, emailsField, StringValue("pp1-fnbob", "bob"), Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidExists(emailsVID, provider.dbProvider).get shouldBe false
@@ -463,8 +459,8 @@ class ModelOperationProcessorSpec
       "remove a single object when issuing an ObjectRemoveProperty on a string field" in withTestData { provider =>
         vidExists(fnameVID, provider.dbProvider).get shouldBe true
 
-        val op = AppliedObjectRemovePropertyOperation(person1VID, false, fnameField, Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectRemovePropertyOperation(person1VID, noOp = false, fnameField, Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidExists(fnameVID, provider.dbProvider).get shouldBe false
@@ -476,8 +472,8 @@ class ModelOperationProcessorSpec
         vidExists(email2VID, provider.dbProvider).get shouldBe true
         vidExists(email3VID, provider.dbProvider).get shouldBe true
 
-        val op = AppliedObjectRemovePropertyOperation(person1VID, false, emailsField, Some(StringValue("oldId", "oldVal")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectRemovePropertyOperation(person1VID, noOp = false, emailsField, Some(StringValue("oldId", "oldVal")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidExists(emailsVID, provider.dbProvider).get shouldBe false
@@ -491,8 +487,8 @@ class ModelOperationProcessorSpec
         vidsAllExist(childrenVids, provider.dbProvider).get shouldBe true
 
         val replacePerson = Map("fname" -> StringValue("pp1-fnbob", "bob"), "lname" -> StringValue("pp1-lnsmith", "smith"))
-        val op = AppliedObjectSetOperation(person1VID, false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedObjectSetOperation(person1VID, noOp = false, replacePerson, Some(Map("fname" -> StringValue("oldId1", "yo"), "lname" -> StringValue("oldId2", "yoyo"))))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidsNoneExist(childrenVids, provider.dbProvider).get shouldBe true
@@ -501,8 +497,8 @@ class ModelOperationProcessorSpec
       "Remove a datavalue on an ArrayRemove" in withTestData { provider =>
         vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
 
-        val op = AppliedArrayRemoveOperation(emailsVID, false, 0, Some(StringValue("oldId", "removedValue")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArrayRemoveOperation(emailsVID, noOp = false, 0, Some(StringValue("oldId", "removedValue")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
@@ -513,8 +509,8 @@ class ModelOperationProcessorSpec
         vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
 
         val replaceVal = ObjectValue("art-data", Map("field1" -> StringValue("art-f1", "someValue"), "field2" -> DoubleValue("art-f2", 5)))
-        val op = AppliedArrayReplaceOperation(emailsVID, false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArrayReplaceOperation(emailsVID, noOp = false, 0, replaceVal, Some(StringValue("oldId", "removedValue")))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidsAllExist(List(email2VID, email3VID), provider.dbProvider).get shouldBe true
@@ -526,8 +522,8 @@ class ModelOperationProcessorSpec
         vidsAllExist(List(email1VID, email2VID, email3VID), provider.dbProvider).get shouldBe true
 
         val setValue = List(StringValue("as-sv", "someValue"), StringValue("as-sov", "someOtherValue"))
-        val op = AppliedArraySetOperation(emailsVID, false, setValue, Some(List[DataValue]()))
-        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow, sid, op)
+        val op = AppliedArraySetOperation(emailsVID, noOp = false, setValue, Some(List[DataValue]()))
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         vidExists(emailsVID, provider.dbProvider).get shouldBe true

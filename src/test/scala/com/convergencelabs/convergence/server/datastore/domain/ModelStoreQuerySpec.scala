@@ -13,34 +13,16 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
 
-import scala.language.postfixOps
-
-import org.json4s.DefaultFormats
-import org.json4s.JArray
-import org.json4s.JBool
-import org.json4s.JField
-import org.json4s.JInt
-import org.json4s.JObject
-import org.json4s.JString
-import org.json4s.jackson.JsonMethods.parse
-import org.json4s.jvalue2extractable
-import org.json4s.jvalue2monadic
-import org.json4s.string2JsonInput
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
-
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.domain.model.Model
-import com.convergencelabs.convergence.server.domain.model.ModelMetaData
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData}
+import com.convergencelabs.convergence.server.domain.model.data._
+import org.json4s.jackson.JsonMethods.parse
+import org.json4s.{DefaultFormats, JArray, JBool, JField, JInt, JObject, JString, jvalue2extractable, jvalue2monadic, string2JsonInput}
+import org.scalatest.{Matchers, WordSpecLike}
+
+import scala.language.postfixOps
 
 case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 
@@ -232,7 +214,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
   }
 
   private[this] def createUsers(stores: ModelStoreQuerySpecStores): Unit = {
-    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None))
-    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None))
+    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None, None))
+    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None, None))
   }
 }

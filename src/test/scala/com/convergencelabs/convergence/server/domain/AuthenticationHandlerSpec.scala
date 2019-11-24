@@ -15,38 +15,23 @@ import java.io.StringReader
 import java.security.KeyFactory
 import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Await
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
-
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.convergence.server.datastore.DuplicateValueException
+import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
+import com.convergencelabs.convergence.server.datastore.domain._
+import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.util.io.pem.PemReader
-import org.jose4j.jws.AlgorithmIdentifiers
-import org.jose4j.jws.JsonWebSignature
+import org.jose4j.jws.{AlgorithmIdentifiers, JsonWebSignature}
 import org.jose4j.jwt.JwtClaims
-import org.mockito.Mockito
-import org.mockito.{ Matchers => MockitoMatchers }
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.mockito.{Mockito, Matchers => MockitoMatchers}
 import org.scalatest.TryValues._
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.mockito.MockitoSugar
 
-import com.convergencelabs.convergence.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore
-
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
-import com.convergencelabs.convergence.server.datastore.domain.SessionStore
-import com.convergencelabs.convergence.server.datastore.domain.UserGroupStore
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
+import scala.util.{Failure, Success}
 
 class AuthenticationHandlerSpec()
   extends TestKit(ActorSystem("AuthManagerActorSpec"))
@@ -127,11 +112,11 @@ class AuthenticationHandlerSpec()
   }
 
   trait TestFixture {
-    val clientActor = new TestProbe(system).ref
+    val clientActor: ActorRef = new TestProbe(system).ref
 
     val sessionId = 0
     val existingUserName = "existing"
-    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, Some("existing@example.com"))
+    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, Some("existing@example.com"), None)
 
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
@@ -142,13 +127,13 @@ class AuthenticationHandlerSpec()
 
     def nextSessionId(): String = {
       val nextSessionId = sessionId + 1
-      nextSessionId.toString()
+      nextSessionId.toString
     }
 
-    val sessionStore = mock[SessionStore]
+    val sessionStore: SessionStore = mock[SessionStore]
     Mockito.when(sessionStore.nextSessionId).thenReturn(Success(nextSessionId()))
 
-    val userStore = mock[DomainUserStore]
+    val userStore: DomainUserStore = mock[DomainUserStore]
 
     val reconnectToken = "123"
 

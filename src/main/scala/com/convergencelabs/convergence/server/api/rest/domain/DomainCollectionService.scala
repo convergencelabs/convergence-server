@@ -61,7 +61,6 @@ class DomainCollectionService(private[this] val executionContext: ExecutionConte
 
   import DomainCollectionService._
 
-
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("collections") {
       pathEnd {
@@ -126,12 +125,12 @@ class DomainCollectionService(private[this] val executionContext: ExecutionConte
     val collectionData = CollectionData(collectionId, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     val collection = this.collectionDataToCollection(collectionData)
     val message = DomainRestMessage(domain, UpdateCollection(collectionId, collection))
-    (domainRestActor ? message) map { _ => OkResponse }
+    (domainRestActor ? message) map ( _ => OkResponse )
   }
 
   private[this] def deleteCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, DeleteCollection(collectionId))
-    (domainRestActor ? message) map { _ => OkResponse }
+    (domainRestActor ? message) map ( _ => DeletedResponse )
   }
 
   private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {

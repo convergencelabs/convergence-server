@@ -13,13 +13,10 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
 
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
-
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
+import org.scalatest.{Matchers, WordSpecLike}
 
 class PermissionsStoreSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -33,9 +30,9 @@ class PermissionsStoreSpec
   val user2 = DomainUserId.normal("user2")
   val user3 = DomainUserId.normal("user3")
 
-  val domainUser1 = DomainUser(user1, None, None, None, None)
-  val domainUser2 = DomainUser(user2, None, None, None, None)
-  val domainUser3 = DomainUser(user3, None, None, None, None)
+  val domainUser1 = DomainUser(user1, None, None, None, None, None)
+  val domainUser2 = DomainUser(user2, None, None, None, None, None)
+  val domainUser3 = DomainUser(user3, None, None, None, None, None)
 
   val group1 = "group1"
   val group2 = "group2"

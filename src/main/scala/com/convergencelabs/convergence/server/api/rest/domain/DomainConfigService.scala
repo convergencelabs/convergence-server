@@ -18,38 +18,40 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, authorize, complete, entity, get, path, pathPrefix, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{OkResponse, RestResponse, okResponse}
 import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.{GetAnonymousAuth, GetModelSnapshotPolicy, SetAnonymousAuth, SetModelSnapshotPolicy}
-import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object DomainConfigService {
+
   case class AnonymousAuthPut(enabled: Boolean)
+
   case class AnonymousAuthResponse(enabled: Boolean)
-  case class ModelSnapshotPolicyData(
-    snapshotsEnabled: Boolean,
-    triggerByVersion: Boolean,
-    maximumVersionInterval: Long,
-    limitByVersion: Boolean,
-    minimumVersionInterval: Long,
-    triggerByTime: Boolean,
-    maximumTimeInterval: Long,
-    limitByTime: Boolean,
-    minimumTimeInterval: Long)
+
+  case class ModelSnapshotPolicyData(snapshotsEnabled: Boolean,
+                                     triggerByVersion: Boolean,
+                                     maximumVersionInterval: Long,
+                                     limitByVersion: Boolean,
+                                     minimumVersionInterval: Long,
+                                     triggerByTime: Boolean,
+                                     maximumTimeInterval: Long,
+                                     limitByTime: Boolean,
+                                     minimumTimeInterval: Long)
+
 }
 
-class DomainConfigService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val timeout: Timeout,
-  private[this] val domainRestActor: ActorRef)
+class DomainConfigService(private[this] val executionContext: ExecutionContext,
+                          private[this] val timeout: Timeout,
+                          private[this] val domainRestActor: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
   import DomainConfigService._
-  import akka.pattern.ask
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("config") {
@@ -78,30 +80,30 @@ class DomainConfigService(
     }
   }
 
-  def getAnonymousAuthEnabled(domain: DomainId): Future[RestResponse] = {
+  private[this] def getAnonymousAuthEnabled(domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetAnonymousAuth)
     (domainRestActor ? message).mapTo[Boolean] map
       (enabled => okResponse(AnonymousAuthResponse(enabled)))
   }
 
-  def setAnonymousAuthEnabled(domain: DomainId, request: AnonymousAuthPut): Future[RestResponse] = {
+  private[this] def setAnonymousAuthEnabled(domain: DomainId, request: AnonymousAuthPut): Future[RestResponse] = {
     val message = DomainRestMessage(domain, SetAnonymousAuth(request.enabled))
     (domainRestActor ? message) map (_ => OkResponse)
   }
 
-  def getModelSnapshotPolicy(domain: DomainId): Future[RestResponse] = {
+  private[this] def getModelSnapshotPolicy(domain: DomainId): Future[RestResponse] = {
     val message = DomainRestMessage(domain, GetModelSnapshotPolicy)
     (domainRestActor ? message).mapTo[ModelSnapshotConfig] map { config =>
       val ModelSnapshotConfig(
-        snapshotsEnabled,
-        triggerByVersion,
-        limitByVersion,
-        minimumVersionInterval,
-        maximumVersionInterval,
-        triggerByTime,
-        limitByTime,
-        minimumTimeInterval,
-        maximumTimeInterval) = config
+      snapshotsEnabled,
+      triggerByVersion,
+      limitByVersion,
+      minimumVersionInterval,
+      maximumVersionInterval,
+      triggerByTime,
+      limitByTime,
+      minimumTimeInterval,
+      maximumTimeInterval) = config
       okResponse(ModelSnapshotPolicyData(
         snapshotsEnabled,
         triggerByVersion,
@@ -115,18 +117,18 @@ class DomainConfigService(
     }
   }
 
-  def setModelSnapshotPolicy(domain: DomainId, policyData: ModelSnapshotPolicyData): Future[RestResponse] = {
+  private[this] def setModelSnapshotPolicy(domain: DomainId, policyData: ModelSnapshotPolicyData): Future[RestResponse] = {
     val ModelSnapshotPolicyData(
-      snapshotsEnabled,
-      triggerByVersion,
-      maximumVersionInterval,
-      limitByVersion,
-      minimumVersionInterval,
-      triggerByTime,
-      maximumTimeInterval,
-      limitByTime,
-      minimumTimeInterval
-      ) = policyData
+    snapshotsEnabled,
+    triggerByVersion,
+    maximumVersionInterval,
+    limitByVersion,
+    minimumVersionInterval,
+    triggerByTime,
+    maximumTimeInterval,
+    limitByTime,
+    minimumTimeInterval
+    ) = policyData
 
     val policy =
       ModelSnapshotConfig(

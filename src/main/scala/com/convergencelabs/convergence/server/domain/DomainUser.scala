@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain
 
+import java.time.Instant
+
 object DomainUserType extends Enumeration {
   type DomainUserType = Value
   val Normal: DomainUserType = Value("normal")
@@ -43,25 +45,29 @@ object DomainUser {
             firstName: Option[String],
             lastName: Option[String],
             displayName: Option[String],
-            email: Option[String]): DomainUser =
-    DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, disabled = false, deleted = false, None)
+            email: Option[String],
+            lastLogin: Option[Instant]): DomainUser =
+    DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, lastLogin, disabled = false, deleted = false, None)
 
   def apply(userId: DomainUserId,
             firstName: Option[String],
             lastName: Option[String],
             displayName: Option[String],
             email: Option[String],
+            lastLogin: Option[Instant],
             disabled: Boolean,
             deleted: Boolean,
-            deletedUsername: Option[String]): DomainUser = DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, disabled, deleted, deletedUsername)
+            deletedUsername: Option[String]): DomainUser =
+    DomainUser(userId.userType, userId.username, firstName, lastName, displayName, email, lastLogin, disabled, deleted, deletedUsername)
 
   def apply(userType: DomainUserType.Value,
             username: String,
             firstName: Option[String],
             lastName: Option[String],
             displayName: Option[String],
-            email: Option[String]): DomainUser =
-    DomainUser(userType, username, firstName, lastName, displayName, email, disabled = false, deleted = false, None)
+            email: Option[String],
+            lastLogin: Option[Instant]): DomainUser =
+    DomainUser(userType, username, firstName, lastName, displayName, email, lastLogin, disabled = false, deleted = false, None)
 }
 
 case class DomainUser(userType: DomainUserType.Value,
@@ -70,6 +76,7 @@ case class DomainUser(userType: DomainUserType.Value,
                       lastName: Option[String],
                       displayName: Option[String],
                       email: Option[String],
+                      lastLogin: Option[Instant],
                       disabled: Boolean,
                       deleted: Boolean,
                       deletedUsername: Option[String]) {

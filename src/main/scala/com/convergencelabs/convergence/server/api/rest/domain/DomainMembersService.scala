@@ -14,10 +14,11 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.{OkResponse, RestResponse, notFoundResponse, okResponse}
+import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.datastore.convergence.DomainRoleTarget
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.{Role, UserRoles}
@@ -28,19 +29,19 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import scala.concurrent.{ExecutionContext, Future}
 
 object DomainMembersService {
+
   case class SetUserRole(role: String)
+
   case class UserRoleResponse(role: Option[String])
+
 }
 
-class DomainMembersService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val timeout: Timeout,
-  private[this] val roleStoreActor: ActorRef)
+class DomainMembersService(private[this] val executionContext: ExecutionContext,
+                           private[this] val timeout: Timeout,
+                           private[this] val roleStoreActor: ActorRef)
   extends DomainRestService(executionContext, timeout) {
 
   import DomainMembersService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("members") {
@@ -66,7 +67,7 @@ class DomainMembersService(
     }
   }
 
-  def getAllMembers(domain: DomainId): Future[RestResponse] = {
+  private[this] def getAllMembers(domain: DomainId): Future[RestResponse] = {
     val message = GetAllUserRolesRequest(DomainRoleTarget(domain))
     (roleStoreActor ? message)
       .mapTo[Set[UserRoles]]
@@ -76,13 +77,13 @@ class DomainMembersService(
       }
   }
 
-  def setAllMembers(domain: DomainId, userRoles: Map[String, String]): Future[RestResponse] = {
+  private[this] def setAllMembers(domain: DomainId, userRoles: Map[String, String]): Future[RestResponse] = {
     val mapped = userRoles.map { case (username, role) => (username, Set(role)) }
     val message = SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped)
     (roleStoreActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
-  def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
+  private[this] def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
     (roleStoreActor ? GetUserRolesForTargetRequest(username, DomainRoleTarget(domain))).mapTo[Set[Role]] map { roles =>
       val role = roles.toList match {
         case Nil =>
@@ -95,15 +96,15 @@ class DomainMembersService(
     }
   }
 
-  def setRoleForUser(domain: DomainId, username: String, role: String): Future[RestResponse] = {
+  private[this] def setRoleForUser(domain: DomainId, username: String, role: String): Future[RestResponse] = {
     val message = SeUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
-    (roleStoreActor ? message) map { _ => OkResponse } recover {
+    (roleStoreActor ? message) map (_ => OkResponse) recover {
       case _: EntityNotFoundException => notFoundResponse()
     }
   }
 
-  def removeUserRole(domain: DomainId, username: String): Future[RestResponse] = {
+  private[this] def removeUserRole(domain: DomainId, username: String): Future[RestResponse] = {
     val message = RemoveUserFromTarget(DomainRoleTarget(domain), username)
-    (roleStoreActor ? message).mapTo[Unit] map (_ => OkResponse)
+    (roleStoreActor ? message).mapTo[Unit] map (_ => DeletedResponse)
   }
 }

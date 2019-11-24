@@ -14,8 +14,9 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor._
@@ -26,26 +27,23 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import scala.concurrent.{ExecutionContext, Future}
 
 object DomainService {
+
   case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)
+
   case class UpdateDomainRestRequest(displayName: String)
+
 }
 
-class DomainService(
-  private[this] val executionContext:     ExecutionContext,
-  private[this] val domainStoreActor:     ActorRef,
-  private[this] val domainManagerActor:   ActorRef, // RestDomainActor
-  private[this] val permissionStoreActor: ActorRef,
-  private[this] val modelClusterRegion:   ActorRef,
-  private[this] val chatClusterRegion:    ActorRef,
-  private[this] val defaultTimeout:       Timeout)
-  extends JsonSupport {
+class DomainService(private[this] val executionContext: ExecutionContext,
+                    private[this] val domainStoreActor: ActorRef,
+                    private[this] val domainManagerActor: ActorRef, // RestDomainActor
+                    private[this] val permissionStoreActor: ActorRef,
+                    private[this] val modelClusterRegion: ActorRef,
+                    private[this] val chatClusterRegion: ActorRef,
+                    private[this] val defaultTimeout: Timeout)
+  extends DomainRestService(executionContext, defaultTimeout) {
 
   import DomainService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
-
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
 
   val domainConfigService = new DomainConfigService(ec, t, domainManagerActor)
   val domainUserService = new DomainUserService(ec, t, domainManagerActor)
@@ -101,7 +99,7 @@ class DomainService(
     }
   }
 
-  def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
+  private[this] def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, id, displayName) = createRequest
     // FIXME check to make sure use has permissions to create domain in this namespace
     val message = CreateDomainRequest(namespace, id, displayName, anonymousAuth = false)
@@ -113,7 +111,7 @@ class DomainService(
       }
   }
 
-  def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this]def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     (domainStoreActor ? ListDomainsRequest(authProfile, namespace, filter, offset, limit)).mapTo[List[Domain]].map(domains =>
       okResponse(
         domains map (domain => DomainRestData(
@@ -123,7 +121,7 @@ class DomainService(
           domain.status.toString.toLowerCase))))
   }
 
-  def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
+  private[this]def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
         okResponse(DomainRestData(
@@ -136,18 +134,13 @@ class DomainService(
     }
   }
 
-  def deleteDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)) map { _ => OkResponse }
+  private[this] def deleteDomain(namespace: String, domainId: String): Future[RestResponse] = {
+    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)) map { _ => DeletedResponse }
   }
 
-  def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequest): Future[RestResponse] = {
+  private[this] def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequest): Future[RestResponse] = {
     val UpdateDomainRestRequest(displayName) = request
     val message = UpdateDomainRequest(namespace, domainId, displayName)
     (domainStoreActor ? message) map { _ => OkResponse }
-  }
-
-  def canAccessDomain(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
-    // FIXME clearly not correct
-    true
   }
 }

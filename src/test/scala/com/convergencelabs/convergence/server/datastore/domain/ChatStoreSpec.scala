@@ -11,19 +11,14 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
-import org.scalatest.OptionValues._
+import java.time.Instant
 
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import java.time.Instant
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
+import org.scalatest.OptionValues._
+import org.scalatest.{Matchers, WordSpecLike}
 
 class ChatStoreSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
@@ -200,9 +195,9 @@ class ChatStoreSpec
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
-      provider.userStore.createDomainUser(DomainUser(user1Id, None, None, None, None)).get
-      provider.userStore.createDomainUser(DomainUser(user2Id, None, None, None, None)).get
-      provider.userStore.createDomainUser(DomainUser(user3Id, None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(user1Id, None, None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(user2Id, None, None, None, None, None)).get
+      provider.userStore.createDomainUser(DomainUser(user3Id, None, None, None, None, None)).get
       testCode(provider)
     }
   }

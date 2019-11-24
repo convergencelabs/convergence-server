@@ -14,37 +14,40 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.{ChatInfo, ChatMembership, ChatType}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor.{CreateChatRequest, CreateChatResponse, FindChatInfo, GetChatInfo}
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, RemoveChatlRequest, SetChatNameRequest, SetChatTopicRequest}
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object DomainChatService {
+
   case class ChatInfoData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
+
   case class CreateChatData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
+
   case class SetNameData(name: String)
+
   case class SetTopicData(topic: String)
+
 }
 
-class DomainChatService(
-  private[this] val executionContext: ExecutionContext,
-  private[this] val timeout:          Timeout,
-  private[this] val domainRestActor:  ActorRef,
-  private[this] val chatSharding:     ActorRef)
+class DomainChatService(private[this] val executionContext: ExecutionContext,
+                        private[this] val timeout: Timeout,
+                        private[this] val domainRestActor: ActorRef,
+                        private[this] val chatSharding: ActorRef)
   extends DomainRestService(executionContext, timeout) with Logging {
 
   import DomainChatService._
-  import akka.http.scaladsl.server.Directives.Segment
-  import akka.pattern.ask
 
   def route(authProfile: AuthorizationProfile, domain: DomainId): Route = {
     pathPrefix("chats") {
@@ -86,7 +89,7 @@ class DomainChatService(
         ChatInfoData(
           id,
           chatType.toString.toLowerCase,
-          membership.toString().toLowerCase(),
+          membership.toString.toLowerCase(),
           name,
           topic,
           members.map(m => m.userId.username))
@@ -117,26 +120,26 @@ class DomainChatService(
       ChatMembership.parse(membership),
       Some(name),
       Some(topic),
-      members.map(DomainUserId.normal).toSet)
+      members.map(DomainUserId.normal))
     val message = DomainRestMessage(domain, request)
 
     domainRestActor.ask(message)
       .mapTo[CreateChatResponse]
       .map(_ => CreatedResponse)
       .recover {
-        case ChatAlreadyExistsException(chatId) =>
+        case ChatAlreadyExistsException(_) =>
           duplicateResponse("chatId")
 
         case cause =>
           logger.error("could not create chat: " + message, cause)
-          unknownErrorResponse(Some("An unexcpeected error occurred creating the chat"))
+          unknownErrorResponse(Some("An unexpected error occurred creating the chat"))
       }
   }
 
   def deleteChat(authProfile: AuthorizationProfile, domain: DomainId, chatId: String): Future[RestResponse] = {
     val message = RemoveChatlRequest(domain, chatId, DomainUserId.convergence(authProfile.username))
     (chatSharding ? message).mapTo[Unit] map { chats =>
-      okResponse(chats)
+      deletedResponse(chats)
     }
   }
 

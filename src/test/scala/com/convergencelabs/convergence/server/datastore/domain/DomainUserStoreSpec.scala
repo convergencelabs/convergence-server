@@ -13,25 +13,14 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
 
-import org.scalatest.Finders
-import org.scalatest.Matchers
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
+import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
+import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
-
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.SortOrder
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.UpdateDomainUser
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import org.scalatest.{Matchers, WordSpecLike}
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore](DeltaCategory.Domain)
@@ -39,9 +28,9 @@ class DomainUserStoreSpec
     with Matchers {
 
   // Pre-loaded Users
-  val User0 = DomainUser(DomainUserType.Convergence, "admin", Some("Admin"), Some("User"), Some("Admin User"), Some("admin@example.com"))
-  val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"))
-  val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"))
+  val User0 = DomainUser(DomainUserType.Convergence, "admin", Some("Admin"), Some("User"), Some("Admin User"), Some("admin@example.com"), None)
+  val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
+  val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
 
   // New Users
   val User10 = CreateNormalDomainUser("user10", Some("first10"), Some("last10"), Some("first10 last10"), Some("user10@example.com"))
@@ -56,7 +45,7 @@ class DomainUserStoreSpec
         store.createNormalDomainUser(User10).success
 
         val queried = store.getNormalDomainUser(User10.username)
-        val DomainUser(userType, username, fname, lname, displayName, email, disabeld, deleted, deletedUsername) = queried.success.get.value
+        val DomainUser(userType, username, fname, lname, displayName, email, lastLogin, disabeld, deleted, deletedUsername) = queried.success.get.value
         CreateNormalDomainUser(username, fname, lname, displayName, email) shouldBe User10
       }
 
@@ -70,7 +59,7 @@ class DomainUserStoreSpec
       "allow creation of users with only username" in withPersistenceStore { store =>
         store.createNormalDomainUser(User12).get
         val queried = store.getNormalDomainUser(User12.username)
-        val DomainUser(userType, username, fname, lname, displayName, email, disabled, deleted, deletedUsername) = queried.success.get.value
+        val DomainUser(userType, username, fname, lname, displayName, email, lastLogin, disabled, deleted, deletedUsername) = queried.success.get.value
         CreateNormalDomainUser(username, fname, lname, displayName, email) shouldBe User12
       }
     }
@@ -113,7 +102,7 @@ class DomainUserStoreSpec
       "currectly update an existing user, if unique properties are not violated" in withPersistenceStore { store =>
         initUsers(store)
         val update = UpdateDomainUser(DomainUserId.normal(User1.username), Some("f"), Some("l"), Some("d"), Some("e"), Some(true))
-        val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"), true, false, None)
+        val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"), None, disabled = true, deleted = false, None)
         store.updateDomainUser(update).get
         val queried = store.getNormalDomainUser(User1.username).get.get
         queried shouldBe updated
@@ -153,7 +142,7 @@ class DomainUserStoreSpec
         val searchString = "test1"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).get
         users.length shouldBe 1
-        users(0) shouldBe User1
+        users.head shouldBe User1
       }
     }
 

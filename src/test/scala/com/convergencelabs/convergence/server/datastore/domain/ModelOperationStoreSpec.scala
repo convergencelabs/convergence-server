@@ -32,7 +32,7 @@ class ModelOperationStoreSpec
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
   val testUsername = "test"
-  val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None)
+  val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None, None)
 
   val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
   
