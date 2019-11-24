@@ -15,8 +15,9 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.model.Model
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 private[datastore] class ModelStoreActor(private[this] val persistenceProvider: DomainPersistenceProvider)
   extends StoreActor with ActorLogging {
@@ -68,14 +69,24 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
             Some(permissions)
           }
 
-          persistenceProvider.modelStore.getModelIfNewer(modelId, currentVersion) map { modelUpdate =>
-            (permissionsUpdate, modelUpdate) match {
-              case (None, None) =>
-                // No update to permissions or model.
-                OfflineModelNotUpdate()
-              case (p, m) =>
-                // At least one is different.
-                OfflineModelUpdated(m, p)
+          if (currentVersion == 0) {
+            // Initial request
+            persistenceProvider.modelStore.getModel(modelId) flatMap  {
+              case Some(model) =>
+                Success(OfflineModelInitial(model, permissions))
+              case None =>
+                Failure(EntityNotFoundException("The requested model was not found", Some(modelId)))
+            }
+          } else {
+            persistenceProvider.modelStore.getModelIfNewer(modelId, currentVersion) map { modelUpdate =>
+              (permissionsUpdate, modelUpdate) match {
+                case (None, None) =>
+                  // No update to permissions or model.
+                  OfflineModelNotUpdate()
+                case (p, m) =>
+                  // At least one is different.
+                  OfflineModelUpdated(m, p)
+              }
             }
           }
         } else {
@@ -123,5 +134,7 @@ object ModelStoreActor {
   case class OfflineModelDeleted() extends OfflineModelUpdateAction
 
   case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends OfflineModelUpdateAction
+
+  case class OfflineModelInitial(model: Model, permissions: ModelPermissions) extends OfflineModelUpdateAction
 
 }

@@ -515,7 +515,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         queuedReconnectingClients += (request.session -> ReconnectRequestRecord(request.contextVersion, request.clientActor, replyTo))
         requestModelDataFromDataStore()
       } else {
-        // error
+        replyTo ! Status.Failure(ModelNotFoundException(modelId))
       }
     } recover {
       case cause =>
@@ -547,6 +547,8 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   def respondToModelResyncRequest(session: DomainUserSessionId, record: ReconnectRequestRecord): Unit = {
     this.resyncingClients += (session -> record.clientActor)
+    clientToSessionId += (record.clientActor -> session)
+    this.model.clientConnected(session, record.contextVersion)
 
     // TODO after we add a model fingerprint, we should be making sure this is
     //  actually the same model.
@@ -596,11 +598,15 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
     this.resyncingClients.get(session) match {
       case Some(clientActor) =>
+        this.resyncingClients -= session
+
         if (open) {
           this.onClientOpened(session, clientActor)
           val referencesBySession = this.model.references()
           replyTo ! ModelResyncCompleteResponse(connectedClients.keySet, resyncingClients.keySet, referencesBySession)
         } else {
+          this.clientToSessionId -= clientActor
+          this.model.clientDisconnected(session)
           replyTo ! ModelResyncCompleteResponse(Set(), Set(), Set())
         }
 
@@ -610,7 +616,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         replyTo ! Status.Failure(ModelNotOpenException())
     }
 
-    this.resyncingClients -= session
     checkForConnectionsAndClose()
   }
 
@@ -682,9 +687,9 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   //
 
   def onOperationSubmission(request: OperationSubmission, clientActor: ActorRef): Unit = {
-    val sessionKey = this.clientToSessionId.get(clientActor)
-    sessionKey match {
-      case None => warn(s"$domainFqn/$modelId: Received operation from client for model that is not open!")
+    val sessionId = this.clientToSessionId.get(clientActor)
+    sessionId match {
+      case None => warn(s"$domainFqn/$modelId: Received operation from client for model that is not open / resyncing!")
       case Some(session) =>
         if (permissions.resolveSessionPermissions(session.userId).write) {
           val unprocessedOpEvent = UnprocessedOperationEvent(
@@ -744,10 +749,16 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
    */
   private[this] def broadcastOperation(session: DomainUserSessionId, outgoingOperation: OutgoingOperation, originSeqNo: Int): Unit = {
     // Ack the sender
-    connectedClients(session) ! OperationAcknowledgement(
-      modelId, originSeqNo, outgoingOperation.contextVersion, outgoingOperation.timestamp)
+    getClientForSession(session).foreach { client =>
+      client ! OperationAcknowledgement(
+        modelId, originSeqNo, outgoingOperation.contextVersion, outgoingOperation.timestamp)
+    }
 
     broadcastToAllOthers(outgoingOperation, session)
+  }
+
+  private[this] def getClientForSession(session: DomainUserSessionId): Option[ActorRef] = {
+    connectedClients.get(session).orElse(resyncingClients.get(session))
   }
 
   //
@@ -835,10 +846,10 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
    * Kicks a specific client out of the model.
    */
   private[this] def forceCloseModel(session: DomainUserSessionId, reasonCode: ForceModelCloseReasonCode.Value, reason: String, notifyOthers: Boolean = true): Unit = {
-    val closedActor = closeModel(session, notifyOthers)
-
-    val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode)
-    closedActor ! forceCloseMessage
+    closeModel(session, notifyOthers).foreach { closedActor =>
+      val forceCloseMessage = ModelForceClose(modelId, reason, reasonCode)
+      closedActor ! forceCloseMessage
+    }
 
     checkForConnectionsAndClose()
   }
@@ -850,12 +861,16 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
    * @param notifyOthers If True notifies other connected clients of close
    * @return The actor associated with the closed session
    */
-  private[this] def closeModel(session: DomainUserSessionId, notifyOthers: Boolean): ActorRef = {
-    val closedActor = connectedClients(session)
-    connectedClients -= session
-    clientToSessionId -= closedActor
+  private[this] def closeModel(session: DomainUserSessionId, notifyOthers: Boolean): Option[ActorRef] = {
+    val closedActor = connectedClients.get(session)
+
+    closedActor.foreach { closedActor =>
+      connectedClients -= session
+      clientToSessionId -= closedActor
+      eventHandler.onClientClosed(closedActor)
+    }
+
     this.model.clientDisconnected(session)
-    eventHandler.onClientClosed(closedActor)
 
     if (notifyOthers) {
       // There are still other clients with this model open so notify them
