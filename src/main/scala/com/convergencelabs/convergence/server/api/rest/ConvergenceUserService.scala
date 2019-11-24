@@ -101,12 +101,12 @@ class ConvergenceUserService(
   private[this] def createConvergenceUser(createRequest: CreateUserRequest): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, serverRole, password) = createRequest
     val message = CreateConvergenceUserRequest(username, email, firstName.getOrElse(""), lastName.getOrElse(""), displayName, password, serverRole)
-    (userManagerActor ? message) map { _ => CreatedResponse }
+    (userManagerActor ? message) map ( _ => CreatedResponse )
   }
 
   private[this] def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
     val message = DeleteConvergenceUserRequest(username)
-    (userManagerActor ? message) map { _ => DeletedResponse }
+    (userManagerActor ? message) map ( _ => DeletedResponse )
   }
 
   private[this] def updateUser(username: String, updateData: UpdateUserData): Future[RestResponse] = {
