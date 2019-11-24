@@ -50,6 +50,8 @@ class DomainAdminTokenService(executionContext: ExecutionContext,
 
   def getConvergenceUserToken(domain: DomainId, username: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, AdminTokenRequest(username))
-    (domainRestActor ? message).mapTo[String] map (_ => okResponse(AdminTokenRestResponse(_)))
+    (domainRestActor ? message).mapTo[String] map {
+      token: String => okResponse(AdminTokenRestResponse(token))
+    }
   }
 }
