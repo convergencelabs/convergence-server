@@ -450,7 +450,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     debug(s"$domainFqn/$modelId: Responding to client open request: " + session)
     if (permissions.resolveSessionPermissions(session.userId).read) {
       // Inform the concurrency control that we have a new client.
-      this.onClientOpened(session, requestRecord.clientActor)
+      this.onClientOpened(session, requestRecord.clientActor, resyncClient = false)
 
       // Send a message to the client informing them of the successful model open.
       val metaData = OpenModelMetaData(
@@ -480,11 +480,16 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     }
   }
 
-  private[this] def onClientOpened(session: DomainUserSessionId, clientActor: ActorRef): Unit = {
-    val contextVersion = this.model.contextVersion()
-    this.model.clientConnected(session, contextVersion)
+  private[this] def onClientOpened(session: DomainUserSessionId, clientActor: ActorRef, resyncClient: Boolean): Unit = {
+    if (!resyncClient) {
+      // If this client was in the process of resyncing.. they are
+      // already added.
+      clientToSessionId += (clientActor -> session)
+      val contextVersion = this.model.contextVersion()
+      this.model.clientConnected(session, contextVersion)
+    }
+
     connectedClients += (session -> clientActor)
-    clientToSessionId += (clientActor -> session)
 
     eventHandler.onClientOpened(clientActor)
 
@@ -548,7 +553,14 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   def respondToModelResyncRequest(session: DomainUserSessionId, record: ReconnectRequestRecord): Unit = {
     this.resyncingClients += (session -> record.clientActor)
     clientToSessionId += (record.clientActor -> session)
-    this.model.clientConnected(session, record.contextVersion)
+
+    // This looks in accurate. The reason this is correct
+    // is because we are about to send all of the operations
+    // up to the current version. So by the time the client
+    // sends up any new operations, they will be at this
+    // version.
+    val currentVersion = this.model.contextVersion()
+    this.model.clientConnected(session, currentVersion)
 
     // TODO after we add a model fingerprint, we should be making sure this is
     //  actually the same model.
@@ -601,7 +613,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         this.resyncingClients -= session
 
         if (open) {
-          this.onClientOpened(session, clientActor)
+          this.onClientOpened(session, clientActor, resyncClient = true)
           val referencesBySession = this.model.references()
           replyTo ! ModelResyncCompleteResponse(connectedClients.keySet, resyncingClients.keySet, referencesBySession)
         } else {
@@ -866,6 +878,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
     closedActor.foreach { closedActor =>
       connectedClients -= session
+      resyncingClients -= session
       clientToSessionId -= closedActor
       eventHandler.onClientClosed(closedActor)
     }
