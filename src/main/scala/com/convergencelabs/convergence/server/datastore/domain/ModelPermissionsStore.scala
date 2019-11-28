@@ -483,25 +483,26 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
 
   private[this] def resolveModelPermissions(modelId: String, userId: DomainUserId, modelDoc: ODocument): Try[ModelPermissions] = {
     val overridesPermissions: Boolean = modelDoc.getProperty(Classes.Model.Fields.OverridePermissions)
-    if (overridesPermissions) {
-      getModelUserPermissions(modelId, userId).flatMap {
-        case Some(p) =>
-          Success(p)
-        case None =>
-          getModelWorldPermissions(modelId)
-      }
-    } else {
-      val collectionId = modelDoc.eval("collection.id").asInstanceOf[String]
-      getCollectionUserPermissions(collectionId, userId).flatMap {
-        case Some(p) =>
-          val CollectionPermissions(_, read, write, remove, manage) = p
-          Success(ModelPermissions(read, write, remove, manage))
-        case None =>
-          getCollectionWorldPermissions(collectionId).map { collectionWorld =>
-            val CollectionPermissions(_, read, write, remove, manage) = collectionWorld
-            ModelPermissions(read, write, remove, manage)
-          }
-      }
+    getModelUserPermissions(modelId, userId).flatMap {
+      case Some(p) =>
+        Success(p)
+      case None =>
+        val collectionId = modelDoc.eval("collection.id").asInstanceOf[String]
+        getCollectionUserPermissions(collectionId, userId).flatMap {
+          case Some(CollectionPermissions(_, read, write, remove, manage)) =>
+            Success(ModelPermissions(read, write, remove, manage))
+          case None =>
+            if (overridesPermissions) {
+              getModelWorldPermissions(modelId)
+            } else {
+              getCollectionWorldPermissions(collectionId).map { collectionWorld =>
+                val CollectionPermissions(_, read, write, remove, manage) = collectionWorld
+                ModelPermissions(read, write, remove, manage)
+              }
+
+            }
+
+        }
     }
   }
 }

@@ -11,36 +11,25 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProvider, ModelPermissions}
+import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, ModelPermissions}
 import com.convergencelabs.convergence.server.domain.DomainUserId
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 case class ModelPermissionResult(
-    overrideCollection: Boolean,
-    modelWorld: ModelPermissions,
-    modelUsers: Map[DomainUserId, ModelPermissions])
+                                  overrideCollection: Boolean,
+                                  modelWorld: ModelPermissions,
+                                  modelUsers: Map[DomainUserId, ModelPermissions])
 
 class ModelPermissionResolver() {
-  def getModelUserPermissions(id: String, userId: DomainUserId, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
+  def getModelUserPermissions(modelId: String, userId: DomainUserId, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
     if (userId.isConvergence) {
       Success(ModelPermissions(read = true, write = true, remove = true, manage = true))
     } else {
       val permissionsStore = persistenceProvider.modelPermissionsStore
-      permissionsStore.modelOverridesCollectionPermissions(id).flatMap { overrides =>
-        if (overrides) {
-          permissionsStore.getModelUserPermissions(id, userId).flatMap {
-            case Some(p) =>
-              Success(p)
-            case None =>
-              permissionsStore.getModelWorldPermissions(id)
-          }
-        } else {
-          permissionsStore.getCollectionWorldPermissionsForModel(id).flatMap { collectionPerms =>
-            val CollectionPermissions(_, read, write, remove, manage) = collectionPerms
-            Success(ModelPermissions(read, write, remove, manage))
-          }
-        }
+      permissionsStore.getUsersCurrentModelPermissions(modelId, userId) flatMap  {
+        case Some(p) => Success(p)
+        case None => Failure(ModelNotFoundException(modelId))
       }
     }
   }

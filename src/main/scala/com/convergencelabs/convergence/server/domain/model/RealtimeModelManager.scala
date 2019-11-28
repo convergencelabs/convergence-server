@@ -90,6 +90,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] val persistence = persistenceFactory.create(new PersistenceEventHandler() {
     def onError(message: String): Unit = {
       workQueue.schedule {
+        setState(State.Error)
         forceCloseAllAfterError(message)
       }
     }
@@ -106,7 +107,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
     def onOperationError(message: String): Unit = {
       workQueue.schedule {
-        state = State.Error
+        setState(State.Error)
         forceCloseAllAfterError(message, ForceModelCloseReasonCode.ErrorApplyingOperation)
       }
     }
@@ -185,8 +186,10 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         }
       }
     } recover { case cause =>
-      error(s"$domainFqn/$modelId: Unable to determine if a model exists.", cause)
-      handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+      handleInitializationFailure(
+        s"$domainFqn/$modelId: Unable to determine if a model exists.",
+        Some(cause),
+        UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -216,10 +219,10 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         // Else no action required, the model must have been persistent, which means we are in the process of
         // loading it from the database.
       } recover { case cause =>
-        error(
+        handleInitializationFailure(
           s"$domainFqn/$modelId: Unable to determine if model exists while handling an open request for an initializing model.",
-          cause)
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+          Some(cause),
+          UnknownErrorResponse("Unexpected error initializing the model."))
       }
     }
   }
@@ -243,21 +246,24 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
             this.onDatabaseModelResponse(m, s, snapshotConfig, permissions)
           }) recover {
             case cause: Throwable =>
-              val message = s"Error getting model permissions (${this.modelId})"
-              error(message, cause)
-              this.handleInitializationFailure(DatabaseInitializationFailure)
+              val message =
+              this.handleInitializationFailure(
+                s"Error getting model permissions (${this.modelId})",
+                Some(cause),
+                DatabaseInitializationFailure)
           }
         case _ =>
           val mMessage = model.map(_ => "found").getOrElse("not found")
           val sMessage = snapshotMetaData.map(_ => "found").getOrElse("not found")
           val message = s"$domainFqn/$modelId: Error getting model data: model: $mMessage, snapshot: $sMessage"
           val cause = new IllegalStateException(message)
-          error(message, cause)
-          this.handleInitializationFailure(DatabaseInitializationFailure)
+          this.handleInitializationFailure(message, Some(cause), DatabaseInitializationFailure)
       }
     }) recover { case cause =>
-      error(s"$domainFqn/$modelId: Error getting model data.", cause)
-      this.handleInitializationFailure(DatabaseInitializationFailure)
+      this.handleInitializationFailure(
+        s"$domainFqn/$modelId: Error getting model data",
+        Some(cause),
+        DatabaseInitializationFailure)
     }
   }
 
@@ -345,17 +351,19 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       this.queuedReconnectingClients = HashMap[DomainUserSessionId, ReconnectRequestRecord]()
 
       if (this.connectedClients.isEmpty && this.resyncingClients.isEmpty) {
-        error(s"$domainFqn/$modelId: The model was initialized, but no clients are connected.")
-        this.handleInitializationFailure(UnknownErrorResponse("Model was initialized, but no clients connected"))
+        this.handleInitializationFailure(
+          s"$domainFqn/$modelId: The model was initialized, but no clients are connected.",
+          None,
+          UnknownErrorResponse("Model was initialized, but no clients connected"))
       } else {
         setState(State.Initialized)
       }
     } catch {
       case cause: Throwable =>
-        error(
+        handleInitializationFailure(
           s"$domainFqn/$modelId: Unable to initialize the model from the database.",
-          cause)
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+          Some(cause),
+          UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -524,8 +532,10 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       }
     } recover {
       case cause =>
-        error(s"$domainFqn/$modelId: Unable to determine if a model exists during a reconnect", cause)
-        handleInitializationFailure(UnknownErrorResponse("Unexpected error initializing the model."))
+        handleInitializationFailure(
+          s"$domainFqn/$modelId: Unable to determine if a model exists during a reconnect",
+          Some(cause),
+          UnknownErrorResponse("Unexpected error initializing the model."))
     }
   }
 
@@ -898,7 +908,14 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   /**
    * Informs all clients that the model could not be initialized.
    */
-  def handleInitializationFailure(response: AnyRef): Unit = {
+  def handleInitializationFailure(logMessage: String, error: Option[Throwable], response: AnyRef): Unit = {
+    error match {
+      case Some(e) =>
+        this.error(logMessage, e)
+      case None =>
+        this.error(logMessage)
+    }
+
     setState(State.InitializationError)
     queuedOpeningClients.values foreach { openRequest =>
       openRequest.replyTo ! response
