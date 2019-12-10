@@ -63,6 +63,9 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
   private[this] val maxStreamDuration = Duration.fromNanos(
     config.getDuration("convergence.realtime.websocket.max-stream-duration").toNanos)
 
+  private[this] val modelSyncInterval = Duration.fromNanos(
+    config.getDuration("convergence.offline.model-sync-interval").toNanos)
+
   private[this] implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   val route: Route = {
@@ -75,7 +78,11 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
     }
   }
 
-  private[this] def realTimeDomainFlow(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[Message, Message, Any] = {
+  private[this] def realTimeDomainFlow(namespace: String,
+                                       domain: String,
+                                       remoteAddress:
+                                       RemoteAddress,
+                                       ua: String): Flow[Message, Message, Any] = {
     logger.debug(s"New web socket connection for $namespace/$domain")
     Flow[Message]
       .collect {
@@ -101,7 +108,8 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
       DomainId(namespace, domain),
       protocolConfig,
       remoteAddress,
-      ua))
+      ua,
+      modelSyncInterval))
 
     val connection = system.actorOf(ConnectionActor.props(clientActor))
 

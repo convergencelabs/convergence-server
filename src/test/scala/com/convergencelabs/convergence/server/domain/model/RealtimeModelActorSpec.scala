@@ -391,6 +391,8 @@ class RealtimeModelActorSpec
 
     val noModelId = "non existent model"
     Mockito.when(persistenceProvider.modelStore.modelExists(noModelId)).thenReturn(Success(false))
+    Mockito.when(persistenceProvider.modelStore.getAndIncrementNextValuePrefix(any())).thenReturn(Success(1L))
+
 
     val modelCreator = mock[ModelCreator]
 

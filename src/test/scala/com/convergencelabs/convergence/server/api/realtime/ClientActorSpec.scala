@@ -69,7 +69,8 @@ class ClientActorSpec
       domainFqn,
       protoConfig,
       IP(ip = InetAddress.getLocalHost),
-      "")
+      "",
+      FiniteDuration(10, TimeUnit.SECONDS))
 
     val clientActor = system.actorOf(props)
 

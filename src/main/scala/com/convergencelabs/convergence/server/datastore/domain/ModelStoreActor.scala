@@ -74,7 +74,7 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
             persistenceProvider.modelStore.getModel(modelId) flatMap {
               case Some(model) =>
                 persistenceProvider.modelStore.getAndIncrementNextValuePrefix(modelId).map { prefix =>
-                  Success(OfflineModelInitial(model, permissions, prefix))
+                  OfflineModelInitial(model, permissions, prefix)
                 }
               case None =>
                 Failure(ModelNotFoundException(modelId))

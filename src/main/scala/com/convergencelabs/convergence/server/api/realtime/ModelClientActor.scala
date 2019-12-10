@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
 import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
-import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelUpdateData, OfflineModelInitialData}
+import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
 import com.convergencelabs.convergence.proto.model.{ModelResyncCompleteRequestMessage, _}
 import com.convergencelabs.convergence.proto.{ModelMessage => ProtoModelMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
@@ -163,7 +163,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         case Success(action) =>
           self ! UpdateOfflineModel(modelId, action)
         case Failure(cause) =>
-          log.error("Error updating offline model", cause)
+          log.error(cause, "Error updating offline model")
       }
     }
   }
@@ -360,16 +360,26 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
 
   private[this] def onRequestReceived(message: RequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case openRequest: OpenRealtimeModelRequestMessage => onOpenRealtimeModelRequest(openRequest, replyCallback)
-      case resyncRequest: ModelResyncRequestMessage => onModelResyncRequest(resyncRequest, replyCallback)
-      case resyncCompleteRequest: ModelResyncCompleteRequestMessage => onModelResyncCompleteRequest(resyncCompleteRequest, replyCallback)
-      case closeRequest: CloseRealtimeModelRequestMessage => onCloseRealtimeModelRequest(closeRequest, replyCallback)
-      case createRequest: CreateRealtimeModelRequestMessage => onCreateRealtimeModelRequest(createRequest, replyCallback)
-      case deleteRequest: DeleteRealtimeModelRequestMessage => onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
-      case queryRequest: ModelsQueryRequestMessage => onModelQueryRequest(queryRequest, replyCallback)
-      case getPermissionRequest: GetModelPermissionsRequestMessage => onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
-      case setPermissionRequest: SetModelPermissionsRequestMessage => onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
-      case message: ModelOfflineSubscriptionChangeRequestMessage => onModelOfflineSubscription(message, replyCallback)
+      case openRequest: OpenRealtimeModelRequestMessage =>
+        onOpenRealtimeModelRequest(openRequest, replyCallback)
+      case resyncRequest: ModelResyncRequestMessage =>
+        onModelResyncRequest(resyncRequest, replyCallback)
+      case resyncCompleteRequest: ModelResyncCompleteRequestMessage =>
+        onModelResyncCompleteRequest(resyncCompleteRequest, replyCallback)
+      case closeRequest: CloseRealtimeModelRequestMessage =>
+        onCloseRealtimeModelRequest(closeRequest, replyCallback)
+      case createRequest: CreateRealtimeModelRequestMessage =>
+        onCreateRealtimeModelRequest(createRequest, replyCallback)
+      case deleteRequest: DeleteRealtimeModelRequestMessage =>
+        onDeleteRealtimeModelRequest(deleteRequest, replyCallback)
+      case queryRequest: ModelsQueryRequestMessage =>
+        onModelQueryRequest(queryRequest, replyCallback)
+      case getPermissionRequest: GetModelPermissionsRequestMessage =>
+        onGetModelPermissionsRequest(getPermissionRequest, replyCallback)
+      case setPermissionRequest: SetModelPermissionsRequestMessage =>
+        onSetModelPermissionsRequest(setPermissionRequest, replyCallback)
+      case message: ModelOfflineSubscriptionChangeRequestMessage =>
+        onModelOfflineSubscription(message, replyCallback)
     }
   }
 

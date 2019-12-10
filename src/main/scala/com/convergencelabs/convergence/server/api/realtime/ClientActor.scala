@@ -49,9 +49,9 @@ import scala.util.{Failure, Success}
 private[realtime] class ClientActor(private[this] val domainId: DomainId,
                                     private[this] val protocolConfig: ProtocolConfiguration,
                                     private[this] val remoteHost: RemoteAddress,
-                                    private[this] val userAgent: String)
+                                    private[this] val userAgent: String,
+                                    private[this] val modelSyncInterval: FiniteDuration)
   extends Actor with ActorLogging {
-
 
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
@@ -59,9 +59,6 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
   // FIXME hard-coded (used for auth and handshake)
   private[this] implicit val requestTimeout: Timeout = Timeout(protocolConfig.defaultRequestTimeout)
   private[this] implicit val ec: ExecutionContext = context.dispatcher
-
-  // FIXME hard-coded for model offline sync. This might be sent in the handshake?
-  private[this] val modelSyncInterval = FiniteDuration(5, TimeUnit.SECONDS)
 
   private[this] var connectionActor: ActorRef = _
 
@@ -460,12 +457,14 @@ private[realtime] object ClientActor {
   def props(domainFqn: DomainId,
             protocolConfig: ProtocolConfiguration,
             remoteHost: RemoteAddress,
-            userAgent: String): Props = Props(
+            userAgent: String,
+            modelSyncInterval: FiniteDuration): Props = Props(
     new ClientActor(
       domainFqn,
       protocolConfig,
       remoteHost,
-      userAgent))
+      userAgent,
+      modelSyncInterval))
 }
 
 case class SendUnprocessedMessage(message: ConvergenceMessage)
