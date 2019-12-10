@@ -124,7 +124,7 @@ class ConfigStore(dbProvider: DatabaseProvider)
     val processedValue = processValue(key, value)
     val command = "UPDATE Config SET value = :value UPSERT WHERE key = :key"
     val params = Map(Params.Key -> key, Params.Value -> processedValue)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 
   def setConfigs(configs: Map[String, Any]): Try[Unit] = {

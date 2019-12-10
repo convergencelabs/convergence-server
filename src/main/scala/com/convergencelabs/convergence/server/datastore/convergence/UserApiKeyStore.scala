@@ -95,7 +95,7 @@ class UserApiKeyStore(
       Params.Key -> key,
       Params.Enabled -> enabled)
 
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   } recoverWith handleDuplicateValue
 
   private[this] val GetKeysForUserQuery = "SELECT * FROM UserApiKey WHERE user.username = :username"

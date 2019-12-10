@@ -124,7 +124,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   private[this] var model: RealTimeModel = _
   private[this] var metaData: ModelMetaData = _
-  private[this] var valuePrefix: Long = _
   private[this] var permissions: RealTimeModelPermissions = _
 
   private[this] var snapshotConfig: ModelSnapshotConfig = _
@@ -247,10 +246,10 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           }) recover {
             case cause: Throwable =>
               val message =
-              this.handleInitializationFailure(
-                s"Error getting model permissions (${this.modelId})",
-                Some(cause),
-                DatabaseInitializationFailure)
+                this.handleInitializationFailure(
+                  s"Error getting model permissions (${this.modelId})",
+                  Some(cause),
+                  DatabaseInitializationFailure)
           }
         case _ =>
           val mMessage = model.map(_ => "found").getOrElse("not found")
@@ -318,7 +317,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       this.permissions = permissions
       this.latestSnapshot = snapshotMetaData
       this.metaData = modelData.metaData
-      this.valuePrefix = modelData.metaData.valuePrefix
       this.snapshotConfig = snapshotConfig
       this.snapshotCalculator = new ModelSnapshotCalculator(snapshotConfig)
 
@@ -457,32 +455,35 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] def respondToClientOpenRequest(session: DomainUserSessionId, modelData: Model, requestRecord: OpenRequestRecord): Unit = {
     debug(s"$domainFqn/$modelId: Responding to client open request: " + session)
     if (permissions.resolveSessionPermissions(session.userId).read) {
-      // Inform the concurrency control that we have a new client.
-      this.onClientOpened(session, requestRecord.clientActor, resyncClient = false)
+      this.persistenceProvider.modelStore.getAndIncrementNextValuePrefix(this.modelId) map { valuePrefix =>
+        // Inform the concurrency control that we have a new client.
+        this.onClientOpened(session, requestRecord.clientActor, resyncClient = false)
 
-      // Send a message to the client informing them of the successful model open.
-      val metaData = OpenModelMetaData(
-        modelData.metaData.id,
-        modelData.metaData.collection,
-        modelData.metaData.version,
-        modelData.metaData.createdTime,
-        modelData.metaData.modifiedTime)
+        // Send a message to the client informing them of the successful model open.
+        val metaData = OpenModelMetaData(
+          modelData.metaData.id,
+          modelData.metaData.collection,
+          modelData.metaData.version,
+          modelData.metaData.createdTime,
+          modelData.metaData.modifiedTime)
 
-      val referencesBySession = this.model.references()
-      val permissions = this.permissions.resolveSessionPermissions(session.userId)
-      val openModelResponse = OpenModelSuccess(
-        valuePrefix,
-        metaData,
-        connectedClients.keySet,
-        resyncingClients.keySet,
-        referencesBySession,
-        modelData.data,
-        permissions)
+        val referencesBySession = this.model.references()
+        val permissions = this.permissions.resolveSessionPermissions(session.userId)
+        val openModelResponse = OpenModelSuccess(
+          valuePrefix,
+          metaData,
+          connectedClients.keySet,
+          resyncingClients.keySet,
+          referencesBySession,
+          modelData.data,
+          permissions)
 
-      valuePrefix = valuePrefix + 1
-      modelStore.setNextPrefixValue(modelId, valuePrefix)
-
-      requestRecord.replyTo ! openModelResponse
+        requestRecord.replyTo ! openModelResponse
+      } recover {
+        case cause: Throwable =>
+          this.error("Unable to get the valueIdPrefix for the model", cause);
+          requestRecord.replyTo ! Status.Failure(UnexpectedErrorException("Must have read privileges to open model."))
+      }
     } else {
       requestRecord.replyTo ! Status.Failure(UnauthorizedException("Must have read privileges to open model."))
     }

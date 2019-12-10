@@ -130,7 +130,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   def removeDeltaHistoryForDomain(domainFqn: DomainId): Try[Unit] = withDb { db =>
     val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT FROM Domain WHERE namespace.id = :namespace AND id =:id)";
     val params = Map(Params.Namespace -> domainFqn.namespace, Params.Id -> domainFqn.domainId)
-    OrientDBUtil.command(db, query, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, query, params).map(_ => ())
   }
 
   def getDomainDeltaHistory(domainFqn: DomainId, deltaNo: Int): Try[Option[DomainDeltaHistory]] = withDb { db =>

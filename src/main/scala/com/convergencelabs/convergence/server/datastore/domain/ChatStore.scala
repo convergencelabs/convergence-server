@@ -475,8 +475,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val params = Map("chatId" -> id)
     db.begin()
     for {
-      _ <- OrientDBUtil.command(db, DeleteChatEventsCommand, params)
-      _ <- OrientDBUtil.command(db, DeleteChatMembersCommand, params)
+      _ <- OrientDBUtil.commandReturningCount(db, DeleteChatEventsCommand, params)
+      _ <- OrientDBUtil.commandReturningCount(db, DeleteChatMembersCommand, params)
       _ <- OrientDBUtil.deleteFromSingleValueIndex(db, Classes.Chat.Indices.Id, id)
 //      chatRid <- ChatStore.getChatRid(id, db)
 //      _ <- Try(chatRid.getRecord[ODocument].delete())
@@ -514,7 +514,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         // FIXME we need a way to make sure that the event actually got saved. The result should be the
         // created ODocument we need to make sure.
         OrientDBUtil
-          .command(db, query, params)
+          .commandReturningCount(db, query, params)
           .map(_ => ())
       }
   }
@@ -536,7 +536,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "timestamp" -> Date.from(timestamp),
       "message" -> message)
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 
@@ -555,7 +555,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 
@@ -574,7 +574,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 
@@ -596,7 +596,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "addedUsername" -> userAdded.username,
       "addedUserType" -> userAdded.userType.toString.toLowerCase)
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 
@@ -618,7 +618,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "removedUsername" -> userRemoved.username,
       "removedUserType" -> userRemoved.userType.toString.toLowerCase)
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 
@@ -639,7 +639,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "timestamp" -> Date.from(timestamp),
       "name" -> name)
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 
@@ -660,7 +660,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "timestamp" -> Date.from(timestamp),
       "topic" -> topic)
     OrientDBUtil
-      .command(db, query, params)
+      .commandReturningCount(db, query, params)
       .map(_ => ())
   }
 

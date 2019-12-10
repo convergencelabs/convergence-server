@@ -160,9 +160,9 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }.flatMap { userRid =>
         val params = Map("user" -> userRid, "groups" -> groups.asJava)
         val command = "UPDATE UserGroup REMOVE members = :user WHERE :user IN members AND id NOT IN :groups"
-        OrientDBUtil.command(db, command, params).flatMap { _ =>
+        OrientDBUtil.commandReturningCount(db, command, params).flatMap { _ =>
           val addCommand = "UPDATE UserGroup SET members = members || :user WHERE id IN :groups"
-          OrientDBUtil.command(db, addCommand, params).map(_ => ())
+          OrientDBUtil.commandReturningCount(db, addCommand, params).map(_ => ())
         }
       }
   }

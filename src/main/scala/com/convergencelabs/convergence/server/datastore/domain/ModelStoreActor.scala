@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.domain.model.Model
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelNotFoundException}
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 
@@ -71,11 +71,13 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
 
           if (currentVersion == 0) {
             // Initial request
-            persistenceProvider.modelStore.getModel(modelId) flatMap  {
+            persistenceProvider.modelStore.getModel(modelId) flatMap {
               case Some(model) =>
-                Success(OfflineModelInitial(model, permissions))
+                persistenceProvider.modelStore.getAndIncrementNextValuePrefix(modelId).map { prefix =>
+                  Success(OfflineModelInitial(model, permissions, prefix))
+                }
               case None =>
-                Failure(EntityNotFoundException("The requested model was not found", Some(modelId)))
+                Failure(ModelNotFoundException(modelId))
             }
           } else {
             persistenceProvider.modelStore.getModelIfNewer(modelId, currentVersion) map { modelUpdate =>
@@ -135,6 +137,6 @@ object ModelStoreActor {
 
   case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends OfflineModelUpdateAction
 
-  case class OfflineModelInitial(model: Model, permissions: ModelPermissions) extends OfflineModelUpdateAction
+  case class OfflineModelInitial(model: Model, permissions: ModelPermissions, valueIdPrefix: Long) extends OfflineModelUpdateAction
 
 }

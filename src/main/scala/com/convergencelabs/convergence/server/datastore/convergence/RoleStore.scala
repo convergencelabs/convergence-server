@@ -179,11 +179,11 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         case Some(rid) =>
           val query = s"DELETE FROM UserRole WHERE user.username = :username AND target = :target"
           val params = Map(Params.Username -> username, Params.Target -> rid)
-          OrientDBUtil.command(db, query, params)
+          OrientDBUtil.commandReturningCount(db, query, params)
         case None =>
           val query = s"DELETE FROM UserRole WHERE user.username = :username AND target IS NULL"
           val params = Map(Params.Username -> username)
-          OrientDBUtil.command(db, query, params)
+          OrientDBUtil.commandReturningCount(db, query, params)
       }
       _ <- Try {
         roleOrids.foreach { roleOrid =>
@@ -289,13 +289,13 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |  user.username = :username AND
         |  ${targetWhere}""".stripMargin
     val params = Map(Params.Username -> username) ++ targetParams
-    OrientDBUtil.command(db, query, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, query, params).map(_ => ())
   }
 
   def removeAllRolesFromTarget(target: RoleTarget): Try[Unit] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"DELETE FROM UserRole WHERE ${targetWhere}"
-    OrientDBUtil.command(db, query, targetParams).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, query, targetParams).map(_ => ())
   }
 
   private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {

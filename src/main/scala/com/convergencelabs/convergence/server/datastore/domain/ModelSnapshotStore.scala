@@ -72,7 +72,7 @@ object ModelSnapshotStore {
   def removeAllSnapshotsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
     val command = "DELETE FROM ModelSnapshot WHERE model.collection.id = :collectionId"
     val params = Map(Constants.CollectionId -> collectionId)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 }
 
@@ -259,7 +259,7 @@ class ModelSnapshotStore private[domain] (
   def removeAllSnapshotsForModel(id: String): Try[Unit] = withDb { db =>
     val command = "DELETE FROM ModelSnapshot WHERE model.id = :modelId"
     val params = Map(Constants.ModelId -> id)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
   
   /**

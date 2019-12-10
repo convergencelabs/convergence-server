@@ -467,7 +467,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
             Classes.UserReconnectToken.Fields.Token -> token,
             Classes.UserReconnectToken.Fields.ExpireTime -> Date.from(expiration))
           OrientDBUtil
-            .command(db, command, params)
+            .commandReturningCount(db, command, params)
             .map(_ => token)
         case None =>
           Failure(EntityNotFoundException(DomainUserStore.UserDoesNotExistMessage))

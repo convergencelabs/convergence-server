@@ -43,7 +43,7 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
       |  domain = (SELECT FROM Domain WHERE id = :domainId AND namespace.id = :namespaceId)""".stripMargin
   def addFavorite(username: String, domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username, Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
-    OrientDBUtil.command(db, CreateFavoriteCommand, params)
+    OrientDBUtil.commandReturningCount(db, CreateFavoriteCommand, params)
       .map(_ => ())
       .recoverWith {
         case cause: ORecordDuplicatedException =>
@@ -64,20 +64,20 @@ class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
     "DELETE FROM UserFavoriteDomain WHERE user.username = :username AND domain.id = :domainId AND domain.namespace.id = :namespaceId"
   def removeFavorite(username: String, domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username, Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
-    OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, DeleteFavoriteCommand, params).map(_ => ())
   }
 
   private[this] val DeleteFavoritesForUserCommand =
     "DELETE FROM UserFavoriteDomain WHERE user.username = :username"
   def removeFavoritesForUser(username: String): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username)
-    OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, DeleteFavoriteCommand, params).map(_ => ())
   }
 
   private[this] val DeleteFavoritesForDomainCommand =
     "DELETE FROM UserFavoriteDomain WHERE domain.id = :domainId AND domain.namespace.id = :namespaceId"
   def removeFavoritesForDomain(domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
-    OrientDBUtil.command(db, DeleteFavoriteCommand, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, DeleteFavoriteCommand, params).map(_ => ())
   }
 }

@@ -164,7 +164,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       .flatMap { _ =>
         val command = "DELETE FROM CollectionUserPermissions WHERE collection.id = :collectionId"
         val params = Map("collectionId" -> collectionId)
-        OrientDBUtil.command(db, command, params)
+        OrientDBUtil.commandReturningCount(db, command, params)
       }
   }
 
@@ -361,7 +361,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
       .flatMap { _ =>
         val command = "DELETE FROM ModelUserPermissions WHERE model.id = :modelId"
         val params = Map("modelId" -> id)
-        OrientDBUtil.command(db, command, params).map(_ => ())
+        OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
       }
   }
 
@@ -410,7 +410,7 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
     }.flatMap { _ =>
       val command = "UPDATE Model SET userPermissions = (SELECT FROM ModelUserPermissions WHERE model.id = :modelId) WHERE id = :modelId"
       val params = Map("modelId" -> modelId)
-      OrientDBUtil.command(db, command, params).map(_ => ())
+      OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
     }
   }
 

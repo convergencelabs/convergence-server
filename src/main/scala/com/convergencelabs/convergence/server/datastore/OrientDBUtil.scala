@@ -16,6 +16,7 @@ import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.{OCompositeKey, OIndex}
+import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.executor.OResultSet
 
@@ -41,27 +42,29 @@ object OrientDBUtil {
    * set produced by the command, and that the result set contains a 'count'
    * field indicating the number of mutated records.
    */
-  def command(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Long] = {
-    Try(db.command(command, params.asJava)).flatMap { rs =>
-      val result = if (rs.hasNext) {
-        val element = rs.next.toElement
-        if (rs.hasNext) {
-          Failure(DatabaseCommandException(command, params, "The result set unexpectedly contained more than one result"))
-        } else {
-          rs.close()
-          val count: Long = element.getProperty(CountField)
-          Option(count)
-            .map(Success(_))
-            .getOrElse(Failure(DatabaseCommandException(command, params, "'count' field was not present in result set")))
-        }
-      } else {
-        Failure(DatabaseCommandException(command, params, "No ResultSet was returned from the command"))
-      }
+  def commandReturningCount(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Long] = {
+    this.singleResultCommand(db, command, params).flatMap( result => {
+      val count: Long = result.getProperty(CountField)
+      Option(count)
+        .map(Success(_))
+        .getOrElse(Failure(DatabaseCommandException(command, params, "'count' field was not present in result set")))
+    })
+  }
 
-      rs.close()
+  /**
+   * Executes a mutating command that returns a single element.
+   */
+  def singleResultCommand(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[OElement] = {
+    this.command(db, command, params)
+      .flatMap(assertOneDoc)
+  }
 
-      result
-    }
+  /**
+   * Executes a mutating command that returns a single element.
+   */
+  def command(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
+    Try(db.command(command, params.asJava))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(resultSetToDocList))
   }
 
   def executeMutation(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Long] = {

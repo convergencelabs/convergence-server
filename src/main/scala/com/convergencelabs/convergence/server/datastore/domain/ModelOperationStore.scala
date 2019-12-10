@@ -73,7 +73,7 @@ object ModelOperationStore {
   def deleteAllOperationsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
     val command = "DELETE FROM ModelOperation WHERE model.collection.id = :collectionId"
     val params = Map(Constants.CollectionId -> collectionId)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 }
 
@@ -171,7 +171,7 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
 
   def deleteAllOperationsForModel(modelId: String): Try[Unit] = withDb { db =>
     val params = Map(Constants.ModelId -> modelId)
-    OrientDBUtil.command(db, DeleteAllOperationsForModelCommand, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, DeleteAllOperationsForModelCommand, params).map(_ => ())
   }
 
   def createModelOperation(modelOperation: NewModelOperation, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>

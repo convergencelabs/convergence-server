@@ -45,7 +45,7 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
       |  expiresAt = :expiresAt""".stripMargin
   def createToken(username: String, token: String, expiresAt: Instant): Try[Unit] = withDb { db =>
     val params = Map(Params.Username -> username, Params.Token -> token, Params.ExpiresAt -> Date.from(expiresAt))
-    OrientDBUtil.command(db, CreateTokenCommand, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, CreateTokenCommand, params).map(_ => ())
   }
 
   def removeToken(token: String): Try[Unit] = withDb { db =>
@@ -54,7 +54,7 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
   
   private[this] val CleanExpiredTokensCommand = "DELETE FROM UserSessionToken WHERE expiresAt < sysdate()"
   def cleanExpiredTokens(): Try[Unit] = withDb { db =>
-    OrientDBUtil.command(db, CleanExpiredTokensCommand).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, CleanExpiredTokensCommand).map(_ => ())
   }
 
   private[this] val ValidateUserSessionToken = "SELECT FROM UserSessionToken WHERE token = :token"

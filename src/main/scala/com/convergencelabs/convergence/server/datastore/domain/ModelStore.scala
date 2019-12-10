@@ -91,7 +91,7 @@ object ModelStore {
       _ <- {
         val command = "DELETE FROM Model WHERE collection.id = :collectionId"
         val params = Map(Params.CollectionId -> collectionId)
-        OrientDBUtil.command(db, command, params)
+        OrientDBUtil.commandReturningCount(db, command, params)
       }
     } yield ()
   }
@@ -99,7 +99,7 @@ object ModelStore {
   def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
     val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
     val params = Map(Params.CollectionId -> collectionId)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 }
 
@@ -220,11 +220,18 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  //TODO: This should probably be handled in a model shutdown routine so that we only update it once with the final value
   def setNextPrefixValue(id: String, value: Long): Try[Unit] = withDb { db =>
     val command = "UPDATE Model SET valuePrefix = :valuePrefix WHERE id = :id"
     val params = Map(Fields.Id -> id, Fields.ValuePrefix -> value)
     OrientDBUtil.mutateOneDocument(db, command, params)
+  }
+
+  def getAndIncrementNextValuePrefix(id: String): Try[Long] = withDb { db =>
+    val command = "UPDATE Model SET valuePrefix = valuePrefix + 1 RETURN AFTER valuePrefix WHERE id = :id"
+    val params = Map(Fields.Id -> id)
+    OrientDBUtil
+      .singleResultCommand(db, command, params)
+      .map(doc => doc.getProperty(Fields.ValuePrefix).asInstanceOf[Long])
   }
 
   def deleteModel(id: String): Try[Unit] = withDb { db =>
@@ -245,7 +252,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   def deleteDataValuesForModel(id: String, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val command = "DELETE FROM DataValue WHERE model.id = :id"
     val params = Map(Fields.Id -> id)
-    OrientDBUtil.command(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 
   def getModel(id: String): Try[Option[Model]] = withDb { db =>

@@ -22,6 +22,8 @@ organization := "com.convergencelabs"
 organizationName := "Convergence Labs, Inc."
 organizationHomepage := Some(url("http://convergencelabs.com"))
 
+maintainer := "info@convergencelabs.com"
+
 scalaVersion := "2.12.10"
 
 scalacOptions := Seq("-deprecation", "-feature")

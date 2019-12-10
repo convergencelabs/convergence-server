@@ -86,7 +86,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   private[this] def handleOfflineModelSynced(message: UpdateOfflineModel): Unit = {
     val UpdateOfflineModel(modelId, action) = message
     action match {
-      case OfflineModelInitial(model, permissions) =>
+      case OfflineModelInitial(model, permissions, valueIdPrefix) =>
         this.subscribedModels.get(modelId).foreach { currentState =>
           val modelDataUpdate = ModelUpdateData(
             model.metaData.version,
@@ -101,7 +101,8 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
             permissions.remove,
             permissions.manage)
 
-          val initialData = OfflineModelInitialData(model.metaData.collection, Some(modelDataUpdate), Some(permissionsData))
+          val prefix = java.lang.Long.toString(valueIdPrefix, 36)
+          val initialData = OfflineModelInitialData(model.metaData.collection, prefix, Some(modelDataUpdate), Some(permissionsData))
           val action = OfflineModelUpdatedMessage.Action.Initial(initialData)
           val message = OfflineModelUpdatedMessage(modelId, action)
 
