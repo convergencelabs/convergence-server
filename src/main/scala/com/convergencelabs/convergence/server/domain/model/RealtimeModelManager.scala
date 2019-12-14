@@ -82,6 +82,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
                            private[this] val permissionsResolver: ModelPermissionResolver,
                            private[this] val modelCreator: ModelCreator,
                            private[this] val clientDataResponseTimeout: Timeout,
+                           private[this] val resyncTimeout: FiniteDuration,
                            private[this] val context: ActorContext,
                            private[this] val eventHandler: RealtimeModelManager.EventHandler) extends Logging {
 
@@ -89,7 +90,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   private[this] implicit val sender: ActorRef = context.self
   private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
-  private[this] val resyncTimeout = 30 seconds
 
   private[this] val persistence = persistenceFactory.create(new PersistenceEventHandler() {
     def onError(message: String): Unit = {

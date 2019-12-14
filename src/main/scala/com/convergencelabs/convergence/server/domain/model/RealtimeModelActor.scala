@@ -33,13 +33,15 @@ object RealtimeModelActor {
             modelCreator: ModelCreator,
             persistenceManager: DomainPersistenceManager,
             clientDataResponseTimeout: FiniteDuration,
-            receiveTimeout: FiniteDuration): Props =
+            receiveTimeout: FiniteDuration,
+            resyncTimeout: FiniteDuration): Props =
     Props(new RealtimeModelActor(
       modelPermissionResolver,
       modelCreator,
       persistenceManager,
       clientDataResponseTimeout,
-      receiveTimeout))
+      receiveTimeout,
+      resyncTimeout))
 }
 
 /**
@@ -50,7 +52,8 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
                          private[this] val modelCreator: ModelCreator,
                          private[this] val persistenceManager: DomainPersistenceManager,
                          private[this] val clientDataResponseTimeout: FiniteDuration,
-                         private[this] val receiveTimeout: FiniteDuration)
+                         private[this] val receiveTimeout: FiniteDuration,
+                         private[this] val resyncTimeout: FiniteDuration)
   extends ShardedActor(classOf[ModelMessage]) {
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
@@ -248,6 +251,7 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
       modelPermissionResolver,
       modelCreator,
       Timeout(clientDataResponseTimeout),
+      resyncTimeout,
       context,
       new EventHandler() {
         def onInitializationError(): Unit = {

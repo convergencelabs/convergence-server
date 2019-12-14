@@ -402,6 +402,7 @@ class RealtimeModelActorSpec
       modelCreator,
       persistenceManager,
       FiniteDuration(100, TimeUnit.MILLISECONDS),
+      FiniteDuration(100, TimeUnit.MILLISECONDS),
       FiniteDuration(100, TimeUnit.MILLISECONDS))
 
     val realtimeModelActor = mockCluster.childActorOf(props)

@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.cluster.sharding.ShardRegion
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings}
@@ -26,10 +24,10 @@ import com.convergencelabs.convergence.server.domain.DomainActorSharding
 import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.convergence.server.domain.chat.ChatSharding
 import com.convergencelabs.convergence.server.domain.model.{ModelCreator, ModelPermissionResolver, RealtimeModelSharding}
-import com.convergencelabs.convergence.server.domain.rest.{RestDomainActor, RestDomainActorSharding}
+import com.convergencelabs.convergence.server.domain.rest.RestDomainActorSharding
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
@@ -78,14 +76,23 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
     // The below actors are sharded since they provide services to domains
     // and could potentially have a large number of entities (e.g. activities,
     // models, etc.
-    val clientDataResponseTimeout = FiniteDuration(10, TimeUnit.SECONDS)
-    val receiveTimeout = FiniteDuration(10, TimeUnit.SECONDS)
+
+    val clientDataResponseTimeout = Duration.fromNanos(
+      system.settings.config.getDuration("convergence.realtime.model.client-data-timeout").toNanos)
+
+    val receiveTimeout = Duration.fromNanos(
+      system.settings.config.getDuration("convergence.realtime.model.passivation-timeout").toNanos)
+
+    val resyncTimeout = Duration.fromNanos(
+      system.settings.config.getDuration("convergence.realtime.model.resynchronization-timeout").toNanos)
+
     realtimeModelRegion = Some(RealtimeModelSharding.start(system, shardCount, List(
       new ModelPermissionResolver(),
       new ModelCreator(),
       DomainPersistenceManagerActor,
       clientDataResponseTimeout,
-      receiveTimeout)))
+      receiveTimeout,
+      resyncTimeout)))
 
     activityShardRegion =
       Some(ActivityActorSharding.start(system, shardCount))
@@ -93,6 +100,8 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
     chatChannelRegion =
       Some(ChatSharding.start(system, shardCount))
 
+    val domainPassivationTimeout = Duration.fromNanos(
+      system.settings.config.getDuration("convergence.realtime.domain.passivation-timeout").toNanos)
     domainRegion =
       Some(DomainActorSharding.start(
         system,
@@ -100,7 +109,7 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
         List(
           protocolConfig,
           DomainPersistenceManagerActor,
-          FiniteDuration(10, TimeUnit.SECONDS))))
+          domainPassivationTimeout)))
 
     //
     // REST Services
