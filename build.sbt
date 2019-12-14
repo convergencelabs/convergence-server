@@ -57,6 +57,8 @@ libraryDependencies ++=
     testingAkka
 
 mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer")
+discoveredMainClasses in Compile := Seq()
+
 publishArtifact in (Compile, packageBin) := false
 publishArtifact in (Compile, packageDoc) := false
 publishArtifact in (Compile, packageSrc) := false
