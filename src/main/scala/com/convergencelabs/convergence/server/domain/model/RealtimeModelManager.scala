@@ -120,7 +120,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] val modelStore = persistenceProvider.modelStore
   private[this] val modelSnapshotStore = persistenceProvider.modelSnapshotStore
 
-  private[this] var connectedClients = HashMap[DomainUserSessionId, ActorRef]()
+  private[this] var openClients = HashMap[DomainUserSessionId, ActorRef]()
   private[this] var resyncingClients = HashMap[DomainUserSessionId, ResynchronizationRecord]()
   private[this] var clientToSessionId = HashMap[ActorRef, DomainUserSessionId]()
   private[this] var queuedOpeningClients = HashMap[DomainUserSessionId, OpenRequestRecord]()
@@ -272,7 +272,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   def reloadModelPermissions(): Try[Unit] = {
     // Build a map of all current permissions so we can detect what changes.
-    val currentPerms = this.connectedClients.map { case (session, _) =>
+    val currentPerms = this.openClients.map { case (session, _) =>
       val sessionPerms = this.permissions.resolveSessionPermissions(session.userId)
       (session, sessionPerms)
     }
@@ -284,7 +284,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         this.metaData = this.metaData.copy(overridePermissions = p.overrideCollection, worldPermissions = p.modelWorld)
 
         // Send and update to any client that has permissions that have changed.
-        this.connectedClients.foreach { case (session, client) =>
+        this.openClients.foreach { case (session, client) =>
           val current = this.permissions.resolveSessionPermissions(session.userId)
           val previous = currentPerms.get(session)
           if (!previous.contains(current)) {
@@ -352,7 +352,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       }
       this.queuedReconnectingClients = HashMap[DomainUserSessionId, ResynchronizationRequestRecord]()
 
-      if (this.connectedClients.isEmpty && this.resyncingClients.isEmpty) {
+      if (this.openClients.isEmpty && this.resyncingClients.isEmpty) {
         this.handleInitializationFailure(
           s"$domainFqn/$modelId: The model was initialized, but no clients are connected.",
           None,
@@ -445,7 +445,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     debug(s"$domainFqn/$modelId: Handling a request to open the model while it is initialized.")
 
     val session = request.session
-    if (connectedClients.contains(session)) {
+    if (openClients.contains(session)) {
       requester ! Status.Failure(ModelAlreadyOpenException())
     } else {
       val model = Model(this.metaData, this.model.data.dataValue())
@@ -476,7 +476,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         val openModelResponse = OpenModelSuccess(
           valuePrefix,
           metaData,
-          connectedClients.keySet,
+          openClients.keySet,
           resyncingClients.keySet,
           referencesBySession,
           modelData.data,
@@ -502,7 +502,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       this.model.clientConnected(session, contextVersion)
     }
 
-    connectedClients += (session -> clientActor)
+    openClients += (session -> clientActor)
 
     eventHandler.onClientOpened(clientActor)
 
@@ -558,7 +558,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     debug(s"$domainFqn/$modelId: Handling a request to reconnect to the model while it is initialized.")
 
     val session = request.session
-    if (connectedClients.contains(session)) {
+    if (openClients.contains(session)) {
       requester ! Status.Failure(ModelAlreadyOpenException())
     } else {
       respondToModelResyncRequest(session, ResynchronizationRequestRecord(request.contextVersion, request.clientActor, requester))
@@ -660,7 +660,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           val rc = this.resyncingClients.filter(_._1 != session)
           this.onClientOpened(session, clientActor, resyncClient = true)
           val referencesBySession = this.model.references()
-          replyTo ! ModelResyncCompleteResponse(connectedClients.keySet, rc.keySet, referencesBySession)
+          replyTo ! ModelResyncCompleteResponse(openClients.keySet, rc.keySet, referencesBySession)
         } else {
           this.clientToSessionId -= clientActor
           this.model.clientDisconnected(session)
@@ -693,7 +693,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   }
 
   private[this] def clientClosed(session: DomainUserSessionId, askingActor: ActorRef): Unit = {
-    if (!connectedClients.contains(session)) {
+    if (!openClients.contains(session)) {
       askingActor ! Status.Failure(ModelNotOpenException())
     } else {
       closeModel(session, notifyOthers = true)
@@ -718,12 +718,12 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         }
       case State.Initialized =>
         val committed = Option(this.model).forall(m => m.contextVersion() == this.committedVersion)
-        if (connectedClients.isEmpty && resyncingClients.isEmpty && committed) {
+        if (openClients.isEmpty && resyncingClients.isEmpty && committed) {
           // We will disconnect after all clients are disconnected and the model is committed.
           executeClose()
         }
       case State.Error =>
-        if (connectedClients.isEmpty && resyncingClients.isEmpty) {
+        if (openClients.isEmpty && resyncingClients.isEmpty) {
           // We will disconnect after all clients are disconnected.
           executeClose()
         }
@@ -818,7 +818,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   }
 
   private[this] def getClientForSession(session: DomainUserSessionId): Option[ActorRef] = {
-    connectedClients.get(session).orElse(resyncingClients.get(session).map(_.clientActor))
+    openClients.get(session).orElse(resyncingClients.get(session).map(_.clientActor))
   }
 
   //
@@ -842,7 +842,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   }
 
   private[this] def broadcastToAllOthers(message: Any, origin: DomainUserSessionId): Unit = {
-    connectedClients.filter(p => p._1 != origin) foreach {
+    openClients.filter(p => p._1 != origin) foreach {
       case (_, clientActor) => clientActor ! message
     }
   }
@@ -893,9 +893,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   def forceCloseAllAfterError(reason: String, reasonCode: ForceModelCloseReasonCode.Value = ForceModelCloseReasonCode.Unknown): Unit = {
     setState(State.Error)
     debug(s"$domainFqn/$modelId: Force closing all clients: $reason ($reasonCode)")
-    connectedClients foreach {
-      case (clientId, _) => forceCloseModel(clientId, reasonCode, reason, notifyOthers = false)
-    }
+    allSessionIds() foreach (sessionId => forceCloseModel(sessionId, reasonCode, reason, notifyOthers = false))
   }
 
   def modelDeleted(): Unit = {
@@ -922,22 +920,25 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
    * @return The actor associated with the closed session
    */
   private[this] def closeModel(session: DomainUserSessionId, notifyOthers: Boolean): Option[ActorRef] = {
-    val closedActor = connectedClients.get(session)
+    openClients -= session
+    resyncingClients -= session
+
+    this.model.clientDisconnected(session)
+
+    val closedActor = openClients
+      .get(session)
+      .orElse(resyncingClients.get(session).map(_.clientActor))
 
     closedActor.foreach { closedActor =>
-      connectedClients -= session
-      resyncingClients -= session
       clientToSessionId -= closedActor
       eventHandler.onClientClosed(closedActor)
     }
-
-    this.model.clientDisconnected(session)
 
     if (notifyOthers) {
       // There are still other clients with this model open so notify them
       // that this person has left
       val closedMessage = RemoteClientClosed(modelId, session)
-      connectedClients.values foreach { client => client ! closedMessage }
+      openClients.values foreach { client => client ! closedMessage }
     }
 
     closedActor
@@ -958,6 +959,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     queuedOpeningClients.values foreach { openRequest =>
       openRequest.replyTo ! response
     }
+
     queuedOpeningClients = HashMap[DomainUserSessionId, OpenRequestRecord]()
     checkForConnectionsAndClose()
     eventHandler.onInitializationError()
@@ -974,5 +976,9 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
 
   private[this] def setState(state: State.Value): Unit = {
     this.state = state
+  }
+
+  private[this] def allSessionIds(): Set[DomainUserSessionId] = {
+    openClients.keySet ++ resyncingClients.keySet
   }
 }
