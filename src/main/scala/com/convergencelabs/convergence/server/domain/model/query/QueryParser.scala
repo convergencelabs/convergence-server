@@ -17,11 +17,6 @@ import scala.annotation.switch
 import scala.util.Try
 
 object QueryParser {
-  def main(args: Array[String]): Unit = {
-    val parsed = QueryParser("as a123456 ").ProjectionValueName.run().get
-    println(parsed)
-  }
-
   def apply(input: ParserInput): QueryParser = {
     new QueryParser(input)
   }

@@ -11,44 +11,13 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.collection.mutable.{ Map => ScalaMutableMap }
-
 import com.convergencelabs.convergence.server.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Add
-import com.convergencelabs.convergence.server.domain.model.query.Ast.And
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Ascending
-import com.convergencelabs.convergence.server.domain.model.query.Ast.BooleanTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.ConditionalExpression
-import com.convergencelabs.convergence.server.domain.model.query.Ast.ConditionalTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Descending
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Divide
-import com.convergencelabs.convergence.server.domain.model.query.Ast.DoubleTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Equals
-import com.convergencelabs.convergence.server.domain.model.query.Ast.FieldTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.GreaterThan
-import com.convergencelabs.convergence.server.domain.model.query.Ast.GreaterThanOrEqual
-import com.convergencelabs.convergence.server.domain.model.query.Ast.In
-import com.convergencelabs.convergence.server.domain.model.query.Ast.IndexPathElement
-import com.convergencelabs.convergence.server.domain.model.query.Ast.LessThan
-import com.convergencelabs.convergence.server.domain.model.query.Ast.LessThanOrEqual
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Like
-import com.convergencelabs.convergence.server.domain.model.query.Ast.LogicalExpression
-import com.convergencelabs.convergence.server.domain.model.query.Ast.LongTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.MathematicalOperator
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Mod
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Multiply
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Not
-import com.convergencelabs.convergence.server.domain.model.query.Ast.NotEquals
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Or
-import com.convergencelabs.convergence.server.domain.model.query.Ast.PropertyPathElement
-import com.convergencelabs.convergence.server.domain.model.query.Ast.SelectStatement
-import com.convergencelabs.convergence.server.domain.model.query.Ast.StringTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.Subtract
-import com.convergencelabs.convergence.server.domain.model.query.Ast.ValueTerm
-import com.convergencelabs.convergence.server.domain.model.query.Ast.WhereExpression
 import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.model.query.Ast._
+
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.mutable
 
 case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
 
@@ -56,8 +25,8 @@ object ModelQueryBuilder {
 
   def queryModels(select: SelectStatement, userId: Option[DomainUserId]): ModelQueryParameters = {
     // TODO use a let to query for the user first.
-    implicit val params = ScalaMutableMap[String, Any]()
-    implicit val as = ScalaMutableMap[String, String]()
+    implicit val params: mutable.Map[String, Any] = mutable.Map[String, Any]()
+    implicit val as: mutable.Map[String, String] = mutable.Map[String, String]()
     
     val projectionString =
       if (select.fields.isEmpty) {
@@ -84,14 +53,14 @@ object ModelQueryBuilder {
     val permissionString = this.buildPermissionsString(userId)
     val orderString: String = this.buildOrderString(select)
 
-    val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
+    val queryString = s"$selectString$whereString$permissionString$orderString"
 
     ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, select.limit, select.offset), params.toMap, as.toMap)
   }
 
   def countModels(select: SelectStatement, userId: Option[DomainUserId]): ModelQueryParameters = {
     // TODO use a let to query for the user first.
-    implicit val params = ScalaMutableMap[String, Any]()
+    implicit val params: mutable.Map[String, Any] = mutable.Map[String, Any]()
 
     val projectionString = "count(*) as count "
     val selectString = this.buildSelectString(select, projectionString)
@@ -99,34 +68,36 @@ object ModelQueryBuilder {
     val permissionString = this.buildPermissionsString(userId)
     val orderString: String = this.buildOrderString(select)
 
-    val queryString = s"${selectString}${whereString}${permissionString}${orderString}"
+    val queryString = s"$selectString$whereString$permissionString$orderString"
 
     ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, None, None), params.toMap, Map())
   }
 
   private[this] def buildSelectString(select: SelectStatement, projectionString: String)(
     implicit
-    params: ScalaMutableMap[String, Any]): String = {
+    params: mutable.Map[String, Any]): String = {
 
     s"SELECT ${projectionString}FROM Model WHERE ${DomainSchema.Classes.Model.Fields.Collection}.${DomainSchema.Classes.Collection.Fields.Id} = ${addParam(select.collection)}"
   }
 
-  private[this] def buildWhereString(select: SelectStatement)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildWhereString(select: SelectStatement)(implicit params: mutable.Map[String, Any]): String = {
     (select.where map { where =>
       s" AND ${buildExpressionString(where)}"
-    }) getOrElse ("")
+    }) getOrElse ""
   }
 
-  private[this] def buildPermissionsString(userId: Option[DomainUserId])(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildPermissionsString(userId: Option[DomainUserId])(implicit params: mutable.Map[String, Any]): String = {
     userId.map { uid =>
       val usernameParam = addParam(uid.username)
       val userTypeParam = addParam(uid.userType.toString.toLowerCase)
-      s""" AND ((overridePermissions = true AND ((userPermissions CONTAINS ((user.username = $usernameParam AND user.userType = $userTypeParam AND permissions.read = true))) OR
-                    (not(userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam )) AND worldPermissions.read = true))) OR 
-	               (overridePermissions = false AND ((collection.userPermissions CONTAINS ((user.username = $usernameParam AND user.userType = $userTypeParam AND permissions.read = true))) OR
-                    (NOT(collection.userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam )) AND collection.worldPermissions.read = true))))"""
 
-    }.getOrElse("")
+      s""" AND (
+         |  (overridePermissions = false AND collection.worldPermissions.read = true) OR
+         |  (overridePermissions = true AND worldPermissions.read = true) OR
+         |  userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam) OR
+         |  collection.userPermissions CONTAINS (user.username = $usernameParam AND user.userType = $userTypeParam)
+         |)""".stripMargin
+    } getOrElse ""
   }
 
   private[this] def buildOrderString(select: SelectStatement): String = {
@@ -137,8 +108,8 @@ object ModelQueryBuilder {
         val ascendingParam = orderBy.direction map {
           case Ascending  => "ASC"
           case Descending => "DESC"
-        } getOrElse ("ASC")
-        s"${buildFieldPath(orderBy.field)} ${ascendingParam}"
+        } getOrElse "ASC"
+        s"${buildFieldPath(orderBy.field)} $ascendingParam"
       }).mkString(", ")
     }
   }
@@ -174,14 +145,14 @@ object ModelQueryBuilder {
     sb.toString
   }
 
-  private[this] def buildExpressionString(where: WhereExpression)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildExpressionString(where: WhereExpression)(implicit params: mutable.Map[String, Any]): String = {
     where match {
       case expression: LogicalExpression     => buildLogicalExpressionString(expression)
       case expression: ConditionalExpression => buildConditionalExpressionString(expression)
     }
   }
 
-  private[this] def buildLogicalExpressionString(expression: LogicalExpression)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildLogicalExpressionString(expression: LogicalExpression)(implicit params: mutable.Map[String, Any]): String = {
     expression match {
       case And(lhs, rhs)   => s"(${buildExpressionString(lhs)} and ${buildExpressionString(rhs)})"
       case Or(lhs, rhs)    => s"(${buildExpressionString(lhs)} or ${buildExpressionString(rhs)})"
@@ -189,7 +160,7 @@ object ModelQueryBuilder {
     }
   }
 
-  private[this] def buildConditionalExpressionString(expression: ConditionalExpression)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildConditionalExpressionString(expression: ConditionalExpression)(implicit params: mutable.Map[String, Any]): String = {
     expression match {
       case Equals(lhs, rhs)               => s"(${buildTermString(lhs)} = ${buildTermString(rhs)})"
       case NotEquals(lhs, rhs)            => s"(${buildTermString(lhs)} != ${buildTermString(rhs)})"
@@ -202,14 +173,14 @@ object ModelQueryBuilder {
     }
   }
 
-  private[this] def buildTermString(term: ConditionalTerm)(implicit param: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildTermString(term: ConditionalTerm)(implicit param: mutable.Map[String, Any]): String = {
     term match {
       case expression: ValueTerm            => buildExpressionValueString(expression)
       case expression: MathematicalOperator => buildMathmaticalExpressionString(expression)
     }
   }
 
-  private[this] def buildExpressionValueString(valueTerm: ValueTerm)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildExpressionValueString(valueTerm: ValueTerm)(implicit params: mutable.Map[String, Any]): String = {
     valueTerm match {
       case LongTerm(value)    => s"${addParam(value)}"
       case DoubleTerm(value)  => s"${addParam(value)}"
@@ -219,7 +190,7 @@ object ModelQueryBuilder {
     }
   }
 
-  private[this] def buildMathmaticalExpressionString(expression: MathematicalOperator)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private[this] def buildMathmaticalExpressionString(expression: MathematicalOperator)(implicit params: mutable.Map[String, Any]): String = {
     expression match {
       case Add(lhs, rhs)      => s"(${buildTermString(lhs)} + ${buildTermString(rhs)})"
       case Subtract(lhs, rhs) => s"(${buildTermString(lhs)} - ${buildTermString(rhs)})"
@@ -229,13 +200,13 @@ object ModelQueryBuilder {
     }
   }
 
-  private def addParam(value: Any)(implicit params: ScalaMutableMap[String, Any]): String = {
+  private def addParam(value: Any)(implicit params: mutable.Map[String, Any]): String = {
     val param = s"p${params.size}"
     params += param -> value
     s":$param"
   }
 
-  private def addAs(value: String)(implicit as: ScalaMutableMap[String, String]): String = {
+  private def addAs(value: String)(implicit as: mutable.Map[String, String]): String = {
     val a = s"a${as.size}"
     as += a -> value
     a
