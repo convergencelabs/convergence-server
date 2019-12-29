@@ -12,17 +12,20 @@
 import Dependencies.Compile._
 import Dependencies.Test._
 
-name := "convergence-server"
-description := "Convergence Server"
-homepage := Some(url("https://convergence.io"))
-
-licenses += "GPLv3" -> url("https://www.gnu.org/licenses/gpl-3.0.html")
-
 organization := "com.convergencelabs"
 organizationName := "Convergence Labs, Inc."
 organizationHomepage := Some(url("http://convergencelabs.com"))
 
+name := "convergence-server"
+description := "Convergence Server"
+homepage := Some(url("https://convergence.io"))
 maintainer := "info@convergencelabs.com"
+
+licenses += "GPLv3" -> url("https://www.gnu.org/licenses/gpl-3.0.html")
+
+scmInfo := Some(ScmInfo(
+      url("https://github.com/convergencelabs/convergence-server"),
+      "https://github.com/convergencelabs/convergence-server.git"))
 
 scalaVersion := "2.12.10"
 
