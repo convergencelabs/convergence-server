@@ -32,7 +32,7 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
 object RealtimeModelManager {
-  val DatabaseInitializationFailure = UnknownErrorResponse("Unexpected persistence error initializing the model.")
+  val DatabaseInitializationFailure: UnknownErrorResponse = UnknownErrorResponse("Unexpected persistence error initializing the model.")
 
   trait EventHandler {
     def onInitializationError(): Unit
@@ -249,7 +249,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
             this.onDatabaseModelResponse(m, s, snapshotConfig, permissions)
           }) recover {
             case cause: Throwable =>
-              val message =
                 this.handleInitializationFailure(
                   s"Error getting model permissions (${this.modelId})",
                   Some(cause),
@@ -485,8 +484,9 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         requestRecord.replyTo ! openModelResponse
       } recover {
         case cause: Throwable =>
-          this.error("Unable to get the valueIdPrefix for the model", cause);
-          requestRecord.replyTo ! Status.Failure(UnexpectedErrorException("Must have read privileges to open model."))
+          val message = "Unable to get the valueIdPrefix for the model"
+          this.error(message, cause)
+          requestRecord.replyTo ! Status.Failure(UnexpectedErrorException(message))
       }
     } else {
       requestRecord.replyTo ! Status.Failure(UnauthorizedException("Must have read privileges to open model."))
@@ -518,7 +518,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       case State.Initializing =>
         onResyncWhileInitializing(request, replyTo)
       case State.Initialized =>
-        onResynctWhileInitialized(request, replyTo)
+        onResyncWhileInitialized(request, replyTo)
       case State.Error | State.InitializationError =>
         replyTo ! Status.Failure(UnexpectedErrorException(
           "The model can't be open, because it is currently shutting down after an error. You may be able to reopen the model."))
@@ -554,7 +554,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     }
   }
 
-  private[this] def onResynctWhileInitialized(request: ModelResyncRequest, requester: ActorRef): Unit = {
+  private[this] def onResyncWhileInitialized(request: ModelResyncRequest, requester: ActorRef): Unit = {
     debug(s"$domainFqn/$modelId: Handling a request to reconnect to the model while it is initialized.")
 
     val session = request.session
