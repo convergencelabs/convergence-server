@@ -538,13 +538,13 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
               modelPermissions.remove,
               modelPermissions.manage))))
       case Failure(ModelAlreadyOpenException()) =>
-        cb.reply(ModelClientActor.ModelAlreadyOpenError)
+        cb.reply(ModelClientActor.modelAlreadyOpenError(modelId))
       case Failure(ModelDeletedWhileOpeningException()) =>
-        cb.reply(ModelClientActor.ModelDeletedError)
+        cb.reply(ModelClientActor.modelDeletedError(modelId))
       case Failure(ClientDataRequestFailure(message)) =>
         cb.expectedError("data_request_failure", message)
       case Failure(ModelNotFoundException(_)) =>
-        cb.reply(ModelClientActor.ModelNotFoundError)
+        cb.reply(ModelClientActor.modelNotFoundError(modelId))
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
@@ -577,9 +577,9 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         val responseMessage = ModelResyncResponseMessage(resourceId, currentVersion, Some(permissionData))
         cb.reply(responseMessage)
       case Failure(ModelAlreadyOpenException()) =>
-        cb.reply(ModelClientActor.ModelAlreadyOpenError)
+        cb.reply(ModelClientActor.modelAlreadyOpenError(modelId))
       case Failure(ModelNotFoundException(_)) =>
-        cb.reply(ModelClientActor.ModelNotFoundError)
+        cb.reply(ModelClientActor.modelNotFoundError(modelId))
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
@@ -654,7 +654,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       case Success(()) =>
         cb.reply(DeleteRealtimeModelResponseMessage())
       case Failure(ModelNotFoundException(_)) =>
-        cb.reply(ModelClientActor.ModelNotFoundError)
+        cb.reply(ModelClientActor.modelNotFoundError(modelId))
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
@@ -697,7 +697,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         val mappedUsers = modelUserPermissionSeqToMap(users)
         cb.reply(GetModelPermissionsResponseMessage(overridesCollection, Some(mappedWorld), mappedUsers))
       case Failure(ModelNotFoundException(_)) =>
-        cb.reply(ModelClientActor.ModelNotFoundError)
+        cb.reply(ModelClientActor.modelNotFoundError(modelId))
       case Failure(UnauthorizedException(message)) =>
         cb.reply(ErrorMessages.Unauthorized(message))
       case Failure(cause) =>
@@ -725,7 +725,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       case Success(_) =>
         cb.reply(SetModelPermissionsResponseMessage())
       case Failure(ModelNotFoundException(_)) =>
-        cb.reply(ModelClientActor.ModelNotFoundError)
+        cb.reply(ModelClientActor.modelNotFoundError(modelId))
       case Failure(UnauthorizedException(m)) =>
         cb.reply(ErrorMessages.Unauthorized(m))
       case Failure(cause) =>
@@ -756,9 +756,9 @@ private[realtime] object ModelClientActor {
             offlineModelSyncInterval: FiniteDuration): Props =
     Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout, offlineModelSyncInterval))
 
-  private val ModelNotFoundError = ErrorMessage("model_not_found", "A model with the specified collection and model id does not exist.", Map())
-  private val ModelAlreadyOpenError = ErrorMessage("model_already_open", "The requested model is already open by this client.", Map())
-  private val ModelDeletedError = ErrorMessage("model_deleted", "The requested model was deleted.", Map())
+  private def modelNotFoundError(id: String) = ErrorMessage("model_not_found", s"A model with id '$id' does not exist.", Map("id" -> id))
+  private def modelAlreadyOpenError(id: String) = ErrorMessage("model_already_open", s"The model with id '$id' is already open.",  Map("id" -> id))
+  private def modelDeletedError(id: String) = ErrorMessage("model_deleted", s"The model with id '$id' was deleted.", Map("id" -> id))
 
   private case object SyncOfflineModels
 
