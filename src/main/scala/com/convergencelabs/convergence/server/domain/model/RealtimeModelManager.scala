@@ -920,15 +920,15 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
    * @return The actor associated with the closed session
    */
   private[this] def closeModel(session: DomainUserSessionId, notifyOthers: Boolean): Option[ActorRef] = {
-    openClients -= session
-    resyncingClients -= session
-
-    this.model.clientDisconnected(session)
-
     val closedActor = openClients
       .get(session)
       .orElse(resyncingClients.get(session).map(_.clientActor))
 
+    openClients -= session
+    resyncingClients -= session
+
+    this.model.clientDisconnected(session)
+    
     closedActor.foreach { closedActor =>
       clientToSessionId -= closedActor
       eventHandler.onClientClosed(closedActor)
