@@ -1,5 +1,5 @@
 <div align="center">
-  <img  alt="Convergence Logo" height="80" src="https://convergence.io/assets/img/convergence-logo.png" >
+  <img alt="Convergence Logo" height="80" src="https://convergence.io/assets/img/convergence-logo.png" >
 </div>
 
 # Convergence Server
@@ -31,13 +31,13 @@ The standard SBT tasks can be used to compile and test the server.
 The main entry point of the Convergence Server is the `com.convergencelabs.server.ConvergenceServer` class. This is a good place to start if you are new to the code base. 
 
 ## Binary Distribution
-TThe Convergence Server uses the [SBT Native Packager](https://github.com/sbt/sbt-native-packager) to build its binary distribution. To stage the build run:
+The Convergence Server uses the [SBT Native Packager](https://github.com/sbt/sbt-native-packager) to build its binary distribution. To stage the build run:
  
- ```
+```shell script
 sbt stage
 ```
 
-The resultant build will be located in `target/universal/stage`. 
+The resultant build will be located in `target/universal/stage`.
 
 Refer to the [SBT Native Packager Documentation](https://sbt-native-packager.readthedocs.io/en/stable/) for additional build targets.
 
