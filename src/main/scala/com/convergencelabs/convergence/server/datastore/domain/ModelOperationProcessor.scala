@@ -307,8 +307,12 @@ class ModelOperationProcessor private[domain] (
       case DeleteArrayIndex(index) =>
         s"children[$index]"
     } map { path =>
-      s"""LET directChildrenToDelete = SELECT expand($$dv.$path);           
-         |LET allChildrenToDelete = TRAVERSE children FROM (SELECT expand($$directChildrenToDelete));
+      // The TRAVERSE statement is overly complex because of these two bugs.
+      // https://github.com/orientechnologies/orientdb/issues/9099
+      // https://github.com/orientechnologies/orientdb/issues/9101
+      // Ideally this would just be: TRAVERSE children FROM (SELECT expand($$directChildrenToDelete))
+      s"""LET directChildrenToDelete = $$dv.$path;
+         |LET allChildrenToDelete = SELECT FROM (TRAVERSE children, children.values() FROM (SELECT expand($$directChildrenToDelete))) WHERE @this INSTANCEOF "DataValue";
          |DELETE FROM (SELECT expand($$allChildrenToDelete));"""
     } getOrElse ""
 
