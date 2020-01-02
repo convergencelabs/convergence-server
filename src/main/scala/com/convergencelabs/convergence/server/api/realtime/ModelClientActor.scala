@@ -678,7 +678,6 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
               r.metaData.version,
               Some(JsonProtoConverter.toStruct(r.data)))
         }
-        // FIXME add paged info
         cb.reply(ModelsQueryResponseMessage(models, result.offset, result.count))
       case Failure(QueryParsingException(message, _, index)) =>
         cb.expectedError("invalid_query", message, Map("index" -> index.toString))
