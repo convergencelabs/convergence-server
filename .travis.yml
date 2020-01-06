@@ -3,4 +3,6 @@ scala:
   - 2.12.10
 
 script:
-  - sbt compile test
+  - sbt -J-Xmx3G -J-Xss5M compile
+  - sbt -J-Xmx3G -J-Xss5M test
+  - sbt stage
