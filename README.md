@@ -3,6 +3,8 @@
 </div>
 
 # Convergence Server
+[![Build Status](https://travis-ci.org/convergencelabs/convergence-server.svg?branch=master)](https://travis-ci.org/convergencelabs/convergence-server)
+
 The Convergence Server is the main server side component of the [Convergence](https://convergence.io) Realtime Collaboration Framework. Convergence enables developers to rapidly integrate realtime collaboration directly into their applications.
 
 ## Issue Reporting
