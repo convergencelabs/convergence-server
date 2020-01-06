@@ -1,0 +1,6 @@
+language: scala
+scala:
+  - 2.12.10
+
+script:
+  - sbt compile test
