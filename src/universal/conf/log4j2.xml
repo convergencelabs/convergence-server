@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" shutdownHook="disable">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{HH:mm:ss} %-5level %logger{1} - %msg%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Root level="warn"><AppenderRef ref="Console"/></Root>
+    <Logger name="com.convergencelabs" level="info" />
+    <Logger name="com.orientechnologies" level="error" />
+    <Logger name="akka" level="error" />
+  </Loggers>
+</Configuration>

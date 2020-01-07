@@ -59,16 +59,33 @@ libraryDependencies ++=
     testingCore ++
     testingAkka
 
+//
+// SBT Native Packager Configs
+//
 mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer")
 discoveredMainClasses in Compile := Seq()
 
-bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.config""""
-batScriptExtraDefines += """call :add_app "-c %APP_HOME%\conf\convergence-server.config""""
+bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.conf""""
+bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j2.xml""""
+batScriptExtraDefines += """call :add_app "-c %APP_HOME%\conf\convergence-server.conf""""
+batScriptExtraDefines += """call :add_java "-Dlog4j.configurationFile=%APP_HOME%\conf\log4j2.xml""""
 
-publishArtifact in (Compile, packageBin) := false
-publishArtifact in (Compile, packageDoc) := false
-publishArtifact in (Compile, packageSrc) := false
+// Configure the binary distributions to be published along side the normal artifacts.
+val packageZip = taskKey[File]("package-zip")
+packageZip := (baseDirectory in Compile).value / "target" / "universal" / (name.value + "-" + version.value + ".zip")
+artifact in (Universal, packageZip) ~= { (art: Artifact) => art.withType("zip").withExtension("zip") }
+addArtifact(artifact in (Universal, packageZip), packageZip in Universal)
 
+val packageTgz = taskKey[File]("package-zip")
+packageTgz := (baseDirectory in Compile).value / "target" / "universal" / (name.value + "-" + version.value + ".tgz")
+artifact in (Universal, packageTgz) ~= { (art: Artifact) => art.withType("tgz").withExtension("tgz") }
+addArtifact(artifact in (Universal, packageTgz), packageTgz in Universal)
+
+publish := (publish dependsOn (packageBin in Universal)).value
+
+//
+// SBT Build Info
+//
 buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
 buildInfoPackage := "com.convergencelabs.convergence.server"
 

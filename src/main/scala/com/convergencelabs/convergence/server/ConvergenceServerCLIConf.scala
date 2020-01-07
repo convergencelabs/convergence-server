@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server
 
+import org.rogach.scallop.exceptions.RequiredOptionNotFound
 import org.rogach.scallop.{ScallopConf, ScallopOption}
 
 /**
@@ -19,8 +20,8 @@ import org.rogach.scallop.{ScallopConf, ScallopOption}
  * @param arguments The command line arguments passed to the [[ConvergenceServer]]
  */
 private class ConvergenceServerCLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  version("Convergence Server " + BuildInfo.version)
-  banner("Usage: -c convergence-server.conf")
+  version(s"Convergence Server (${BuildInfo.version})")
+  banner("Usage: -c <config-file-path>>")
 
   val config: ScallopOption[String] = opt[String](
     short = 'c',
@@ -30,6 +31,15 @@ private class ConvergenceServerCLIConf(arguments: Seq[String]) extends ScallopCo
     default = None)
 
   verify()
+
+  override def onError(e: Throwable): Unit = e match {
+    case RequiredOptionNotFound(optionName) =>
+      println(s"Error: Required option '$optionName' was not set.\n")
+      printHelp()
+      sys.exit(1)
+    case e: Throwable =>
+      super.onError(e)
+  }
 }
 
 private object ConvergenceServerCLIConf {
