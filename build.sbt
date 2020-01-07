@@ -62,6 +62,9 @@ libraryDependencies ++=
 mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer")
 discoveredMainClasses in Compile := Seq()
 
+bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.config""""
+batScriptExtraDefines += """call :add_app "-c %APP_HOME%\conf\convergence-server.config""""
+
 publishArtifact in (Compile, packageBin) := false
 publishArtifact in (Compile, packageDoc) := false
 publishArtifact in (Compile, packageSrc) := false

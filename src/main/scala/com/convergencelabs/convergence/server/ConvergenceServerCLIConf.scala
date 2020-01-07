@@ -19,15 +19,15 @@ import org.rogach.scallop.{ScallopConf, ScallopOption}
  * @param arguments The command line arguments passed to the [[ConvergenceServer]]
  */
 private class ConvergenceServerCLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
-  version("Convergence Server Node")
+  version("Convergence Server " + BuildInfo.version)
   banner("Usage: -c convergence-server.conf")
 
   val config: ScallopOption[String] = opt[String](
     short = 'c',
     argName = "config",
     descr = "The location of the Convergence Server configuration file",
-    required = false,
-    default = Some("/etc/convergence/convergence-server.conf"))
+    required = true,
+    default = None)
 
   verify()
 }
