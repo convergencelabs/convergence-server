@@ -645,10 +645,12 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     }
   }
 
-  private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit
-
-  = {
+  private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId) = request
+
+    // We may or may not be able to delete the model, but the user has obviously unsubscribed.
+    this.subscribedModels -= request.modelId
+
     val future = modelClusterRegion ? DeleteRealtimeModel(domainId, modelId, Some(session))
     future.mapTo[Unit] onComplete {
       case Success(()) =>
@@ -756,7 +758,9 @@ private[realtime] object ModelClientActor {
     Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout, offlineModelSyncInterval))
 
   private def modelNotFoundError(id: String) = ErrorMessage("model_not_found", s"A model with id '$id' does not exist.", Map("id" -> id))
-  private def modelAlreadyOpenError(id: String) = ErrorMessage("model_already_open", s"The model with id '$id' is already open.",  Map("id" -> id))
+
+  private def modelAlreadyOpenError(id: String) = ErrorMessage("model_already_open", s"The model with id '$id' is already open.", Map("id" -> id))
+
   private def modelDeletedError(id: String) = ErrorMessage("model_deleted", s"The model with id '$id' was deleted.", Map("id" -> id))
 
   private case object SyncOfflineModels
