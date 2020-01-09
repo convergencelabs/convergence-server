@@ -64,15 +64,15 @@ object ConfigKeys {
       case Some(classes) => 
         classes.contains(value.getClass) match {
           case true => Success(())
-          case failure => Failure(new IllegalArgumentException(s"'${key}' must be of type ${classes.mkString(", ")} but was of type: ${value.getClass.getName}"))
+          case failure => Failure(new IllegalArgumentException(s"'$key' must be of type ${classes.mkString(", ")} but was of type: ${value.getClass.getName}"))
         }
       case None =>
-        Failure(new IllegalArgumentException(s"'${key}' is not a valid configuration key."))
+        Failure(new IllegalArgumentException(s"'$key' is not a valid configuration key."))
     }
   }
 }
 
-case class ConfigNotFound(key: String) extends Exception(s"The requried config '${key}' does not exist")
+case class ConfigNotFound(key: String) extends Exception(s"The required config '$key' does not exist")
 
 object ConfigStore {
 
@@ -122,6 +122,7 @@ class ConfigStore(dbProvider: DatabaseProvider)
 
   def setConfig(key: String, value: Any): Try[Unit] = withDb { db =>
     val processedValue = processValue(key, value)
+    ConfigKeys.validateConfig(key, processedValue)
     val command = "UPDATE Config SET value = :value UPSERT WHERE key = :key"
     val params = Map(Params.Key -> key, Params.Value -> processedValue)
     OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
@@ -130,9 +131,10 @@ class ConfigStore(dbProvider: DatabaseProvider)
   def setConfigs(configs: Map[String, Any]): Try[Unit] = {
     Try {
       // todo do this in two steps so we know that all the configs are good before processing them
-      // later if we get this in a transaction then we can do tham as we go.
-      configs.foreach { case (k, v) => ConfigKeys.validateConfig(k, v).get }
-      configs.foreach {
+      //   later if we get this in a transaction then we can do them as we go.
+      val processedConfigs = configs.map {case (k, v) => (k, processValue(k, v))}
+      processedConfigs.foreach { case (k, v) => ConfigKeys.validateConfig(k, v).get }
+      processedConfigs.foreach {
         case (key, value) => setConfig(key, value).get
       }
     }
@@ -149,12 +151,12 @@ class ConfigStore(dbProvider: DatabaseProvider)
   }
 
   def getRequiredConfig(key: String): Try[Any] = {
-    getConfig(key).flatMap(_ match {
+    getConfig(key).flatMap {
       case Some(config) =>
         Success(config)
       case None =>
         Failure(ConfigNotFound(key))
-    })
+    }
   }
 
   def getConfig(key: String): Try[Option[Any]] = {
@@ -164,7 +166,7 @@ class ConfigStore(dbProvider: DatabaseProvider)
   def getConfigs(keys: List[String]): Try[Map[String, Any]] = withDb { db =>
     val params = Map(Params.Keys -> keys.asJava)
     OrientDBUtil.query(db, "SELECT FROM Config WHERE key IN :keys", params)
-      .map(_.map(ConfigStore.docToConfig(_)))
+      .map(_.map(ConfigStore.docToConfig))
       .map(_.toMap)
   }
 
@@ -179,13 +181,13 @@ class ConfigStore(dbProvider: DatabaseProvider)
     }.mkString(" OR ")
     val query = "SELECT FROM Config " + where
     OrientDBUtil.query(db, query, params.toMap)
-      .map(_.map(ConfigStore.docToConfig(_)))
+      .map(_.map(ConfigStore.docToConfig))
       .map(_.toMap)
   }
 
   def getConfigs(): Try[Map[String, Any]] = withDb { db =>
     OrientDBUtil.query(db, "SELECT FROM Config")
-      .map(_.map(ConfigStore.docToConfig(_)))
+      .map(_.map(ConfigStore.docToConfig))
       .map(_.toMap)
   }
 

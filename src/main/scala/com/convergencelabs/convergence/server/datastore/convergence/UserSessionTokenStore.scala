@@ -14,14 +14,12 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import java.time.Instant
 import java.util.Date
 
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.UserSessionTokenClass
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-
 import grizzled.slf4j.Logging
+
+import scala.util.Try
 
 object UserSessionTokenStore {
   object Params {
@@ -60,10 +58,10 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
   private[this] val ValidateUserSessionToken = "SELECT FROM UserSessionToken WHERE token = :token"
   def validateUserSessionToken(token: String, expiresAt: () => Instant): Try[Option[String]] = withDb { db =>
     val params = Map(Params.Token -> token)
-    OrientDBUtil.findDocument(db, ValidateUserSessionToken, params).map(_ match {
+    OrientDBUtil.findDocument(db, ValidateUserSessionToken, params).map {
       case Some(doc) =>
         val expireTime: Date = doc.getProperty(UserSessionTokenClass.Fields.ExpiresAt)
-        val expireInstant: Instant = expireTime.toInstant()
+        val expireInstant: Instant = expireTime.toInstant
         if (Instant.now().isBefore(expireInstant)) {
           val username: String = doc.eval("user.username").asInstanceOf[String]
           doc.setProperty(UserSessionTokenClass.Fields.ExpiresAt, Date.from(expiresAt()))
@@ -73,16 +71,16 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
           None
         }
       case None => None
-    })
+    }
   }
 
   private[this] val ExpirationCheckQuery = "SELECT user.username AS username, expiresAt FROM UserSessionToken WHERE token = :token"
   def expirationCheck(token: String): Try[Option[(String, Instant)]] = withDb { db =>
     val params = Map(Params.Token -> token)
-    OrientDBUtil.findDocument(db, ExpirationCheckQuery, params).map(_ match {
+    OrientDBUtil.findDocument(db, ExpirationCheckQuery, params).map {
       case Some(doc) =>
         val expireTime: Date = doc.getProperty(UserSessionTokenClass.Fields.ExpiresAt)
-        val expireInstant: Instant = expireTime.toInstant()
+        val expireInstant: Instant = expireTime.toInstant
         if (Instant.now().isBefore(expireInstant)) {
           val username: String = doc.field("username")
           Some((username, expireInstant))
@@ -90,7 +88,7 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
           None
         }
       case None => None
-    })
+    }
   }
 
   private[this] val UpdateTokenCommand = "UPDATE UserSessionToken SET expiresAt = :expiresAt WHERE token = :token"

@@ -11,30 +11,17 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.concurrent.Future
+import akka.actor.{ActorLogging, ActorRef, Props, Status, actorRef2Scala}
+import akka.util.Timeout
+import com.convergencelabs.convergence.server.datastore.StoreActor
+import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.DeleteDomainsForUserRequest
+import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
+
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
-import com.convergencelabs.convergence.server.util.RandomStringGenerator
-import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
-import com.typesafe.config.Config
-
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.Status
-import akka.actor.actorRef2Scala
-import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.DeleteDomainsForUserRequest
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
-import java.time.Instant
-import com.convergencelabs.convergence.server.security.Roles
 
 object ConvergenceUserManagerActor {
   val RelativePath = "ConvergenceUserManagerActor"
@@ -66,10 +53,9 @@ class ConvergenceUserManagerActor private[datastore] (
   import akka.pattern.ask
 
   // FIXME: Read this from configuration
-  private[this] implicit val requstTimeout = Timeout(2 seconds)
-  private[this] implicit val exectionContext = context.dispatcher
+  private[this] implicit val requestTimeout: Timeout = Timeout(2 seconds)
+  private[this] implicit val executionContext: ExecutionContextExecutor = context.dispatcher
 
-  private[this] val tokenDuration = context.system.settings.config.getDuration("convergence.rest.session-token-expiration")
   private[this] val userStore: UserStore = new UserStore(dbProvider)
   private[this] val roleStore: RoleStore = new RoleStore(dbProvider)
 
@@ -151,21 +137,21 @@ class ConvergenceUserManagerActor private[datastore] (
 
   def updateConvergenceUserProfile(message: UpdateConvergenceUserProfileRequest): Unit = {
     val UpdateConvergenceUserProfileRequest(username, email, firstName, lastName, displayName) = message;
-    log.debug(s"Updating user: ${username}")
+    log.debug(s"Updating user: $username")
     val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))
   }
 
   def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
     val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, globalRole) = message;
-    log.debug(s"Updating user: ${username}")
+    log.debug(s"Updating user: $username")
     val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))
   }
 
   def setUserPassword(message: SetPasswordRequest): Unit = {
     val SetPasswordRequest(username, password) = message;
-    log.debug(s"Setting the password for user: ${username}")
+    log.debug(s"Setting the password for user: $username")
     reply(userStore.setUserPassword(username, password))
   }
 
@@ -177,22 +163,8 @@ class ConvergenceUserManagerActor private[datastore] (
 
   def regenerateUserBearerToken(message: RegenerateUserBearerTokenRequest): Unit = {
     val RegenerateUserBearerTokenRequest(username) = message;
-    log.debug(s"Regenerating the api key for user: ${username}")
+    log.debug(s"Regenerating the api key for user: $username")
     val bearerToken = userCreator.bearerTokenGen.nextString()
     reply(userStore.setBearerToken(username, bearerToken).map(_ => bearerToken))
-  }
-
-  private[this] def createDomain(username: String, id: String, displayName: String, anonymousAuth: Boolean): Future[Any] = {
-    log.debug(s"Requesting domain creation for user '${username}': $id")
-
-    // FIXME hard coded
-    implicit val requstTimeout = Timeout(240 seconds)
-    val message = CreateDomainRequest(username, id, displayName, anonymousAuth)
-    (domainStoreActor ? message).andThen {
-      case Success(_) =>
-        log.debug(s"Domain '${id}' created for '${username}'");
-      case Failure(f) =>
-        log.error(f, s"Unable to create '${id}' domain for user");
-    }
   }
 }
