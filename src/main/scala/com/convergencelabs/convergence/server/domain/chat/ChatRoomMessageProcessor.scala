@@ -11,32 +11,20 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
+import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Props, Terminated}
 import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.AddUserToChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ExistingChatMessage
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.InvalidChatMessageExcpetion
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.JoinChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.LeaveChannelRequest
-
-import akka.actor.Actor
-import akka.actor.ActorContext
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.Terminated
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
 import grizzled.slf4j.Logging
 
-class ChatRoomMessageProcessor(
-  domainFqn: DomainId,
-  channelId: String,
-  stateManager: ChatStateManager,
-  private[this] val onEmpty: () => Unit,
-  context: ActorContext)
-    extends ChatMessageProcessor(stateManager)
+import scala.util.{Failure, Success, Try}
+
+private[chat] class ChatRoomMessageProcessor(domainFqn: DomainId,
+                                             channelId: String,
+                                             stateManager: ChatStateManager,
+                                             private[this] val onEmpty: () => Unit,
+                                             private[this] val onMessage: ExistingChatMessage => Unit,
+                                             context: ActorContext)
+  extends ChatMessageProcessor(stateManager)
     with Logging {
 
   private[this] val chatRoomSessionManager = new ChatRoomSessionManager()
@@ -45,49 +33,51 @@ class ChatRoomMessageProcessor(
   override def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
     message match {
       case _: AddUserToChannelRequest =>
-        Failure(new InvalidChatMessageExcpetion("Can not add user to a chat room"))
+        Failure(InvalidChatMessageException("Can not add user to a chat room"))
       case _: ExistingChatMessage =>
         super.processChatMessage(message)
     }
   }
 
   override def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
-    val JoinChannelRequest(domainFqn, channelId, requestor, client) = message
-    logger.debug(s"Client(${requestor}) joined chat room: ${channelId}")
+    val JoinChannelRequest(_, channelId, requester, client) = message
+    logger.debug(s"Client($requester) joined chat room: $channelId")
 
-    (chatRoomSessionManager.join(requestor, client) match {
-      case true =>
-        // First session in, process the join request normally
-        super.onJoinChannel(message)
-      case false =>
-        // user is already in, so short circuit
-        Success(ChatMessageProcessingResult(Some(createJoinResponse()), List()))
-    }).map { result => 
-      watcher.tell(client, Actor.noSender)
+    (if (chatRoomSessionManager.join(requester, client)) {
+      super.onJoinChannel(message)
+    } else {
+      Success(ChatMessageProcessingResult(Some(createJoinResponse()), List()))
+    }).map { result =>
+      watcher.tell(Watch(client), Actor.noSender)
       result
     }
   }
 
   override def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val LeaveChannelRequest(domainFqn, channelId, userSession, client) = message
-    logger.debug(s"Client(${userSession}) left chat room: ${channelId}")
-    val result = chatRoomSessionManager.leave(userSession.sessionId) match {
-      case true =>
+    val LeaveChannelRequest(_, channelId, userSession, client) = message
+
+    this.watcher.tell(Unwatch(client), Actor.noSender)
+
+    if (chatRoomSessionManager.isConnected(userSession)) {
+      logger.debug(s"Client($userSession) left chat room: $channelId")
+      val result = if (chatRoomSessionManager.leave(userSession)) {
         super.onLeaveChannel(message)
-      case false =>
-        // User has more sessions, so no need to broadcast anything, or change state
+      } else {
         Success(ChatMessageProcessingResult(Some(()), List()))
-    }
+      }
 
-    if (stateManager.state().members.isEmpty) {
-      this.debug("Last session left chat room, requesting passivation")
-      this.onEmpty()
-    }
+      if (stateManager.state().members.isEmpty) {
+        this.debug("Last session left chat room, requesting passivation")
+        this.onEmpty()
+      }
 
-    result
+      result
+    } else {
+      Failure(ChatNotJoinedException(channelId))
+    }
   }
 
-  def boradcast(message: Any): Unit = {
+  def broadcast(message: Any): Unit = {
     chatRoomSessionManager.connectedClients().foreach(client => {
       client ! message
     })
@@ -97,20 +87,25 @@ class ChatRoomMessageProcessor(
    * A helper actor that watches chat clients and helps notify us that a client
    * has left.
    */
-  class Watcher() extends Actor with ActorLogging {
-    def receive = {
-      case client: ActorRef =>
+  private[this] class Watcher() extends Actor with ActorLogging {
+    def receive: Receive = {
+      case Watch(client) =>
         context.watch(client)
+      case Unwatch(client) =>
+        context.unwatch(client)
       case Terminated(client) =>
+        log.debug("Client actor terminated, leaving the chat room")
         context.unwatch(client)
         chatRoomSessionManager.getSession(client).foreach { sk =>
           // TODO This is a little sloppy since we will send a message to the client, which we already know is gone.
           val syntheticMessage = LeaveChannelRequest(domainFqn, channelId, sk, client)
-          processChatMessage(syntheticMessage) recover {
-            case cause: Throwable => 
-              log.error(cause, "Error leaving channel after client actor terminated")
-          }
+          onMessage(syntheticMessage)
         }
     }
   }
+
+  private[this] case class Watch(actor: ActorRef)
+
+  private[this] case class Unwatch(actor: ActorRef)
+
 }

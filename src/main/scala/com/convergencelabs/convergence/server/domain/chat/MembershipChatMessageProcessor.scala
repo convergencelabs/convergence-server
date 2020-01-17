@@ -11,17 +11,25 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
+import akka.actor.{ActorContext, ActorRef}
 import akka.cluster.pubsub.DistributedPubSub
-import akka.actor.ActorContext
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 
-abstract class MembershipChatMessageProcessor(
-  stateManager: ChatStateManager,
-  context: ActorContext)
-    extends ChatMessageProcessor(stateManager) {
-  val mediator = DistributedPubSub(context.system).mediator
+/**
+ * Processes messages for a chats that have persistent members.
+ *
+ * @param stateManager The state manager that controls the persistence of chat state.
+ * @param context      The actor context that the ChatActors are deployed into. This
+ *                     is used primarily for using the DistributedPubSub mechanism
+ *                     for broadcasting messages.
+ */
+private[chat] abstract class MembershipChatMessageProcessor(stateManager: ChatStateManager,
+                                                            context: ActorContext)
+  extends ChatMessageProcessor(stateManager) {
 
-  def boradcast(message: Any): Unit = {
+  private[this] val mediator: ActorRef = DistributedPubSub(context.system).mediator
+
+  def broadcast(message: Any): Unit = {
     val members = stateManager.state().members
     members.values.foreach { member =>
       val topic = ChatActor.getChatUsernameTopicName(member.userId)

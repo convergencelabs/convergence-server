@@ -13,36 +13,22 @@ package com.convergencelabs.convergence.server.domain.chat
 
 import java.time.Instant
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.domain.ChatEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatInfo
-import com.convergencelabs.convergence.server.datastore.domain.ChatStore
-import com.convergencelabs.convergence.server.datastore.domain.ChatMessageEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatMember
-import com.convergencelabs.convergence.server.datastore.domain.ChatNameChangedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatTopicChangedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserAddedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserJoinedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserLeftEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.convergence.server.datastore.domain.GroupPermission
-import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
-import com.convergencelabs.convergence.server.datastore.domain.UserPermission
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.UnauthorizedException
+import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatNotFoundException
-import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.AllChatChannelPermissions
-import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.ChatPermissions
-import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.DefaultChatPermissions
-
-
+import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.{AllChatChannelPermissions, ChatPermissions, DefaultChatPermissions}
+import com.convergencelabs.convergence.server.domain.{DomainUserId, UnauthorizedException}
 import grizzled.slf4j.Logging
 
-object ChatStateManager {
+import scala.util.{Failure, Success, Try}
+
+/**
+ * The [[ChatStateManager]] manages the persistent state of Chat's in
+ * response to the various events over te lifecycle of the Chat. Its
+ * primary function is to translate Chat events into appropriate calls
+ * to the [[ChatStore]].
+ */
+private[chat] object ChatStateManager extends Logging {
   def create(chatId: String, chatChannelStore: ChatStore, permissionsStore: PermissionsStore): Try[ChatStateManager] = {
     chatChannelStore.getChatInfo(chatId) map { info =>
       val ChatInfo(id, channelType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members) = info
@@ -51,6 +37,7 @@ object ChatStateManager {
       new ChatStateManager(chatId, state, chatChannelStore, permissionsStore)
     } recoverWith {
       case cause: EntityNotFoundException =>
+        logger.error(cause)
         Failure(ChatNotFoundException(chatId))
     }
   }
@@ -73,16 +60,15 @@ object ChatStateManager {
     ChatPermissions.LeaveChannel, ChatPermissions.AddUser, ChatPermissions.RemoveUser,
     ChatPermissions.SetName, ChatPermissions.SetTopic, ChatPermissions.Manage)
 
-  val AllChatPermissions = AllChatChannelPermissions + ChatPermissions.CreateChannel
+  val AllChatPermissions: Set[String] = AllChatChannelPermissions + ChatPermissions.CreateChannel
 
   val DefaultChatPermissions = Set(ChatPermissions.JoinChannel, ChatPermissions.LeaveChannel)
 }
 
-class ChatStateManager(
-  private[this] val chatId: String,
-  private[this] var state: ChatChannelState,
-  private[this] val chatStore: ChatStore,
-  private[this] val permissionsStore: PermissionsStore) extends Logging {
+private[chat] class ChatStateManager(private[this] val chatId: String,
+                       private[this] var state: ChatChannelState,
+                       private[this] val chatStore: ChatStore,
+                       private[this] val permissionsStore: PermissionsStore) extends Logging {
 
   import ChatMessages._
 
@@ -242,7 +228,7 @@ class ChatStateManager(
   }
 
   def onGetHistory(chatId: String, userId: DomainUserId, limit: Option[Int], startEvent: Option[Long],
-    forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatEvent]] = {
+                   forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatEvent]] = {
     chatStore.getChatEvents(chatId, eventFilter, startEvent, limit, forward)
   }
 
@@ -268,16 +254,18 @@ class ChatStateManager(
       for {
         channel <- chatStore.getChatRid(chatId)
       } yield {
-        world map { permissionsStore.addWorldPermissions(_, Some(channel)).get }
+        world foreach {
+          permissionsStore.addWorldPermissions(_, Some(channel)).get
+        }
 
-        user map {
+        user foreach {
           _ foreach {
             case UserPermissions(userId, permissions) =>
               permissionsStore.addUserPermissions(permissions, userId, Some(channel)).get
           }
         }
 
-        group map {
+        group foreach {
           _ foreach {
             case GroupPermissions(group, permissions) =>
               permissionsStore.addGroupPermissions(permissions, group, Some(channel)).get
@@ -292,16 +280,18 @@ class ChatStateManager(
       for {
         channel <- chatStore.getChatRid(chatId)
       } yield {
-        world map { permissionsStore.removeWorldPermissions(_, Some(channel)).get }
+        world foreach {
+          permissionsStore.removeWorldPermissions(_, Some(channel)).get
+        }
 
-        user map {
+        user foreach {
           _ foreach {
             case UserPermissions(userId, permissions) =>
               permissionsStore.removeUserPermissions(permissions, userId, Some(channel)).get
           }
         }
 
-        group map {
+        group foreach {
           _ foreach {
             case GroupPermissions(group, permissions) =>
               permissionsStore.removeGroupPermissions(permissions, group, Some(channel)).get
@@ -316,16 +306,18 @@ class ChatStateManager(
       for {
         channel <- chatStore.getChatRid(chatId)
       } yield {
-        world map { permissionsStore.setWorldPermissions(_, Some(channel)).get }
+        world foreach {
+          permissionsStore.setWorldPermissions(_, Some(channel)).get
+        }
 
-        user map {
+        user foreach {
           _ foreach {
             case UserPermissions(userId, permissions) =>
               permissionsStore.setUserPermissions(permissions, userId, Some(channel)).get
           }
         }
 
-        group map {
+        group foreach {
           _ foreach {
             case GroupPermissions(group, permissions) =>
               permissionsStore.setGroupPermissions(permissions, group, Some(channel)).get
@@ -336,12 +328,18 @@ class ChatStateManager(
   }
 
   def onGetClientPermissions(chatId: String, userId: DomainUserId): Try[Set[String]] = {
-    chatStore.getChatRid(chatId) flatMap { permissionsStore.getAggregateUserPermissions(userId, _, AllChatChannelPermissions) }
+    chatStore.getChatRid(chatId) flatMap {
+      permissionsStore.getAggregateUserPermissions(userId, _, AllChatChannelPermissions)
+    }
   }
 
   def onGetWorldPermissions(chatId: String): Try[Set[String]] = {
     val worldPermissions = chatStore.getChatRid(chatId) flatMap { channel => permissionsStore.getWorldPermissions(Some(channel)) }
-    worldPermissions map { permissions => permissions.map { _.permission } }
+    worldPermissions map { permissions =>
+      permissions.map {
+        _.permission
+      }
+    }
   }
 
   def onGetAllUserPermissions(chatId: String): Try[Set[UserPermission]] = {

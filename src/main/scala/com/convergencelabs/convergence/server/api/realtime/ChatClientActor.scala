@@ -21,7 +21,7 @@ import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions._
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
-import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor._
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatSharding}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
@@ -199,7 +199,7 @@ class ChatClientActor(
 
   def onRemoveChannel(message: RemoveChatRequestMessage, cb: ReplyCallback): Unit = {
     val RemoveChatRequestMessage(chatId) = message
-    val request = RemoveChatlRequest(domainFqn, chatId, session.userId)
+    val request = RemoveChatRequest(domainFqn, chatId, session.userId)
     handleSimpleChannelRequest(request, { () => RemoveChatResponseMessage() }, cb)
   }
 
@@ -474,7 +474,7 @@ class ChatClientActor(
           "chat_already_joined",
           s"Could not complete the request the user is already joined to the chat: '$chatId'",
           Map("chatId" -> JString(chatId)))
-      case InvalidChatMessageExcpetion(message) =>
+      case InvalidChatMessageException(message) =>
         cb.expectedError(
           "invalid_chat_message",
           s"The message that was sent was not valid for this type of chat: '$message'",

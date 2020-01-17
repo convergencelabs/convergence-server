@@ -11,60 +11,23 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
+import com.convergencelabs.convergence.server.datastore.domain._
+import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
+
 import scala.util.Try
 
-import com.convergencelabs.convergence.server.datastore.domain.ChatInfo
-import com.convergencelabs.convergence.server.datastore.domain.ChatMessageEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatNameChangedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatTopicChangedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserAddedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserJoinedEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserLeftEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatUserRemovedEvent
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.AddUserToChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatNameChanged
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatTopicChanged
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ExistingChatMessage
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetChannelHistoryRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetChannelHistoryResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.JoinChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.JoinChannelResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.LeaveChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.MarkChannelEventsSeenRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.PublishChatMessageRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.RemoteChatMessage
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.RemoveChatlRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.RemoveUserFromChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.SetChatNameRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.SetChatTopicRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.UserAddedToChannel
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.UserJoinedChat
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.AddChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.RemoveChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.SetChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetClientChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetClientChatPermissionsResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetWorldChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetWorldChatPermissionsResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetAllUserChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetAllUserChatPermissionsResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetAllGroupChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetAllGroupChatPermissionsResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetUserChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetUserChatPermissionsResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetGroupChatPermissionsRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.GetGroupChatPermissionsResponse
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.UserLeftChat
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChannelRemoved
-import com.convergencelabs.convergence.server.domain.DomainUserId
-
-case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any])
-
-abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
+/**
+ * This class is a delegate for handling messages to delivered to a
+ * [[ChatActor]].
+ *
+ * @param stateManager The state manager that will persist chat state.
+ */
+private[chat] abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
 
   def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
     message match {
-      case message: RemoveChatlRequest =>
+      case message: RemoveChatRequest =>
         onRemoveChannel(message)
       case message: JoinChannelRequest =>
         onJoinChannel(message)
@@ -105,9 +68,11 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
     }
   }
 
-  def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
-    val JoinChannelRequest(domainFqn, chatId, requestor, client) = message
-    stateManager.onJoinChannel(requestor.userId) map {
+  def broadcast(message: Any): Unit
+
+  protected def onJoinChannel(message: JoinChannelRequest): Try[ChatMessageProcessingResult] = {
+    val JoinChannelRequest(_, _, requester, _) = message
+    stateManager.onJoinChannel(requester.userId) map {
       case ChatUserJoinedEvent(eventNo, chatId, user, timestamp) =>
         ChatMessageProcessingResult(
           Some(createJoinResponse()),
@@ -115,9 +80,9 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
     }
   }
 
-  def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
-    val LeaveChannelRequest(domainFqn, chatId, requestor, client) = message
-    stateManager.onLeaveChannel(requestor.userId) map {
+  protected def onLeaveChannel(message: LeaveChannelRequest): Try[ChatMessageProcessingResult] = {
+    val LeaveChannelRequest(_, _, requester, _) = message
+    stateManager.onLeaveChannel(requester.userId) map {
       case ChatUserLeftEvent(eventNo, chatId, user, timestamp) =>
         ChatMessageProcessingResult(
           Some(()),
@@ -125,137 +90,137 @@ abstract class ChatMessageProcessor(stateManager: ChatStateManager) {
     }
   }
 
-  def onAddUserToChannel(message: AddUserToChannelRequest): Try[ChatMessageProcessingResult] = {
-    val AddUserToChannelRequest(domainFqn, chatId, requestor, userToAdd) = message;
-    stateManager.onAddUserToChannel(chatId, requestor.userId, userToAdd) map {
+  protected def onAddUserToChannel(message: AddUserToChannelRequest): Try[ChatMessageProcessingResult] = {
+    val AddUserToChannelRequest(_, chatId, requester, userToAdd) = message
+    stateManager.onAddUserToChannel(chatId, requester.userId, userToAdd) map {
       case ChatUserAddedEvent(eventNo, chatId, user, timestamp, addedUserId) =>
         ChatMessageProcessingResult(Some(()), List(UserAddedToChannel(chatId, eventNo, timestamp, user, addedUserId)))
     }
   }
 
-  def onRemoveUserFromChannel(message: RemoveUserFromChannelRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveUserFromChannelRequest(domainFqn, chatId, requestor, userToRemove) = message;
-    stateManager.onRemoveUserFromChannel(chatId, requestor.userId, userToRemove) map {
+  protected def onRemoveUserFromChannel(message: RemoveUserFromChannelRequest): Try[ChatMessageProcessingResult] = {
+    val RemoveUserFromChannelRequest(_, chatId, requester, userToRemove) = message
+    stateManager.onRemoveUserFromChannel(chatId, requester.userId, userToRemove) map {
       case ChatUserRemovedEvent(eventNo, chatId, user, timestamp, removedUserId) =>
         ChatMessageProcessingResult(Some(()), List(UserAddedToChannel(chatId, eventNo, timestamp, user, removedUserId)))
     }
   }
 
-  def onSetChatChannelName(message: SetChatNameRequest): Try[ChatMessageProcessingResult] = {
-    val SetChatNameRequest(domainFqn, chatId, requestor, name) = message;
-    stateManager.onSetChatChannelName(chatId, requestor, name) map {
+  protected def onSetChatChannelName(message: SetChatNameRequest): Try[ChatMessageProcessingResult] = {
+    val SetChatNameRequest(_, chatId, requester, name) = message
+    stateManager.onSetChatChannelName(chatId, requester, name) map {
       case ChatNameChangedEvent(eventNo, chatId, user, timestamp, name) =>
         ChatMessageProcessingResult(Some(()), List(ChatNameChanged(chatId, eventNo, timestamp, user, name)))
     }
   }
 
-  def onSetChatChannelTopic(message: SetChatTopicRequest): Try[ChatMessageProcessingResult] = {
-    val SetChatTopicRequest(domainFqn, chatId, requestor, topic) = message;
-    stateManager.onSetChatChannelTopic(chatId, requestor, topic) map {
+  protected  def onSetChatChannelTopic(message: SetChatTopicRequest): Try[ChatMessageProcessingResult] = {
+    val SetChatTopicRequest(_, chatId, requester, topic) = message
+    stateManager.onSetChatChannelTopic(chatId, requester, topic) map {
       case ChatTopicChangedEvent(eventNo, chatId, user, timestamp, topic) =>
         ChatMessageProcessingResult(Some(()), List(ChatTopicChanged(chatId, eventNo, timestamp, user, topic)))
     }
   }
 
-  def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Try[ChatMessageProcessingResult] = {
-    val MarkChannelEventsSeenRequest(domainFqn, chatId, requestor, eventNumber) = message;
-    stateManager.onMarkEventsSeen(chatId, requestor.userId, eventNumber) map { _ =>
+  protected def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Try[ChatMessageProcessingResult] = {
+    val MarkChannelEventsSeenRequest(_, chatId, requester, eventNumber) = message
+    stateManager.onMarkEventsSeen(chatId, requester.userId, eventNumber) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
-  def onGetHistory(message: GetChannelHistoryRequest): Try[ChatMessageProcessingResult] = {
-    val GetChannelHistoryRequest(domainFqn, chatId, requestor, limit, startEvent, forward, eventFilter) = message;
-    stateManager.onGetHistory(chatId, requestor.userId, limit, startEvent, forward, eventFilter) map { events =>
+  protected def onGetHistory(message: GetChannelHistoryRequest): Try[ChatMessageProcessingResult] = {
+    val GetChannelHistoryRequest(_, chatId, requester, limit, startEvent, forward, eventFilter) = message
+    stateManager.onGetHistory(chatId, requester.userId, limit, startEvent, forward, eventFilter) map { events =>
       ChatMessageProcessingResult(Some(GetChannelHistoryResponse(events)), List())
     }
   }
 
-  def onPublishMessage(message: PublishChatMessageRequest): Try[ChatMessageProcessingResult] = {
-    val PublishChatMessageRequest(domainFqn, chatId, requestor, msg) = message;
-    stateManager.onPublishMessage(chatId, requestor.userId, msg) map {
-      case ChatMessageEvent(eventNo, chatId, user, timestamp, msg) =>
-        ChatMessageProcessingResult(Some(()), List(RemoteChatMessage(chatId, eventNo, timestamp, requestor, msg)))
+  protected def onPublishMessage(message: PublishChatMessageRequest): Try[ChatMessageProcessingResult] = {
+    val PublishChatMessageRequest(_, chatId, requester, msg) = message
+    stateManager.onPublishMessage(chatId, requester.userId, msg) map {
+      case ChatMessageEvent(eventNo, chatId, _, timestamp, msg) =>
+        ChatMessageProcessingResult(Some(()), List(RemoteChatMessage(chatId, eventNo, timestamp, requester, msg)))
     }
   }
 
-  def onRemoveChannel(message: RemoveChatlRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChatlRequest(domainFqn, chatId, requestor) = message;
-    stateManager.onRemoveChannel(chatId, requestor) map { _ =>
+  protected def onRemoveChannel(message: RemoveChatRequest): Try[ChatMessageProcessingResult] = {
+    val RemoveChatRequest(_, chatId, requester) = message
+    stateManager.onRemoveChannel(chatId, requester) map { _ =>
       ChatMessageProcessingResult(Some(()), List(ChannelRemoved(chatId)))
     }
   }
 
-  def onAddPermissionsMessage(message: AddChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val AddChatPermissionsRequest(domainFqn, chatId, requestor, world, user, group) = message;
-    stateManager.onAddPermissions(chatId, requestor.userId, world, user, group) map { _ =>
+  protected def onAddPermissionsMessage(message: AddChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val AddChatPermissionsRequest(_, chatId, requester, world, user, group) = message
+    stateManager.onAddPermissions(chatId, requester.userId, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
-  def onRemovePermissionsMessage(message: RemoveChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val RemoveChatPermissionsRequest(domainFqn, chatId, requestor, world, user, group) = message;
-    stateManager.onRemovePermissions(chatId, requestor.userId, world, user, group) map { _ =>
+  protected def onRemovePermissionsMessage(message: RemoveChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val RemoveChatPermissionsRequest(_, chatId, requester, world, user, group) = message
+    stateManager.onRemovePermissions(chatId, requester.userId, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
-  def onSetPermissionsMessage(message: SetChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val SetChatPermissionsRequest(domainFqn, chatId, requestor, world, user, group) = message;
-    stateManager.onSetPermissions(chatId, requestor.userId, world, user, group) map { _ =>
+  protected def onSetPermissionsMessage(message: SetChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val SetChatPermissionsRequest(_, chatId, requester, world, user, group) = message
+    stateManager.onSetPermissions(chatId, requester.userId, world, user, group) map { _ =>
       ChatMessageProcessingResult(Some(()), List())
     }
   }
 
-  def onGetClientPermissions(message: GetClientChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetClientChatPermissionsRequest(domainFqn, chatId, requestor) = message;
-    stateManager.onGetClientPermissions(chatId, requestor.userId) map { permissions =>
+  protected def onGetClientPermissions(message: GetClientChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetClientChatPermissionsRequest(_, chatId, requester) = message
+    stateManager.onGetClientPermissions(chatId, requester.userId) map { permissions =>
       ChatMessageProcessingResult(Some(GetClientChatPermissionsResponse(permissions)), List())
     }
   }
 
-  def onGetWorldPermissions(message: GetWorldChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetWorldChatPermissionsRequest(domainFqn, chatId, requestor) = message;
+  protected def onGetWorldPermissions(message: GetWorldChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetWorldChatPermissionsRequest(_, chatId, _) = message
     stateManager.onGetWorldPermissions(chatId) map { permissions =>
       ChatMessageProcessingResult(Some(GetWorldChatPermissionsResponse(permissions)), List())
     }
   }
 
-  def onGetAllUserPermissions(message: GetAllUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetAllUserChatPermissionsRequest(domainFqn, chatId, requestor) = message;
+  protected def onGetAllUserPermissions(message: GetAllUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetAllUserChatPermissionsRequest(_, chatId, _) = message
     stateManager.onGetAllUserPermissions(chatId) map { permissions =>
-      val map = permissions.groupBy { _.user } map { case (user, userPermissions) => (DomainUserId(user.userType, user.username) -> userPermissions.map { _.permission }) }
+      val map = permissions.groupBy { _.user } map { case (user, userPermissions) => DomainUserId(user.userType, user.username) -> userPermissions.map { _.permission } }
       ChatMessageProcessingResult(Some(GetAllUserChatPermissionsResponse(map)), List())
     }
   }
 
-  def onGetAllGroupPermissions(message: GetAllGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetAllGroupChatPermissionsRequest(domainFqn, chatId, requestor) = message;
+  protected def onGetAllGroupPermissions(message: GetAllGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetAllGroupChatPermissionsRequest(_, chatId, _) = message
     stateManager.onGetAllGroupPermissions(chatId) map { permissions =>
-      val map = permissions.groupBy { _.group } map { case (group, groupPermissions) => (group.id -> groupPermissions.map { _.permission }) }
+      val map = permissions.groupBy { _.group } map { case (group, groupPermissions) => group.id -> groupPermissions.map { _.permission } }
       ChatMessageProcessingResult(Some(GetAllGroupChatPermissionsResponse(map)), List())
     }
   }
 
-  def onGetUserPermissions(message: GetUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetUserChatPermissionsRequest(domainFqn, chatId, requestor, userId) = message;
-    stateManager.onGetUserPermissions(chatId, requestor.userId) map { permissions =>
+  protected def onGetUserPermissions(message: GetUserChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetUserChatPermissionsRequest(_, chatId, requester, _) = message
+    stateManager.onGetUserPermissions(chatId, requester.userId) map { permissions =>
       ChatMessageProcessingResult(Some(GetUserChatPermissionsResponse(permissions)), List())
     }
   }
 
-  def onGetGroupPermissions(message: GetGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
-    val GetGroupChatPermissionsRequest(domainFqn, chatId, requestor, groupId) = message;
+  protected def onGetGroupPermissions(message: GetGroupChatPermissionsRequest): Try[ChatMessageProcessingResult] = {
+    val GetGroupChatPermissionsRequest(_, chatId, _, groupId) = message
     stateManager.onGetGroupPermissions(chatId, groupId) map { permissions =>
       ChatMessageProcessingResult(Some(GetGroupChatPermissionsResponse(permissions)), List())
     }
   }
 
-  def createJoinResponse(): JoinChannelResponse = {
+  protected def createJoinResponse(): JoinChannelResponse = {
     val ChatChannelState(id, chatType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members) = stateManager.state()
     val info = ChatInfo(id, chatType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members.values.toSet)
     JoinChannelResponse(info)
   }
-
-  def boradcast(message: Any): Unit
 }
+
+private[chat] case class ChatMessageProcessingResult(response: Option[Any], broadcastMessages: List[Any])

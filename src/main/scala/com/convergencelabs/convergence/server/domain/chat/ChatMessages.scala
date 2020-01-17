@@ -13,15 +13,9 @@ package com.convergencelabs.convergence.server.domain.chat
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.datastore.domain.ChatEvent
-import com.convergencelabs.convergence.server.datastore.domain.ChatInfo
-import com.convergencelabs.convergence.server.datastore.domain.ChatMembership
-import com.convergencelabs.convergence.server.datastore.domain.ChatType
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-
 import akka.actor.ActorRef
+import com.convergencelabs.convergence.server.datastore.domain.{ChatEvent, ChatInfo}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 
 object ChatMessages {
 
@@ -32,50 +26,50 @@ object ChatMessages {
 
   // Incoming Messages
 
-  case class RemoveChatlRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserId) extends ExistingChatMessage
+  case class RemoveChatRequest(domainFqn: DomainId, chatId: String, requester: DomainUserId) extends ExistingChatMessage
 
-  case class JoinChannelRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
+  case class JoinChannelRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
   case class JoinChannelResponse(info: ChatInfo)
 
-  case class LeaveChannelRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
-  case class AddUserToChannelRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, userToAdd: DomainUserId) extends ExistingChatMessage
-  case class RemoveUserFromChannelRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, userToRemove: DomainUserId) extends ExistingChatMessage
+  case class LeaveChannelRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
+  case class AddUserToChannelRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, userToAdd: DomainUserId) extends ExistingChatMessage
+  case class RemoveUserFromChannelRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, userToRemove: DomainUserId) extends ExistingChatMessage
 
-  case class SetChatNameRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserId, name: String) extends ExistingChatMessage
-  case class SetChatTopicRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserId, topic: String) extends ExistingChatMessage
-  case class MarkChannelEventsSeenRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, eventNumber: Long) extends ExistingChatMessage
+  case class SetChatNameRequest(domainFqn: DomainId, chatId: String, requester: DomainUserId, name: String) extends ExistingChatMessage
+  case class SetChatTopicRequest(domainFqn: DomainId, chatId: String, requester: DomainUserId, topic: String) extends ExistingChatMessage
+  case class MarkChannelEventsSeenRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, eventNumber: Long) extends ExistingChatMessage
 
-  case class PublishChatMessageRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, message: String) extends ExistingChatMessage
+  case class PublishChatMessageRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, message: String) extends ExistingChatMessage
 
   case class UserPermissions(user: DomainUserId, permissions: Set[String])
   case class GroupPermissions(groupId: String, permissions: Set[String])
 
-  case class AddChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChatMessage
-  case class RemoveChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChatMessage
-  case class SetChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChatMessage
+  case class AddChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChatMessage
+  case class RemoveChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChatMessage
+  case class SetChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, world: Option[Set[String]], user: Option[Set[UserPermissions]], group: Option[Set[GroupPermissions]]) extends ExistingChatMessage
 
-  case class GetClientChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId) extends ExistingChatMessage
+  case class GetClientChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
   case class GetClientChatPermissionsResponse(permissions: Set[String])
 
-  case class GetWorldChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId) extends ExistingChatMessage
+  case class GetWorldChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
   case class GetWorldChatPermissionsResponse(permissions: Set[String])
 
-  case class GetAllUserChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId) extends ExistingChatMessage
+  case class GetAllUserChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
   case class GetAllUserChatPermissionsResponse(users: Map[DomainUserId, Set[String]])
 
-  case class GetAllGroupChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId) extends ExistingChatMessage
+  case class GetAllGroupChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
   case class GetAllGroupChatPermissionsResponse(groups: Map[String, Set[String]])
 
-  case class GetUserChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, userId: DomainUserId) extends ExistingChatMessage
+  case class GetUserChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, userId: DomainUserId) extends ExistingChatMessage
   case class GetUserChatPermissionsResponse(permissions: Set[String])
 
-  case class GetGroupChatPermissionsRequest(domainFqn: DomainId, chatId: String, requestor: DomainUserSessionId, groupId: String) extends ExistingChatMessage
+  case class GetGroupChatPermissionsRequest(domainFqn: DomainId, chatId: String, requester: DomainUserSessionId, groupId: String) extends ExistingChatMessage
   case class GetGroupChatPermissionsResponse(permissions: Set[String])
 
   case class GetChannelHistoryRequest(
     domainFqn: DomainId,
     chatId: String,
-    requestor: DomainUserSessionId,
+    requester: DomainUserSessionId,
     limit: Option[Int],
     startEvent: Option[Long],
     forward: Option[Boolean],
@@ -99,9 +93,9 @@ object ChatMessages {
 
   // Exceptions
   sealed abstract class ChatException(message: String) extends Exception(message)
-  case class ChatNotJoinedException(chatId: String) extends ChatException("")
+  case class ChatNotJoinedException(chatId: String) extends ChatException(s"Can not perform this action on a chat that is not joined")
   case class ChatAlreadyJoinedException(chatId: String) extends ChatException("")
   case class ChatNotFoundException(chatId: String) extends ChatException("")
   case class ChatAlreadyExistsException(chatId: String) extends ChatException("")
-  case class InvalidChatMessageExcpetion(message: String) extends ChatException(message)
+  case class InvalidChatMessageException(message: String) extends ChatException(message)
 }

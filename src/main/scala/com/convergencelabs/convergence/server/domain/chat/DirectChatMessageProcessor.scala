@@ -11,33 +11,31 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.AddUserToChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ExistingChatMessage
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.InvalidChatMessageExcpetion
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.JoinChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.LeaveChannelRequest
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.RemoveUserFromChannelRequest
-
 import akka.actor.ActorContext
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
 
-class DirectChatMessageProcessor(
-  stateManager: ChatStateManager,
-  context: ActorContext)
-    extends MembershipChatMessageProcessor(stateManager, context) {
+import scala.util.{Failure, Try}
+
+/**
+ * Processes messages for a Direct Chat.
+ *
+ * @param stateManager The state manager that controls the persistence of chat state.
+ * @param context      The actor context that the ChatActors are deployed into.
+ */
+private[chat] class DirectChatMessageProcessor(stateManager: ChatStateManager,
+                                               context: ActorContext)
+  extends MembershipChatMessageProcessor(stateManager, context) {
 
   override def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
     message match {
       case _: AddUserToChannelRequest =>
-        Failure(InvalidChatMessageExcpetion("Can not add user to a direct channel"))
+        Failure(InvalidChatMessageException("Can not add user to a direct channel"))
       case _: RemoveUserFromChannelRequest =>
-        Failure(InvalidChatMessageExcpetion("Can not remove a user from a direct channel"))
+        Failure(InvalidChatMessageException("Can not remove a user from a direct channel"))
       case _: JoinChannelRequest =>
-        Failure(InvalidChatMessageExcpetion("Can not join a direct channel"))
+        Failure(InvalidChatMessageException("Can not join a direct channel"))
       case _: LeaveChannelRequest =>
-        Failure(InvalidChatMessageExcpetion("Can not leave a direct channel"))
+        Failure(InvalidChatMessageException("Can not leave a direct channel"))
       case _: ExistingChatMessage =>
         super.processChatMessage(message)
     }

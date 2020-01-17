@@ -13,55 +13,30 @@ package com.convergencelabs.convergence.server.domain.chat
 
 import java.time.Instant
 
+import akka.actor.{ReceiveTimeout, Status}
+import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatMembership, ChatType, DomainPersistenceManagerActor}
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatNotFoundException, ExistingChatMessage}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
+
 import scala.concurrent.duration.DurationInt
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
-import com.convergencelabs.convergence.server.actor.ShardedActor
-import com.convergencelabs.convergence.server.actor.ShardedActorStatUpPlan
-import com.convergencelabs.convergence.server.actor.StartUpRequired
-import com.convergencelabs.convergence.server.datastore.domain.ChatMember
-import com.convergencelabs.convergence.server.datastore.domain.ChatMembership
-import com.convergencelabs.convergence.server.datastore.domain.ChatType
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatNotFoundException
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ExistingChatMessage
+/**
+ * The [[ChatActor]] represents a single unique chat instance in the system. It
+ * is sharded across the backend nodes and can represent a chat channel or a
+ * chat room. The handling of messages is delegated to a ChatMessageProcessor
+ * which implements the specific business logic of each type of chat.
+ */
+class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessage]) {
 
-import akka.actor.ReceiveTimeout
-import akka.actor.Status
-
-object ChatActor {
-
-  def getChatUsernameTopicName(userId: DomainUserId): String = {
-    return s"chat-user-${userId.userType.toString.toLowerCase}-${userId.username}"
-  }
-}
-
-case class ChatChannelState(
-  id: String,
-  chatType: ChatType.Value,
-  created: Instant,
-  membership: ChatMembership.Value,
-  name: String,
-  topic: String,
-  lastEventTime: Instant,
-  lastEventNumber: Long,
-  members: Map[DomainUserId, ChatMember])
-
-class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMessage]) {
-  import ChatActor._
-  import ChatMessages._
-
-  var domainFqn: DomainId = _
-  var channelId: String = _
+  private[this] var domainFqn: DomainId = _
+  private[this] var channelId: String = _
 
   // Here None signifies that the channel does not exist.
-  var channelManager: Option[ChatStateManager] = None
-  var messageProcessor: Option[ChatMessageProcessor] = None
+  private[this] var channelManager: Option[ChatStateManager] = None
+  private[this] var messageProcessor: Option[ChatMessageProcessor] = None
 
   protected def setIdentityData(message: ExistingChatMessage): Try[String] = {
     this.domainFqn = message.domainFqn
@@ -71,14 +46,20 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
 
   protected def initialize(message: ExistingChatMessage): Try[ShardedActorStatUpPlan] = {
     DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
-      log.debug(s"Chat Channel aquired persistence, creating channel manager: '${domainFqn}/${channelId}'")
+      log.debug(s"Chat Channel acquired persistence, creating channel manager: '$domainFqn/$channelId'")
       ChatStateManager.create(channelId, provider.chatStore, provider.permissionsStore)
     } map { manager =>
-      log.debug(s"Chat Channel Channel manager created: '${domainFqn}/${channelId}'")
+      log.debug(s"Chat Channel Channel manager created: '$domainFqn/$channelId'")
       this.channelManager = Some(manager)
       manager.state().chatType match {
         case ChatType.Room =>
-          this.messageProcessor = Some(new ChatRoomMessageProcessor(domainFqn, channelId, manager, () => this.passivate(), context))
+          this.messageProcessor = Some(new ChatRoomMessageProcessor(
+            domainFqn,
+            channelId,
+            manager,
+            () => this.passivate(),
+            message => self ! message,
+            context))
           // this would only need to happen if a previous instance of this room crashed without
           // cleaning up properly.
           manager.removeAllMembers()
@@ -97,7 +78,7 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
       StartUpRequired
     } recoverWith {
       case NonFatal(cause) =>
-        log.error(cause, s"error initializing chat channel: '${domainFqn}/${channelId}'")
+        log.error(cause, s"error initializing chat channel: '$domainFqn/$channelId'")
         Failure(cause)
     }
   }
@@ -112,6 +93,16 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
       this.unhandled(unhandled)
   }
 
+  override def postStop(): Unit = {
+    super.postStop()
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
+    channelManager.foreach { cm =>
+      if (cm.state().chatType == ChatType.Room) {
+        cm.removeAllMembers()
+      }
+    }
+  }
+
   private[this] def processChannelMessage(message: ExistingChatMessage): Try[Unit] = {
     (for {
       messageProcessor <- this.messageProcessor match {
@@ -121,10 +112,10 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
       _ <- messageProcessor.processChatMessage(message) map { result =>
         // FIXME we have a message ordering issue here where the broadcast message will go first to the joining actor.
         result.response foreach (response => sender ! response)
-        result.broadcastMessages foreach (messageProcessor.boradcast(_))
+        result.broadcastMessages foreach messageProcessor.broadcast
         ()
       }
-    } yield (())).recover {
+    } yield ()).recover {
       case cause: ChatNotFoundException =>
         // It seems like there is no reason to stay up, at this point.
         this.passivate()
@@ -141,16 +132,6 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
     this.passivate()
   }
 
-  override def postStop(): Unit = {
-    super.postStop()
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
-    channelManager.foreach { cm =>
-      if (cm.state().chatType == ChatType.Room) {
-        cm.removeAllMembers()
-      }
-    }
-  }
-
   private[this] def unexpectedError(cause: Exception): Unit = {
     cause match {
       case cause: Exception =>
@@ -160,3 +141,18 @@ class ChatActor private[domain] () extends ShardedActor(classOf[ExistingChatMess
   }
 }
 
+object ChatActor {
+  def getChatUsernameTopicName(userId: DomainUserId): String = {
+    s"chat-user-${userId.userType.toString.toLowerCase}-${userId.username}"
+  }
+}
+
+case class ChatChannelState(id: String,
+                            chatType: ChatType.Value,
+                            created: Instant,
+                            membership: ChatMembership.Value,
+                            name: String,
+                            topic: String,
+                            lastEventTime: Instant,
+                            lastEventNumber: Long,
+                            members: Map[DomainUserId, ChatMember])

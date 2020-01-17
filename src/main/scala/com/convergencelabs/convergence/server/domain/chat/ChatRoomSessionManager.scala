@@ -11,49 +11,38 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-
 import akka.actor.ActorRef
+import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
 
-class ChatRoomSessionManager {
-  
-  var clients = Set[ActorRef]()
-  var clientSessionMap = Map[ActorRef, DomainUserSessionId]()
-  var sessionClientMap = Map[String, ActorRef]()
-  var userSessionMap = Map[DomainUserId, Set[String]]()
+private[chat] class ChatRoomSessionManager {
+
+  private[this] var clients = Set[ActorRef]()
+  private[this] var clientSessionMap = Map[ActorRef, DomainUserSessionId]()
+  private[this] var sessionClientMap = Map[DomainUserSessionId, ActorRef]()
+  private[this] var userSessionMap = Map[DomainUserId, Set[DomainUserSessionId]]()
 
   def join(domainSessionId: DomainUserSessionId, client: ActorRef): Boolean = {
     val userId = domainSessionId.userId
     val userSessions = this.userSessionMap.getOrElse(userId, Set())
-    val newSessions = userSessions + domainSessionId.sessionId
+    val newSessions = userSessions + domainSessionId
     this.userSessionMap += (userId -> newSessions)
     clientSessionMap += (client -> domainSessionId)
-    sessionClientMap += (domainSessionId.sessionId -> client)
+    sessionClientMap += (domainSessionId -> client)
     this.clients += client
     newSessions.size == 1
   }
-  
+
   def remove(userId: DomainUserId): Unit = {
-    this.userSessionMap.get(userId) foreach { sessions => 
-      sessions.foreach(leave(_))
+    this.userSessionMap.get(userId) foreach { sessions =>
+      sessions.foreach(leave)
     }
   }
 
-  def leave(domainSessionId: String): Boolean = {
-    val client = this.sessionClientMap.get(domainSessionId).getOrElse {
-      throw new IllegalArgumentException("No such session")
-    }
-    leave(client)
-  }
-
-  def leave(client: ActorRef): Boolean = {
-    val domainSessionId = this.clientSessionMap.get(client).getOrElse {
-      throw new IllegalArgumentException("No such client")
-    }
+  def leave(domainSessionId: DomainUserSessionId): Boolean = {
+    val client = this.sessionClientMap(domainSessionId)
     val userId = domainSessionId.userId
     val userSessions = this.userSessionMap.getOrElse(userId, Set())
-    val newSessions = userSessions - domainSessionId.sessionId
+    val newSessions = userSessions - domainSessionId
     if (newSessions.isEmpty) {
       this.userSessionMap -= userId
     } else {
@@ -61,15 +50,20 @@ class ChatRoomSessionManager {
     }
 
     clientSessionMap -= client
-    sessionClientMap -= domainSessionId.sessionId
+    sessionClientMap -= domainSessionId
     clients -= client
     newSessions.isEmpty
   }
-  
+
+  def isConnected(session: DomainUserSessionId): Boolean = {
+    this.sessionClientMap.contains(session)
+  }
+
   def connectedClients(): Set[ActorRef] = {
     clients
   }
 
   def getSession(client: ActorRef): Option[DomainUserSessionId] = clientSessionMap.get(client)
-  def getClient(domainSessionId: DomainUserSessionId): Option[ActorRef] = sessionClientMap.get(domainSessionId.sessionId)
+
+  def getClient(domainSessionId: DomainUserSessionId): Option[ActorRef] = sessionClientMap.get(domainSessionId)
 }

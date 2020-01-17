@@ -22,7 +22,7 @@ import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorS
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DomainDeleted, domainTopic}
-import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.domain.presence.PresenceServiceActor
 
 import scala.collection.mutable
@@ -256,7 +256,7 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
 
       val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainFqn), IdentityServiceActor.RelativePath)
       val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn), PresenceServiceActor.RelativePath)
-      val chatChannelLookupActor = context.actorOf(ChatLookupActor.props(provider), ChatLookupActor.RelativePath)
+      val chatChannelLookupActor = context.actorOf(ChatManagerActor.props(provider), ChatManagerActor.RelativePath)
       val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
 

@@ -11,11 +11,13 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
+import akka.cluster.sharding.ShardRegion
 import com.convergencelabs.convergence.server.actor.ActorSharding
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ExistingChatMessage
 
-import akka.cluster.sharding.ShardRegion
-
+/**
+ * Configures the sharding of the [[ChatActor]].
+ */
 object ChatSharding extends ActorSharding(
     "ChatChannelShardRegion",
     "backend",

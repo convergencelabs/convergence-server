@@ -20,8 +20,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.{ChatInfo, ChatMembership, ChatType}
-import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor.{CreateChatRequest, CreateChatResponse, FindChatInfo, GetChatInfo}
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, RemoveChatlRequest, SetChatNameRequest, SetChatTopicRequest}
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.{CreateChatRequest, CreateChatResponse, FindChatInfo, GetChatInfo}
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, RemoveChatRequest, SetChatNameRequest, SetChatTopicRequest}
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -137,7 +137,7 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
   }
 
   def deleteChat(authProfile: AuthorizationProfile, domain: DomainId, chatId: String): Future[RestResponse] = {
-    val message = RemoveChatlRequest(domain, chatId, DomainUserId.convergence(authProfile.username))
+    val message = RemoveChatRequest(domain, chatId, DomainUserId.convergence(authProfile.username))
     (chatSharding ? message).mapTo[Unit] map { chats =>
       deletedResponse(chats)
     }

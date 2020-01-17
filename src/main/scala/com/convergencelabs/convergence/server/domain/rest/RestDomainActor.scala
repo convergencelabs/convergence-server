@@ -50,8 +50,8 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.ReceiveTimeout
 import akka.actor.actorRef2Scala
-import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor
-import com.convergencelabs.convergence.server.domain.chat.ChatLookupActor.ChatStoreRequest
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.ChatStoreRequest
 
 object RestDomainActor {
   def props(
@@ -147,7 +147,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
       keyStoreActor = context.actorOf(JwtAuthKeyStoreActor.props(provider.jwtAuthKeyStore))
       sessionStoreActor = context.actorOf(SessionStoreActor.props(provider.sessionStore))
       groupStoreActor = context.actorOf(UserGroupStoreActor.props(provider.userGroupStore))
-      chatActor = context.actorOf(ChatLookupActor.props(provider))
+      chatActor = context.actorOf(ChatManagerActor.props(provider))
 
       log.debug(s"RestDomainActor initialized: {}", domainFqn)
       StartUpRequired
