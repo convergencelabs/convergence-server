@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import grizzled.slf4j.Logging
+import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
 
 import scala.collection.mutable
@@ -67,7 +68,7 @@ trait ReplyCallback {
    * @param message A human readable message with additional details.
    * @param details Additional machine readable data related to the error.
    */
-  def expectedError(code: String, message: String, details: Map[String, String]): Unit
+  def expectedError(code: String, message: String, details: Map[String, JValue]): Unit
 }
 
 /**
@@ -330,11 +331,12 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
     }
 
     def expectedError(code: String, message: String): Unit = {
-      expectedError(code, message, Map[String, String]())
+      expectedError(code, message, Map[String, JValue]())
     }
 
-    def expectedError(code: String, message: String, details: Map[String, String]): Unit = {
-      val errorMessage = ErrorMessage(code, message, details)
+    def expectedError(code: String, message: String, details: Map[String, JValue]): Unit = {
+      val protoDetails = JsonProtoConverter.jValueMapToValueMap(details)
+      val errorMessage = ErrorMessage(code, message, protoDetails)
 
       val envelope = ConvergenceMessage(
         None,

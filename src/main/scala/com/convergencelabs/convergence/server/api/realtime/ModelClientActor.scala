@@ -21,15 +21,18 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
 import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
-import com.convergencelabs.convergence.proto.model.{ModelResyncCompleteRequestMessage, _}
+import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.proto.{ModelMessage => ProtoModelMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
 import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor._
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, QueryParsingException}
-import com.convergencelabs.convergence.server.domain.model.{RemoteClientResyncStarted, _}
+import com.convergencelabs.convergence.server.domain.model.{ModelResyncServerComplete, RemoteClientResyncStarted, _}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
+import com.google.protobuf.struct.Value
+import com.google.protobuf.struct.Value.Kind.{StringValue => ProtoString}
+import org.json4s.JsonAST.JInt
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.FiniteDuration
@@ -74,6 +77,9 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       syncOfflineModels(this.subscribedModels)
     case message: UpdateOfflineModel =>
       handleOfflineModelSynced(message)
+    case ExpectedError(code, message, details) =>
+      val errorMessage = ErrorMessage(code, message, JsonProtoConverter.jValueMapToValueMap(details))
+      context.parent ! errorMessage
     case x: Any =>
       unhandled(x)
   }
@@ -87,7 +93,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     val UpdateOfflineModel(modelId, action) = message
     action match {
       case OfflineModelInitial(model, permissions, valueIdPrefix) =>
-        this.subscribedModels.get(modelId).foreach { currentState =>
+        this.subscribedModels.get(modelId).foreach { _ =>
           val modelDataUpdate = ModelUpdateData(
             model.metaData.version,
             Some(model.metaData.createdTime),
@@ -184,6 +190,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
       case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
       case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
+      case message: ModelResyncServerComplete => onModelResyncServerComplete(message)
       case resyncStarted: RemoteClientResyncStarted => onRemoteClientResyncStarted(resyncStarted)
       case resyncCompleted: RemoteClientResyncCompleted => onRemoteClientResyncCompleted(resyncCompleted)
     }
@@ -271,6 +278,19 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
       case Failure(cause) =>
         // forward the failure to the asking actor, so we fail fast.
         askingActor ! akka.actor.Status.Failure(cause)
+    }
+  }
+
+  private[this] def onModelResyncServerComplete(message: ModelResyncServerComplete): Unit = {
+    val ModelResyncServerComplete(modelId, connectedClients, resyncingClients, references) = message
+    resourceId(modelId) foreach { resourceId =>
+      val convertedReferences = convertReferences(references)
+      val clientMessage = ModelResyncServerCompleteMessage(
+        resourceId,
+        connectedClients.map(s => s.sessionId).toSeq,
+        resyncingClients.map(s => s.sessionId).toSeq,
+        convertedReferences)
+      context.parent ! clientMessage
     }
   }
 
@@ -364,8 +384,6 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         onOpenRealtimeModelRequest(openRequest, replyCallback)
       case resyncRequest: ModelResyncRequestMessage =>
         onModelResyncRequest(resyncRequest, replyCallback)
-      case resyncCompleteRequest: ModelResyncCompleteRequestMessage =>
-        onModelResyncCompleteRequest(resyncCompleteRequest, replyCallback)
       case closeRequest: CloseRealtimeModelRequestMessage =>
         onCloseRealtimeModelRequest(closeRequest, replyCallback)
       case createRequest: CreateRealtimeModelRequestMessage =>
@@ -385,11 +403,18 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
 
   private[this] def onMessageReceived(message: NormalMessage with ProtoModelMessage): Unit = {
     message match {
-      case message: OperationSubmissionMessage => onOperationSubmission(message)
-      case message: ShareReferenceMessage => onShareReference(message)
-      case message: UnshareReferenceMessage => onUnshareReference(message)
-      case message: SetReferenceMessage => onSetReference(message)
-      case message: ClearReferenceMessage => onClearReference(message)
+      case message: OperationSubmissionMessage =>
+        onOperationSubmission(message)
+      case message: ShareReferenceMessage =>
+        onShareReference(message)
+      case message: UnshareReferenceMessage =>
+        onUnshareReference(message)
+      case message: SetReferenceMessage =>
+        onSetReference(message)
+      case message: ClearReferenceMessage =>
+        onClearReference(message)
+      case message: ModelResyncClientCompleteMessage =>
+        onModelResyncClientComplete(message)
     }
   }
 
@@ -402,7 +427,19 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         modelClusterRegion ! submission
       case None =>
         log.warning(s"$domainId: Received an operation submissions for a resource id that does not exists.")
-        sender ! ErrorMessage("model_not_open", "An operation message was received for a model that is not open", Map())
+        sender ! unknownResourceId(resourceId)
+    }
+  }
+
+  private[this] def onModelResyncClientComplete(message: ModelResyncClientCompleteMessage): Unit = {
+    val ModelResyncClientCompleteMessage(resourceId, open) = message
+    resourceIdToModelId.get(resourceId) match {
+      case Some(modelId) =>
+        val message = ModelResyncClientComplete(domainId, modelId, session, open)
+        modelClusterRegion ! message
+      case None =>
+        log.warning(s"$domainId: Received model resync client complete message for an unknown resource id.")
+        sender ! unknownResourceId(resourceId)
     }
   }
 
@@ -416,7 +453,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         modelClusterRegion ! publishReference
       case None =>
         log.warning(s"$domainId: Received a reference publish message for a resource id that does not exists.")
-        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+        sender ! unknownResourceId(resourceId)
     }
   }
 
@@ -429,7 +466,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         modelClusterRegion ! unshareReference
       case None =>
         log.warning(s"$domainId: Received a reference unshare message for a resource id that does not exists.")
-        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+        sender ! unknownResourceId(resourceId)
     }
   }
 
@@ -444,7 +481,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         modelClusterRegion ! setReference
       case None =>
         log.warning(s"$domainId: Received a reference set message for a resource id that does not exists.")
-        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+        sender ! unknownResourceId(resourceId)
     }
   }
 
@@ -457,7 +494,7 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         modelClusterRegion ! clearReference
       case None =>
         log.warning(s"$domainId: Received a reference clear message for a resource id that does not exists.")
-        sender ! ErrorMessage("model_not_open", "An reference message was received for a model that is not open", Map())
+        sender ! unknownResourceId(resourceId)
     }
   }
 
@@ -588,31 +625,6 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
     }
   }
 
-  private[this] def onModelResyncCompleteRequest(message: ModelResyncCompleteRequestMessage, cb: ReplyCallback): Unit = {
-    val ModelResyncCompleteRequestMessage(resourceId, open) = message
-    resourceIdToModelId.get(resourceId) match {
-      case Some(modelId) =>
-        val request = ModelResyncCompleteRequest(domainId, modelId, session, open)
-
-        val future = modelClusterRegion ? request
-        future.mapResponse[ModelResyncCompleteResponse] onComplete {
-          case Success(ModelResyncCompleteResponse(connectedClients, resyncingClients, references)) =>
-            val convertedReferences = convertReferences(references)
-            val responseMessage = ModelResyncCompleteResponseMessage(
-              connectedClients.map(s => s.sessionId).toSeq,
-              resyncingClients.map(s => s.sessionId).toSeq,
-              convertedReferences)
-            cb.reply(responseMessage)
-          case Failure(cause) =>
-            log.error(cause, "Error completing model sync")
-            cb.unexpectedError("Could not complete the model resynchronization")
-        }
-      case None =>
-        cb.expectedError("resource_not_found", "The requested resource id was not found")
-    }
-  }
-
-
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateRealtimeModelRequestMessage(collectionId, optionalModelId, data, overridePermissions, worldPermissionsData, userPermissionsData) = request
     val worldPermissions = worldPermissionsData.map(w =>
@@ -682,7 +694,8 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
         }
         cb.reply(ModelsQueryResponseMessage(models, result.offset, result.count))
       case Failure(QueryParsingException(message, _, index)) =>
-        cb.expectedError("invalid_query", message, Map("index" -> index.toString))
+        val details = index.map(i => Map("index" -> JInt(i))).getOrElse(Map())
+        cb.expectedError("invalid_query", message, details)
       case Failure(cause) =>
         log.error(cause, s"$domainId: Unexpected error querying models.")
         cb.unexpectedError("Unexpected error querying models.")
@@ -757,11 +770,25 @@ private[realtime] object ModelClientActor {
             offlineModelSyncInterval: FiniteDuration): Props =
     Props(new ModelClientActor(domainFqn, session, modelStoreActor, requestTimeout, offlineModelSyncInterval))
 
-  private def modelNotFoundError(id: String) = ErrorMessage("model_not_found", s"A model with id '$id' does not exist.", Map("id" -> id))
+  private def modelNotFoundError(id: String) = ErrorMessage(
+    "model_not_found",
+    s"A model with id '$id' does not exist.",
+    Map("id" -> Value(ProtoString(id))))
 
-  private def modelAlreadyOpenError(id: String) = ErrorMessage("model_already_open", s"The model with id '$id' is already open.", Map("id" -> id))
+  private def unknownResourceId(resourceId: String) = ErrorMessage(
+    "unknown_resource_id",
+    s"A model with resource id '$resourceId' does not exist.",
+    Map("resourceId" -> Value(ProtoString(resourceId))))
 
-  private def modelDeletedError(id: String) = ErrorMessage("model_deleted", s"The model with id '$id' was deleted.", Map("id" -> id))
+  private def modelAlreadyOpenError(id: String) = ErrorMessage(
+    "model_already_open",
+    s"The model with id '$id' is already open.",
+    Map("id" -> Value(ProtoString(id))))
+
+  private def modelDeletedError(id: String) = ErrorMessage(
+    "model_deleted",
+    s"The model with id '$id' was deleted.",
+    Map("id" -> Value(ProtoString(id))))
 
   private case object SyncOfflineModels
 

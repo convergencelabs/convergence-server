@@ -186,8 +186,8 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
         modelManager.onOpenRealtimeModelRequest(openRequest, sender)
       case resyncRequest: ModelResyncRequest =>
         modelManager.onModelResyncRequest(resyncRequest, sender)
-      case resyncCompleteRequest: ModelResyncCompleteRequest =>
-        modelManager.onModelResyncCompleteRequest(resyncCompleteRequest, sender)
+      case resyncCompleteRequest: ModelResyncClientComplete =>
+        modelManager.onModelResyncClientComplete(resyncCompleteRequest, sender)
       case closeRequest: CloseRealtimeModelRequest =>
         modelManager.onCloseModelRequest(closeRequest, sender)
       case operationSubmission: OperationSubmission =>

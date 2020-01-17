@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolC
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
+import org.json4s.JsonAST.JValue
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.mockito.MockitoSugar
 import scalapb.GeneratedMessage
@@ -134,7 +135,7 @@ class ClientActorSpec
       p.failure(new IllegalStateException())
     }
 
-    def expectedError(code: String, message: String, details: Map[String, String]): Unit = {
+    def expectedError(code: String, message: String, details: Map[String, JValue]): Unit = {
       p.failure(new IllegalStateException())
     }
 

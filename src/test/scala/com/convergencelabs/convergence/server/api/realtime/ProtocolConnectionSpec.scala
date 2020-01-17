@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
+import com.google.protobuf.struct.Value
 import com.google.protobuf.timestamp.Timestamp
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
@@ -318,7 +319,7 @@ class ProtocolConnectionSpec
         val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMsgClass(10 millis, classOf[OutgoingBinaryMessage])
         val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
-        val replyMessage = ErrorMessage(code, errorMessage, Map("foo" -> "bar"))
+        val replyMessage = ErrorMessage(code, errorMessage, Map("foo" -> Value(Value.Kind.StringValue("bar"))))
         val replyEnvelope = ConvergenceMessage()
           .withResponseId(sentMessage.getRequestId)
           .withError(replyMessage)

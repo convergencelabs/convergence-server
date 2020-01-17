@@ -17,6 +17,7 @@ import akka.actor.{ActorContext, ActorRef, Cancellable, Status, Terminated}
 import akka.pattern.{AskTimeoutException, Patterns}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.UnknownErrorResponse
+import com.convergencelabs.convergence.server.api.realtime.ExpectedError
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, ModelDataGenerator}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
 import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformer
@@ -25,6 +26,7 @@ import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessio
 import com.convergencelabs.convergence.server.util.EventLoop
 import com.convergencelabs.convergence.server.util.concurrent.UnexpectedErrorException
 import grizzled.slf4j.Logging
+import org.json4s.JsonAST.JString
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
@@ -651,8 +653,8 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     checkForConnectionsAndClose()
   }
 
-  def onModelResyncCompleteRequest(message: ModelResyncCompleteRequest, replyTo: ActorRef): Unit = {
-    val ModelResyncCompleteRequest(_, _, session, open) = message
+  def onModelResyncClientComplete(message: ModelResyncClientComplete, replyTo: ActorRef): Unit = {
+    val ModelResyncClientComplete(_, _, session, open) = message
 
     this.resyncingClients.get(session) match {
       case Some(ResynchronizationRecord(clientActor, _)) =>
@@ -660,17 +662,19 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           val rc = this.resyncingClients.filter(_._1 != session)
           this.onClientOpened(session, clientActor, resyncClient = true)
           val referencesBySession = this.model.references()
-          replyTo ! ModelResyncCompleteResponse(openClients.keySet, rc.keySet, referencesBySession)
+          clientActor ! ModelResyncServerComplete(this.modelId, openClients.keySet, rc.keySet, referencesBySession)
         } else {
           this.clientToSessionId -= clientActor
           this.model.clientDisconnected(session)
-          replyTo ! ModelResyncCompleteResponse(Set(), Set(), Set())
+          clientActor ! ModelResyncServerComplete(this.modelId, Set(), Set(), Set())
         }
 
         reconnectComplete(session)
       case None =>
-        // TODO perhaps a specific exception
-        replyTo ! Status.Failure(ModelNotOpenException())
+        replyTo ! ExpectedError(
+          "client_not_resyncing",
+          "The client is not currently resyncing this model",
+          Map("model_id" -> JString(modelId)))
     }
 
     checkForConnectionsAndClose()

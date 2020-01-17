@@ -79,7 +79,7 @@ case class OpenRealtimeModelRequest(domainId: DomainId,
 
 case class ModelResyncRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId, contextVersion: Long, clientActor: ActorRef) extends RealTimeModelMessage
 
-case class ModelResyncCompleteRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId, open: Boolean) extends RealTimeModelMessage
+case class ModelResyncClientComplete(domainId: DomainId, modelId: String, session: DomainUserSessionId, open: Boolean) extends RealTimeModelMessage
 
 case class CloseRealtimeModelRequest(domainId: DomainId, modelId: String, session: DomainUserSessionId) extends RealTimeModelMessage
 
@@ -114,9 +114,10 @@ case class OpenModelSuccess(valuePrefix: Long,
 
 case class ModelResyncResponse(currentVersion: Long, modelPermissions: ModelPermissions)
 
-case class ModelResyncCompleteResponse(connectedClients: Set[DomainUserSessionId],
-                                       resyncingClients: Set[DomainUserSessionId],
-                                       references: Set[ReferenceState])
+case class ModelResyncServerComplete(modelId: String,
+                                     connectedClients: Set[DomainUserSessionId],
+                                     resyncingClients: Set[DomainUserSessionId],
+                                     references: Set[ReferenceState]) extends RealtimeModelClientMessage
 
 case class GetModelPermissionsResponse(overridesCollection: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[DomainUserId, ModelPermissions])
 

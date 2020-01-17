@@ -78,8 +78,8 @@ object ConvergenceMessageBodyUtils {
       case Body.ModelPermissionsChanged(message) => message
       case Body.ModelResyncRequest(message) => message
       case Body.ModelResyncResponse(message) => message
-      case Body.ModelResyncCompleteRequest(message) => message
-      case Body.ModelResyncCompleteResponse(message) => message
+      case Body.ModelResyncClientComplete(message) => message
+      case Body.ModelResyncServerComplete(message) => message
       case Body.RemoteClientResyncStarted(message) => message
       case Body.RemoteClientResyncCompleted(message) => message
       case Body.ModelOfflineSubscriptionChange(message) => message
@@ -245,8 +245,8 @@ object ConvergenceMessageBodyUtils {
       case message: ModelPermissionsChangedMessage => Body.ModelPermissionsChanged(message)
       case message: ModelResyncRequestMessage => Body.ModelResyncRequest(message)
       case message: ModelResyncResponseMessage => Body.ModelResyncResponse(message)
-      case message: ModelResyncCompleteRequestMessage => Body.ModelResyncCompleteRequest(message)
-      case message: ModelResyncCompleteResponseMessage => Body.ModelResyncCompleteResponse(message)
+      case message: ModelResyncClientCompleteMessage => Body.ModelResyncClientComplete(message)
+      case message: ModelResyncServerCompleteMessage => Body.ModelResyncServerComplete(message)
       case message: RemoteClientResyncStartedMessage => Body.RemoteClientResyncStarted(message)
       case message: RemoteClientResyncCompletedMessage => Body.RemoteClientResyncCompleted(message)
       case message: ModelOfflineSubscriptionChangeRequestMessage=> Body.ModelOfflineSubscriptionChange(message)

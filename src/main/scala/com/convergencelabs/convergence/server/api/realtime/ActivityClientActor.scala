@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.domain.activity._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -31,8 +32,8 @@ object ActivityClientActor {
 class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId) extends Actor with ActorLogging {
   import akka.pattern.ask
 
-  implicit val timeout = Timeout(5 seconds)
-  implicit val ec = context.dispatcher
+  private[this] implicit val timeout: Timeout = Timeout(5 seconds)
+  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   def receive: Receive = {
     // Incoming messages
@@ -92,10 +93,12 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
     future.mapResponse[ActivityParticipants] onComplete {
       case Success(ActivityParticipants(state)) =>
         cb.reply(ActivityParticipantsResponseMessage(state.map {
-          case (k, v) => (k -> ActivityStateData(JsonProtoConverter.jValueMapToValueMap(v)))
+          case (k, v) => k -> ActivityStateData(JsonProtoConverter.jValueMapToValueMap(v))
         }))
       case Failure(cause) =>
-        cb.unexpectedError("could not get participants")
+        val message = s"could not get participants for activity $activityId"
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 
@@ -107,10 +110,12 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
     future.mapResponse[ActivityJoinResponse] onComplete {
       case Success(ActivityJoinResponse(state)) =>
         cb.reply(ActivityJoinResponseMessage(state.map {
-          case (k, v) => (k -> ActivityStateData(JsonProtoConverter.jValueMapToValueMap(v)))
+          case (k, v) => k -> ActivityStateData(JsonProtoConverter.jValueMapToValueMap(v))
         }))
       case Failure(cause) =>
-        cb.unexpectedError("could not join activity")
+        val message = s"Could not join activity '$activityId'"
+        log.error(cause, message)
+        cb.unexpectedError(message)
     }
   }
 

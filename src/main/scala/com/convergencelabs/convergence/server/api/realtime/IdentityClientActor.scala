@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.domain.UserGroup
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
+import org.json4s.JsonAST.JString
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
@@ -118,7 +119,7 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
         cb.expectedError(
           "group_not_found",
           s"Could not get groups because at least one group did not exist: $groupId",
-          Map("id" -> groupId.toString))
+          Map("id" -> JString(groupId.toString)))
       case Failure(cause) =>
         val message = "Unexpected error getting groups."
         log.error(cause, message)
@@ -139,7 +140,7 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
         cb.expectedError(
           "user_not_found",
           s"Could not get groups because at least one user did not exist: $userId",
-          Map("id" -> userId.toString))
+          Map("id" -> JString(userId.toString)))
       case Failure(cause) =>
         val message = "Unexpected error getting groups for users."
         log.error(cause, message)

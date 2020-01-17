@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.ConvergenceMessage._
+import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
@@ -66,7 +66,7 @@ private[realtime] class IdentityCacheManager(private[this] val clientActor: Acto
         processMessage(message, Set(body.sessionId), Set())
       case Body.RemoteOperation(body) =>
         processMessage(message, Set(body.sessionId), Set())
-      case Body.ModelResyncCompleteResponse(body) =>
+      case Body.ModelResyncServerComplete(body) =>
         val sessions = body.connectedClients.toSet ++ body.resyncingClients.toSet
         processMessage(message, sessions, Set())
       case Body.RemoteClientResyncStarted(body) =>
