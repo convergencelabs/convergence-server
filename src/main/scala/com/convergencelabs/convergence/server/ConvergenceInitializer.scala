@@ -39,10 +39,8 @@ import scala.util.{Failure, Success, Try}
  * convergence schema into OrientDB and ensuring that the default admin user
  * exists in the database.
  *
- * @param config
- *               The [[Config]] object for the Convergence Server
- * @param ec
- *           An execution context to use for asynchronous operations.
+ * @param config The Config object for the Convergence Server
+ * @param ec     An execution context to use for asynchronous operations.
  */
 class ConvergenceInitializer(private[this] val config: Config,
                              private[this] val ec: ExecutionContextExecutor) extends Logging {
@@ -51,8 +49,8 @@ class ConvergenceInitializer(private[this] val config: Config,
    * Creates the "convergence" database if it does not exist, and populates
    * it will default data.
    *
-   * @param config The ConvergenceServer's [[Config]].
-   * @return A [[Try]] that will be Success(()) if the convergence database is
+   * @param config The ConvergenceServer's Config.
+   * @return A Try that will be Success(()) if the convergence database is
    *         successfully initialized; Failure otherwise.
    */
   def bootstrapConvergenceDatabase(config: Config): Try[Unit] = Try {
@@ -132,8 +130,8 @@ class ConvergenceInitializer(private[this] val config: Config,
   /**
    * Creates or updates the ConvergenceServer's default admin user.
    *
-   * @param dbProvider [[DatabaseProvider]] that points to the convergence database.
-   * @param config The ConvergenceServer's [[Config]].
+   * @param dbProvider [[com.convergencelabs.convergence.server.db.DatabaseProvider]] that points to the convergence database.
+   * @param config     The ConvergenceServer's Config.
    */
   def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Unit = {
     logger.debug("Configuring default server admin user")
@@ -236,11 +234,12 @@ class ConvergenceInitializer(private[this] val config: Config,
 
   /**
    * Attempts to connect to OrientDB.
-   * @param uri The URI of the OrientDB server.
-   * @param adminUser The username of a privileged user in OrientDB that will be
-   *                  used to create databases.
+   *
+   * @param uri           The URI of the OrientDB server.
+   * @param adminUser     The username of a privileged user in OrientDB that will be
+   *                      used to create databases.
    * @param adminPassword The password of the privileged OrientDB user.
-   * @param retryDelay How long to wait between connection attempts.
+   * @param retryDelay    How long to wait between connection attempts.
    * @return Some if / when OrientDB is successfully connected to; None if the attempt fails.
    */
   private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
@@ -262,8 +261,8 @@ class ConvergenceInitializer(private[this] val config: Config,
  * A helper class that will create a domain synchronously.
  */
 private class InlineDomainCreator(provider: DatabaseProvider,
-                          config: Config,
-                          ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
+                                  config: Config,
+                                  ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
   private val provisioner = new DomainProvisioner(provider, config)
 
   def provisionDomain(request: ProvisionDomain): Future[Unit] = {

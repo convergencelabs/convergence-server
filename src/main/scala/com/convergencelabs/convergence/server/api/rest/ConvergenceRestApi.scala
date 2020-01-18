@@ -45,7 +45,7 @@ import scala.util.{Failure, Success}
  * The [[ConvergenceRestApi]] class is the main entry point to the Convergence
  * Server REST Subsystem.
  *
- * @param system    The Akka [[ActorSystem]] to deploy actors into.
+ * @param system    The Akka ActorSystem to deploy actors into.
  * @param interface The network interface to bind to.
  * @param port      The network port to bind to.
  */

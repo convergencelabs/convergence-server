@@ -92,7 +92,7 @@ object ConvergenceServer extends Logging {
    * The main entry point of the ConvergenceServer.
    *
    * @param args Command line arguments.
-   * @see [[ConvergenceServerCLIConf]]
+   * @see ConvergenceServerCLIConf
    */
   def main(args: Array[String]): Unit = {
     val options = ConvergenceServerCLIConf(args)
@@ -367,7 +367,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    * A helper method that will bootstrap the backend node.
    *
    * @param roles The roles this server is configured with.
-   * @param system The Akka [[ActorSystem]] this server is using.
+   * @param system The Akka ActorSystem this server is using.
    */
   private[this] def processBackendRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(Backend)) {
@@ -421,7 +421,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    * A helper method that start the Akka Cluster Shard Proxies if needed.
    *
    * @param roles The roles this server is configured with.
-   * @param system The Akka [[ActorSystem]] this server is using.
+   * @param system The Akka ActorSystem this server is using.
    */
   private[this] def activateShardProxies(roles: Set[String], system: ActorSystem): Unit = {
     if (!roles.contains(Backend) && (roles.contains(RestApi) || roles.contains(RealtimeApi))) {
@@ -443,7 +443,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    * A helper method that will bootstrap the Rest API.
    *
    * @param roles The roles this server is configured with.
-   * @param system The Akka [[ActorSystem]] this server is using.
+   * @param system The Akka ActorSystem this server is using.
    */
   private[this] def processRestApiRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(RestApi)) {
@@ -460,7 +460,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
    * A helper method that will bootstrap the Realtime Api.
    *
    * @param roles The roles this server is configured with.
-   * @param system The Akka [[ActorSystem]] this server is using.
+   * @param system The Akka ActorSystem this server is using.
    */
   private[this] def processRealtimeApiRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(RealtimeApi)) {

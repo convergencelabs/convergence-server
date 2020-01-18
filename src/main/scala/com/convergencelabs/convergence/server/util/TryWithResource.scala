@@ -20,7 +20,7 @@ import scala.util.control.NonFatal
  * TryWithResource implements an idiomatic Scala version of the Java 7
  * try-with-resources control structure.  The apply method takes two
  * argument lists.  The first one is a call-by-name method that produces an
- * object that is an instance of [[java.lang.AutoCloseable]].  The second
+ * object that is an instance of java.lang.AutoCloseable.  The second
  * parameter list takes a method that accepts an instance of AutoCloseable
  * and produces an instance of B.  The value passed into the first argument
  * will be called by name, and passed into the method passed into the second.

@@ -33,7 +33,7 @@ abstract class ActorSharding(val shardName: String,
    *
    * @param system         The Actor System to start the shard in.
    * @param numberOfShards The number of shards to create across the cluster.
-   * @return A [[ActorRef]] that allows consumers to send messages to the shard region.
+   * @return An ActorRef that allows consumers to send messages to the shard region.
    */
   def start(system: ActorSystem, numberOfShards: Int): ActorRef = {
     this.start(system, numberOfShards, List())
@@ -45,7 +45,7 @@ abstract class ActorSharding(val shardName: String,
    * @param system         The Actor System to start the shard in.
    * @param numberOfShards The number of shards to create across the cluster.
    * @param args           The arguments to pass to the Actors constructor.
-   * @return A [[ActorRef]] that allows consumers to send messages to the shard region.
+   * @return An ActorRef that allows consumers to send messages to the shard region.
    */
   def start(system: ActorSystem, numberOfShards: Int, args: List[Any]): ActorRef = {
     val settings = ClusterShardingSettings
@@ -68,7 +68,7 @@ abstract class ActorSharding(val shardName: String,
    *
    * @param system         The ActorSystem to create the proxy in.
    * @param numberOfShards The number of shards the shard region was created with.
-   * @return A [[ActorRef]] that allows consumers to send messages to the shard region.
+   * @return An ActorRef that allows consumers to send messages to the shard region.
    */
   def startProxy(system: ActorSystem, numberOfShards: Int): ActorRef = {
     ClusterSharding.get(system).startProxy(
@@ -82,7 +82,7 @@ abstract class ActorSharding(val shardName: String,
    * Gets a reference to the shard region, assuming it, or it's proxy, has
    * already been locally started.
    *
-   * @return A [[ActorRef]] that allows consumers to send messages to the shard region.
+   * @return An ActorRef that allows consumers to send messages to the shard region.
    */
   def shardRegion(system: ActorSystem): ActorRef = {
     ClusterSharding.get(system).shardRegion(this.shardName)

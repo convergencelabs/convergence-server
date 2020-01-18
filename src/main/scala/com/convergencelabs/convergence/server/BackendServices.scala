@@ -36,8 +36,8 @@ import scala.language.postfixOps
  * for start that various Akka Actors the comprise the major subsystems (
  * Chat, Presence, Models, etc.).
  *
- * @param system                The Akka [[ActorSystem]] to start Actors in.
- * @param convergenceDbProvider A [[DatabaseProvider]] that is connected to the
+ * @param system                The Akka ActorSystem to start Actors in.
+ * @param convergenceDbProvider A [[com.convergencelabs.convergence.server.db.DatabaseProvider]] that is connected to the
  *                              main convergence database.
  */
 class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
@@ -150,7 +150,7 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
 
   /**
    * Stops the backend services. Note that this does not stop the
-   * [[ActorSystem]].
+   * ActorSystem.
    */
   def stop(): Unit = {
     logger.info("Convergence Backend Services shutting down.")

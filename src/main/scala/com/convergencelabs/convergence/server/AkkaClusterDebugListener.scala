@@ -16,10 +16,10 @@ import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberRemoved, MemberUp, UnreachableMember}
 
 /**
- * A helper [[Actor]] that will listen to Akka Cluster events and log debug
+ * A helper Actor that will listen to Akka Cluster events and log debug
  * messages to the console.
  *
- * @param cluster The Akka [[Cluster]] to listen to.
+ * @param cluster The Akka Cluster to listen to.
  */
 class AkkaClusterDebugListener(cluster: Cluster) extends Actor with ActorLogging {
   override def preStart(): Unit = {

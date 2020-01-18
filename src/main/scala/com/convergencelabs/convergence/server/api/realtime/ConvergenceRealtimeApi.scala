@@ -33,7 +33,7 @@ import scala.util.{Failure, Success}
  * the Convergence Server Realtime API. It will start any required actors
  * and create an HTTP Binding to listen for web socket connections.
  *
- * @param system        The Akka [[ActorSystem]] to deploy Actors into.
+ * @param system        The Akka ActorSystem to deploy Actors into.
  * @param interface     The network interface to bind to.
  * @param websocketPort The network port to listen to web socket connections on.
  */
