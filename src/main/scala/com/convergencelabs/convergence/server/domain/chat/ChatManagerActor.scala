@@ -44,7 +44,7 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
       onExists(message)
     case message: FindChatInfo =>
       onGetChats(message)
-      case message: GetChatInfo =>
+    case message: GetChatInfo =>
       onGetChat(message)
   }
 
@@ -187,13 +187,13 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
   }
 
   private[this] def createChannel(
-    chatId: Option[String],
-    ct: ChatType.Value,
-    membership: ChatMembership.Value,
-    name: Option[String],
-    topic: Option[String],
-    members: Set[DomainUserId],
-    createdBy: DomainUserId): Try[String] = {
+                                   chatId: Option[String],
+                                   ct: ChatType.Value,
+                                   membership: ChatMembership.Value,
+                                   name: Option[String],
+                                   topic: Option[String],
+                                   members: Set[DomainUserId],
+                                   createdBy: DomainUserId): Try[String] = {
 
     this.chatStore.createChat(
       chatId, ct, Instant.now(), membership, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
@@ -222,7 +222,9 @@ object ChatManagerActor {
   def props(provider: DomainPersistenceProvider): Props = Props(new ChatManagerActor(provider))
 
   trait ChatStoreRequest
+
   case class FindChatInfo(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends ChatStoreRequest
+
   case class GetChatInfo(chatId: String) extends ChatStoreRequest
 
   case class CreateChatRequest(
@@ -237,15 +239,19 @@ object ChatManagerActor {
   case class CreateChatResponse(channelId: String)
 
   case class GetChannelsRequest(userId: DomainUserId, ids: List[String])
+
   case class GetChannelsResponse(channels: List[ChatInfo])
 
   case class ChannelsExistsRequest(userId: DomainUserId, ids: List[String])
+
   case class ChannelsExistsResponse(channels: List[Boolean])
 
   case class GetJoinedChannelsRequest(userId: DomainUserId)
+
   case class GetJoinedChannelsResponse(channels: List[ChatInfo])
 
   case class GetDirectChannelsRequest(userId: DomainUserId, userLists: List[Set[DomainUserId]])
+
   case class GetDirectChannelsResponse(channels: List[ChatInfo])
 
   val DefaultPermissions = List()

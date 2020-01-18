@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 import java.time.Instant
 import java.util.{Date, Set => JavaSet}
 
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.db.DatabaseProvider
@@ -29,23 +30,23 @@ import scala.collection.JavaConverters.{asScalaSetConverter, seqAsJavaListConver
 import scala.util.{Failure, Success, Try}
 
 case class Chat(
-  id:         String,
-  chatType:   ChatType.Value,
-  created:    Instant,
-  membership: ChatMembership.Value,
-  name:       String,
-  topic:      String)
+                 id: String,
+                 chatType: ChatType.Value,
+                 created: Instant,
+                 membership: ChatMembership.Value,
+                 name: String,
+                 topic: String)
 
 case class ChatInfo(
-  id:              String,
-  chatType:        ChatType.Value,
-  created:         Instant,
-  membership:      ChatMembership.Value,
-  name:            String,
-  topic:           String,
-  lastEventNumber: Long,
-  lastEventTime:   Instant,
-  members:         Set[ChatMember])
+                     id: String,
+                     chatType: ChatType.Value,
+                     created: Instant,
+                     membership: ChatMembership.Value,
+                     name: String,
+                     topic: String,
+                     lastEventNumber: Long,
+                     lastEventTime: Instant,
+                     members: Set[ChatMember])
 
 sealed trait ChatEvent {
   val eventNumber: Long
@@ -55,60 +56,60 @@ sealed trait ChatEvent {
 }
 
 case class ChatCreatedEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant,
-  name:        String,
-  topic:       String,
-  members:     Set[DomainUserId]) extends ChatEvent
+                             eventNumber: Long,
+                             id: String,
+                             user: DomainUserId,
+                             timestamp: Instant,
+                             name: String,
+                             topic: String,
+                             members: Set[DomainUserId]) extends ChatEvent
 
 case class ChatMessageEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant,
-  message:     String) extends ChatEvent
+                             eventNumber: Long,
+                             id: String,
+                             user: DomainUserId,
+                             timestamp: Instant,
+                             message: String) extends ChatEvent
 
 case class ChatUserJoinedEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant) extends ChatEvent
+                                eventNumber: Long,
+                                id: String,
+                                user: DomainUserId,
+                                timestamp: Instant) extends ChatEvent
 
 case class ChatUserLeftEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant) extends ChatEvent
+                              eventNumber: Long,
+                              id: String,
+                              user: DomainUserId,
+                              timestamp: Instant) extends ChatEvent
 
 case class ChatUserAddedEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant,
-  userAdded:   DomainUserId) extends ChatEvent
+                               eventNumber: Long,
+                               id: String,
+                               user: DomainUserId,
+                               timestamp: Instant,
+                               userAdded: DomainUserId) extends ChatEvent
 
 case class ChatUserRemovedEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant,
-  userRemoved: DomainUserId) extends ChatEvent
+                                 eventNumber: Long,
+                                 id: String,
+                                 user: DomainUserId,
+                                 timestamp: Instant,
+                                 userRemoved: DomainUserId) extends ChatEvent
 
 case class ChatNameChangedEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant,
-  name:        String) extends ChatEvent
+                                 eventNumber: Long,
+                                 id: String,
+                                 user: DomainUserId,
+                                 timestamp: Instant,
+                                 name: String) extends ChatEvent
 
 case class ChatTopicChangedEvent(
-  eventNumber: Long,
-  id:          String,
-  user:        DomainUserId,
-  timestamp:   Instant,
-  topic:       String) extends ChatEvent
+                                  eventNumber: Long,
+                                  id: String,
+                                  user: DomainUserId,
+                                  timestamp: Instant,
+                                  topic: String) extends ChatEvent
 
 case class ChatMember(chatId: String, userId: DomainUserId, seen: Long)
 
@@ -117,7 +118,7 @@ object ChatMembership extends Enumeration {
 
   def parse(s: String): ChatMembership.Value = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
     case Some(v) => v
-    case None    => throw new IllegalArgumentException("Invalid ChatMembership string: " + s)
+    case None => throw new IllegalArgumentException("Invalid ChatMembership string: " + s)
   }
 }
 
@@ -128,7 +129,7 @@ object ChatType extends Enumeration {
 
   def parse(s: String): ChatType.Value = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
     case Some(v) => v
-    case None    => throw new IllegalArgumentException("Invalid ChatType string: " + s)
+    case None => throw new IllegalArgumentException("Invalid ChatType string: " + s)
   }
 }
 
@@ -138,8 +139,8 @@ object ChatStore {
 
   def chatTypeString(chatType: ChatType.Value): String = chatType match {
     case ChatType.Channel => "channel"
-    case ChatType.Room    => "room"
-    case ChatType.Direct  => "direct"
+    case ChatType.Room => "room"
+    case ChatType.Direct => "direct"
   }
 
   object Params {
@@ -234,19 +235,19 @@ object ChatStore {
         val name: String = doc.getProperty(Classes.ChatNameChangedEvent.Fields.Name)
         ChatNameChangedEvent(eventNo, chatId, user, timestamp.toInstant, name)
       case _ =>
-        throw new IllegalArgumentException(s"Unknown Chat Event class name: ${className}")
+        throw new IllegalArgumentException(s"Unknown Chat Event class name: $className")
     }
   }
 
   def toChatInfo(doc: ODocument): ChatInfo = {
     val id: String = doc.getProperty(Classes.Chat.Fields.Id)
     val chatType: String = doc.getProperty(Classes.Chat.Fields.Type)
-    val created: Instant = doc.getProperty(Classes.Chat.Fields.Created).asInstanceOf[Date].toInstant()
+    val created: Instant = doc.getProperty(Classes.Chat.Fields.Created).asInstanceOf[Date].toInstant
     val isPrivate: Boolean = doc.getProperty(Classes.Chat.Fields.Private)
     val name: String = doc.getProperty(Classes.Chat.Fields.Name)
     val topic: String = doc.getProperty(Classes.Chat.Fields.Topic)
     val members: JavaSet[OIdentifiable] = doc.getProperty(Classes.Chat.Fields.Members)
-    val chatMemebers: Set[ChatMember] = members.asScala.map(member => {
+    val chatMembers: Set[ChatMember] = members.asScala.map(member => {
       val doc = member.getRecord.asInstanceOf[ODocument]
       val username = doc.eval("user.username").asInstanceOf[String]
       val userType = doc.eval("user.userType").asInstanceOf[String]
@@ -255,7 +256,7 @@ object ChatStore {
       ChatMember(id, userId, seen)
     }).toSet
     val lastEventNo: Long = doc.getProperty(Classes.ChatEvent.Fields.EventNo)
-    val lastEventTime: Instant = doc.getProperty(Classes.ChatEvent.Fields.Timestamp).asInstanceOf[Date].toInstant()
+    val lastEventTime: Instant = doc.getProperty(Classes.ChatEvent.Fields.Timestamp).asInstanceOf[Date].toInstant
     ChatInfo(
       id,
       ChatType.parse(chatType),
@@ -269,7 +270,7 @@ object ChatStore {
       topic,
       lastEventNo,
       lastEventTime,
-      chatMemebers)
+      chatMembers)
   }
 
   def getChatRid(chatId: String, db: ODatabaseDocument): Try[ORID] = {
@@ -278,10 +279,11 @@ object ChatStore {
 }
 
 class ChatStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+
   import ChatStore._
   import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
 
-  def findChats(types: Option[Set[String]], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[ChatInfo]] = withDb { db =>
+  def findChats(types: Option[Set[String]], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[PagedData[ChatInfo]] = withDb { db =>
     val chatTypes = types.getOrElse(Set(ChatType.Channel.toString.toLowerCase(), ChatType.Room.toString.toLowerCase()))
 
     val (whereClause, whereParams) = filter match {
@@ -295,26 +297,42 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         (where, params)
     }
 
-    val baseQuery = s"""|SELECT 
-       |  max(eventNo) as eventNo, 
-       |  max(timestamp) as timestamp,
-       |  chat.id as id, 
-       |  chat.type as type, 
-       |  chat.created as created,
-       |  chat.private as private,
-       |  chat.name as name, 
-       |  chat.topic as topic,
-       |  chat.members as members
-       |FROM
-       |  ChatEvent 
-       |WHERE
-       |  ${whereClause}
-       |GROUP BY (chat)""".stripMargin
+    val countQuery =
+      s"""|SELECT
+          |  count(*) as count
+          |FROM (
+          |  SELECT
+          |    distinct(chat)
+          |  FROM
+          |    ChatEvent
+          |  WHERE
+          |    $whereClause
+          |)""".stripMargin
 
+    val baseQuery =
+      s"""|SELECT
+          |  max(eventNo) as eventNo,
+          |  max(timestamp) as timestamp,
+          |  chat.id as id,
+          |  chat.type as type,
+          |  chat.created as created,
+          |  chat.private as private,
+          |  chat.name as name,
+          |  chat.topic as topic,
+          |  chat.members as members
+          |FROM
+          |  ChatEvent
+          |WHERE
+          |  $whereClause
+          |GROUP BY (chat)
+          |ORDER BY chat""".stripMargin
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
 
-    OrientDBUtil.queryAndMap(db, query, whereParams) { doc =>
-      toChatInfo(doc)
+    for {
+      count <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(doc => doc.getProperty("count").asInstanceOf[Long])
+      data <- OrientDBUtil.queryAndMap(db, query, whereParams) { doc =>toChatInfo(doc) }
+    } yield {
+      PagedData(data, offset.getOrElse(0).longValue(), count)
     }
   }
 
@@ -333,7 +351,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
        |  ChatEvent 
        |WHERE
        |  chat.id IN :chatIds
-       |GROUP BY (chat)""".stripMargin
+       |GROUP BY (chat)
+       |ORDER BY chat""".stripMargin
 
   def getChatInfo(chatIds: List[String]): Try[List[ChatInfo]] = withDb { db =>
     val params = Map("chatIds" -> chatIds.asJava)
@@ -357,6 +376,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
        |  ChatEvent 
        |WHERE
        |  chat.id == :chatId""".stripMargin
+
   def getChatInfo(chatId: String): Try[ChatInfo] = withDb { db =>
     val params = Map("chatId" -> chatId)
     OrientDBUtil.getDocument(db, GetChatInfoQuery, params).map(toChatInfo)
@@ -369,14 +389,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def createChat(
-    id:           Option[String],
-    chatType:     ChatType.Value,
-    creationTime: Instant,
-    membership:   ChatMembership.Value,
-    name:         String,
-    topic:        String,
-    members:      Option[Set[DomainUserId]],
-    createdBy:    DomainUserId): Try[String] = tryWithDb { db =>
+                  id: Option[String],
+                  chatType: ChatType.Value,
+                  creationTime: Instant,
+                  membership: ChatMembership.Value,
+                  name: String,
+                  topic: String,
+                  members: Option[Set[DomainUserId]],
+                  createdBy: DomainUserId): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatMembers fails
     db.begin()
     val chatId = id.getOrElse {
@@ -414,15 +434,16 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     // a group by / count WHERE'd on the Channel Link?
 
     DomainUserStore.getDomainUsersRids(userIds.toList, db).flatMap { userRids =>
-      val query = """
-       |SELECT 
-       |  id 
-       |FROM 
-       |  Chat
-       |WHERE 
-       |  members CONTAINSALL (user IN :users) AND
-       |  members.size() = :size AND 
-       |  type='direct'""".stripMargin
+      val query =
+        """
+          |SELECT
+          |  id
+          |FROM
+          |  Chat
+          |WHERE
+          |  members CONTAINSALL (user IN :users) AND
+          |  members.size() = :size AND
+          |  type='direct'""".stripMargin
 
       // TODO is there a way to do this in one step not two?
       val params = Map("users" -> userRids.asJava, "size" -> userRids.size)
@@ -441,14 +462,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   def getJoinedChats(userId: DomainUserId): Try[List[ChatInfo]] = withDb { db =>
     val query =
       """
-       |SELECT 
-       |  chat.id as chatId
-       |FROM 
-       |  ChatMember
-       |WHERE 
-       |  user.username = :username AND 
-       |  user.userType = :userType AND
-       |  chat.type='channel'""".stripMargin
+        |SELECT
+        |  chat.id as chatId
+        |FROM
+        |  ChatMember
+        |WHERE
+        |  user.username = :username AND
+        |  user.userType = :userType AND
+        |  chat.type='channel'""".stripMargin
     val params = Map("username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil
       .query(db, query, params)
@@ -470,7 +491,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
 
   private[this] val DeleteChatEventsCommand = "DELETE FROM ChatEvent WHERE chat = (SELECT FROM Chat WHERE id = :chatId)"
   private[this] val DeleteChatMembersCommand = "DELETE FROM ChatMember WHERE chat = (SELECT FROM Chat WHERE id = :chatId)"
-  
+
   def removeChat(id: String): Try[Unit] = withDb { db =>
     val params = Map("chatId" -> id)
     db.begin()
@@ -478,10 +499,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       _ <- OrientDBUtil.commandReturningCount(db, DeleteChatEventsCommand, params)
       _ <- OrientDBUtil.commandReturningCount(db, DeleteChatMembersCommand, params)
       _ <- OrientDBUtil.deleteFromSingleValueIndex(db, Classes.Chat.Indices.Id, id)
-//      chatRid <- ChatStore.getChatRid(id, db)
-//      _ <- Try(chatRid.getRecord[ODocument].delete())
       _ <- Try(db.commit())
-    } yield(())
+    } yield ()
   }
 
   // TODO: All of the events are very similar, need to abstract some of each of these methods
@@ -494,13 +513,13 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       .flatMap { users =>
         val query =
           """INSERT INTO ChatCreatedEvent SET
-        |  eventNo = :eventNo,
-        |  chat = (SELECT FROM Chat WHERE id = :chatId),
-        |  user = (SELECT FROM User WHERE username = :username AND userType = :userType),
-        |  timestamp = :timestamp,
-        |  name = :name,
-        |  topic = :topic,
-        |  members = :members""".stripMargin
+            |  eventNo = :eventNo,
+            |  chat = (SELECT FROM Chat WHERE id = :chatId),
+            |  user = (SELECT FROM User WHERE username = :username AND userType = :userType),
+            |  timestamp = :timestamp,
+            |  name = :name,
+            |  topic = :topic,
+            |  members = :members""".stripMargin
         val params = Map(
           "eventNo" -> eventNo,
           "chatId" -> chatId,
@@ -692,7 +711,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       chatRid <- ChatStore.getChatRid(chatId, db)
       userRid <- DomainUserStore.getUserRid(userId, db)
       _ <- addChatMember(db, chatRid, userRid, seen)
-    } yield (())
+    } yield ()
   }
 
   private[this] def addChatMember(db: ODatabaseDocument, chatRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {
@@ -710,22 +729,23 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def removeChatMember(chatId: String, userId: DomainUserId): Try[Unit] = withDb { db =>
-    val script = """
-      |BEGIN;
-      |LET chatId = :chatId;
-      |LET chat = (SELECT FROM Chat WHERE id = $chatId);
-      |LET user = (SELECT FROM User WHERE username = :username AND userType = :userType);
-      |LET member = (SELECT FROM ChatMember WHERE chat = $chat AND user = $user);
-      |UPDATE Chat REMOVE members = $member WHERE id = $chatId;
-      |DELETE FROM (SELECT expand($member));
-      |COMMIT;
+    val script =
+      """
+        |BEGIN;
+        |LET chatId = :chatId;
+        |LET chat = (SELECT FROM Chat WHERE id = $chatId);
+        |LET user = (SELECT FROM User WHERE username = :username AND userType = :userType);
+        |LET member = (SELECT FROM ChatMember WHERE chat = $chat AND user = $user);
+        |UPDATE Chat REMOVE members = $member WHERE id = $chatId;
+        |DELETE FROM (SELECT expand($member));
+        |COMMIT;
       """.stripMargin
-    
+
     val params = Map("chatId" -> chatId, "username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil.execute(db, script, params).map(_ => ())
   }
 
-  def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit] = tryWithDb { db =>
+  def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit]  = {
     getChatMemberRid(chatId, userId).flatMap { memberRid =>
       Try {
         val doc = memberRid.getRecord[ODocument]
@@ -737,11 +757,11 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def getChatEvents(
-    chatId:     String,
-    eventTypes: Option[List[String]],
-    startEvent: Option[Long],
-    limit:      Option[Int],
-    forward:    Option[Boolean]): Try[List[ChatEvent]] = withDb { db =>
+                     chatId: String,
+                     eventTypes: Option[List[String]],
+                     startEvent: Option[Long],
+                     limit: Option[Int],
+                     forward: Option[Boolean]): Try[List[ChatEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
 
     val eventTypesClause = eventTypes.getOrElse(List()) match {
@@ -789,14 +809,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }
 
   def getClassName: PartialFunction[String, Option[String]] = {
-    case "message"       => Some(Classes.ChatMessageEvent.ClassName)
-    case "created"       => Some(Classes.ChatCreatedEvent.ClassName)
-    case "user_joined"   => Some(Classes.ChatUserJoinedEvent.ClassName)
-    case "user_left"     => Some(Classes.ChatUserLeftEvent.ClassName)
-    case "user_added"    => Some(Classes.ChatUserAddedEvent.ClassName)
-    case "user_removed"  => Some(Classes.ChatUserRemovedEvent.ClassName)
-    case "name_changed"  => Some(Classes.ChatNameChangedEvent.ClassName)
+    case "message" => Some(Classes.ChatMessageEvent.ClassName)
+    case "created" => Some(Classes.ChatCreatedEvent.ClassName)
+    case "user_joined" => Some(Classes.ChatUserJoinedEvent.ClassName)
+    case "user_left" => Some(Classes.ChatUserLeftEvent.ClassName)
+    case "user_added" => Some(Classes.ChatUserAddedEvent.ClassName)
+    case "user_removed" => Some(Classes.ChatUserRemovedEvent.ClassName)
+    case "name_changed" => Some(Classes.ChatNameChangedEvent.ClassName)
     case "topic_changed" => Some(Classes.ChatTopicChangedEvent.ClassName)
-    case _               => None
+    case _ => None
   }
 }
