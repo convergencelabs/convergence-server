@@ -302,7 +302,7 @@ object OrientDBUtil {
     list match {
       case first :: Nil =>
         Success(first)
-      case first :: rest =>
+      case _ :: _ =>
         Failure(MultipleValuesException())
       case Nil =>
         Failure(EntityNotFoundException())
@@ -313,7 +313,7 @@ object OrientDBUtil {
     list match {
       case first :: Nil =>
         Success(Some(first))
-      case first :: rest =>
+      case _ :: _ =>
         Failure(MultipleValuesException())
       case Nil =>
         Success(None)

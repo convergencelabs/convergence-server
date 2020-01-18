@@ -23,7 +23,7 @@ import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.domain.model.query.Ast.SelectStatement
-import com.convergencelabs.convergence.server.domain.model.query.QueryParser
+import com.convergencelabs.convergence.server.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
@@ -295,7 +295,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   def queryModels(query: String, userId: Option[DomainUserId]): Try[PagedData[ModelQueryResult]] = withDb { db =>
     for {
       select <- new QueryParser(query).InputLine.run().recoverWith {
-        case ParseError(position, principalPosition, traces) =>
+        case ParseError(position, _, _) =>
           val index = position.index
           Failure(QueryParsingException(s"Parse error at position $index", query, Some(index)))
       }
@@ -308,7 +308,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   }
 
   private[this] def modelCountQuery(select: SelectStatement, userId: Option[DomainUserId], db: ODatabaseDocument): Try[Long] = {
-    val ModelQueryParameters(query, params, as) = ModelQueryBuilder.countModels(select, userId)
+    val ModelQueryParameters(query, params, _) = ModelQueryBuilder.countModels(select, userId)
     OrientDBUtil.getDocument(db, query, params).map { result =>
       result.getProperty("count").asInstanceOf[Long]
     }

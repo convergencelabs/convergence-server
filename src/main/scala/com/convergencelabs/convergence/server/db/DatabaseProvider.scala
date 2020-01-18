@@ -11,20 +11,16 @@
 
 package com.convergencelabs.convergence.server.db
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.util.TryWithResource
-import com.orientechnologies.orient.core.db.ODatabasePool
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
+import com.orientechnologies.orient.core.db.{ODatabasePool, OrientDB, OrientDBConfig}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+
+import scala.util.{Failure, Success, Try}
 
 trait DatabaseProvider {
   def connect(): Try[Unit]
-  def tryWithDatabase[B](f: (ODatabaseDocument) => B): Try[B]
-  def withDatabase[B](f: (ODatabaseDocument) => Try[B]): Try[B]
+  def tryWithDatabase[B](f: ODatabaseDocument => B): Try[B]
+  def withDatabase[B](f: ODatabaseDocument => Try[B]): Try[B]
   def validateConnection(): Try[Unit]
   def shutdown(): Unit
 
@@ -42,7 +38,7 @@ class SingleDatabaseProvider(serverUrl: String, database: String, username: Stri
     this.orientDb = Some(orientDb)
   }
 
-  def tryWithDatabase[B](f: (ODatabaseDocument) => B): Try[B] = {
+  def tryWithDatabase[B](f: ODatabaseDocument => B): Try[B] = {
     assertConnected().flatMap { db =>
       Try {
         db.activateOnCurrentThread()
@@ -51,7 +47,7 @@ class SingleDatabaseProvider(serverUrl: String, database: String, username: Stri
     }
   }
 
-  def withDatabase[B](f: (ODatabaseDocument) => Try[B]): Try[B] = {
+  def withDatabase[B](f: ODatabaseDocument => Try[B]): Try[B] = {
     assertConnected().flatMap { db =>
       db.activateOnCurrentThread()
       f(db)
@@ -83,14 +79,14 @@ class ConnectedSingleDatabaseProvider(db: ODatabaseDocument) extends DatabasePro
 
   def connect(): Try[Unit] = Success(())
 
-  def tryWithDatabase[B](f: (ODatabaseDocument) => B): Try[B] = {
+  def tryWithDatabase[B](f: ODatabaseDocument => B): Try[B] = {
     Try {
       db.activateOnCurrentThread()
       f(db)
     }
   }
 
-  def withDatabase[B](f: (ODatabaseDocument) => Try[B]): Try[B] = {
+  def withDatabase[B](f: ODatabaseDocument => Try[B]): Try[B] = {
     db.activateOnCurrentThread()
     f(db)
   }
@@ -116,8 +112,8 @@ class PooledDatabaseProvider(serverUrl: String, database: String, username: Stri
     this.orientDb = Some(orientDb)
   }
 
-  def tryWithDatabase[B](f: (ODatabaseDocument) => B): Try[B] = {
-    assertConnected.flatMap { dbPool =>
+  def tryWithDatabase[B](f: ODatabaseDocument => B): Try[B] = {
+    assertConnected().flatMap { dbPool =>
       TryWithResource(dbPool.acquire()) { db =>
         db.activateOnCurrentThread()
         val result = f(db)
@@ -127,8 +123,8 @@ class PooledDatabaseProvider(serverUrl: String, database: String, username: Stri
     }
   }
 
-  def withDatabase[B](f: (ODatabaseDocument) => Try[B]): Try[B] = {
-    assertConnected.flatMap { dbPool =>
+  def withDatabase[B](f: ODatabaseDocument => Try[B]): Try[B] = {
+    assertConnected().flatMap { dbPool =>
       TryWithResource(dbPool.acquire()) { db =>
         db.activateOnCurrentThread()
         val result = f(db)
@@ -139,7 +135,7 @@ class PooledDatabaseProvider(serverUrl: String, database: String, username: Stri
   }
 
   def validateConnection(): Try[Unit] = {
-    assertConnected.flatMap(dbPool => Try[Unit](dbPool.acquire().close()))
+    assertConnected().flatMap(dbPool => Try[Unit](dbPool.acquire().close()))
   }
 
   def shutdown(): Unit = {

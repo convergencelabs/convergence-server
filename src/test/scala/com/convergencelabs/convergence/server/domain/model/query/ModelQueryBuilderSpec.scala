@@ -17,8 +17,6 @@ import org.scalatest.Matchers
 import scala.collection.JavaConverters.seqAsJavaListConverter
 
 import Ast._
-import com.convergencelabs.convergence.server.datastore.domain.ModelQueryBuilder
-import com.convergencelabs.convergence.server.datastore.domain.ModelQueryParameters
 
 class ModelQueryBuilderSpec extends WordSpec with Matchers {
 
@@ -112,7 +110,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 AND (data.children.`age`.value < :p1)",
-            Map("p0" -> "myCollection", "p1" -> 15l), Map())
+            Map("p0" -> "myCollection", "p1" -> 15L), Map())
       }
     }
     "given a LessThanOrEqual where clause" must {
@@ -121,7 +119,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 AND (data.children.`age`.value <= :p1)",
-            Map("p0" -> "myCollection", "p1" -> 15l), Map())
+            Map("p0" -> "myCollection", "p1" -> 15L), Map())
       }
     }
     "given a GreaterThanOrEqual where clause" must {
@@ -130,7 +128,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 AND (data.children.`age`.value >= :p1)",
-            Map("p0" -> "myCollection", "p1" -> 15l), Map())
+            Map("p0" -> "myCollection", "p1" -> 15L), Map())
       }
     }
     "given an In where clause" must {
@@ -151,7 +149,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
             Map("p0" -> "myCollection", "p1" -> "Ali%"), Map())
       }
     }
-    "given a Add Operater clause" must {
+    "given a Add Operator clause" must {
       "return correct ModelQueryParameters" in {
         val select = SelectStatement(List(), "myCollection",
           Some(LessThanOrEqual(FieldTerm(PropertyPathElement("age")),
@@ -159,7 +157,7 @@ class ModelQueryBuilderSpec extends WordSpec with Matchers {
         ModelQueryBuilder.queryModels(select, None) shouldBe
           ModelQueryParameters(
             "SELECT FROM Model WHERE collection.id = :p0 AND (data.children.`age`.value <= (:p1 + :p2))",
-            Map("p0" -> "myCollection", "p1" -> 15l, "p2" -> 5l), Map())
+            Map("p0" -> "myCollection", "p1" -> 15L, "p2" -> 5L), Map())
       }
     }
     "given a projection field without 'as'" must {
