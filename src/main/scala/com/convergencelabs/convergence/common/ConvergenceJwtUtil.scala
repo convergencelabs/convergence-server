@@ -98,7 +98,7 @@ class ConvergenceJwtUtil(
     // Create the claims with the basic info.
     val jwtClaims = new JwtClaims()
     jwtClaims.setIssuer("ConvergenceJwtUtil")
-    jwtClaims.setAudience(JwtConstants.Audiance)
+    jwtClaims.setAudience(JwtConstants.Audience)
     jwtClaims.setGeneratedJwtId()
     jwtClaims.setExpirationTimeMinutesInTheFuture(expirationMinutes)
     jwtClaims.setIssuedAtToNow()

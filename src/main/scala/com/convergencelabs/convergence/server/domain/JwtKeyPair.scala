@@ -11,6 +11,4 @@
 
 package com.convergencelabs.convergence.server.domain
 
-case class JwtKeyPair(
-  publicKey: String,
-  privateKey: String)
+case class JwtKeyPair(publicKey: String, privateKey: String)

@@ -12,49 +12,35 @@
 package com.convergencelabs.convergence.server.domain
 
 import java.io.StringReader
-import java.security.KeyFactory
-import java.security.PublicKey
 import java.security.spec.X509EncodedKeySpec
+import java.security.{KeyFactory, PublicKey}
 import java.time.Instant
 
-import scala.concurrent.ExecutionContext
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
+import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
+import com.convergencelabs.convergence.server.datastore.domain._
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, InvalidValueExcpetion}
+import com.convergencelabs.convergence.server.util.TryWithResource
+import grizzled.slf4j.Logging
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.openssl.PEMParser
 import org.jose4j.jwt.JwtClaims
-import org.jose4j.jwt.consumer.JwtConsumerBuilder
+import org.jose4j.jwt.consumer.{InvalidJwtException, JwtConsumerBuilder}
 
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.InvalidValueExcpetion
-import com.convergencelabs.convergence.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.UpdateDomainUser
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore
-import com.convergencelabs.convergence.server.datastore.domain.SessionStore
-import com.convergencelabs.convergence.server.datastore.domain.UserGroupStore
-import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
-import com.convergencelabs.convergence.server.util.TryWithResource
-
-import grizzled.slf4j.Logging
-import org.jose4j.jwt.consumer.InvalidJwtException
+import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success, Try}
 
 object AuthenticationHandler {
   val AdminKeyId = "ConvergenceAdminKey"
   val AllowedClockSkew = 30
 }
 
-class AuthenticationHandler(
-  private[this] val domainFqn:         DomainId,
-  private[this] val domainConfigStore: DomainConfigStore,
-  private[this] val keyStore:          JwtAuthKeyStore,
-  private[this] val userStore:         DomainUserStore,
-  private[this] val userGroupStore:    UserGroupStore,
-  private[this] val sessionStore:      SessionStore,
-  private[this] implicit val ec:       ExecutionContext)
+class AuthenticationHandler(private[this] val domainFqn: DomainId,
+                            private[this] val domainConfigStore: DomainConfigStore,
+                            private[this] val keyStore: JwtAuthKeyStore,
+                            private[this] val userStore: DomainUserStore,
+                            private[this] val userGroupStore: UserGroupStore,
+                            private[this] val sessionStore: SessionStore,
+                            private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
   def authenticate(request: AuthetncationCredentials): Try[AuthenticationResponse] = {
@@ -82,7 +68,7 @@ class AuthenticationHandler(
         Success(AuthenticationFailure)
     } recoverWith {
       case cause =>
-        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user via reconnect token.", cause))
+        Failure(AuthenticationError(s"$domainFqn: Unable to authenticate a user via reconnect token.", cause))
     }
   }
 
@@ -91,22 +77,22 @@ class AuthenticationHandler(
   //
 
   private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Try[AuthenticationResponse] = {
-    val AnonymousAuthRequest(displayName) = authRequest;
-    debug(s"${domainFqn}: Processing anonymous authentication request with display name: ${displayName}")
+    val AnonymousAuthRequest(displayName) = authRequest
+    debug(s"$domainFqn: Processing anonymous authentication request with display name: $displayName")
     domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
-        debug(s"${domainFqn}: Anonymous auth is disabled; returning AuthenticationFailure.")
+        debug(s"$domainFqn: Anonymous auth is disabled; returning AuthenticationFailure.")
         Success(AuthenticationFailure)
       case true =>
-        debug(s"${domainFqn}: Anonymous auth is enabled; creating anonymous user.")
+        debug(s"$domainFqn: Anonymous auth is enabled; creating anonymous user.")
         userStore.createAnonymousDomainUser(displayName) flatMap { username =>
-          debug(s"${domainFqn}: Anonymous user created: ${username}")
+          debug(s"$domainFqn: Anonymous user created: $username")
           val userId = DomainUserId(DomainUserType.Anonymous, username)
           authSuccess(userId, None)
         }
     } recoverWith {
       case cause: Throwable =>
-        Failure(AuthenticationError(s"${domainFqn}: Anonymous authentication error", cause))
+        Failure(AuthenticationError(s"$domainFqn: Anonymous authentication error", cause))
     }
   }
 
@@ -114,7 +100,7 @@ class AuthenticationHandler(
   // Password Auth
   //
   private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Try[AuthenticationResponse] = {
-    logger.debug(s"${domainFqn}: Authenticating by username and password")
+    logger.debug(s"$domainFqn: Authenticating by username and password")
     userStore.validateCredentials(authRequest.username, authRequest.password) flatMap {
       case true =>
         val userId = DomainUserId(DomainUserType.Normal, authRequest.username)
@@ -126,7 +112,7 @@ class AuthenticationHandler(
         Success(AuthenticationFailure)
     } recoverWith {
       case cause: Throwable =>
-        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user", cause))
+        Failure(AuthenticationError(s"$domainFqn: Unable to authenticate a user", cause))
     }
   }
 
@@ -142,14 +128,14 @@ class AuthenticationHandler(
       .build()
 
     val jwtContext = firstPassJwtConsumer.process(authRequest.jwt)
-    val objects = jwtContext.getJoseObjects()
-    val keyId = objects.get(0).getKeyIdHeaderValue()
+    val objects = jwtContext.getJoseObjects
+    val keyId = objects.get(0).getKeyIdHeaderValue
 
     getJWTPublicKey(keyId) match {
       case Some((publicKey, admin)) =>
         authenticateJwtWithPublicKey(authRequest, publicKey, admin)
       case None =>
-        logger.warn(s"${domainFqn}: Request to authenticate via token, with an invalid keyId: ${keyId}")
+        logger.warn(s"$domainFqn: Request to authenticate via token, with an invalid keyId: $keyId")
         Success(AuthenticationFailure)
     }
   }
@@ -159,24 +145,24 @@ class AuthenticationHandler(
       domainConfigStore.getAdminKeyPair() match {
         case Success(keyPair) => (Some(keyPair.publicKey), true)
         case _ =>
-          logger.error(s"${domainFqn}: Unabled to load admin key for domain")
+          logger.error(s"$domainFqn: Unable to load admin key for domain")
           (None, false)
       }
     } else {
       keyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => (Some(key.key), false)
-        case _                                 => (None, false)
+        case _ => (None, false)
       }
     }
 
     keyPem.flatMap { pem =>
       TryWithResource(new PEMParser(new StringReader(pem))) { pemReader =>
-        val spec = new X509EncodedKeySpec(pemReader.readPemObject().getContent())
+        val spec = new X509EncodedKeySpec(pemReader.readPemObject().getContent)
         val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
         Some((keyFactory.generatePublic(spec), admin))
       }.recoverWith {
         case e: Throwable =>
-          logger.warn(s"${domainFqn}: Unabled to decode jwt public key: " + e.getMessage)
+          logger.warn(s"$domainFqn: Unable to decode jwt public key: " + e.getMessage)
           Success(None)
       }.get
     }
@@ -187,29 +173,30 @@ class AuthenticationHandler(
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
       .setRequireSubject()
-      .setExpectedAudience(JwtConstants.Audiance)
+      .setExpectedAudience(JwtConstants.Audience)
       .setVerificationKey(publicKey)
       .build()
 
     Try(jwtConsumer.processToClaims(authRequest.jwt)) flatMap { jwtClaims =>
-      val username = jwtClaims.getSubject()
+      val username = jwtClaims.getSubject
 
       // FIXME in theory we should cache the token id for longer than the expiration to make
-      // sure a replay attack is not possible
+      //   sure a replay attack is not possible
 
-      val (exists, userType) = admin match {
-        case true  => (userStore.convergenceUserExists(username), DomainUserType.Convergence)
-        case false => (userStore.domainUserExists(username), DomainUserType.Normal)
+      val (exists, userType) = if (admin) {
+        (userStore.convergenceUserExists(username), DomainUserType.Convergence)
+      } else {
+        (userStore.domainUserExists(username), DomainUserType.Normal)
       }
 
       val userId = DomainUserId(userType, username)
 
       exists flatMap {
         case true =>
-          logger.debug(s"${domainFqn}: User specificed in JWT already exists, updating with latest claims.")
+          logger.debug(s"$domainFqn: User specified in JWT already exists, updating with latest claims.")
           updateUserFromJwt(userId, jwtClaims)
         case false =>
-          logger.debug(s"${domainFqn}: User specificed in JWT does not exist exist, Auto creating user.")
+          logger.debug(s"$domainFqn: User specified in JWT does not exist exist, Auto creating user.")
           lazyCreateUserFromJWT(userId, jwtClaims)
       } flatMap { _ =>
         authSuccess(userId, None) map { response =>
@@ -222,20 +209,20 @@ class AuthenticationHandler(
         logger.debug(s"Invalid JWT: ${cause.getMessage}")
         Success(AuthenticationFailure)
       case cause: Exception =>
-        Failure(AuthenticationError(s"${domainFqn}: Unable to authenticate a user via jwt.", cause))
+        Failure(AuthenticationError(s"$domainFqn: Unable to authenticate a user via jwt.", cause))
     }
   }
 
   private[this] def updateUserFromJwt(userId: DomainUserId, jwtClaims: JwtClaims): Try[Unit] = {
-    val JwtInfo(username, firstName, lastName, displayName, email, groups) = JwtUtil.parseClaims(jwtClaims)
+    val JwtInfo(_, firstName, lastName, displayName, email, groups) = JwtUtil.parseClaims(jwtClaims)
     val update = UpdateDomainUser(userId, firstName, lastName, displayName, email, None)
     for {
       _ <- userStore.updateDomainUser(update)
       _ <- groups match {
         case Some(g) => userGroupStore.setGroupsForUser(userId, g)
-        case None    => Success(())
+        case None => Success(())
       }
-    } yield (())
+    } yield ()
   }
 
   private[this] def lazyCreateUserFromJWT(userId: DomainUserId, jwtClaims: JwtClaims): Try[String] = {
@@ -249,17 +236,17 @@ class AuthenticationHandler(
           username <- userStore.createNormalDomainUser(newUser)
           _ <- groups match {
             case Some(g) => userGroupStore.setGroupsForUser(userId, g)
-            case None    => Success(())
+            case None => Success(())
           }
-        } yield (username)
+        } yield username
       case DomainUserType.Anonymous =>
-        Failure(new IllegalArgumentException("Can not authenticate an anonyous user via JWT"))
+        Failure(new IllegalArgumentException("Can not authenticate an anonymous user via JWT"))
     }).recoverWith {
-      case e: DuplicateValueException =>
-        logger.warn(s"${domainFqn}: Attempted to auto create user, but user already exists, returning auth success.")
+      case _: DuplicateValueException =>
+        logger.warn(s"$domainFqn: Attempted to auto create user, but user already exists, returning auth success.")
         Success(username)
       case e: InvalidValueExcpetion =>
-        Failure(new IllegalArgumentException(s"${domainFqn}: Lazy creation of user based on JWT authentication failed: {$username}", e))
+        Failure(new IllegalArgumentException(s"$domainFqn: Lazy creation of user based on JWT authentication failed: $username", e))
     }
   }
 
@@ -268,19 +255,19 @@ class AuthenticationHandler(
   //
 
   private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[AuthenticationSuccess] = {
-    logger.debug(s"${domainFqn}: Creating session after authenication success.")
+    logger.debug(s"$domainFqn: Creating session after authentication success.")
     sessionStore.nextSessionId flatMap { sessionId =>
       reconnectToken match {
         case Some(reconnectToken) =>
           Success(AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(reconnectToken)))
         case None =>
-          logger.debug(s"${domainFqn}: Creating reconnect token.")
+          logger.debug(s"$domainFqn: Creating reconnect token.")
           userStore.createReconnectToken(userId) map { token =>
-            logger.debug(s"${domainFqn}: Returning auth success.")
+            logger.debug(s"$domainFqn: Returning auth success.")
             AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(token))
           } recover {
             case error: Throwable =>
-              logger.error(s"${domainFqn}: Unable to create reconnect token", error)
+              logger.error(s"$domainFqn: Unable to create reconnect token", error)
               AuthenticationSuccess(DomainUserSessionId(sessionId, userId), None)
           }
       }

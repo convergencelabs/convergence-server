@@ -20,5 +20,5 @@ object JwtClaimConstants {
 }
 
 object JwtConstants {
-  val Audiance = "Convergence"
+  val Audience = "Convergence"
 }

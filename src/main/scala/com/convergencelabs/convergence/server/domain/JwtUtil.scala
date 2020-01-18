@@ -12,33 +12,29 @@
 package com.convergencelabs.convergence.server.domain
 
 import java.io.StringWriter
-
-import scala.reflect.ClassTag
-import scala.util.Try
-
 import java.util.{List => JavaList}
 
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter
-import org.jose4j.jwk.RsaJsonWebKey
-import org.jose4j.jwk.RsaJwkGenerator
+import org.jose4j.jwk.{RsaJsonWebKey, RsaJwkGenerator}
 import org.jose4j.jwt.JwtClaims
 
 import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.reflect.ClassTag
+import scala.util.Try
 
-case class JwtInfo(
-  usrname: String,
-  firstName: Option[String],
-  lastName: Option[String],
-  displayName: Option[String],
-  email: Option[String],
-  groups: Option[Set[String]])
+case class JwtInfo(username: String,
+                   firstName: Option[String],
+                   lastName: Option[String],
+                   displayName: Option[String],
+                   email: Option[String],
+                   groups: Option[Set[String]])
 
 object JwtUtil {
-  
+
   val KeyBits = 2048
 
   def parseClaims(jwtClaims: JwtClaims): JwtInfo = {
-    val username = jwtClaims.getSubject()
+    val username = jwtClaims.getSubject
     val firstName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.FirstName)
     val lastName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.LastName)
     val displayName = JwtUtil.getClaim[String](jwtClaims, JwtClaimConstants.DisplayName)
@@ -63,23 +59,21 @@ object JwtUtil {
 
   def createKey(): Try[RsaJsonWebKey] = Try(RsaJwkGenerator.generateJwk(KeyBits))
 
-  def getPrivateKeyPEM(webKey: RsaJsonWebKey): Try[String] = Try {
-    val privateKey = webKey.getPrivateKey()
-    val writer = new StringWriter()
-    val pemWriter = new JcaPEMWriter(writer)
-    pemWriter.writeObject(privateKey)
-    pemWriter.flush()
-    pemWriter.close()
-    writer.toString()
+  def getPrivateKeyPEM(webKey: RsaJsonWebKey): Try[String] = {
+    Try(webKey.getPrivateKey).flatMap(key => toPemString(key))
   }
 
-  def getPublicCertificatePEM(webKey: RsaJsonWebKey): Try[String] = Try {
-    val publicKey = webKey.getPublicKey()
+  def getPublicCertificatePEM(webKey: RsaJsonWebKey): Try[String] = {
+    Try(webKey.getPublicKey).flatMap(key => toPemString(key))
+
+  }
+
+  private[this] def toPemString(obj: Any): Try[String] = Try {
     val writer = new StringWriter()
     val pemWriter = new JcaPEMWriter(writer)
-    pemWriter.writeObject(publicKey)
+    pemWriter.writeObject(obj)
     pemWriter.flush()
     pemWriter.close()
-    writer.toString()
+    writer.toString
   }
 }

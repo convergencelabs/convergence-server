@@ -242,7 +242,7 @@ object JwtGenerator {
 
     // Create the claims with the basic info.
     val jwtClaims = new JwtClaims()
-    jwtClaims.setAudience(JwtConstants.Audiance)
+    jwtClaims.setAudience(JwtConstants.Audience)
     jwtClaims.setGeneratedJwtId()
     jwtClaims.setExpirationTimeMinutesInTheFuture(2)
     jwtClaims.setIssuedAtToNow()

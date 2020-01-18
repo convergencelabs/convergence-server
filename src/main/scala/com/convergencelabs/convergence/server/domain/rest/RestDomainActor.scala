@@ -11,47 +11,27 @@
 
 package com.convergencelabs.convergence.server.domain.rest
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import scala.util.control.NonFatal
-
+import akka.actor.{ActorRef, Props, ReceiveTimeout, actorRef2Scala}
 import com.convergencelabs.convergence.common.ConvergenceJwtUtil
-import com.convergencelabs.convergence.server.actor.ShardedActor
-import com.convergencelabs.convergence.server.actor.ShardedActorStatUpPlan
-import com.convergencelabs.convergence.server.actor.StartUpRequired
-import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor
+import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor.CollectionStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.ConfigStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor
 import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor.DomainStatsRequest
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor.ApiKeyStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.ModelPermissionsStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor.ModelStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor.SessionStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor.UserGroupStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor
+import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor.UserStoreRequest
-import com.convergencelabs.convergence.server.domain.AuthenticationHandler
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
-
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.ReceiveTimeout
-import akka.actor.actorRef2Scala
+import com.convergencelabs.convergence.server.domain.{AuthenticationHandler, DomainId}
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.ChatStoreRequest
+import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+
+import scala.concurrent.duration.FiniteDuration
+import scala.util.{Failure, Success, Try}
+import scala.util.control.NonFatal
 
 object RestDomainActor {
   def props(
@@ -82,11 +62,8 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
   
   this.context.setReceiveTimeout(this.receiveTimeout)
 
-  val MaxShutdownWaitTime = Duration.fromNanos(
-    context.system.settings.config.getDuration("convergence.rest.max-rest-actor-shutdown").toNanos())
-
   def receiveInitialized: Receive = {
-    case DomainRestMessage(fqn, msg) =>
+    case DomainRestMessage(_, msg) =>
       receiveDomainRestMessage(msg)
     case ReceiveTimeout =>
       passivate()

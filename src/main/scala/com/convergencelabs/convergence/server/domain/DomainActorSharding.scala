@@ -11,22 +11,21 @@
 
 package com.convergencelabs.convergence.server.domain
 
+import akka.cluster.sharding.ShardRegion
 import com.convergencelabs.convergence.server.actor.ActorSharding
 
-import akka.cluster.sharding.ShardRegion
-
 object DomainActorSharding extends ActorSharding(
-    "DomainActorShardRegion",
-    "backend",
-    classOf[DomainActor]){
-  
+  "DomainActorShardRegion",
+  "backend",
+  classOf[DomainActor]) {
+
   override val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: DomainMessage ⇒ 
+    case msg: DomainMessage ⇒
       (s"${msg.domainFqn.namespace}::${msg.domainFqn.domainId}", msg)
   }
- 
+
   override def extractShardId(numberOfShards: Int): ShardRegion.ExtractShardId = {
-    case msg: DomainMessage => 
+    case msg: DomainMessage =>
       Math.abs(msg.domainFqn.hashCode % numberOfShards).toString
   }
 }

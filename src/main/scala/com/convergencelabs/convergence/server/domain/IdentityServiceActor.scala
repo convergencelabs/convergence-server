@@ -11,21 +11,11 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import scala.util.Failure
-import scala.util.Success
+import akka.actor.{Actor, ActorLogging, Props, Status}
+import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceManagerActor, DomainPersistenceProvider, DomainUserField, UserGroup}
+import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
 
-import com.convergencelabs.convergence.server.UnknownErrorResponse
-import com.convergencelabs.convergence.server.datastore.SortOrder
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserField
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import com.convergencelabs.convergence.server.datastore.domain.UserGroup
-import akka.actor.Status
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
+import scala.util.{Failure, Success}
 
 object IdentityServiceActor {
 
@@ -35,39 +25,37 @@ object IdentityServiceActor {
     new IdentityServiceActor(domainFqn))
 }
 
-class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor with ActorLogging {
+class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor with ActorLogging {
 
   var persistenceProvider: DomainPersistenceProvider = _
 
   def receive: Receive = {
-    case s: UserSearch => searchUsers(s)
-    //    case l: UserLookUp => lookUpUsers(l)
+    case s: UserSearch =>
+      searchUsers(s)
     case GetUsersByUsername(userIds) =>
-      getUsersByUsername(userIds)
+      onGetUsersByUsername(userIds)
     case GetUserByUsername(userId) =>
-      getUserByUsername(userId)
+      onGetUserByUsername(userId)
     case message: UserGroupsRequest =>
-      getUserGroups(message)
+      onGetUserGroups(message)
     case message: UserGroupsForUsersRequest =>
-      getUserGroupsForUser(message)
+      onGetUserGroupsForUser(message)
     case message: IdentityResolutionRequest =>
       resolveIdentities(message)
     case x: Any => unhandled(x)
   }
 
-  private[this] def getUsersByUsername(userIds: List[DomainUserId]): Unit = {
+  private[this] def onGetUsersByUsername(userIds: List[DomainUserId]): Unit = {
     persistenceProvider.userStore.getDomainUsers(userIds) match {
       case Success(users) => sender ! users
       case Failure(e) => sender ! Status.Failure(e)
     }
   }
 
-  private[this] def getUserByUsername(userId: DomainUserId): Unit = {
+  private[this] def onGetUserByUsername(userId: DomainUserId): Unit = {
     persistenceProvider.userStore.getDomainUser(userId).map {
-      _ match {
-        case Some(user) => sender ! user
-        case None => sender ! Status.Failure(EntityNotFoundException())
-      }
+      case Some(user) => sender ! user
+      case None => sender ! Status.Failure(EntityNotFoundException())
     } recover {
       case cause => sender ! Status.Failure(cause)
     }
@@ -78,12 +66,12 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
     try {
       (for {
         sessions <- persistenceProvider.sessionStore.getSessions(message.sessionIds)
-        sesionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
+        sessionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
         users <- persistenceProvider.userStore.getDomainUsers(
-          (message.userIds ++ (sessions.map(_.userId))).toList)
+          (message.userIds ++ sessions.map(_.userId)).toList)
       } yield {
         log.debug("resolved")
-        IdentityResolutionResponse(sesionMap, users.toSet)
+        IdentityResolutionResponse(sessionMap, users.toSet)
       }) match {
         case Success(response) => sender ! response
         case Failure(e) =>
@@ -97,8 +85,8 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
 
   private[this] def searchUsers(criteria: UserSearch): Unit = {
     val searchString = criteria.searchValue
-    val fields = criteria.fields.map { f => converField(f) }
-    val order = criteria.order.map { x => converField(x) }
+    val fields = criteria.fields.map { f => convertField(f) }
+    val order = criteria.order.map { x => convertField(x) }
     val limit = criteria.limit
     val offset = criteria.offset
     val sortOrder = criteria.sort
@@ -109,24 +97,8 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
     }
   }
 
-  //  private[this] def lookUpUsers(criteria: UserLookUp): Unit = {
-  //    val users = criteria.field match {
-  //      case UserLookUpField.Username =>
-  //        persistenceProvider.userStore.getDomainUsersByUsername(criteria.values)
-  //      case UserLookUpField.Email =>
-  //        persistenceProvider.userStore.getDomainUsersByEmail(criteria.values)
-  //      case _ =>
-  //        Failure(new IllegalArgumentException("Invalide user lookup field"))
-  //    }
-  //
-  //    users match {
-  //      case Success(list) => sender ! UserList(list)
-  //      case Failure(e) => sender ! UnknownErrorResponse(e.getMessage)
-  //    }
-  //  }
-
-  private[this] def getUserGroups(request: UserGroupsRequest): Unit = {
-    val UserGroupsRequest(ids) = request;
+  private[this] def onGetUserGroups(request: UserGroupsRequest): Unit = {
+    val UserGroupsRequest(ids) = request
     (ids match {
       case Some(idList) =>
         persistenceProvider.userGroupStore.getUserGroupsById(idList)
@@ -140,8 +112,8 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
     }
   }
 
-  private[this] def getUserGroupsForUser(request: UserGroupsForUsersRequest): Unit = {
-    val UserGroupsForUsersRequest(userIds) = request;
+  private[this] def onGetUserGroupsForUser(request: UserGroupsForUsersRequest): Unit = {
+    val UserGroupsForUsersRequest(userIds) = request
     persistenceProvider.userGroupStore.getUserGroupIdsForUsers(userIds) match {
       case Success(result) =>
         sender ! UserGroupsForUsersResponse(result)
@@ -150,7 +122,7 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
     }
   }
 
-  private[this] def converField(field: UserLookUpField.Value): DomainUserField.Field = {
+  private[this] def convertField(field: UserLookUpField.Value): DomainUserField.Field = {
     field match {
       case UserLookUpField.Username => DomainUserField.Username
       case UserLookUpField.FirstName => DomainUserField.FirstName
@@ -161,12 +133,11 @@ class IdentityServiceActor private[domain] (domainFqn: DomainId) extends Actor w
   }
 
   override def postStop(): Unit = {
-    log.debug(s"UserServiceActor(${domainFqn}) stopped.")
+    log.debug(s"UserServiceActor($domainFqn) stopped.")
     DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
   }
 
   override def preStart(): Unit = {
-    // FIXME Handle none better with logging.
     persistenceProvider = DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn).get
   }
 }
@@ -176,23 +147,25 @@ object UserLookUpField extends Enumeration {
 }
 
 case class GetUsersByUsername(userIds: List[DomainUserId])
+
 case class GetUserByUsername(userId: DomainUserId)
 
-//case class UserLookUp(field: UserLookUpField.Value, values: List[String])
 
-case class UserSearch(
-  fields: List[UserLookUpField.Value],
-  searchValue: String,
-  offset: Option[Int],
-  limit: Option[Int],
-  order: Option[UserLookUpField.Value],
-  sort: Option[SortOrder.Value])
+case class UserSearch(fields: List[UserLookUpField.Value],
+                      searchValue: String,
+                      offset: Option[Int],
+                      limit: Option[Int],
+                      order: Option[UserLookUpField.Value],
+                      sort: Option[SortOrder.Value])
 
 case class UserGroupsRequest(ids: Option[List[String]])
+
 case class UserGroupsResponse(groups: List[UserGroup])
 
 case class UserGroupsForUsersRequest(userIds: List[DomainUserId])
+
 case class UserGroupsForUsersResponse(groups: Map[DomainUserId, Set[String]])
 
 case class IdentityResolutionRequest(sessionIds: Set[String], userIds: Set[DomainUserId])
+
 case class IdentityResolutionResponse(sessionMap: Map[String, DomainUserId], users: Set[DomainUser])
