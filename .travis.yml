@@ -6,7 +6,6 @@ script:
   - sbt -J-Xmx3G -J-Xss5M compile
   - sbt -J-Xmx3G -J-Xss5M test
   - sbt stage
-  - sbt publishSigned
 env:
   global:
     - SCALACTIC_FILL_FILE_PATHNAMES=yes
