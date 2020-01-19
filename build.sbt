@@ -12,83 +12,108 @@
 import Dependencies.Compile._
 import Dependencies.Test._
 
-organization := "com.convergencelabs"
-organizationName := "Convergence Labs, Inc."
-organizationHomepage := Some(url("http://convergencelabs.com"))
-
-name := "convergence-server"
-description := "Convergence Server"
-homepage := Some(url("https://convergence.io"))
-maintainer := "info@convergencelabs.com"
-
-licenses += "GPLv3" -> url("https://www.gnu.org/licenses/gpl-3.0.html")
-
-scmInfo := Some(ScmInfo(
-      url("https://github.com/convergencelabs/convergence-server"),
-      "https://github.com/convergencelabs/convergence-server.git"))
-
-scalaVersion := "2.12.10"
-
-scalacOptions := Seq("-deprecation", "-feature")
-fork := true
-javaOptions += "-XX:MaxDirectMemorySize=16384m"
-
-libraryDependencies ++=
-  akkaCore ++
-    orientDb ++
-    loggingAll ++
-    Seq(
-      scalapb,
-      convergenceProto,
-      akkaHttp,
-      json4s,
-      jacksonYaml,
-      json4sExt,
-      akkaHttpJson4s,
-      akkaHttpCors,
-      commonsLang,
-      jose4j,
-      bouncyCastle,
-      scrypt,
-      netty,
-      javaWebsockets,
-      scallop,
-      parboiled
-    ) ++
-    Seq(orientDbServer % "test") ++
-    testingCore ++
-    testingAkka
+import com.jsuereth.sbtpgp.PgpKeys._
 
 //
-// SBT Native Packager Configs
+// Global Settings
 //
-mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer")
-discoveredMainClasses in Compile := Seq()
 
-bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.conf""""
-bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j2.xml""""
-batScriptExtraDefines += """call :add_app "-c %APP_HOME%\conf\convergence-server.conf""""
-batScriptExtraDefines += """call :add_java "-Dlog4j.configurationFile=%APP_HOME%\conf\log4j2.xml""""
+ThisBuild / organization := "com.convergencelabs"
+ThisBuild / organizationName := "Convergence Labs, Inc."
+ThisBuild / organizationHomepage := Some(url("http://convergencelabs.com"))
 
-// Configure the binary distributions to be published along side the normal artifacts.
+ThisBuild / homepage := Some(url("https://convergence.io"))
+ThisBuild / maintainer := "info@convergencelabs.com"
+
+ThisBuild / licenses += "GPLv3" -> url("https://www.gnu.org/licenses/gpl-3.0.html")
+
+ThisBuild / scmInfo := Some(ScmInfo(
+  url("https://github.com/convergencelabs/convergence-server"),
+  "https://github.com/convergencelabs/convergence-server.git"))
+
+ThisBuild / scalaVersion := "2.12.10"
+
+//
+// Root Project
+//
+
+lazy val root = (project in file("."))
+  .settings(Seq(
+    name := "Convergence Server",
+    normalizedName := "convergence-server",
+    description := "The Convergence Server core classes.",
+    scalacOptions := Seq("-deprecation", "-feature"),
+    discoveredMainClasses in Compile := Seq(),
+    fork := true,
+    libraryDependencies ++=
+      akkaCore ++
+        orientDb ++
+        loggingAll ++
+        Seq(
+          scalapb,
+          convergenceProto,
+          akkaHttp,
+          json4s,
+          jacksonYaml,
+          json4sExt,
+          akkaHttpJson4s,
+          akkaHttpCors,
+          commonsLang,
+          jose4j,
+          bouncyCastle,
+          scrypt,
+          netty,
+          javaWebsockets,
+          scallop,
+          parboiled
+        ) ++
+        Seq(orientDbServer % "test") ++
+        testingCore ++
+        testingAkka,
+
+    //
+    // SBT Build Info
+    //
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "com.convergencelabs.convergence.server"
+  ))
+  .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(OrientDBPlugin)
+
+//
+// Universal Distribution Project
+//
+
+// Create some dummy tasks to help us publish the universal distribution.
 val packageZip = taskKey[File]("package-zip")
-packageZip := (baseDirectory in Compile).value / "target" / "universal" / (name.value + "-" + version.value + ".zip")
-artifact in (Universal, packageZip) ~= { (art: Artifact) => art.withType("zip").withExtension("zip") }
-addArtifact(artifact in (Universal, packageZip), packageZip in Universal)
+val packageTgz = taskKey[File]("package-tgz")
 
-val packageTgz = taskKey[File]("package-zip")
-packageTgz := (baseDirectory in Compile).value / "target" / "universal" / (name.value + "-" + version.value + ".tgz")
-artifact in (Universal, packageTgz) ~= { (art: Artifact) => art.withType("tgz").withExtension("tgz") }
-addArtifact(artifact in (Universal, packageTgz), packageTgz in Universal)
+lazy val dist = (project in file("distribution"))
+  .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
+  .settings(Seq(
+    name := "Convergence Server Universal Distribution",
+    normalizedName := "convergence-server-universal",
+    description := "The universal binary distribution of the Convergence Server.",
+    maintainer := "info@convergencelabs.com",
 
-publish := (publish dependsOn (packageBin in Universal)).value
+    crossPaths := false,
+    discoveredMainClasses in Compile := Seq(),
+    executableScriptName := "convergence-server",
+    mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer"),
+    bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.conf"""",
+    bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j2.xml"""",
+    batScriptExtraDefines += """call :add_app "-c %APP_HOME%\conf\convergence-server.conf"""",
+    batScriptExtraDefines += """call :add_java "-Dlog4j.configurationFile=%APP_HOME%\conf\log4j2.xml"""",
 
-//
-// SBT Build Info
-//
-buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion)
-buildInfoPackage := "com.convergencelabs.convergence.server"
+    packageZip := (baseDirectory in Compile).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".zip"),
+    artifact in(Universal, packageZip) ~= { (art: Artifact) => art.withType("zip").withExtension("zip") },
+    packageTgz := (baseDirectory in Compile).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".tgz"),
+    artifact in(Universal, packageTgz) ~= { (art: Artifact) => art.withType("tgz").withExtension("tgz") },
 
-enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
-enablePlugins(BuildInfoPlugin)
-enablePlugins(OrientDBPlugin)
+    publish := (publish dependsOn(packageBin in Universal, packageZipTarball in Universal)).value,
+    publishSigned := (publishSigned dependsOn(packageBin in Universal, packageZipTarball in Universal)).value,
+  ))
+  .settings(addArtifact(artifact in(Universal, packageZip), packageZip in Universal))
+  .settings(addArtifact(artifact in(Universal, packageTgz), packageTgz in Universal))
+  .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
+  .dependsOn(root)
