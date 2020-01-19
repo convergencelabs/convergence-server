@@ -33,6 +33,15 @@ ThisBuild / scmInfo := Some(ScmInfo(
 
 ThisBuild / scalaVersion := "2.12.10"
 
+ThisBuild / developers := List(
+  Developer(
+    id    = "mmacfadden",
+    name  = "Michael MacFadden",
+    email = "michael@convergencelabs.com",
+    url   = url("https://convergencelabs.com")
+  )
+)
+
 //
 // Root Project
 //
