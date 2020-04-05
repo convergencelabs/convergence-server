@@ -31,7 +31,12 @@ object CurrentUserService {
 
   case class BearerTokenResponse(token: String)
 
-  case class ConvergenceUserProfile(username: String, email: String, firstName: String, lastName: String, displayName: String)
+  case class ConvergenceUserProfile(username: String,
+                                    email: String,
+                                    firstName: String,
+                                    lastName: String,
+                                    displayName: String,
+                                    serverRole: String)
 
   case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
 
@@ -110,8 +115,8 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
   private[this] def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
     val message = GetConvergenceUser(authProfile.username)
     (convergenceUserActor ? message).mapTo[Option[ConvergenceUserInfo]].map {
-      case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, lastLogin), globalRole)) =>
-        okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName))
+      case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole)) =>
+        okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName, globalRole))
       case None =>
         notFoundResponse()
     }
