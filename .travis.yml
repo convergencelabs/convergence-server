@@ -5,7 +5,7 @@ scala:
 script:
   - sbt -J-Xmx3G -J-Xss5M compile
   - sbt -J-Xmx3G -J-Xss5M test
-  - sbt stage
+  - sbt dist/stage
 env:
   global:
     - SCALACTIC_FILL_FILE_PATHNAMES=yes
