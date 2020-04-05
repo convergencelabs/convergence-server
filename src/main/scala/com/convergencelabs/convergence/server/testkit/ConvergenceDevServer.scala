@@ -139,7 +139,7 @@ class ConvergenceDevServer() extends Logging {
   private[this] def createConfig(configFile: String, port: Int, roles: List[String]): Config = {
     val reader = new InputStreamReader(new FileInputStream(configFile))
     val parsed = ConfigFactory.parseReader(reader)
-      .withValue("akka.remote.netty.tcp.port", ConfigValueFactory.fromAnyRef(port))
+      .withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
 
     ConfigFactory.load(parsed)

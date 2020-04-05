@@ -11,24 +11,19 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import java.util.ArrayList
-
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.util.Failure
-import scala.util.Try
+import java.util
 
 import com.convergencelabs.convergence.server.util.SafeTry
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.function.OFunction
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OProperty
-import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.metadata.schema.{OClass, OProperty, OType}
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import grizzled.slf4j.Logging
+
+import scala.collection.JavaConverters.{mapAsJavaMapConverter, seqAsJavaListConverter}
+import scala.util.{Failure, Try}
 
 object DatabaseDeltaProcessor {
   def apply(delta: Delta, db: ODatabaseDocument): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
@@ -36,7 +31,7 @@ object DatabaseDeltaProcessor {
 
 class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Logging {
 
-  private[this] var deferedLinkedProperties = Map[OProperty, String]();
+  private[this] var deferredLinkedProperties = Map[OProperty, String]()
 
   def apply(): Try[Unit] = SafeTry {
     debug(s"Applying delta: ${delta.version} to database")
@@ -47,13 +42,13 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     delta.actions foreach (change => applyChange(change))
 
     debug(s"Processing linked classes")
-    processDeferedLinkedClasses()
+    processDeferredLinkedClasses()
 
     debug(s"Reloading database metadata")
     db.getMetadata.reload()
 
     debug(s"Finished applying delta ${delta.version} to database")
-    (())
+    ()
   } recoverWith {
     case cause: Throwable =>
       error(s"Applying delta ${delta.version} to database failed", cause)
@@ -96,10 +91,10 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
   private[this] def applyAlterClass(alterClass: AlterClass): Unit = {
     val AlterClass(name, newName, superclass) = alterClass
     val oClass: OClass = db.getMetadata.getSchema.getClass(name)
-    newName.foreach(oClass.setName(_))
+    newName.foreach(oClass.setName)
     superclass.foreach { supName =>
       val superClass: OClass = db.getMetadata.getSchema.getClass(supName)
-      val arrayList = new ArrayList[OClass]()
+      val arrayList = new util.ArrayList[OClass]()
       arrayList.add(superClass)
       oClass.setSuperClasses(arrayList)
     }
@@ -134,10 +129,10 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
             // not defined yet, defer the linking of the property and just create the property
             // without the link now.
             val prop = oClass.createProperty(name, toOType(orientType))
-            this.deferedLinkedProperties += (prop -> className)
+            this.deferredLinkedProperties += (prop -> className)
             prop
         }
-      case (Some(t), Some(c)) =>
+      case (Some(_), Some(_)) =>
         throw new IllegalArgumentException("Can not specify both a linked class and linked type")
     }
     constraints.foreach(setConstraints(oProp, _))
@@ -146,29 +141,56 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
   private[this] def applyAlterProperty(alterProperty: AlterProperty): Unit = {
     val AlterProperty(className, name, PropertyOptions(newName, orientType, linkedType, linkedClass, constraints)) = alterProperty
     val oClass: OClass = db.getMetadata.getSchema.getClass(className)
+    if (Option(oClass).isEmpty) {
+      throw new IllegalArgumentException(s"Can not alter property on class '$className' that does not exists.")
+    }
+
     val oProp: OProperty = oClass.getProperty(name)
-    newName.foreach(oProp.setName(_))
+    if (Option(oProp).isEmpty) {
+      throw new IllegalArgumentException(s"Property '$name' does not exist on class '$className'.")
+    }
+
+    newName.foreach(oProp.setName)
     orientType.foreach(oType => oProp.setType(toOType(oType)))
 
-    // FIXME at type, check to make sure both not set.
-    linkedClass.foreach { linkedClass =>
-      val clazz = db.getMetadata.getSchema.getClass(linkedClass)
-      oProp.setLinkedClass(clazz)
+    (linkedType, linkedClass) match {
+      case (None, None) =>
+        // not linked
+        oProp.setLinkedClass(null)
+        oProp.setLinkedType(null)
+      case (Some(typeName), None) =>
+        // linked orientType
+        oProp.setLinkedClass(null)
+        oProp.setLinkedType(toOType(typeName))
+      case (None, Some(className)) =>
+        // linked class
+        oProp.setLinkedType(null)
+        Option(db.getMetadata.getSchema.getClass(className)) match {
+          case Some(c) =>
+            // Already defined, create it now with the link
+            oProp.setLinkedClass(c)
+          case None =>
+            // not defined yet, defer the linking of the property and just create the property
+            // without the link now.
+            this.deferredLinkedProperties += (oProp -> className)
+        }
+      case (Some(_), Some(_)) =>
+        throw new IllegalArgumentException("Can not specify both a linked class and linked type")
     }
 
     constraints.foreach(setConstraints(oProp, _))
   }
 
   private[this] def setConstraints(oProp: OProperty, constraints: Constraints): Unit = {
-    constraints.min.foreach(oProp.setMin(_))
-    constraints.max.foreach(oProp.setMax(_))
-    constraints.mandatory.foreach(oProp.setMandatory(_))
-    constraints.readOnly.foreach(oProp.setReadonly(_))
-    constraints.notNull.foreach(oProp.setNotNull(_))
-    constraints.regex.foreach(oProp.setRegexp(_))
-    constraints.collate.foreach(oProp.setCollate(_))
-    constraints.custom.foreach(cutomProp => oProp.setCustom(cutomProp.name, cutomProp.value))
-    constraints.default.foreach(oProp.setDefaultValue(_))
+    constraints.min.foreach(oProp.setMin)
+    constraints.max.foreach(oProp.setMax)
+    constraints.mandatory.foreach(oProp.setMandatory)
+    constraints.readOnly.foreach(oProp.setReadonly)
+    constraints.notNull.foreach(oProp.setNotNull)
+    constraints.regex.foreach(oProp.setRegexp)
+    constraints.collate.foreach(oProp.setCollate)
+    constraints.custom.foreach(customProp => oProp.setCustom(customProp.name, customProp.value))
+    constraints.default.foreach(oProp.setDefaultValue)
   }
 
   private[this] def applyDropProperty(dropProperty: DropProperty): Unit = {
@@ -188,7 +210,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
         new ODocument()
     }
 
-    val index = oClass.createIndex(name, toOIndexType(indexType).toString, null, metaDataDoc, properties: _*)
+    oClass.createIndex(name, toOIndexType(indexType).toString, null, metaDataDoc, properties: _*)
   }
 
   private[this] def applyDropIndex(dropIndex: DropIndex): Unit = {
@@ -201,7 +223,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     val sequenceLibrary = db.getMetadata.getSequenceLibrary
 
     val params = new OSequence.CreateParams()
-    params.setStart(0).setIncrement(1)
+    params.setStart(0L).setIncrement(1)
     start.foreach(params.setStart(_))
     increment.foreach(params.setIncrement(_))
     cacheSize.foreach(params.setCacheSize(_))
@@ -209,7 +231,7 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     sequenceLibrary.createSequence(name, sType match {
       case SequenceType.Cached => SEQUENCE_TYPE.CACHED
       case SequenceType.Ordered => SEQUENCE_TYPE.ORDERED
-    }, params);
+    }, params)
   }
 
   private[this] def applyDropSequence(dropSequence: DropSequence): Unit = {
@@ -228,8 +250,8 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
 
     function.setCode(code)
     function.setParameters(parameters.asJava)
-    language.foreach { function.setLanguage(_) }
-    idempotent.foreach { function.setIdempotent(_) }
+    language.foreach(function.setLanguage)
+    idempotent.foreach(function.setIdempotent)
     function.save()
   }
 
@@ -237,11 +259,11 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     val AlterFunction(name, newName, code, parameters, language, idempotent) = alterFunction
     val function: OFunction = db.getMetadata.getFunctionLibrary.getFunction(name)
 
-    newName.foreach { function.setName(_) }
-    code.foreach { function.setCode(_) }
-    parameters.foreach { params => function.setParameters(params.asJava) }
-    language.foreach { function.setLanguage(_) }
-    idempotent.foreach { function.setIdempotent(_) }
+    newName.foreach(function.setName)
+    code.foreach(function.setCode)
+    parameters.foreach(params => function.setParameters(params.asJava))
+    language.foreach(function.setLanguage)
+    idempotent.foreach(function.setIdempotent)
     function.save()
   }
 
@@ -288,21 +310,20 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
       case IndexType.Proxy => OClass.INDEX_TYPE.PROXY
       case IndexType.UniqueHashIndex => OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
       case IndexType.NotUniqueHashIndex => OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX
-      case IndexType.FullTextHashIndex => OClass.INDEX_TYPE.FULLTEXT_HASH_INDEX
       case IndexType.DictionaryHashIndex => OClass.INDEX_TYPE.DICTIONARY_HASH_INDEX
       case IndexType.Spatial => OClass.INDEX_TYPE.SPATIAL
     }
   }
 
-  private[this] def processDeferedLinkedClasses(): Unit = {
-    deferedLinkedProperties map {
+  private[this] def processDeferredLinkedClasses(): Unit = {
+    deferredLinkedProperties map {
       case (prop, className) =>
-        Option(db.getMetadata().getSchema().getClass(className)) match {
+        Option(db.getMetadata.getSchema.getClass(className)) match {
           case Some(linkedClass) =>
             prop.setLinkedClass(linkedClass)
           case None =>
             throw new IllegalStateException(
-              s"Could not set linked class because the class does not exist: ${className}")
+              s"Could not set linked class because the class does not exist: $className")
         }
     }
   }

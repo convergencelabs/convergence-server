@@ -46,7 +46,7 @@ case class DropProperty(className: String, name: String) extends DeltaAction
 case class CreateIndex(className: String, name: String, `type`: IndexType.Value, properties: List[String], metaData: Option[Map[String, Any]]) extends DeltaAction
 case class DropIndex(name: String) extends DeltaAction
 
-case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Int], increment: Option[Int], cacheSize: Option[Int]) extends DeltaAction
+case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Long], increment: Option[Int], cacheSize: Option[Int]) extends DeltaAction
 case class DropSequence(name: String) extends DeltaAction
 
 case class RunSqlCommand(command: String) extends DeltaAction

@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.domain.model
 
 import akka.actor.{ActorRef, ActorSystem, Status}
-import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationProcessor, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.domain.DomainId
@@ -69,8 +69,6 @@ class RealtimeModelPersistenceStream(private[this] val handler: PersistenceEvent
 
   import RealtimeModelPersistenceStream._
 
-  private[this] implicit val materializer: ActorMaterializer = ActorMaterializer()
-
   logger.debug(s"Persistence stream started $domainId/$modelId")
 
   def processOperation(op: NewModelOperation): Unit = {
@@ -100,7 +98,14 @@ class RealtimeModelPersistenceStream(private[this] val handler: PersistenceEvent
         logger.error(s"$domainId/$modelId: Persistence stream completed with an error.", cause)
         handler.onError("There was an unexpected error in the persistence stream")
     }).runWith(Source
-      .actorRef[ModelPersistenceCommand](bufferSize = 1000, OverflowStrategy.fail))
+      .actorRef[ModelPersistenceCommand](
+        {
+          case _ => CompletionStrategy.draining
+        }: PartialFunction[Any, CompletionStrategy], {
+          case akka.actor.Status.Failure(cause) => cause
+        }: PartialFunction[Any, Throwable],
+        bufferSize = 1000,
+        OverflowStrategy.fail))
 
   private[this] def onProcessOperation(modelOperation: NewModelOperation): Unit = {
     modelOperationProcessor.processModelOperation(modelOperation)

@@ -20,7 +20,6 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, complete, concat, extractRequest, extractUri, handleExceptions}
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server._
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -55,7 +54,6 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
   extends Logging with JsonSupport {
 
   private[this] implicit val s: ActorSystem = system
-  private[this] implicit val materializer: ActorMaterializer = ActorMaterializer()
   private[this] implicit val ec: ExecutionContextExecutor = system.dispatcher
   private[this] implicit val defaultRequestTimeout: Timeout = Timeout(20 seconds)
 

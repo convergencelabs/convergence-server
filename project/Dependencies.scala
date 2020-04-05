@@ -15,9 +15,9 @@ object Dependencies {
 
   // Versions
   object Versions {
-    val akka      = "2.5.25"
-    val akkaHttp  = "10.1.9"
-    val orientDb  = "3.0.26"
+    val akka      = "2.6.4"
+    val akkaHttp  = "10.1.11"
+    val orientDb  = "3.0.30"
     val log4j     = "2.12.1"
   }
 
@@ -35,7 +35,9 @@ object Dependencies {
     val akkaClusterTools   = "com.typesafe.akka"        %% "akka-cluster-tools"           % Versions.akka               // Apache 2.0
     val akkaPersistence    = "com.typesafe.akka"        %% "akka-persistence"             % Versions.akka               // Apache 2.0
     val akkaSharding       = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Versions.akka               // Apache 2.0
-    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding)
+    val akkaJackson        = "com.typesafe.akka"        %% "akka-serialization-jackson"   % Versions.akka               // Apache 2.0
+
+    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding, akkaJackson)
 
     val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp           // Apache 2.0
     val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp           // Apache 2.0

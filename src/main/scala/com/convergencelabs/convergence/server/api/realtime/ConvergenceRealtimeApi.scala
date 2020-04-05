@@ -16,7 +16,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
-import akka.stream.ActorMaterializer
 import com.convergencelabs.convergence.server.ProtocolConfigUtil
 import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor
 import com.convergencelabs.convergence.server.util.AkkaRouterUtils.createBackendRouter
@@ -54,12 +53,10 @@ class ConvergenceRealtimeApi(private[this] val system: ActorSystem,
    * interface and port for incoming web socket connections.
    */
   def start(): Unit = {
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
-
     val configActor = createBackendRouter(system, ConfigStoreActor.RelativePath, "realtimeConfigActor")
     routers += configActor
 
-    val service = new WebSocketService(protoConfig, materializer, system)
+    val service = new WebSocketService(protoConfig, system)
 
     Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
       case Success(b) ⇒

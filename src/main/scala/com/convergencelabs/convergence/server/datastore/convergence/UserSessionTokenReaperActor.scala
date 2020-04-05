@@ -35,7 +35,7 @@ class UserSessionTokenReaperActor(dbProvider: DatabaseProvider) extends Actor wi
   private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
 
   implicit val ec = this.context.system.dispatcher
-  this.context.system.scheduler.schedule(0 seconds, 5 minutes, self, CleanUpSessions)
+  this.context.system.scheduler.scheduleWithFixedDelay(0 seconds, 5 minutes, self, CleanUpSessions)
 
   def receive: Receive = {
     case CleanUpSessions =>

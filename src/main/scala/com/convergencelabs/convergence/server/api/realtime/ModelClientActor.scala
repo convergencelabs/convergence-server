@@ -64,7 +64,8 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   private[this] var modelIdToResourceId = Map[String, String]()
   private[this] var subscribedModels = Map[String, OfflineModelState]()
 
-  private[this] val offlineSyncTask = context.system.scheduler.schedule(offlineModelSyncInterval, offlineModelSyncInterval, () => self ! SyncOfflineModels)
+  private[this] val offlineSyncTask = context.system.scheduler
+    .scheduleWithFixedDelay(offlineModelSyncInterval, offlineModelSyncInterval)(() => self ! SyncOfflineModels)
 
   def receive: Receive = {
     case MessageReceived(message) if message.isInstanceOf[NormalMessage with ProtoModelMessage] =>
