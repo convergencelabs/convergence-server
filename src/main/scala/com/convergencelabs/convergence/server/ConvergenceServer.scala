@@ -37,7 +37,7 @@ import org.apache.logging.log4j.LogManager
 
 import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 import scala.concurrent.Await
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -400,7 +400,8 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
           settings = ClusterSingletonProxySettings(system).withRole("backend")),
         name = "ConvergenceDatabaseInitializerProxy")
 
-      val timeout = Timeout(10, TimeUnit.MINUTES)
+      val initTimeout = convergenceDbConfig.getDuration("initialization-timeout")
+      val timeout = Timeout.durationToTimeout(Duration.fromNanos(initTimeout.toNanos))
       val f = convergenceDatabaseInitializerActor
         .ask(ConvergenceDatabaseInitializerActor.AssertInitialized())(timeout)
         .mapTo[Unit]
