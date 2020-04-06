@@ -117,7 +117,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val roleService = new RoleService(ec, roleActor, defaultRequestTimeout)
-    val userApiKeyService = new UserApiKeyService(ec, userApiKeyActor, defaultRequestTimeout)
+    val userApiKeyService = new CurrentUserApiKeyService(ec, userApiKeyActor, defaultRequestTimeout)
     val configService = new ConfigService(ec, configActor, defaultRequestTimeout)
     val statusService = new ServerStatusService(ec, statusActor, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)

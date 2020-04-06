@@ -77,10 +77,6 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
         entity(as[PasswordSetRequest]) { password =>
           complete(setPassword(authProfile, password))
         }
-      } ~ path("apiKeys") {
-        get {
-          complete(okResponse("apiKey"))
-        }
       } ~ pathPrefix("favoriteDomains") {
         (pathEnd & get) {
           complete(getFavoriteDomains(authProfile))

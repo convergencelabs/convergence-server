@@ -26,7 +26,7 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object UserApiKeyService {
+object CurrentUserApiKeyService {
 
   case class UpdateKeyData(name: String, enabled: Boolean)
 
@@ -39,17 +39,17 @@ object UserApiKeyService {
 
 }
 
-class UserApiKeyService(private[this] val executionContext: ExecutionContext,
-                         private[this] val userApiKeyStoreActor: ActorRef,
-                         private[this] val defaultTimeout: Timeout) extends JsonSupport {
+class CurrentUserApiKeyService(private[this] val executionContext: ExecutionContext,
+                               private[this] val userApiKeyStoreActor: ActorRef,
+                               private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
-  import UserApiKeyService._
+  import CurrentUserApiKeyService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
-    pathPrefix("apiKeys") {
+    pathPrefix("user" / "apiKeys") {
       concat(
         pathEnd {
           get {
