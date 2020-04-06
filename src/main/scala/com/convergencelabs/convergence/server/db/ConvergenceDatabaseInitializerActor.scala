@@ -16,16 +16,11 @@ import com.convergencelabs.convergence.server.db.ConvergenceDatabaseInitializerA
 
 import scala.util.{Failure, Success}
 
-object ConvergenceDatabaseInitializerActor {
-  def props(): Props = Props(new ConvergenceDatabaseInitializerActor())
-
-  final case class AssertInitialized()
-
-  sealed trait InitializationResponse
-
-  final case class Initialized() extends InitializationResponse
-}
-
+/**
+ * A utility actor that will ensure that the Convergence database is
+ * initialized.  This actor will be a singleton created by the
+ * backend.
+ */
 class ConvergenceDatabaseInitializerActor() extends Actor with ActorLogging {
   log.debug("ConvergenceDatabaseInitializerActor starting up")
 
@@ -36,7 +31,7 @@ class ConvergenceDatabaseInitializerActor() extends Actor with ActorLogging {
 
   def receive: Receive = {
     case AssertInitialized() =>
-      initializer.initialize() match {
+      initializer.assertInitialized() match {
         case Failure(cause) =>
           sender ! Status.Failure(cause)
         case Success(_) =>
@@ -45,4 +40,14 @@ class ConvergenceDatabaseInitializerActor() extends Actor with ActorLogging {
     case msg: Any =>
       unhandled(msg)
   }
+}
+
+object ConvergenceDatabaseInitializerActor {
+  def props(): Props = Props(new ConvergenceDatabaseInitializerActor())
+
+  final case class AssertInitialized()
+
+  sealed trait InitializationResponse
+
+  final case class Initialized() extends InitializationResponse
 }

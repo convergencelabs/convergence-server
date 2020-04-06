@@ -41,7 +41,7 @@ import scala.util.{Failure, Success, Try}
  * @param config The Config object for the Convergence Server
  * @param ec     An execution context to use for asynchronous operations.
  */
-class ConvergenceDatabaseInitializer(private[this] val config: Config,
+private[db] class ConvergenceDatabaseInitializer(private[this] val config: Config,
                                      private[this] val ec: ExecutionContextExecutor) extends Logging {
 
   private[this] val persistenceConfig = config.getConfig("convergence.persistence")
@@ -50,10 +50,16 @@ class ConvergenceDatabaseInitializer(private[this] val config: Config,
   private[this] val convergenceDatabase = convergenceDbConfig.getString("database")
   private[this] val autoInstallEnabled = convergenceDbConfig.getBoolean("auto-install.enabled")
 
-  def initialize(): Try[Unit] = {
+  /**
+   * Asserts that the convergence database is initialized and ensures that that
+   * default admin user exists and is properly configured.
+   *
+   * @return Success if the operation succeeds, or a Failure otherwise.
+   */
+  def assertInitialized(): Try[Unit] = {
     logger.debug("Processing request to ensure the convergence database is initialized")
     for {
-      orientDb <- getOrientDb()
+      orientDb <- createOrientDb()
       exists <- convergenceDatabaseExists(orientDb)
       bootstrapped <- {
         if (exists) {
@@ -82,7 +88,12 @@ class ConvergenceDatabaseInitializer(private[this] val config: Config,
     }
   }
 
-  private[this] def getOrientDb(): Try[OrientDB] = Try {
+  /**
+   * A helper method to create and connect to the OrientDB server.
+   *
+   * @return A connected OrientDB or a Failure.
+   */
+  private[this] def createOrientDb(): Try[OrientDB] = Try {
     val retryDelay = convergenceDbConfig.getDuration("retry-delay")
     val uri = dbServerConfig.getString("uri")
     val serverAdminUsername = dbServerConfig.getString("admin-username")
