@@ -11,16 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.provision
 
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.DestroyDomain
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.convergence.server.domain.DomainId
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.{Actor, ActorLogging, Props, actorRef2Scala}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
+import com.convergencelabs.convergence.server.domain.DomainId
 
 class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) 
   extends Actor 
@@ -28,7 +22,7 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner)
   
   import DomainProvisionerActor._
   
-  val mediator = DistributedPubSub(context.system).mediator
+  private[this] val mediator = DistributedPubSub(context.system).mediator
   
   def receive: Receive = {
     case provision: ProvisionDomain => 
@@ -44,10 +38,10 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner)
     val currentSender = sender
     // make this asynchronous in the future
     provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) map { _ =>
-      currentSender ! (())
+      currentSender ! ()
     } recover {
       case cause: Exception =>
-        log.error(cause, s"Error provisioning domain: ${fqn}")
+        log.error(cause, s"Error provisioning domain: $fqn")
         currentSender ! akka.actor.Status.Failure(cause)
     }
   }
@@ -86,7 +80,7 @@ object DomainProvisionerActor {
 
   case class DomainDeleted(domainFqn: DomainId)
   
-  def domainTopic(domainFqn: DomainId) = {
+  def domainTopic(domainFqn: DomainId): String = {
      s"${domainFqn.namespace}/${domainFqn.domainId}"
   }
   

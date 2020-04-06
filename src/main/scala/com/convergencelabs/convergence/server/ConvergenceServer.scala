@@ -16,11 +16,14 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem, Address, PoisonPill, Props}
 import akka.cluster.Cluster
+import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings}
+import akka.pattern.ask
+import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.realtime.ConvergenceRealtimeApi
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.convergence.server.db.PooledDatabaseProvider
+import com.convergencelabs.convergence.server.db.{ConvergenceDatabaseInitializerActor, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.domain.DomainActorSharding
 import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.convergence.server.domain.chat.ChatSharding
@@ -129,6 +132,7 @@ object ConvergenceServer extends Logging {
   /**
    * Attempts to load the configuration file, as specified by the command
    * line arguments.
+   *
    * @param options The command line arguments supplied to the main method.
    * @return The File reference to the baseConfig file if it exists.
    */
@@ -148,6 +152,7 @@ object ConvergenceServer extends Logging {
   /**
    * A helper method that will integrate the Akka / Lightbend baseConfig file with
    * command line arguments and environment variables.
+   *
    * @param baseConfig The loaded Config file.
    * @return The merged Config object.
    */
@@ -160,6 +165,7 @@ object ConvergenceServer extends Logging {
 
   /**
    * Merges the Akka Cluster Seed Nodes, with those specified in the environment variable.
+   *
    * @param baseConfig The original Config object.
    * @return The merged Config object.
    */
@@ -176,7 +182,7 @@ object ConvergenceServer extends Logging {
             entry.split(":").toList match {
               case host :: portString :: Nil =>
                 val port = Try(Integer.parseInt(portString)).getOrElse {
-                    throw new IllegalArgumentException(s"Invalid seed node configuration, invalid port number: $portString")
+                  throw new IllegalArgumentException(s"Invalid seed node configuration, invalid port number: $portString")
                 }
 
                 (host.trim, port)
@@ -204,6 +210,7 @@ object ConvergenceServer extends Logging {
    * Merges the Convergence Server Roles from the supplied config with those
    * set in the environment variable. Preference is given to what was
    * explicitly set in the config file.
+   *
    * @param baseConfig The original Config object.
    * @return The merged config object.
    */
@@ -225,6 +232,7 @@ object ConvergenceServer extends Logging {
 
   /**
    * A helper method to validate that at least one Server Role is set in the config.
+   *
    * @param config The config to check.
    * @return Success if at least one role is set, Failure otherwise.
    */
@@ -243,6 +251,7 @@ object ConvergenceServer extends Logging {
 
   /**
    * A helper method to validate that at least one seed node is set in the config.
+   *
    * @param config The config to check.
    * @return Success if at least one seed node is set, Failure otherwise.
    */
@@ -261,6 +270,7 @@ object ConvergenceServer extends Logging {
    * A helper method too re-initialize log4j using the specified config file.
    * The config file can either be specified as an Environment variable or a
    * method argument. Preferences is given to the command line argument.
+   *
    * @param logFile The optionally supplied log4j file path.
    * @return Success if either no options were supplied, or if they were
    *         successfully applied; Failure otherwise.
@@ -366,61 +376,64 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
   /**
    * A helper method that will bootstrap the backend node.
    *
-   * @param roles The roles this server is configured with.
+   * @param roles  The roles this server is configured with.
    * @param system The Akka ActorSystem this server is using.
    */
   private[this] def processBackendRole(roles: Set[String], system: ActorSystem): Unit = {
     if (roles.contains(Backend)) {
       info("Role 'backend' detected, activating Backend Services...")
 
-      val initializer = new ConvergenceInitializer(config, system.dispatcher)
       val persistenceConfig = config.getConfig("convergence.persistence")
       val dbServerConfig = persistenceConfig.getConfig("server")
       val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
 
-      // TODO this only works is there is one ConvergenceServer with the
-      //  backend role. This is fine for development, which is the only place
-      //  this should exist, but it would be nice to do this elsewhere.
-      if (convergenceDbConfig.hasPath("auto-install")) {
-        if (convergenceDbConfig.getBoolean("auto-install.enabled")) {
-          initializer.bootstrapConvergenceDatabase(config) recover {
-            case cause: Exception =>
-              logger.error("Could not bootstrap database", cause)
-              System.exit(0)
-          }
-        }
+      val convergenceDatabaseInitializerActor = system.actorOf(
+        ClusterSingletonManager.props(
+          singletonProps = ConvergenceDatabaseInitializerActor.props(),
+          terminationMessage = PoisonPill,
+          settings = ClusterSingletonManagerSettings(system).withRole("backend")),
+        name = "ConvergenceDatabaseInitializer")
+
+      val timeout = Timeout(10, TimeUnit.MINUTES)
+      val f = convergenceDatabaseInitializerActor
+        .ask(ConvergenceDatabaseInitializerActor.AssertInitialized())(timeout)
+        .mapTo[Unit]
+
+      info("Ensuring convergence database is initialized")
+      Try(Await.result(f, timeout.duration)) match {
+        case Success(_) =>
+
+          val baseUri = dbServerConfig.getString("uri")
+          orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
+
+          // TODO make the pool size configurable
+          val convergenceDatabase = convergenceDbConfig.getString("database")
+          val username = convergenceDbConfig.getString("username")
+          val password = convergenceDbConfig.getString("password")
+
+          val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
+          dbProvider.connect().get
+
+
+          val domainStore = new DomainStore(dbProvider)
+          system.actorOf(
+            DomainPersistenceManagerActor.props(baseUri, domainStore),
+            DomainPersistenceManagerActor.RelativePath)
+
+          val backend = new BackendServices(system, dbProvider)
+          backend.start()
+          this.backend = Some(backend)
+        case Failure(cause) =>
+          this.logger.error("Could not initialize the convergence database", cause)
+          System.exit(1)
       }
-
-      val baseUri = dbServerConfig.getString("uri")
-      orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
-
-      // TODO make the pool size configurable
-      val convergenceDatabase = convergenceDbConfig.getString("database")
-      val username = convergenceDbConfig.getString("username")
-      val password = convergenceDbConfig.getString("password")
-
-      val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
-      dbProvider.connect().get
-
-      if (config.hasPath("convergence.default-server-admin")) {
-        initializer.autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
-      }
-
-      val domainStore = new DomainStore(dbProvider)
-      system.actorOf(
-        DomainPersistenceManagerActor.props(baseUri, domainStore),
-        DomainPersistenceManagerActor.RelativePath)
-
-      val backend = new BackendServices(system, dbProvider)
-      backend.start()
-      this.backend = Some(backend)
     }
   }
 
   /**
    * A helper method that start the Akka Cluster Shard Proxies if needed.
    *
-   * @param roles The roles this server is configured with.
+   * @param roles  The roles this server is configured with.
    * @param system The Akka ActorSystem this server is using.
    */
   private[this] def activateShardProxies(roles: Set[String], system: ActorSystem): Unit = {
@@ -442,7 +455,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
   /**
    * A helper method that will bootstrap the Rest API.
    *
-   * @param roles The roles this server is configured with.
+   * @param roles  The roles this server is configured with.
    * @param system The Akka ActorSystem this server is using.
    */
   private[this] def processRestApiRole(roles: Set[String], system: ActorSystem): Unit = {
@@ -459,7 +472,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
   /**
    * A helper method that will bootstrap the Realtime Api.
    *
-   * @param roles The roles this server is configured with.
+   * @param roles  The roles this server is configured with.
    * @param system The Akka ActorSystem this server is using.
    */
   private[this] def processRealtimeApiRole(roles: Set[String], system: ActorSystem): Unit = {

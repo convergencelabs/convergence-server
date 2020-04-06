@@ -11,45 +11,32 @@
 
 package com.convergencelabs.convergence.server.db.provision
 
-import java.time.{ Duration => JavaDuration }
 import java.time.temporal.ChronoUnit
-
-import scala.util.Failure
-import scala.util.Try
+import java.time.{Duration => JavaDuration}
 
 import com.convergencelabs.convergence.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.SingleDatabaseProvider
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, SingleDatabaseProvider}
+import com.convergencelabs.convergence.server.db.provision.DomainProvisioner._
 import com.convergencelabs.convergence.server.db.schema.DomainSchemaManager
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.JwtKeyPair
-import com.convergencelabs.convergence.server.domain.JwtUtil
-import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-
-import DomainProvisioner.DefaultSnapshotConfig
-import DomainProvisioner.OrientDefaultAdmin
-import DomainProvisioner.OrientDefaultReader
-import DomainProvisioner.OrientDefaultWriter
-import DomainProvisioner.StorageMode
-import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.metadata.security.ORule
+import com.convergencelabs.convergence.server.domain.{DomainId, JwtKeyPair, JwtUtil, ModelSnapshotConfig}
+import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
+import com.orientechnologies.orient.core.metadata.security.{ORole, ORule}
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
-import com.orientechnologies.orient.core.metadata.security.ORole
 import com.typesafe.config.Config
+import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Try}
 
 object DomainProvisioner {
-  val DefaultSnapshotConfig = ModelSnapshotConfig(
-    false,
-    false,
-    false,
+  val DefaultSnapshotConfig: ModelSnapshotConfig = ModelSnapshotConfig(
+    snapshotsEnabled = false,
+    triggerByVersion = false,
+    limitedByVersion = false,
     250,
     1000,
-    false,
-    false,
+    triggerByTime = false,
+    limitedByTime = false,
     JavaDuration.of(0, ChronoUnit.MINUTES),
     JavaDuration.of(0, ChronoUnit.MINUTES))
 
@@ -62,11 +49,11 @@ object DomainProvisioner {
 
 class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Logging {
 
-  val historyStore = new DeltaHistoryStore(dbProvider)
-  val dbBaseUri = config.getString("convergence.persistence.server.uri")
-  val dbRootUsername = config.getString("convergence.persistence.server.admin-username")
-  val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
-  val preRelease = config.getBoolean("convergence.persistence.domain-databases.pre-release")
+  private[this] val historyStore = new DeltaHistoryStore(dbProvider)
+  private[this] val dbBaseUri = config.getString("convergence.persistence.server.uri")
+  private[this] val dbRootUsername = config.getString("convergence.persistence.server.admin-username")
+  private[this] val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
+  private[this] val preRelease = config.getBoolean("convergence.persistence.domain-databases.pre-release")
 
   def provisionDomain(
     domainFqn:       DomainId,
@@ -76,7 +63,7 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
     dbAdminUsername: String,
     dbAdminPassword: String,
     anonymousAuth:   Boolean): Try[Unit] = {
-    logger.debug(s"Provisioning domain: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Provisioning domain: $dbBaseUri/$dbName")
     createDatabase(dbName) flatMap { _ =>
       setAdminCredentials(dbName, dbAdminUsername, dbAdminPassword)
     } flatMap { _ =>
@@ -88,7 +75,7 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
 
       // We need to do this no matter what, so we grab the result above, shut down
       // and then return the result.
-      logger.debug(s"Disconnecting as admin user: ${dbBaseUri}/${dbName}")
+      logger.debug(s"Disconnecting as admin user: $dbBaseUri/$dbName")
       provider.shutdown()
 
       result
@@ -98,15 +85,15 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
   }
 
   private[this] def createDatabase(dbName: String): Try[Unit] = Try {
-    logger.debug(s"Creating domain database: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Creating domain database: $dbBaseUri/$dbName")
     val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPassword, OrientDBConfig.defaultConfig())
     orientDb.create(dbName, StorageMode)
     orientDb.close()
-    logger.debug(s"Domain database created at: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Domain database created at: $dbBaseUri/$dbName")
   }
 
   private[this] def setAdminCredentials(dbName: String, adminUsername: String, adminPassword: String): Try[Unit] = Try {
-    logger.debug(s"Updating database admin credentials: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Updating database admin credentials: $dbBaseUri/$dbName")
     // Orient DB has three default users. admin, reader and writer. They all
     // get created with their passwords equal to their usernames. We want
     // to change the admin and writer and delete the reader.
@@ -114,12 +101,12 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
     val db = orientDb.open(dbName, dbRootUsername, dbRootPassword)
 
     // Change the admin username / password and then reconnect
-    val adminUser = db.getMetadata().getSecurity().getUser(OrientDefaultAdmin)
+    val adminUser = db.getMetadata.getSecurity.getUser(OrientDefaultAdmin)
     adminUser.setName(adminUsername)
     adminUser.setPassword(adminPassword)
     adminUser.save()
 
-    logger.debug(s"Database admin credentials set, reconnecting: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Database admin credentials set, reconnecting: $dbBaseUri/$dbName")
 
     // Close and reconnect with the new credentials to make sure everything
     // we set properly.
@@ -129,22 +116,22 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
 
   private[this] def configureNonAdminUsers(dbProvider: DatabaseProvider, dbUsername: String, dbPassword: String): Try[Unit] = {
     dbProvider.tryWithDatabase { db =>
-      logger.debug(s"Updating normal user credentials: ${dbBaseUri}/${db.getName}")
+      logger.debug(s"Updating normal user credentials: $dbBaseUri/${db.getName}")
 
       // Change the username and password of the normal user
-      val normalUser = db.getMetadata().getSecurity().getUser(OrientDefaultWriter)
+      val normalUser = db.getMetadata.getSecurity.getUser(OrientDefaultWriter)
       normalUser.setName(dbUsername)
       normalUser.setPassword(dbPassword)
       normalUser.save()
 
       // FIXME work around for this: https://github.com/orientechnologies/orientdb/issues/8535
-      val writer = db.getMetadata().getSecurity().getRole("writer");
-      writer.addRule(ORule.ResourceGeneric.CLASS, OSequence.CLASS_NAME, ORole.PERMISSION_READ + ORole.PERMISSION_UPDATE);
-      writer.save();
+      val writer = db.getMetadata.getSecurity.getRole("writer")
+      writer.addRule(ORule.ResourceGeneric.CLASS, OSequence.CLASS_NAME, ORole.PERMISSION_READ + ORole.PERMISSION_UPDATE)
+      writer.save()
 
-      logger.debug(s"Deleting 'reader' user credentials: ${dbBaseUri}/${db.getName}")
+      logger.debug(s"Deleting 'reader' user credentials: $dbBaseUri/${db.getName}")
       // Delete the reader user since we do not need it.
-      db.getMetadata().getSecurity().getUser(OrientDefaultReader).getDocument().delete()
+      db.getMetadata.getSecurity.getUser(OrientDefaultReader).getDocument.delete()
       ()
     }
   }
@@ -153,15 +140,15 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
     dbProvider.withDatabase { db =>
       // FIXME should be use the other actor
       val schemaManager = new DomainSchemaManager(domainFqn, db, historyStore, preRelease)
-      logger.debug(s"Installing domain db schema to: ${dbBaseUri}/${db.getName}")
+      logger.debug(s"Installing domain db schema to: $dbBaseUri/${db.getName}")
       schemaManager.install() map { _ =>
-        logger.debug(s"Base domain schema created: ${dbBaseUri}/${db.getName}")
+        logger.debug(s"Base domain schema created: $dbBaseUri/${db.getName}")
       }
     }
   }
 
   private[this] def initDomain(dbName: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
-    logger.debug(s"Connecting as normal user to initialize domain: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Connecting as normal user to initialize domain: $dbBaseUri/$dbName")
     val provider = new SingleDatabaseProvider(dbBaseUri, dbName, username, password)
     val persistenceProvider = new DomainPersistenceProviderImpl(provider)
     provider
@@ -170,37 +157,37 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
       .map(_ => persistenceProvider)
   } flatMap {
     persistenceProvider =>
-      logger.debug(s"Connected to domain database: ${dbBaseUri}/${dbName}")
+      logger.debug(s"Connected to domain database: $dbBaseUri/$dbName")
 
-      logger.debug(s"Generating admin key: ${dbBaseUri}/${dbName}")
+      logger.debug(s"Generating admin key: $dbBaseUri/$dbName")
       JwtUtil.createKey().flatMap { rsaJsonWebKey =>
         for {
           publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
           privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
         } yield {
-          new JwtKeyPair(publicKey, privateKey)
+          JwtKeyPair(publicKey, privateKey)
         }
       } flatMap { keyPair =>
-        logger.debug(s"Created key pair for domain: ${dbBaseUri}/${dbName}")
+        logger.debug(s"Created key pair for domain: $dbBaseUri/$dbName")
 
-        logger.debug(s"Iniitalizing domain: ${dbBaseUri}/${dbName}")
+        logger.debug(s"Initializing domain: $dbBaseUri/$dbName")
         persistenceProvider.configStore.initializeDomainConfig(
           keyPair,
           DefaultSnapshotConfig,
           anonymousAuth)
       } map { _ =>
-        logger.debug(s"Domain initialized: ${dbBaseUri}/${dbName}")
+        logger.debug(s"Domain initialized: $dbBaseUri/$dbName")
         persistenceProvider.shutdown()
       } recoverWith {
         case cause: Exception =>
-          logger.error(s"Failure initializing domain: ${dbBaseUri}/${dbName}", cause)
+          logger.error(s"Failure initializing domain: $dbBaseUri/$dbName", cause)
           persistenceProvider.shutdown()
           Failure(cause)
       }
   }
 
   def destroyDomain(dbName: String): Try[Unit] = Try {
-    logger.debug(s"Deleting database at: ${dbBaseUri}/${dbName}")
+    logger.debug(s"Deleting database at: $dbBaseUri/$dbName")
     val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPassword, OrientDBConfig.defaultConfig())
     orientDb.drop(dbName)
     orientDb.close()

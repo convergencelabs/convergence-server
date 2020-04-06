@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server
+package com.convergencelabs.convergence.server.db
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -19,7 +19,6 @@ import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.convergence.server.db.schema.ConvergenceSchemaManager
-import com.convergencelabs.convergence.server.db.{ConnectedSingleDatabaseProvider, DatabaseProvider}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
@@ -42,38 +41,77 @@ import scala.util.{Failure, Success, Try}
  * @param config The Config object for the Convergence Server
  * @param ec     An execution context to use for asynchronous operations.
  */
-class ConvergenceInitializer(private[this] val config: Config,
-                             private[this] val ec: ExecutionContextExecutor) extends Logging {
+class ConvergenceDatabaseInitializer(private[this] val config: Config,
+                                     private[this] val ec: ExecutionContextExecutor) extends Logging {
+
+  private[this] val persistenceConfig = config.getConfig("convergence.persistence")
+  private[this] val dbServerConfig = persistenceConfig.getConfig("server")
+  private[this] val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
+  private[this] val convergenceDatabase = convergenceDbConfig.getString("database")
+  private[this] val autoInstallEnabled = convergenceDbConfig.getBoolean("auto-install.enabled")
+
+  def initialize(): Try[Unit] = {
+    logger.debug("Processing request to ensure the convergence database is initialized")
+    for {
+      orientDb <- getOrientDb()
+      exists <- convergenceDatabaseExists(orientDb)
+      bootstrapped <- {
+        if (exists) {
+          Success(false)
+        } else if (autoInstallEnabled) {
+          this.bootstrapConvergenceDatabase(orientDb).map(_ => true)
+        } else {
+          Failure(new IllegalStateException("Convergence database does not exist and auto-install is not enabled"))
+        }
+      }
+      _ <- {
+        if (!bootstrapped) {
+          val baseUri = dbServerConfig.getString("uri")
+          val username = convergenceDbConfig.getString("username")
+          val password = convergenceDbConfig.getString("password")
+
+          val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
+          dbProvider.connect().get
+          autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
+        } else {
+          Success(())
+        }
+      }
+    } yield {
+      ()
+    }
+  }
+
+  private[this] def getOrientDb(): Try[OrientDB] = Try {
+    val retryDelay = convergenceDbConfig.getDuration("retry-delay")
+    val uri = dbServerConfig.getString("uri")
+    val serverAdminUsername = dbServerConfig.getString("admin-username")
+    val serverAdminPassword = dbServerConfig.getString("admin-password")
+
+    val connectTries = Iterator.continually(attemptConnection(uri, serverAdminUsername, serverAdminPassword, retryDelay))
+    val orientDb = connectTries.dropWhile(_.isEmpty).next().get
+    orientDb
+  }
+
+  private[this] def convergenceDatabaseExists(orientDb: OrientDB): Try[Boolean] = Try {
+    orientDb.exists(convergenceDatabase)
+  }
 
   /**
    * Creates the "convergence" database if it does not exist, and populates
    * it will default data.
    *
-   * @param config The ConvergenceServer's Config.
    * @return A Try that will be Success(()) if the convergence database is
    *         successfully initialized; Failure otherwise.
    */
-  def bootstrapConvergenceDatabase(config: Config): Try[Unit] = Try {
-    val persistenceConfig = config.getConfig("convergence.persistence")
-    val dbServerConfig = persistenceConfig.getConfig("server")
-    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
-
+  private[this] def bootstrapConvergenceDatabase(orientDb: OrientDB): Try[Unit] = Try {
     logger.info("auto-install is configured, attempting to connect to the database to determine if the convergence database is installed.")
 
-    val convergenceDatabase = convergenceDbConfig.getString("database")
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
     val adminUsername = convergenceDbConfig.getString("admin-username")
     val adminPassword = convergenceDbConfig.getString("admin-password")
     val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
-    val retryDelay = convergenceDbConfig.getDuration("retry-delay")
-
-    val uri = dbServerConfig.getString("uri")
-    val serverAdminUsername = dbServerConfig.getString("admin-username")
-    val serverAdminPassword = dbServerConfig.getString("admin-password")
-
-    val connectTries = Iterator.continually(attemptConnect(uri, serverAdminUsername, serverAdminPassword, retryDelay))
-    val orientDb = connectTries.dropWhile(_.isEmpty).next().get
 
     logger.info("Checking for Convergence database")
     if (!orientDb.exists(convergenceDatabase)) {
@@ -133,7 +171,7 @@ class ConvergenceInitializer(private[this] val config: Config,
    * @param dbProvider [[com.convergencelabs.convergence.server.db.DatabaseProvider]] that points to the convergence database.
    * @param config     The ConvergenceServer's Config.
    */
-  def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Unit = {
+  private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
     logger.debug("Configuring default server admin user")
     val userStore = new UserStore(dbProvider)
 
@@ -242,7 +280,7 @@ class ConvergenceInitializer(private[this] val config: Config,
    * @param retryDelay    How long to wait between connection attempts.
    * @return Some if / when OrientDB is successfully connected to; None if the attempt fails.
    */
-  private[this] def attemptConnect(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
+  private[this] def attemptConnection(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
     info(s"Attempting to connect to the database at uri: $uri")
 
     Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
