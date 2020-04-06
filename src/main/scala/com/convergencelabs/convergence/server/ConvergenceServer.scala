@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem, Address, PoisonPill, Props}
 import akka.cluster.Cluster
-import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings}
+import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.realtime.ConvergenceRealtimeApi
@@ -387,12 +387,18 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       val dbServerConfig = persistenceConfig.getConfig("server")
       val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
 
-      val convergenceDatabaseInitializerActor = system.actorOf(
+      system.actorOf(
         ClusterSingletonManager.props(
           singletonProps = ConvergenceDatabaseInitializerActor.props(),
           terminationMessage = PoisonPill,
           settings = ClusterSingletonManagerSettings(system).withRole("backend")),
         name = "ConvergenceDatabaseInitializer")
+
+      val convergenceDatabaseInitializerActor = system.actorOf(
+        ClusterSingletonProxy.props(
+          singletonManagerPath = "/user/ConvergenceDatabaseInitializer",
+          settings = ClusterSingletonProxySettings(system).withRole("backend")),
+        name = "ConvergenceDatabaseInitializerProxy")
 
       val timeout = Timeout(10, TimeUnit.MINUTES)
       val f = convergenceDatabaseInitializerActor

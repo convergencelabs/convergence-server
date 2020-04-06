@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.db
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Status}
+import akka.actor.{Actor, ActorLogging, Props, Status}
 import com.convergencelabs.convergence.server.db.ConvergenceDatabaseInitializerActor._
 
 import scala.util.{Failure, Success}
@@ -27,6 +27,8 @@ object ConvergenceDatabaseInitializerActor {
 }
 
 class ConvergenceDatabaseInitializerActor() extends Actor with ActorLogging {
+  log.debug("ConvergenceDatabaseInitializerActor starting up")
+
   private[this] val initializer = new ConvergenceDatabaseInitializer(
     this.context.system.settings.config,
     this.context.dispatcher
