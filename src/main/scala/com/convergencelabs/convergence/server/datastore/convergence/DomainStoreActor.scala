@@ -193,10 +193,8 @@ class DomainStoreActor private[datastore] (
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
       reply(domainStore.getDomains(namespace, filter, offset, limit))
     } else {
-      // FIXME this doesn't work for namespace access
       reply(domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit))
     }
-
   }
 }
 

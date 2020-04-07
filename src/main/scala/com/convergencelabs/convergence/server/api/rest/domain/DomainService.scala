@@ -111,17 +111,20 @@ class DomainService(private[this] val executionContext: ExecutionContext,
       }
   }
 
-  private[this]def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    (domainStoreActor ? ListDomainsRequest(authProfile, namespace, filter, offset, limit)).mapTo[List[Domain]].map(domains =>
-      okResponse(
-        domains map (domain => DomainRestData(
-          domain.displayName,
-          domain.domainFqn.namespace,
-          domain.domainFqn.domainId,
-          domain.status.toString.toLowerCase))))
+  private[this] def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+    val message = ListDomainsRequest(authProfile, namespace, filter, offset, limit)
+    (domainStoreActor ? message)
+      .mapTo[List[Domain]]
+      .map(domains =>
+        okResponse(
+          domains map (domain => DomainRestData(
+            domain.displayName,
+            domain.domainFqn.namespace,
+            domain.domainFqn.domainId,
+            domain.status.toString.toLowerCase))))
   }
 
-  private[this]def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
+  private[this] def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
     (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
       case Some(domain) =>
         okResponse(DomainRestData(

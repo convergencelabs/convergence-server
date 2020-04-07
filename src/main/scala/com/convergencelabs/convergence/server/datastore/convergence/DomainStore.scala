@@ -11,25 +11,17 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.DomainClass
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.Domain
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.domain.{Domain, DomainDatabase, DomainId, DomainStatus}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
 import grizzled.slf4j.Logging
-import com.convergencelabs.convergence.server.domain.DomainDatabase
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
+
+import scala.util.{Failure, Try}
 
 
 object DomainStore {
@@ -51,11 +43,11 @@ object DomainStore {
       doc.setProperty(DomainClass.Fields.Id, id)
       doc.setProperty(DomainClass.Fields.Namespace, nsRid)
       doc.setProperty(DomainClass.Fields.DisplayName, displayName)
-      doc.setProperty(DomainClass.Fields.Status, status.toString())
+      doc.setProperty(DomainClass.Fields.Status, status.toString)
       doc.setProperty(DomainClass.Fields.StatusMessage, statusMessage)
       doc
     }.recoverWith {
-      case cause: EntityNotFoundException =>
+      case _: EntityNotFoundException =>
         Failure(NamespaceNotFoundException(namespace))
     }
   }
@@ -130,20 +122,20 @@ class DomainStore(dbProvider: DatabaseProvider)
   def getDomainByFqn(domainId: DomainId): Try[Option[Domain]] = withDb { db =>
     val DomainId(namespace, id) = domainId
     val params = Map(Params.Id -> id, Params.Namespace -> namespace)
-    OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomain(_)))
+    OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomain))
   }
 
   private[this] val GetDomainsByNamesapceQuery = "SELECT FROM Domain WHERE namespace.id = :namespace"
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = withDb { db =>
     val params = Map(Params.Namespace -> namespace)
-    OrientDBUtil.query(db, GetDomainsByNamesapceQuery, params).map(_.map(docToDomain(_)))
+    OrientDBUtil.query(db, GetDomainsByNamesapceQuery, params).map(_.map(docToDomain))
   }
 
   def getDomains(namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
     val baseQuery = "SELECT FROM Domain"
     val (filterWhere, filterParams) = filter.map(filter => {
       val where = " (id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
-      val params = Map[String, Any](Params.Filter -> s"%${filter}%")
+      val params = Map[String, Any](Params.Filter -> s"%$filter%")
       (where, params)
     }).getOrElse("", Map[String, Any]())
 
@@ -166,26 +158,19 @@ class DomainStore(dbProvider: DatabaseProvider)
 
     val params = filterParams ++ namespaceParams
     val query = OrientDBUtil.buildPagedQuery(baseQuery + whereClause, limit, offset)
-    OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain(_)))
+    OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain))
   }
 
   def getDomainsByAccess(username: String, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
-    val accessQuery = """
-        |SELECT
-        |  expand(set(domain))
-        |FROM 
-        |  UserRole
-        |WHERE 
-        |  user.username = :username AND
-        |  (
-        |    (role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain') OR
-        |    (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace') OR
-        |    (role.permissions CONTAINS ('manage-domains') AND target IS NULL)
-        |  )""".stripMargin
+    val accessQuery = """LET namespaces = SELECT set(target) FROM UserRole WHERE user.username = "developer" AND (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace');
+                        |LET domainsInNamespaces = SELECT FROM Domain WHERE namespace IN $namespaces;
+                        |LET roleAccess = SELECT expand(set(target)) FROM UserRole WHERE user.username = "developer" AND role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain';
+                        |LET allDomains = SELECT expand(set(unionall($domainsInNamespaces, $roleAccess))) as domains;
+                        |SELECT * FROM $allDomains WHERE true""".stripMargin
 
     val (filterWhere, filterParams) = filter.map(filter => {
       val where = " AND (id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
-      val params = Map[String, String](Params.Filter -> s"%${filter}%")
+      val params = Map[String, String](Params.Filter -> s"%$filter%")
       (where, params)
     }).getOrElse("", Map[String, Any]())
 
@@ -199,7 +184,7 @@ class DomainStore(dbProvider: DatabaseProvider)
 
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(Params.Username -> username) ++ filterParams ++ namespaceParams
-    OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain(_)))
+    OrientDBUtil.execute(db, query, params).map(_.map(DomainStore.docToDomain))
   }
 
   private[this] val DeleteDomainCommand = "DELETE FROM Domain WHERE namespace.id = :namespace AND id = :id"
@@ -233,7 +218,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   def getDomainDatabase(domainId: DomainId): Try[Option[DomainDatabase]] = withDb { db =>
     val DomainId(namespace, id) = domainId
     val params = Map(Params.Id -> id, Params.Namespace -> namespace)
-    OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomainDatabase(_)))
+    OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomainDatabase))
   }
 
   private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
