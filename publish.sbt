@@ -32,5 +32,10 @@ ThisBuild / publishTo := {
       sonatypeUsername,
       sonatypePassword)
   case _ =>
-    ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
+    val path = Path.userHome / ".sbt" / "sonatype_credentials"
+    if (path.isFile) {
+      ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / "sonatype_credentials")
+    } else {
+      ThisBuild / credentials ++= Seq.empty
+    }
 }
