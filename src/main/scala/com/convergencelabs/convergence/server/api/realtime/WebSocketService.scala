@@ -125,7 +125,9 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
     // messages to.
     val out = Source.actorRef[OutgoingBinaryMessage](
       {
-        case _ => CompletionStrategy.draining
+        case akka.actor.Status.Success(s: CompletionStrategy) => s
+        case akka.actor.Status.Success(_) => CompletionStrategy.draining
+        case akka.actor.Status.Success => CompletionStrategy.draining
       }: PartialFunction[Any, CompletionStrategy], {
         case akka.actor.Status.Failure(cause) => cause
       }: PartialFunction[Any, Throwable],
