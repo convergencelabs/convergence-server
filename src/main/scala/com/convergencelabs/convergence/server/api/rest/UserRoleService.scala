@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.rest
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, authorize, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
@@ -22,11 +22,11 @@ import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Us
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor.{GetAllUserRolesRequest, RemoveUserFromTarget, UpdateRolesForTargetRequest}
 import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
 import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object RoleService {
+object UserRoleService {
 
   case class CreateNamespacePost(id: String, displayName: String)
 
@@ -40,9 +40,9 @@ object RoleService {
 
 }
 
-class RoleService(private[this] val executionContext: ExecutionContext,
-                  private[this] val roleActor: ActorRef,
-                  private[this] val defaultTimeout: Timeout) extends JsonSupport {
+class UserRoleService(private[this] val executionContext: ExecutionContext,
+                      private[this] val roleActor: ActorRef,
+                      private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
@@ -51,42 +51,48 @@ class RoleService(private[this] val executionContext: ExecutionContext,
     pathPrefix("roles") {
       concat(
         pathPrefix("server") {
-          pathEnd {
-            get {
-              complete(getUserRolesForTarget(authProfile, ServerRoleTarget))
-            } ~ post {
-              entity(as[Map[String, String]]) { userRoles =>
-                complete(updateUserRolesForTarget(authProfile, ServerRoleTarget, userRoles))
+          authorize(canManageUsers(authProfile)) {
+            pathEnd {
+              get {
+                complete(getUserRolesForTarget(authProfile, ServerRoleTarget))
+              } ~ post {
+                entity(as[Map[String, String]]) { userRoles =>
+                  complete(updateUserRolesForTarget(authProfile, ServerRoleTarget, userRoles))
+                }
               }
+            } ~ (delete & path(Segment)) { username =>
+              complete(deleteUserRoleForTarget(authProfile, ServerRoleTarget, username))
             }
-          } ~ (delete & path(Segment)) { username =>
-            complete(deleteUserRoleForTarget(authProfile, ServerRoleTarget, username))
           }
         },
         pathPrefix("namespace" / Segment) { namespace =>
-          pathEnd {
-            get {
-              complete(getUserRolesForTarget(authProfile, NamespaceRoleTarget(namespace)))
-            } ~ post {
-              entity(as[Map[String, String]]) { userRoles =>
-                complete(updateUserRolesForTarget(authProfile, NamespaceRoleTarget(namespace), userRoles))
+          authorize(canManageNamespaceUsers(namespace, authProfile)) {
+            pathEnd {
+              get {
+                complete(getUserRolesForTarget(authProfile, NamespaceRoleTarget(namespace)))
+              } ~ post {
+                entity(as[Map[String, String]]) { userRoles =>
+                  complete(updateUserRolesForTarget(authProfile, NamespaceRoleTarget(namespace), userRoles))
+                }
               }
+            } ~ path(Segment) { username =>
+              complete(deleteUserRoleForTarget(authProfile, NamespaceRoleTarget(namespace), username))
             }
-          } ~ path(Segment) { username =>
-            complete(deleteUserRoleForTarget(authProfile, NamespaceRoleTarget(namespace), username))
           }
         },
         path("domain" / Segment / Segment) { (namespace, domain) =>
-          pathEnd {
-            get {
-              complete(getUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain))))
-            } ~ post {
-              entity(as[Map[String, String]]) { userRoles =>
-                complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), userRoles))
+          authorize(canManageDomainUsers(namespace, domain, authProfile)) {
+            pathEnd {
+              get {
+                complete(getUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain))))
+              } ~ post {
+                entity(as[Map[String, String]]) { userRoles =>
+                  complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), userRoles))
+                }
               }
+            } ~ path(Segment) { username =>
+              complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), username))
             }
-          } ~ path(Segment) { username =>
-            complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), username))
           }
         })
     }
@@ -111,5 +117,24 @@ class RoleService(private[this] val executionContext: ExecutionContext,
   private[this] def deleteUserRoleForTarget(authProfile: AuthorizationProfile, target: RoleTarget, username: String): Future[RestResponse] = {
     val request = RemoveUserFromTarget(target, username)
     (roleActor ? request).mapTo[Unit] map (_ => OkResponse)
+  }
+
+  private[this] def canManageUsers(authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasGlobalPermission(Permissions.Global.ManageUsers)
+  }
+
+  private[this] def canManageDomains(authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)
+  }
+
+  def canManageNamespaceUsers(namespace: String, authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+      authProfile.hasNamespacePermission(Permissions.Namespace.ManageUsers, namespace)
+  }
+
+  def canManageDomainUsers(namespace: String, domain: String, authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+      authProfile.hasNamespacePermission(Permissions.Namespace.ManageUsers, namespace) ||
+      authProfile.hasDomainPermission(Permissions.Domain.ManageUsers, namespace, domain)
   }
 }

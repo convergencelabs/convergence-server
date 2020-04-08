@@ -26,7 +26,7 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Pe
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object ConvergenceUserService {
+object UserService {
 
   case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
 
@@ -40,12 +40,12 @@ object ConvergenceUserService {
 
 }
 
-class ConvergenceUserService(
+class UserService(
                               private[this] val executionContext: ExecutionContext,
                               private[this] val userManagerActor: ActorRef,
                               private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
-  import ConvergenceUserService._
+  import UserService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
