@@ -162,9 +162,9 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   def getDomainsByAccess(username: String, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
-    val accessQuery = """LET namespaces = SELECT set(target) FROM UserRole WHERE user.username = "developer" AND (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace');
+    val accessQuery = """LET namespaces = SELECT set(target) FROM UserRole WHERE user.username = :username AND (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace');
                         |LET domainsInNamespaces = SELECT FROM Domain WHERE namespace IN $namespaces;
-                        |LET roleAccess = SELECT expand(set(target)) FROM UserRole WHERE user.username = "developer" AND role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain';
+                        |LET roleAccess = SELECT expand(set(target)) FROM UserRole WHERE user.username = :username AND role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain';
                         |LET allDomains = SELECT expand(set(unionall($domainsInNamespaces, $roleAccess))) as domains;
                         |SELECT * FROM $allDomains WHERE true""".stripMargin
 
