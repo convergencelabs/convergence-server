@@ -33,7 +33,7 @@ object DomainStore {
     val Status = "status"
     val StatusMessage = "statusMessage"
     val Filter = "filter"
-    val Username = "Username"
+    val Username = "username"
   }
 
   def domainToDoc(domain: Domain, db: ODatabaseDocument): Try[ODocument] = {
