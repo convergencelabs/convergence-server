@@ -17,19 +17,15 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.Success
-
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.WordSpecLike
 import org.scalatest.mockito.MockitoSugar
-
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.convergence.server.domain.DomainId
-
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem, Props, Status}
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import akka.actor.Status
 
 
 class DomainProvisionerActorSpec
@@ -53,13 +49,13 @@ class DomainProvisionerActorSpec
         val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
         domainProvisionerActor.tell(message, client.ref)
 
-        client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Unit])
+        client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Success])
       }
       
       "respond with a failure if the provisioing is not successful" in new TestFixture {
         Mockito
           .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false))
-          .thenReturn(Failure(new IllegalStateException()))
+          .thenReturn(Failure(new IllegalStateException("Induced error for testing")))
 
         val client = new TestProbe(system)
         val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
@@ -71,9 +67,9 @@ class DomainProvisionerActorSpec
   }
 
   trait TestFixture {
-    val provisioner = mock[DomainProvisioner]
-    val props = DomainProvisionerActor.props(provisioner)
-    val domainProvisionerActor = system.actorOf(props)
-    val domainFqn = DomainId("some", "domain")
+    val provisioner: DomainProvisioner = mock[DomainProvisioner]
+    val props: Props = DomainProvisionerActor.props(provisioner)
+    val domainProvisionerActor: ActorRef = system.actorOf(props)
+    val domainFqn: DomainId = DomainId("some", "domain")
   }
 }
