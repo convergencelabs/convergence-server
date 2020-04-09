@@ -21,8 +21,8 @@ object Permissions {
   
   object Namespace {
     val Access = "namespace-access"
-    val ManageDomains = "namesapce-manage-domains"
-    val ManageUsers= "namesapce-manage-users"
+    val ManageDomains = "namespace-manage-domains"
+    val ManageUsers= "namespace-manage-users"
   }
   
   object Domain {
