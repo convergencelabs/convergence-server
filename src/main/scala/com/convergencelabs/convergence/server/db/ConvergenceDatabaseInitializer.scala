@@ -226,6 +226,8 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
     val bootstrapConfig = config.getConfig("convergence.bootstrap")
     val defaultConfigs = bootstrapConfig.getConfig("default-configs")
 
+    val owner = config.getString("convergence.default-server-admin.username")
+
     val configs = JavaConverters
       .asScalaSet(defaultConfigs.entrySet())
       .map(e => (e.getKey, e.getValue.unwrapped))
@@ -266,7 +268,7 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
             Success(())
           }
         } yield {
-          val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth).get.map { _ =>
+          val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth, owner).get.map { _ =>
             logger.info(s"bootstrapped domain '$namespace/$id'")
           }(ec)
 

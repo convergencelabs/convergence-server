@@ -11,31 +11,21 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import java.time.Duration
+import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
+import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
+import com.convergencelabs.convergence.server.datastore.convergence.UserStore
+import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, SingleDatabaseProvider}
+import com.convergencelabs.convergence.server.domain.DomainDatabase
+import grizzled.slf4j.Logging
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.domain.DomainDatabase
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-
-import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.util.Timeout
-import grizzled.slf4j.Logging
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.db.PooledDatabaseProvider
-import com.convergencelabs.convergence.server.db.SingleDatabaseProvider
+import scala.util.{Failure, Try}
 
 class ConvergenceImporter(
   private[this] val dbBaseUri: String,
@@ -75,23 +65,22 @@ class ConvergenceImporter(
 
   def importDomains(): Try[Unit] = Try {
     logger.debug("Importing domains")
-    val domainStore = new DomainStore(convergenceDbProvider)
     data.domains foreach {
       _.map { domainData =>
-        logger.debug(s"Importing domaing: ${domainData.namespace}/${domainData.id}")
+        logger.debug(s"Importing domain: ${domainData.namespace}/${domainData.id}")
 
-        // FIXME Anonynous Auth
+        // FIXME Anonymous Auth and OWNER
         val domainCreateRequest = CreateDomainRequest(
-          domainData.namespace, domainData.id, domainData.displayName, false)
+          domainData.namespace, domainData.id, domainData.displayName, anonymousAuth = false, "owner")
 
-        // FXIME hardcoded timeout
-        implicit val requstTimeout = Timeout(4 minutes)
+        // FIXME hardcoded timeout
+        implicit val requestTimeout: Timeout = Timeout(4 minutes)
         logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.id}")
         val response = (domainStoreActor ? domainCreateRequest).mapTo[DomainDatabase]
 
         response.foreach {
-          case dbInfo =>
-            logger.debug(s"Domain database provisioned successfuly: ${domainData.namespace}/${domainData.id}")
+          dbInfo =>
+            logger.debug(s"Domain database provisioned successfully: ${domainData.namespace}/${domainData.id}")
             domainData.dataImport map { script =>
               logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
 

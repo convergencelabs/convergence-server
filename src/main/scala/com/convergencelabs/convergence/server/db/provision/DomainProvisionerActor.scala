@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.db.provision
 
-import akka.actor.{Actor, ActorLogging, Props, actorRef2Scala}
+import akka.actor.{Actor, ActorLogging, Props, Status, actorRef2Scala}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Publish
 import com.convergencelabs.convergence.server.domain.DomainId
@@ -38,7 +38,7 @@ class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner)
     val currentSender = sender
     // make this asynchronous in the future
     provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) map { _ =>
-      currentSender ! ()
+      currentSender ! Status.Success(())
     } recover {
       case cause: Exception =>
         log.error(cause, s"Error provisioning domain: $fqn")

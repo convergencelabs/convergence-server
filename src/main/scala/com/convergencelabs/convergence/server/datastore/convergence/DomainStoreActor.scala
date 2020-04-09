@@ -11,55 +11,45 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import java.util.UUID
+import akka.actor.{ActorLogging, ActorRef, Props, actorRef2Scala}
+import akka.util.Timeout
+import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, StoreActor}
+import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DestroyDomain, ProvisionDomain}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainStatus}
+import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
+import com.typesafe.config.Config
 
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.DestroyDomain
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.convergence.server.domain.DomainDatabase
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.DomainStatus
-import com.convergencelabs.convergence.server.util.ExceptionUtils
-
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.util.Timeout
-import com.convergencelabs.convergence.server.security.AuthorizationProfile
-import com.convergencelabs.convergence.server.security.Permissions
-import scala.concurrent.Future
-import com.typesafe.config.Config
-import scala.concurrent.ExecutionContext
-import com.convergencelabs.convergence.server.datastore.InvalidValueExcpetion
+import scala.util.{Failure, Success, Try}
 
 object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
 
   def props(
-    dbProvider:       DatabaseProvider,
-    provisionerActor: ActorRef): Props =
+             dbProvider: DatabaseProvider,
+             provisionerActor: ActorRef): Props =
     Props(new DomainStoreActor(dbProvider, provisionerActor))
 
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, anonymousAuth: Boolean)
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, anonymousAuth: Boolean, owner: String)
+
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
+
   case class DeleteDomainRequest(namespace: String, domainId: String)
+
   case class GetDomainRequest(namespace: String, domainId: String)
+
   case class ListDomainsRequest(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int])
+
   case class DeleteDomainsForUserRequest(username: String)
+
 }
 
-class DomainStoreActor private[datastore] (
-  private[this] val dbProvider:        DatabaseProvider,
-  private[this] val domainProvisioner: ActorRef)
+class DomainStoreActor private[datastore](
+                                           private[this] val dbProvider: DatabaseProvider,
+                                           private[this] val domainProvisioner: ActorRef)
   extends StoreActor with ActorLogging {
 
   import DomainStoreActor._
@@ -71,7 +61,7 @@ class DomainStoreActor private[datastore] (
   private[this] val configStore = new ConfigStore(dbProvider)
   private[this] val favoriteDomainStore = new UserFavoriteDomainStore(dbProvider)
   private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
-  private[this] implicit val ec = context.system.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = context.system.dispatcher
   private[this] val domainCreator: DomainCreator = new ActorBasedDomainCreator(
     dbProvider,
     this.context.system.settings.config,
@@ -95,9 +85,9 @@ class DomainStoreActor private[datastore] (
   }
 
   def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth) = createRequest
+    val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth, owner) = createRequest
     configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
-    reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth).map(_ => ()))
+    reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth, owner).map(_ => ()))
   }
 
   def updateDomain(request: UpdateDomainRequest): Unit = {
@@ -108,7 +98,7 @@ class DomainStoreActor private[datastore] (
           val updated = domain.copy(displayName = displayName)
           domainStore.updateDomain(updated)
         case None =>
-          Failure(new EntityNotFoundException())
+          Failure(EntityNotFoundException())
       })
   }
 
@@ -124,62 +114,61 @@ class DomainStoreActor private[datastore] (
       domainDatabase <- domainStore.getDomainDatabase(domainId)
       result <- domainDatabase match {
         case Some(domainDatabase) =>
-          log.debug(s"Deleting domain database for ${domainId}: ${domainDatabase.database}")
-          implicit val requstTimeout = Timeout(4 minutes) // FXIME hard-coded timeout
+          log.debug(s"Deleting domain database for $domainId: ${domainDatabase.database}")
+          implicit val requestTimeout: Timeout = Timeout(4 minutes) // FXIME hard-coded timeout
           (domainProvisioner ? DestroyDomain(domainId, domainDatabase.database)) onComplete {
             case Success(_) =>
               log.debug(s"Domain database deleted, deleting domain related records in convergence database: ${domainDatabase.database}")
               (for {
                 _ <- deltaHistoryStore.removeDeltaHistoryForDomain(domainId)
-                  .map(_ => log.debug(s"Domain database delta history removed: ${domainId}"))
+                  .map(_ => log.debug(s"Domain database delta history removed: $domainId"))
                 _ <- favoriteDomainStore.removeFavoritesForDomain(domainId)
-                  .map(_ => log.debug(s"Favorites for Domain removed: ${domainId}"))
+                  .map(_ => log.debug(s"Favorites for Domain removed: $domainId"))
                 _ <- domainStore.removeDomain(domainId)
-                  .map(_ => log.debug(s"Domain record removed: ${domainId}"))
+                  .map(_ => log.debug(s"Domain record removed: $domainId"))
               } yield {
                 ()
               }).recoverWith {
                 case cause: Throwable =>
-                  log.error(cause, s"Could not delete domain: ${domainId}")
-                  domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpceted error deleting the domain")
+                  log.error(cause, s"Could not delete domain: $domainId")
+                  domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpected error deleting the domain")
               }
             case Failure(cause) =>
-              log.error(cause, s"Could not desstroy domain: ${domainId}")
-              domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpceted error deleting the domain")
+              log.error(cause, s"Could not destroy domain: $domainId")
+              domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpected error deleting the domain")
           }
           Success(())
         case None =>
-          Failure(new EntityNotFoundException(s"Could not find domain information to delete the domain: ${domainId}"))
+          Failure(EntityNotFoundException(s"Could not find domain information to delete the domain: $domainId"))
       }
     } yield {
       result
     }).recoverWith {
       case cause: Throwable =>
-        domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpceted error deleting the domain")
+        domainStore.setDomainStatus(domainId, DomainStatus.Error, "There was an unexpected error deleting the domain")
         Failure(cause)
     }
   }
 
   def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
     val DeleteDomainsForUserRequest(username) = request
-    log.debug(s"Deleting domains for user: ${username}")
+    log.debug(s"Deleting domains for user: $username")
 
     domainStore.getDomainsInNamespace("~" + username) map { domains =>
       // FIXME we need to review what happens when something fails.
-      // we will eventually delete the user and then we won't be
-      // able to look up the domains again.
+      //  we will eventually delete the user and then we won't be
+      //  able to look up the domains again.
       sender ! (())
 
-      domains.foreach {
-        case domain =>
-          deleteDomain(domain.domainFqn) recover {
-            case cause: Exception =>
-              log.error(cause, s"Unable to delete domain '${domain.domainFqn}' while deleting user '${username}'")
-          }
+      domains.foreach { domain =>
+        deleteDomain(domain.domainFqn) recover {
+          case cause: Exception =>
+            log.error(cause, s"Unable to delete domain '${domain.domainFqn}' while deleting user '$username'")
+        }
       }
     } recover {
       case cause: Exception =>
-        log.error(cause, s"Error deleting domains for user: ${username}")
+        log.error(cause, s"Error deleting domains for user: $username")
     }
   }
 
@@ -200,9 +189,11 @@ class DomainStoreActor private[datastore] (
 
 class ActorBasedDomainCreator(databaseProvider: DatabaseProvider, config: Config, domainProvisioner: ActorRef, executionContext: ExecutionContext)
   extends DomainCreator(databaseProvider, config, executionContext) {
+
   import akka.pattern.ask
+
   def provisionDomain(request: ProvisionDomain): Future[Unit] = {
-    implicit val t = Timeout(4 minutes)
+    implicit val t: Timeout = Timeout(4 minutes)
     domainProvisioner.ask(request).mapTo[Unit]
   }
 }

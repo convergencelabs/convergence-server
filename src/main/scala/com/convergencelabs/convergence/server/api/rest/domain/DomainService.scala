@@ -102,7 +102,7 @@ class DomainService(private[this] val executionContext: ExecutionContext,
   private[this] def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequest(namespace, id, displayName) = createRequest
     // FIXME check to make sure use has permissions to create domain in this namespace
-    val message = CreateDomainRequest(namespace, id, displayName, anonymousAuth = false)
+    val message = CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, authProfile.username)
     (domainStoreActor ? message)
       .map { _ => CreatedResponse }
       .recover {
