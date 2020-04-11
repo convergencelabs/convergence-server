@@ -60,13 +60,13 @@ package object rest {
     StatusCodes.BadRequest,
     ErrorResponse("invalid_value", Some(message), field.map(f => Map("field" -> f))))
 
-    
+  def forbiddenResponse(message: Option[String] = None): RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden", message))
   def notFoundResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", message))
   def methodNotAllowed(methods: Seq[String]): RestResponse = (
-    StatusCodes.NotFound,
+    StatusCodes.MethodNotAllowed,
     ErrorResponse("method_not_allowed", Some(s"The only supported methods at this url are: ${methods mkString ", "}")))
-  def unknownErrorResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("unknown", message))
-  def namespaceNotFoundResponse(namespace: String): RestResponse = (StatusCodes.BadRequest, ErrorResponse("namespace_not_found", None, Some(Map("namespace" -> namespace))))
+  def unknownErrorResponse(message: Option[String] = None): RestResponse = (StatusCodes.InternalServerError, ErrorResponse("unknown", message))
+  def namespaceNotFoundResponse(namespace: String): RestResponse = (StatusCodes.NotFound, ErrorResponse("namespace_not_found", None, Some(Map("namespace" -> namespace))))
   
   def okResponse(data: Any): RestResponse = (StatusCodes.OK, SuccessRestResponse(data))
   def deletedResponse(data: Any): RestResponse = (StatusCodes.Gone, SuccessRestResponse(data))

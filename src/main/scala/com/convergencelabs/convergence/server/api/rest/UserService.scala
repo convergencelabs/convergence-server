@@ -52,7 +52,6 @@ class UserService(
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("users") {
-
       pathEnd {
         get {
           parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
@@ -71,12 +70,12 @@ class UserService(
             complete(getUser(username, authProfile))
           } ~ delete {
             authorize(canManageUsers(authProfile)) {
-              complete(deleteConvergenceUserRequest(username))
+              complete(deleteConvergenceUserRequest(username, authProfile))
             }
           } ~ put {
             authorize(canManageUsers(authProfile)) {
               entity(as[UpdateUserData]) { request =>
-                complete(updateUser(username, request))
+                complete(updateUser(username, request, authProfile))
               }
             }
           }
@@ -113,16 +112,24 @@ class UserService(
     (userManagerActor ? message) map (_ => CreatedResponse)
   }
 
-  private[this] def deleteConvergenceUserRequest(username: String): Future[RestResponse] = {
-    val message = DeleteConvergenceUserRequest(username)
-    (userManagerActor ? message) map (_ => DeletedResponse)
+  private[this] def deleteConvergenceUserRequest(username: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
+    if (authProfile.username == username) {
+      Future.successful(forbiddenResponse(Some("You can not delete your own user.")))
+    } else {
+      val message = DeleteConvergenceUserRequest(username)
+      (userManagerActor ? message) map (_ => DeletedResponse)
+    }
   }
 
-  private[this] def updateUser(username: String, updateData: UpdateUserData): Future[RestResponse] = {
-    val UpdateUserData(firstName, lastName, displayName, email, serverRole) = updateData
-    val message = UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole)
-    (userManagerActor ? message).mapTo[Unit] map
-      (_ => OkResponse)
+  private[this] def updateUser(username: String, updateData: UpdateUserData, authProfile: AuthorizationProfile): Future[RestResponse] = {
+    if (username == authProfile.username && !authProfile.hasServerRole(updateData.serverRole) ) {
+      Future.successful(forbiddenResponse(Some("You can not change your own server role.")))
+    } else {
+      val UpdateUserData(firstName, lastName, displayName, email, serverRole) = updateData
+      val message = UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole)
+      (userManagerActor ? message).mapTo[Unit] map
+        (_ => OkResponse)
+    }
   }
 
   private[this] def setUserPassword(username: String, passwordData: PasswordData): Future[RestResponse] = {

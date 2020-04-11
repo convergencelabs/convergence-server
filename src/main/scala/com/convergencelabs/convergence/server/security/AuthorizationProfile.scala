@@ -27,6 +27,10 @@ class AuthorizationProfile(val username: String, userRoles: UserRoles) extends S
   private[this] val permissionsByTarget: Map[RoleTarget, Set[String]] = userRoles.roles.groupBy( userRole => userRole.target).map {
     case (target, role) => (target, role.flatten(_.role.permissions))
   }
+
+  def hasServerRole(role: String): Boolean = {
+    hasRoleForTarget(role, ServerRoleTarget)
+  }
   
   def hasRoleForTarget(role: String, target: RoleTarget): Boolean = {
     rolesByTarget.exists { case (t, r) => target == t && r.contains(role) }
