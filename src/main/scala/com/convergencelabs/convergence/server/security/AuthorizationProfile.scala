@@ -31,6 +31,11 @@ class AuthorizationProfile(val username: String, userRoles: UserRoles) extends S
   def hasServerRole(role: String): Boolean = {
     hasRoleForTarget(role, ServerRoleTarget)
   }
+
+  def getServerRole(): Option[String] = {
+    val roles = rolesByTarget.get(ServerRoleTarget)
+    roles.map(_.head)
+  }
   
   def hasRoleForTarget(role: String, target: RoleTarget): Boolean = {
     rolesByTarget.exists { case (t, r) => target == t && r.contains(role) }

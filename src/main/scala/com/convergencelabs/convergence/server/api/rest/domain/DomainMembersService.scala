@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, authorize, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
@@ -24,7 +24,7 @@ import com.convergencelabs.convergence.server.datastore.convergence.DomainRoleTa
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.{Role, UserRoles}
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor._
 import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Roles}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -49,19 +49,25 @@ class DomainMembersService(private[this] val executionContext: ExecutionContext,
         get {
           complete(getAllMembers(domain))
         } ~ post {
-          entity(as[Map[String, String]]) { members =>
-            complete(setAllMembers(domain, members))
+          authorize(canManageUsers(domain, authProfile)) {
+            entity(as[Map[String, String]]) { members =>
+              complete(setAllMembers(domain, members, authProfile))
+            }
           }
         }
       } ~ path(Segment) { username =>
         get {
           complete(getRoleForUser(domain, username))
         } ~ put {
-          entity(as[SetUserRole]) { memberRole =>
-            complete(setRoleForUser(domain, username, memberRole.role))
+          authorize(canManageUsers(domain, authProfile)) {
+            entity(as[SetUserRole]) { memberRole =>
+              complete(setRoleForUser(domain, username, memberRole.role, authProfile))
+            }
           }
         } ~ delete {
-          complete(removeUserRole(domain, username))
+          authorize(canManageUsers(domain, authProfile)) {
+            complete(removeUserRole(domain, username, authProfile))
+          }
         }
       }
     }
@@ -77,8 +83,11 @@ class DomainMembersService(private[this] val executionContext: ExecutionContext,
       }
   }
 
-  private[this] def setAllMembers(domain: DomainId, userRoles: Map[String, String]): Future[RestResponse] = {
-    val mapped = userRoles.map { case (username, role) => (username, Set(role)) }
+  private[this] def setAllMembers(domain: DomainId, userRoles: Map[String, String], authProfile: AuthorizationProfile): Future[RestResponse] = {
+    // Force the current user to be an owner.
+    val mapped = userRoles.map { case (username, role) => (username, Set(role)) } +
+        (authProfile.username -> Set(Roles.Domain.Owner))
+
     val message = SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped)
     (roleStoreActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
@@ -96,15 +105,23 @@ class DomainMembersService(private[this] val executionContext: ExecutionContext,
     }
   }
 
-  private[this] def setRoleForUser(domain: DomainId, username: String, role: String): Future[RestResponse] = {
-    val message = SeUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
-    (roleStoreActor ? message) map (_ => OkResponse) recover {
-      case _: EntityNotFoundException => notFoundResponse()
+  private[this] def setRoleForUser(domain: DomainId, username: String, role: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
+    if (username == authProfile.username) {
+      Future.successful(forbiddenResponse(Some("You can not set your own user's role.")))
+    } else {
+      val message = SeUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
+      (roleStoreActor ? message) map (_ => OkResponse) recover {
+        case _: EntityNotFoundException => notFoundResponse()
+      }
     }
   }
 
-  private[this] def removeUserRole(domain: DomainId, username: String): Future[RestResponse] = {
-    val message = RemoveUserFromTarget(DomainRoleTarget(domain), username)
-    (roleStoreActor ? message).mapTo[Unit] map (_ => DeletedResponse)
+  private[this] def removeUserRole(domain: DomainId, username: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
+    if (username == authProfile.username) {
+      Future.successful(forbiddenResponse(Some("You can not remove your own user.")))
+    } else {
+      val message = RemoveUserFromTarget(DomainRoleTarget(domain), username)
+      (roleStoreActor ? message).mapTo[Unit] map (_ => DeletedResponse)
+    }
   }
 }
