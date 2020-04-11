@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
+import java.time.Instant
+
 import akka.actor.ActorRef
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
@@ -20,9 +22,9 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.api.rest.{okResponse, _}
-import com.convergencelabs.convergence.server.datastore.domain.{ChatInfo, ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.{CreateChatRequest, CreateChatResponse, FindChatInfo, GetChatInfo}
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, RemoveChatRequest, SetChatNameRequest, SetChatTopicRequest}
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, GetChatHistoryRequest, RemoveChatRequest, SetChatNameRequest, SetChatTopicRequest}
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -39,6 +41,69 @@ object DomainChatService {
   case class SetNameData(name: String)
 
   case class SetTopicData(topic: String)
+
+  sealed trait ChatEventData {
+    val eventNumber: Long
+    val id: String
+    val user: DomainUserId
+    val timestamp: Instant
+  }
+
+  case class ChatCreatedEventData(
+                                   eventNumber: Long,
+                                   id: String,
+                                   user: DomainUserId,
+                                   timestamp: Instant,
+                                   name: String,
+                                   topic: String,
+                                   members: Set[DomainUserId]) extends ChatEventData
+
+  case class ChatMessageEventData(
+                                   eventNumber: Long,
+                                   id: String,
+                                   user: DomainUserId,
+                                   timestamp: Instant,
+                                   message: String) extends ChatEventData
+
+  case class ChatUserJoinedEventData(
+                                      eventNumber: Long,
+                                      id: String,
+                                      user: DomainUserId,
+                                      timestamp: Instant) extends ChatEventData
+
+  case class ChatUserLeftEventData(
+                                    eventNumber: Long,
+                                    id: String,
+                                    user: DomainUserId,
+                                    timestamp: Instant) extends ChatEventData
+
+  case class ChatUserAddedEventData(
+                                     eventNumber: Long,
+                                     id: String,
+                                     user: DomainUserId,
+                                     timestamp: Instant,
+                                     userAdded: DomainUserId) extends ChatEventData
+
+  case class ChatUserRemovedEventData(
+                                       eventNumber: Long,
+                                       id: String,
+                                       user: DomainUserId,
+                                       timestamp: Instant,
+                                       userRemoved: DomainUserId) extends ChatEventData
+
+  case class ChatNameChangedEventData(
+                                       eventNumber: Long,
+                                       id: String,
+                                       user: DomainUserId,
+                                       timestamp: Instant,
+                                       name: String) extends ChatEventData
+
+  case class ChatTopicChangedEventData(
+                                        eventNumber: Long,
+                                        id: String,
+                                        user: DomainUserId,
+                                        timestamp: Instant,
+                                        topic: String) extends ChatEventData
 
 }
 
@@ -76,6 +141,16 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
         } ~ (path("topic") & put) {
           entity(as[SetTopicData]) { data =>
             complete(setTopic(authProfile, domain, chatId, data))
+          }
+        } ~ (path("events") & get) {
+          parameters(
+            "eventTypes".?,
+            "filter".?,
+            "startEvent".as[Long].?,
+            "offset".as[Int].?,
+            "limit".as[Int].?,
+            "forward".as[Boolean].?) { (eventTypes, filter, startEvent, offset, limit, forward) =>
+            complete(getChatEvents(domain, chatId, eventTypes, filter, startEvent, offset, limit, forward))
           }
         }
       }
@@ -145,6 +220,22 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
     (chatSharding ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
+  private[this] def getChatEvents(domain: DomainId,
+                                  chatId: String,
+                                  eventTypes: Option[String],
+                                  filter: Option[String],
+                                  startEvent: Option[Long],
+                                  offset: Option[Int],
+                                  limit: Option[Int],
+                                  forward: Option[Boolean]): Future[RestResponse] = {
+    val types = eventTypes.map(t => t.split(",").toSet)
+    val message = GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, filter)
+    (chatSharding ? message).mapTo[PagedData[ChatEvent]] map { pagedData =>
+      val response = PagedRestResponse(pagedData.data.map(toChatEventData), pagedData.offset, pagedData.count)
+      okResponse(response)
+    }
+  }
+
   private[this] def toChatInfoData(chatInfo: ChatInfo): ChatInfoData = {
     val ChatInfo(id, chatType, created, membership, name, topic, lastEventNumber, lastEventTime, members) = chatInfo
     ChatInfoData(
@@ -154,5 +245,31 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
       name,
       topic,
       members.map(m => m.userId.username))
+  }
+
+  private[this] def toChatEventData(event: ChatEvent): ChatEventData = {
+    event match {
+      case ChatCreatedEvent(eventNumber, id, user, timestamp, name, topic, members) =>
+        ChatCreatedEventData(eventNumber, id, user, timestamp, name, topic, members)
+
+      case ChatUserJoinedEvent(eventNumber, id, user, timestamp) =>
+        ChatUserJoinedEventData(eventNumber, id, user, timestamp)
+      case ChatUserLeftEvent(eventNumber, id, user, timestamp) =>
+        ChatUserLeftEventData(eventNumber, id, user, timestamp)
+
+      case ChatUserAddedEvent(eventNumber, id, user, timestamp, userAdded) =>
+        ChatUserAddedEventData(eventNumber, id, user, timestamp, userAdded)
+      case ChatUserRemovedEvent(eventNumber, id, user, timestamp, userRemoved) =>
+        ChatUserRemovedEventData(eventNumber, id, user, timestamp, userRemoved)
+
+      case ChatTopicChangedEvent(eventNumber, id, user, timestamp, topic) =>
+        ChatTopicChangedEventData(eventNumber, id, user, timestamp, topic)
+
+      case ChatNameChangedEvent(eventNumber, id, user, timestamp, name) =>
+        ChatNameChangedEventData(eventNumber, id, user, timestamp, name)
+
+      case ChatMessageEvent(eventNumber, id, user, timestamp, message) =>
+        ChatMessageEventData(eventNumber, id, user, timestamp, message)
+    }
   }
 }

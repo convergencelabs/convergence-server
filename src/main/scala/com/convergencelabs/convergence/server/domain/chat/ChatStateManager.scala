@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat
 
 import java.time.Instant
 
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatNotFoundException
@@ -66,9 +67,9 @@ private[chat] object ChatStateManager extends Logging {
 }
 
 private[chat] class ChatStateManager(private[this] val chatId: String,
-                       private[this] var state: ChatChannelState,
-                       private[this] val chatStore: ChatStore,
-                       private[this] val permissionsStore: PermissionsStore) extends Logging {
+                                     private[this] var state: ChatChannelState,
+                                     private[this] val chatStore: ChatStore,
+                                     private[this] val permissionsStore: PermissionsStore) extends Logging {
 
   import ChatMessages._
 
@@ -227,9 +228,14 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
     }
   }
 
-  def onGetHistory(chatId: String, userId: DomainUserId, limit: Option[Int], startEvent: Option[Long],
-                   forward: Option[Boolean], eventFilter: Option[List[String]]): Try[List[ChatEvent]] = {
-    chatStore.getChatEvents(chatId, eventFilter, startEvent, limit, forward)
+  def onGetHistory(chatId: String,
+                   offset: Option[Int],
+                   limit: Option[Int],
+                   startEvent: Option[Long],
+                   forward: Option[Boolean],
+                   eventTypes: Option[Set[String]],
+                   filter: Option[String]): Try[PagedData[ChatEvent]] = {
+    chatStore.getChatEvents(chatId, eventTypes, startEvent, offset, limit, forward, filter)
   }
 
   def onPublishMessage(chatId: String, userId: DomainUserId, message: String): Try[ChatMessageEvent] = {

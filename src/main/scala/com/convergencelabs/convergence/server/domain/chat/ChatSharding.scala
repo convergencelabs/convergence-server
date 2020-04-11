@@ -25,11 +25,11 @@ object ChatSharding extends ActorSharding(
   
   override val extractEntityId: ShardRegion.ExtractEntityId = {
     case msg: ExistingChatMessage ⇒ 
-      (s"${msg.domainFqn.namespace}::${msg.domainFqn.domainId}::${msg.chatId}", msg)
+      (s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.chatId}", msg)
   }
  
   override def extractShardId(numberOfShards: Int): ShardRegion.ExtractShardId = {
     case msg: ExistingChatMessage => 
-      Math.abs((msg.domainFqn.domainId.hashCode + msg.domainFqn.namespace.hashCode + msg.chatId.hashCode) % numberOfShards).toString
+      Math.abs((msg.domainId.domainId.hashCode + msg.domainId.namespace.hashCode + msg.chatId.hashCode) % numberOfShards).toString
   }
 }

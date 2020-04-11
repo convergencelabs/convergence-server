@@ -16,11 +16,12 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions._
-import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.datastore.domain.{ChatEvent, ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatSharding}
@@ -183,7 +184,7 @@ class ChatClientActor(
   }
 
   def onCreateChannel(message: CreateChatRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData) = message;
+    val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData) = message
     val members = memberData.toSet.map(ImplicitMessageConversions.dataToDomainUserId)
     val request = CreateChatRequest(chatId, session.userId, ChatType.parse(chatType), ChatMembership.parse(membership), Some(name), Some(topic), members)
     chatLookupActor.ask(request).mapTo[CreateChatResponse] onComplete {
@@ -223,7 +224,7 @@ class ChatClientActor(
   }
 
   def onAddUserToChannel(message: AddUserToChatChannelRequestMessage, cb: ReplyCallback): Unit = {
-    val AddUserToChatChannelRequestMessage(chatId, userToAdd) = message;
+    val AddUserToChatChannelRequestMessage(chatId, userToAdd) = message
     val request = AddUserToChannelRequest(domainFqn, chatId, session, ImplicitMessageConversions.dataToDomainUserId(userToAdd.get))
     handleSimpleChannelRequest(request, { () => AddUserToChatChannelResponseMessage() }, cb)
   }
@@ -247,7 +248,7 @@ class ChatClientActor(
   }
 
   def onMarkEventsSeen(message: MarkChatEventsSeenRequestMessage, cb: ReplyCallback): Unit = {
-    val MarkChatEventsSeenRequestMessage(chatId, eventNumber) = message;
+    val MarkChatEventsSeenRequestMessage(chatId, eventNumber) = message
     val request = MarkChannelEventsSeenRequest(domainFqn, chatId, session, eventNumber)
     handleSimpleChannelRequest(request, { () => MarkChatEventsSeenResponseMessage() }, cb)
   }
@@ -423,9 +424,11 @@ class ChatClientActor(
 
   def onGetHistory(message: ChatHistoryRequestMessage, cb: ReplyCallback): Unit = {
     val ChatHistoryRequestMessage(chatId, limit, startEvent, forward, eventFilter) = message
-    val request = GetChannelHistoryRequest(domainFqn, chatId, session, limit, startEvent, forward, Some(eventFilter.toList))
-    chatChannelActor.ask(request).mapTo[GetChannelHistoryResponse] onComplete {
-      case Success(GetChannelHistoryResponse(events)) =>
+    // TODO support the filter and offset in the web socket protocol.
+    // TODO use page data in the response.
+    val request = GetChatHistoryRequest(domainFqn, chatId, Some(session), None, limit, startEvent, forward, Some(eventFilter.toSet), None)
+    chatChannelActor.ask(request).mapTo[PagedData[ChatEvent]] onComplete {
+      case Success(PagedData(events, _, _)) =>
         val eventData = events.map(channelEventToMessage)
         val reply = ChatHistoryResponseMessage(eventData)
         cb.reply(reply)

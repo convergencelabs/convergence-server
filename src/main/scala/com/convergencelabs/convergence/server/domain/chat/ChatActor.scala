@@ -31,7 +31,7 @@ import scala.util.{Failure, Success, Try}
  */
 class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessage]) {
 
-  private[this] var domainFqn: DomainId = _
+  private[this] var domainId: DomainId = _
   private[this] var channelId: String = _
 
   // Here None signifies that the channel does not exist.
@@ -39,22 +39,22 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
   private[this] var messageProcessor: Option[ChatMessageProcessor] = None
 
   protected def setIdentityData(message: ExistingChatMessage): Try[String] = {
-    this.domainFqn = message.domainFqn
+    this.domainId = message.domainId
     this.channelId = message.chatId
-    Success(s"${domainFqn.namespace}/${domainFqn.domainId}/${this.channelId}")
+    Success(s"${domainId.namespace}/${domainId.domainId}/${this.channelId}")
   }
 
   protected def initialize(message: ExistingChatMessage): Try[ShardedActorStatUpPlan] = {
-    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn) flatMap { provider =>
-      log.debug(s"Chat Channel acquired persistence, creating channel manager: '$domainFqn/$channelId'")
+    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainId) flatMap { provider =>
+      log.debug(s"Chat Channel acquired persistence, creating channel manager: '$domainId/$channelId'")
       ChatStateManager.create(channelId, provider.chatStore, provider.permissionsStore)
     } map { manager =>
-      log.debug(s"Chat Channel Channel manager created: '$domainFqn/$channelId'")
+      log.debug(s"Chat Channel Channel manager created: '$domainId/$channelId'")
       this.channelManager = Some(manager)
       manager.state().chatType match {
         case ChatType.Room =>
           this.messageProcessor = Some(new ChatRoomMessageProcessor(
-            domainFqn,
+            domainId,
             channelId,
             manager,
             () => this.passivate(),
@@ -78,7 +78,7 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
       StartUpRequired
     } recoverWith {
       case NonFatal(cause) =>
-        log.error(cause, s"error initializing chat channel: '$domainFqn/$channelId'")
+        log.error(cause, s"error initializing chat channel: '$domainId/$channelId'")
         Failure(cause)
     }
   }
@@ -95,7 +95,7 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
 
   override def postStop(): Unit = {
     super.postStop()
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainId)
     channelManager.foreach { cm =>
       if (cm.state().chatType == ChatType.Room) {
         cm.removeAllMembers()

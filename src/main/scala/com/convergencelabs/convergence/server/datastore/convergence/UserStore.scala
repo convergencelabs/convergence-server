@@ -86,7 +86,7 @@ object UserStore {
  * @constructor Creates a new UserStore using the provided connection pool to
  * connect to the database
  *
- * @param dbPool The database pool to use.
+ * @param dbProvider The database pool to use.
  */
 class UserStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)

@@ -43,7 +43,7 @@ private[chat] abstract class ChatMessageProcessor(stateManager: ChatStateManager
         onSetChatChannelTopic(message)
       case message: MarkChannelEventsSeenRequest =>
         onMarkEventsSeen(message)
-      case message: GetChannelHistoryRequest =>
+      case message: GetChatHistoryRequest =>
         onGetHistory(message)
       case message: PublishChatMessageRequest =>
         onPublishMessage(message)
@@ -129,10 +129,10 @@ private[chat] abstract class ChatMessageProcessor(stateManager: ChatStateManager
     }
   }
 
-  protected def onGetHistory(message: GetChannelHistoryRequest): Try[ChatMessageProcessingResult] = {
-    val GetChannelHistoryRequest(_, chatId, requester, limit, startEvent, forward, eventFilter) = message
-    stateManager.onGetHistory(chatId, requester.userId, limit, startEvent, forward, eventFilter) map { events =>
-      ChatMessageProcessingResult(Some(GetChannelHistoryResponse(events)), List())
+  protected def onGetHistory(message: GetChatHistoryRequest): Try[ChatMessageProcessingResult] = {
+    val GetChatHistoryRequest(_, chatId, _, offset, limit, startEvent, forward, eventTypes, filter) = message
+    stateManager.onGetHistory(chatId, offset, limit, startEvent, forward, eventTypes, filter) map { events =>
+      ChatMessageProcessingResult(Some(events), List())
     }
   }
 

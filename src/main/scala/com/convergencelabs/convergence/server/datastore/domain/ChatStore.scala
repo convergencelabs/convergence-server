@@ -330,7 +330,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
 
     for {
       count <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(doc => doc.getProperty("count").asInstanceOf[Long])
-      data <- OrientDBUtil.queryAndMap(db, query, whereParams) { doc =>toChatInfo(doc) }
+      data <- OrientDBUtil.queryAndMap(db, query, whereParams) { doc => toChatInfo(doc) }
     } yield {
       PagedData(data, offset.getOrElse(0).longValue(), count)
     }
@@ -745,7 +745,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     OrientDBUtil.execute(db, script, params).map(_ => ())
   }
 
-  def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit]  = {
+  def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit] = {
     getChatMemberRid(chatId, userId).flatMap { memberRid =>
       Try {
         val doc = memberRid.getRecord[ODocument]
@@ -756,15 +756,16 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
   }
 
-  def getChatEvents(
-                     chatId: String,
-                     eventTypes: Option[List[String]],
-                     startEvent: Option[Long],
-                     limit: Option[Int],
-                     forward: Option[Boolean]): Try[List[ChatEvent]] = withDb { db =>
+  def getChatEvents(chatId: String,
+                    eventTypes: Option[Set[String]],
+                    startEvent: Option[Long],
+                    offset: Option[Int],
+                    limit: Option[Int],
+                    forward: Option[Boolean],
+                    filter: Option[String]): Try[PagedData[ChatEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
 
-    val eventTypesClause = eventTypes.getOrElse(List()) match {
+    val eventTypesClause = eventTypes.getOrElse(Set()).toList match {
       case Nil =>
         ""
       case types =>
@@ -783,18 +784,30 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       s" AND eventNo $operator :startEventNo"
     } getOrElse ""
 
+    val filterClause = filter map { term =>
+      params("filter") = s"%$term%"
+      s" AND message LIKE :filter"
+    } getOrElse ""
+
     val orderBy = if (fwd) {
       "ASC"
     } else {
       "DESC"
     }
 
-    val baseQuery = s"SELECT FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause ORDER BY eventNo $orderBy"
-    val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), Some(0))
+    val baseQuery = s"SELECT FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause $filterClause ORDER BY eventNo $orderBy"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), offset)
 
-    OrientDBUtil
-      .query(db, query, params.toMap)
-      .map(_.map(docToChatEvent).sortWith((e1, e2) => e1.eventNumber < e2.eventNumber))
+    val countQuery = s"SELECT count(*) as count FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause $filterClause"
+
+    for {
+      count <- OrientDBUtil.getDocument(db, countQuery, params.toMap).map(doc => doc.getProperty("count").asInstanceOf[Long])
+      events <- OrientDBUtil
+        .query(db, query, params.toMap)
+        .map(_.map(docToChatEvent).sortWith((e1, e2) => e1.eventNumber < e2.eventNumber))
+    } yield {
+      PagedData(events, offset.getOrElse(0).longValue(), count)
+    }
   }
 
   def getChatRid(channelId: String): Try[ORID] = withDb { db =>

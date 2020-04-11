@@ -25,17 +25,17 @@ class ChatStoreSpec
   with WordSpecLike
   with Matchers {
 
-  val user1 = "user1"
-  val user1Id = DomainUserId(DomainUserType.Normal, user1)
+  private[this] val user1 = "user1"
+  private[this] val user1Id = DomainUserId(DomainUserType.Normal, user1)
 
-  val user2 = "user2"
-  val user2Id = DomainUserId(DomainUserType.Normal, user2)
+  private[this] val user2 = "user2"
+  private[this] val user2Id = DomainUserId(DomainUserType.Normal, user2)
 
-  val user3 = "user3"
-  val user3Id = DomainUserId(DomainUserType.Normal, user3)
+  private[this] val user3 = "user3"
+  private[this] val user3Id = DomainUserId(DomainUserType.Normal, user3)
 
-  val channel1Id = "channel1"
-  val firstId = "#1"
+  private[this] val channel1Id = "channel1"
+  private[this] val firstId = "#1"
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
@@ -187,8 +187,8 @@ class ChatStoreSpec
         provider.chatStore.addChatUserJoinedEvent(ChatUserJoinedEvent(5, id, user3Id, Instant.now())).get
         provider.chatStore.addChatUserRemovedEvent(ChatUserRemovedEvent(6, id, user2Id, Instant.now(), user1Id)).get
         provider.chatStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user2Id, Instant.now(), user1Id)).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None).get
-        events.size shouldEqual 8
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 8
       }
     }
   }
