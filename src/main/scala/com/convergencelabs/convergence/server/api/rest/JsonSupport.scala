@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.api.rest
 
 import java.time.{Duration, Instant}
 
+import com.convergencelabs.convergence.server.api.rest.domain.DomainChatService.ChatEventData
 import com.convergencelabs.convergence.server.domain.DomainUserType
 import com.convergencelabs.convergence.server.domain.DomainUserType.DomainUserType
 import com.convergencelabs.convergence.server.domain.model.data.DataValue
@@ -72,5 +73,6 @@ trait JsonSupport extends Json4sSupport {
     durationSerializer +
     dataValueSerializer +
     domainUserTypeSerializer +
-    FieldSerializer[ResponseMessage]()
+    FieldSerializer[ResponseMessage]() +
+    FieldSerializer[ChatEventData]()
 }

@@ -43,6 +43,7 @@ object DomainChatService {
   case class SetTopicData(topic: String)
 
   sealed trait ChatEventData {
+    val `type`: String
     val eventNumber: Long
     val id: String
     val user: DomainUserId
@@ -56,54 +57,72 @@ object DomainChatService {
                                    timestamp: Instant,
                                    name: String,
                                    topic: String,
-                                   members: Set[DomainUserId]) extends ChatEventData
+                                   members: Set[DomainUserId]) extends ChatEventData {
+    val `type` = "created";
+  }
 
   case class ChatMessageEventData(
                                    eventNumber: Long,
                                    id: String,
                                    user: DomainUserId,
                                    timestamp: Instant,
-                                   message: String) extends ChatEventData
+                                   message: String) extends ChatEventData {
+    val `type` = "message";
+  }
 
   case class ChatUserJoinedEventData(
                                       eventNumber: Long,
                                       id: String,
                                       user: DomainUserId,
                                       timestamp: Instant) extends ChatEventData
+  {
+    val `type` = "user_joined";
+  }
 
   case class ChatUserLeftEventData(
                                     eventNumber: Long,
                                     id: String,
                                     user: DomainUserId,
                                     timestamp: Instant) extends ChatEventData
+  {
+    val `type` = "user_left";
+  }
 
   case class ChatUserAddedEventData(
                                      eventNumber: Long,
                                      id: String,
                                      user: DomainUserId,
                                      timestamp: Instant,
-                                     userAdded: DomainUserId) extends ChatEventData
+                                     userAdded: DomainUserId) extends ChatEventData {
+    val `type` = "user_added";
+  }
 
   case class ChatUserRemovedEventData(
                                        eventNumber: Long,
                                        id: String,
                                        user: DomainUserId,
                                        timestamp: Instant,
-                                       userRemoved: DomainUserId) extends ChatEventData
+                                       userRemoved: DomainUserId) extends ChatEventData {
+    val `type` = "user_removed";
+  }
 
   case class ChatNameChangedEventData(
                                        eventNumber: Long,
                                        id: String,
                                        user: DomainUserId,
                                        timestamp: Instant,
-                                       name: String) extends ChatEventData
+                                       name: String) extends ChatEventData {
+    val `type` = "name_changed";
+  }
 
   case class ChatTopicChangedEventData(
                                         eventNumber: Long,
                                         id: String,
                                         user: DomainUserId,
                                         timestamp: Instant,
-                                        topic: String) extends ChatEventData
+                                        topic: String) extends ChatEventData {
+    val `type` = "topic_changed";
+  }
 
 }
 
