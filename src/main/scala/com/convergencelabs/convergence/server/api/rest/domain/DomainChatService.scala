@@ -34,7 +34,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object DomainChatService {
 
-  case class ChatInfoData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
+  case class ChatInfoData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[DomainUserId])
 
   case class CreateChatData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
 
@@ -263,7 +263,7 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
       membership.toString.toLowerCase(),
       name,
       topic,
-      members.map(m => m.userId.username))
+      members.map(m => m.userId))
   }
 
   private[this] def toChatEventData(event: ChatEvent): ChatEventData = {
