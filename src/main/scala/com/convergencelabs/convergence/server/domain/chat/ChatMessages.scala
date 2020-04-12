@@ -89,7 +89,7 @@ object ChatMessages {
                                    startEvent: Option[Long],
                                    forward: Option[Boolean],
                                    eventTypes: Option[Set[String]],
-                                   filter: Option[String] = None) extends ExistingChatMessage
+                                   messageFilter: Option[String] = None) extends ExistingChatMessage
 
   // Outgoing Broadcast Messages
   sealed trait ChatBroadcastMessage {

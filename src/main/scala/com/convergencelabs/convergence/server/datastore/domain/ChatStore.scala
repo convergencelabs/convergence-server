@@ -29,24 +29,22 @@ import grizzled.slf4j.Logging
 import scala.collection.JavaConverters.{asScalaSetConverter, seqAsJavaListConverter, setAsJavaSetConverter}
 import scala.util.{Failure, Success, Try}
 
-case class Chat(
-                 id: String,
-                 chatType: ChatType.Value,
-                 created: Instant,
-                 membership: ChatMembership.Value,
-                 name: String,
-                 topic: String)
+case class Chat(id: String,
+                chatType: ChatType.Value,
+                created: Instant,
+                membership: ChatMembership.Value,
+                name: String,
+                topic: String)
 
-case class ChatInfo(
-                     id: String,
-                     chatType: ChatType.Value,
-                     created: Instant,
-                     membership: ChatMembership.Value,
-                     name: String,
-                     topic: String,
-                     lastEventNumber: Long,
-                     lastEventTime: Instant,
-                     members: Set[ChatMember])
+case class ChatInfo(id: String,
+                    chatType: ChatType.Value,
+                    created: Instant,
+                    membership: ChatMembership.Value,
+                    name: String,
+                    topic: String,
+                    lastEventNumber: Long,
+                    lastEventTime: Instant,
+                    members: Set[ChatMember])
 
 sealed trait ChatEvent {
   val eventNumber: Long
@@ -55,61 +53,53 @@ sealed trait ChatEvent {
   val timestamp: Instant
 }
 
-case class ChatCreatedEvent(
-                             eventNumber: Long,
-                             id: String,
-                             user: DomainUserId,
-                             timestamp: Instant,
-                             name: String,
-                             topic: String,
-                             members: Set[DomainUserId]) extends ChatEvent
+case class ChatCreatedEvent(eventNumber: Long,
+                            id: String,
+                            user: DomainUserId,
+                            timestamp: Instant,
+                            name: String,
+                            topic: String,
+                            members: Set[DomainUserId]) extends ChatEvent
 
-case class ChatMessageEvent(
-                             eventNumber: Long,
-                             id: String,
-                             user: DomainUserId,
-                             timestamp: Instant,
-                             message: String) extends ChatEvent
+case class ChatMessageEvent(eventNumber: Long,
+                            id: String,
+                            user: DomainUserId,
+                            timestamp: Instant,
+                            message: String) extends ChatEvent
 
-case class ChatUserJoinedEvent(
-                                eventNumber: Long,
-                                id: String,
-                                user: DomainUserId,
-                                timestamp: Instant) extends ChatEvent
-
-case class ChatUserLeftEvent(
-                              eventNumber: Long,
-                              id: String,
-                              user: DomainUserId,
-                              timestamp: Instant) extends ChatEvent
-
-case class ChatUserAddedEvent(
-                               eventNumber: Long,
+case class ChatUserJoinedEvent(eventNumber: Long,
                                id: String,
                                user: DomainUserId,
-                               timestamp: Instant,
-                               userAdded: DomainUserId) extends ChatEvent
+                               timestamp: Instant) extends ChatEvent
 
-case class ChatUserRemovedEvent(
-                                 eventNumber: Long,
+case class ChatUserLeftEvent(eventNumber: Long,
+                             id: String,
+                             user: DomainUserId,
+                             timestamp: Instant) extends ChatEvent
+
+case class ChatUserAddedEvent(eventNumber: Long,
+                              id: String,
+                              user: DomainUserId,
+                              timestamp: Instant,
+                              userAdded: DomainUserId) extends ChatEvent
+
+case class ChatUserRemovedEvent(eventNumber: Long,
+                                id: String,
+                                user: DomainUserId,
+                                timestamp: Instant,
+                                userRemoved: DomainUserId) extends ChatEvent
+
+case class ChatNameChangedEvent(eventNumber: Long,
+                                id: String,
+                                user: DomainUserId,
+                                timestamp: Instant,
+                                name: String) extends ChatEvent
+
+case class ChatTopicChangedEvent(eventNumber: Long,
                                  id: String,
                                  user: DomainUserId,
                                  timestamp: Instant,
-                                 userRemoved: DomainUserId) extends ChatEvent
-
-case class ChatNameChangedEvent(
-                                 eventNumber: Long,
-                                 id: String,
-                                 user: DomainUserId,
-                                 timestamp: Instant,
-                                 name: String) extends ChatEvent
-
-case class ChatTopicChangedEvent(
-                                  eventNumber: Long,
-                                  id: String,
-                                  user: DomainUserId,
-                                  timestamp: Instant,
-                                  topic: String) extends ChatEvent
+                                 topic: String) extends ChatEvent
 
 case class ChatMember(chatId: String, userId: DomainUserId, seen: Long)
 
@@ -762,7 +752,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
                     offset: Option[Int],
                     limit: Option[Int],
                     forward: Option[Boolean],
-                    filter: Option[String]): Try[PagedData[ChatEvent]] = withDb { db =>
+                    messageFilter: Option[String]): Try[PagedData[ChatEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
 
     val eventTypesClause = eventTypes.getOrElse(Set()).toList match {
@@ -784,9 +774,9 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       s" AND eventNo $operator :startEventNo"
     } getOrElse ""
 
-    val filterClause = filter map { term =>
-      params("filter") = s"%$term%"
-      s" AND message LIKE :filter"
+    val filterClause = messageFilter map { term =>
+      params("filter") = s"%${term.toLowerCase}%"
+      s" AND message.toLowerCase() LIKE :filter"
     } getOrElse ""
 
     val orderBy = if (fwd) {
@@ -804,7 +794,13 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       count <- OrientDBUtil.getDocument(db, countQuery, params.toMap).map(doc => doc.getProperty("count").asInstanceOf[Long])
       events <- OrientDBUtil
         .query(db, query, params.toMap)
-        .map(_.map(docToChatEvent).sortWith((e1, e2) => e1.eventNumber < e2.eventNumber))
+        .map(_.map(docToChatEvent).sortWith((e1, e2) => {
+          if (fwd) {
+            e1.eventNumber < e2.eventNumber
+          } else {
+            e2.eventNumber < e1.eventNumber
+          }
+        }))
     } yield {
       PagedData(events, offset.getOrElse(0).longValue(), count)
     }

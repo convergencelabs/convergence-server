@@ -234,8 +234,8 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
                    startEvent: Option[Long],
                    forward: Option[Boolean],
                    eventTypes: Option[Set[String]],
-                   filter: Option[String]): Try[PagedData[ChatEvent]] = {
-    chatStore.getChatEvents(chatId, eventTypes, startEvent, offset, limit, forward, filter)
+                   messageFilter: Option[String]): Try[PagedData[ChatEvent]] = {
+    chatStore.getChatEvents(chatId, eventTypes, startEvent, offset, limit, forward, messageFilter)
   }
 
   def onPublishMessage(chatId: String, userId: DomainUserId, message: String): Try[ChatMessageEvent] = {

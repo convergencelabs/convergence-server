@@ -130,8 +130,8 @@ private[chat] abstract class ChatMessageProcessor(stateManager: ChatStateManager
   }
 
   protected def onGetHistory(message: GetChatHistoryRequest): Try[ChatMessageProcessingResult] = {
-    val GetChatHistoryRequest(_, chatId, _, offset, limit, startEvent, forward, eventTypes, filter) = message
-    stateManager.onGetHistory(chatId, offset, limit, startEvent, forward, eventTypes, filter) map { events =>
+    val GetChatHistoryRequest(_, chatId, _, offset, limit, startEvent, forward, eventTypes, messageFilter) = message
+    stateManager.onGetHistory(chatId, offset, limit, startEvent, forward, eventTypes, messageFilter) map { events =>
       ChatMessageProcessingResult(Some(events), List())
     }
   }

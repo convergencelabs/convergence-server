@@ -34,7 +34,15 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object DomainChatService {
 
-  case class ChatInfoData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[DomainUserId])
+  case class ChatInfoData(chatId: String,
+                          chatType: String,
+                          membership: String,
+                          name: String,
+                          topic: String,
+                          members: Set[DomainUserId],
+                          created: Instant,
+                          lastEventNumber: Long,
+                          lastEventTimestamp: Instant)
 
   case class CreateChatData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
 
@@ -74,8 +82,7 @@ object DomainChatService {
                                       eventNumber: Long,
                                       id: String,
                                       user: DomainUserId,
-                                      timestamp: Instant) extends ChatEventData
-  {
+                                      timestamp: Instant) extends ChatEventData {
     val `type` = "user_joined";
   }
 
@@ -83,8 +90,7 @@ object DomainChatService {
                                     eventNumber: Long,
                                     id: String,
                                     user: DomainUserId,
-                                    timestamp: Instant) extends ChatEventData
-  {
+                                    timestamp: Instant) extends ChatEventData {
     val `type` = "user_left";
   }
 
@@ -164,12 +170,12 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
         } ~ (path("events") & get) {
           parameters(
             "eventTypes".?,
-            "filter".?,
+            "messageFilter".?,
             "startEvent".as[Long].?,
             "offset".as[Int].?,
             "limit".as[Int].?,
-            "forward".as[Boolean].?) { (eventTypes, filter, startEvent, offset, limit, forward) =>
-            complete(getChatEvents(domain, chatId, eventTypes, filter, startEvent, offset, limit, forward))
+            "forward".as[Boolean].?) { (eventTypes, messageFilter, startEvent, offset, limit, forward) =>
+            complete(getChatEvents(domain, chatId, eventTypes, messageFilter, startEvent, offset, limit, forward))
           }
         }
       }
@@ -242,13 +248,13 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
   private[this] def getChatEvents(domain: DomainId,
                                   chatId: String,
                                   eventTypes: Option[String],
-                                  filter: Option[String],
+                                  messageFilter: Option[String],
                                   startEvent: Option[Long],
                                   offset: Option[Int],
                                   limit: Option[Int],
                                   forward: Option[Boolean]): Future[RestResponse] = {
     val types = eventTypes.map(t => t.split(",").toSet)
-    val message = GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, filter)
+    val message = GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, messageFilter)
     (chatSharding ? message).mapTo[PagedData[ChatEvent]] map { pagedData =>
       val response = PagedRestResponse(pagedData.data.map(toChatEventData), pagedData.offset, pagedData.count)
       okResponse(response)
@@ -256,14 +262,17 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def toChatInfoData(chatInfo: ChatInfo): ChatInfoData = {
-    val ChatInfo(id, chatType, created, membership, name, topic, lastEventNumber, lastEventTime, members) = chatInfo
+    val ChatInfo(id, chatType, created, membership, name, topic, lastEventNumber, lastEventTimestamp, members) = chatInfo
     ChatInfoData(
       id,
       chatType.toString.toLowerCase,
       membership.toString.toLowerCase(),
       name,
       topic,
-      members.map(m => m.userId))
+      members.map(m => m.userId),
+      created,
+      lastEventNumber,
+      lastEventTimestamp)
   }
 
   private[this] def toChatEventData(event: ChatEvent): ChatEventData = {
