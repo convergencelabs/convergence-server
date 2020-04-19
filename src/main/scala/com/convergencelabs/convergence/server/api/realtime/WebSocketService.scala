@@ -14,12 +14,14 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.{ActorSystem, Status}
 import akka.http.scaladsl.model.RemoteAddress
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message}
-import akka.http.scaladsl.server.Directive.addDirectiveApply
+import akka.http.scaladsl.server.Directive._
 import akka.http.scaladsl.server.{Directives, Route}
-import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.util.{ByteString, ByteStringBuilder}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
+import com.convergencelabs.convergence.server.api.rest.{JsonSupport, OkResponse}
+import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
 import com.convergencelabs.convergence.server.domain.DomainId
 import grizzled.slf4j.Logging
 
@@ -51,10 +53,10 @@ private[realtime] case class OutgoingBinaryMessage(message: Array[Byte])
  * @param system         The actor system in which to create the actors.
  */
 private[realtime] class WebSocketService(private[this] val protocolConfig: ProtocolConfiguration,
-
                                          private[this] implicit val system: ActorSystem)
   extends Directives
-    with Logging {
+    with Logging
+    with JsonSupport {
 
   private[this] val config = system.settings.config
   private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
@@ -67,13 +69,18 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
   private[this] implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   val route: Route = {
-    path(Segment / Segment) { (namespace, domain) =>
-      extractClientIP { remoteAddress =>
-        optionalHeaderValueByName("User-Agent") { ua =>
-          handleWebSocketMessages(realTimeDomainFlow(namespace, domain, remoteAddress, ua.getOrElse("")))
+    path("") {
+      complete(Future.successful(InfoRestResponse))
+    } ~ path("health") {
+      complete(Future.successful(OkResponse))
+    } ~
+      path(Segment / Segment) { (namespace, domain) =>
+        extractClientIP { remoteAddress =>
+          optionalHeaderValueByName("User-Agent") { ua =>
+            handleWebSocketMessages(realTimeDomainFlow(namespace, domain, remoteAddress, ua.getOrElse("")))
+          }
         }
       }
-    }
   }
 
   private[this] def realTimeDomainFlow(namespace: String,

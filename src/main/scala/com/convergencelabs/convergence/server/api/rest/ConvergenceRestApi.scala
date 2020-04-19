@@ -113,6 +113,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     routers += statusActor
 
     // The Rest Services
+    val infoService = new InfoService(ec, defaultRequestTimeout)
     val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
@@ -165,6 +166,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
 
     val route = cors(corsSettings) {
       handleExceptions(exceptionHandler) {
+        infoService.route ~
         // Authentication services can be called without being authenticated
         authService.route ~
           // Everything else must be authenticated as a convergence user.
