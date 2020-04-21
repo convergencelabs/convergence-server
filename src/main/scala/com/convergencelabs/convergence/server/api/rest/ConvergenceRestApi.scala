@@ -138,23 +138,6 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     // The authenticator that will be used to authenticate HTTP requests.
     val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
 
-    implicit def rejectionHandler: RejectionHandler = RejectionHandler
-      .newBuilder()
-      .handle {
-        case MalformedRequestContentRejection(message, _) =>
-          complete(ErrorResponse("malformed_request_content", Some(message)))
-        case AuthorizationFailedRejection =>
-          complete(ForbiddenError)
-      }
-      .handleAll[MethodRejection] { methodRejections =>
-        val names = methodRejections.map(_.supported.name)
-        complete(methodNotAllowed(names))
-      }
-      .handleNotFound {
-        complete(notFoundResponse(Some("The requested resource could not be found")))
-      }
-      .result()
-
     val corsSettings: CorsSettings = CorsSettings.defaultSettings.withAllowedMethods(
       List(
         HttpMethods.GET,
@@ -163,6 +146,31 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
         HttpMethods.DELETE,
         HttpMethods.HEAD,
         HttpMethods.OPTIONS))
+
+    implicit def rejectionHandler: RejectionHandler = RejectionHandler
+      .newBuilder()
+      .handle {
+        case MalformedRequestContentRejection(message, _) =>
+          cors(corsSettings) {
+            complete(ErrorResponse("malformed_request_content", Some(message)))
+          }
+        case AuthorizationFailedRejection =>
+          cors(corsSettings) {
+            complete(ForbiddenError)
+          }
+      }
+      .handleAll[MethodRejection] { methodRejections =>
+        val names = methodRejections.map(_.supported.name)
+        cors(corsSettings) {
+          complete(methodNotAllowed(names))
+        }
+      }
+      .handleNotFound {
+        cors(corsSettings) {
+          complete(notFoundResponse(Some("The requested resource could not be found.")))
+        }
+      }
+      .result()
 
     val route = cors(corsSettings) {
       handleExceptions(exceptionHandler) {
