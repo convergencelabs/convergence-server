@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.{ActorLogging, ActorRef, Props, actorRef2Scala}
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, StoreActor}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
@@ -20,17 +21,16 @@ import com.convergencelabs.convergence.server.domain.{DomainId, DomainStatus}
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 import com.typesafe.config.Config
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object DomainStoreActor {
   val RelativePath = "DomainStoreActor"
 
-  def props(
-             dbProvider: DatabaseProvider,
-             provisionerActor: ActorRef): Props =
+  def props(dbProvider: DatabaseProvider,
+            provisionerActor: ActorRef): Props =
     Props(new DomainStoreActor(dbProvider, provisionerActor))
 
   case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, anonymousAuth: Boolean, owner: String)
@@ -53,12 +53,11 @@ class DomainStoreActor private[datastore](
   extends StoreActor with ActorLogging {
 
   import DomainStoreActor._
-  import akka.pattern.ask
 
-  private[this] val RandomizeCredentials = context.system.settings.config.getBoolean("convergence.persistence.domain-databases.randomize-credentials")
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
+  private[this] val roleStore = new RoleStore(dbProvider)
   private[this] val favoriteDomainStore = new UserFavoriteDomainStore(dbProvider)
   private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec: ExecutionContextExecutor = context.system.dispatcher
@@ -76,7 +75,7 @@ class DomainStoreActor private[datastore](
     case updateRequest: UpdateDomainRequest =>
       updateDomain(updateRequest)
     case getRequest: GetDomainRequest =>
-      getDomain(getRequest)
+      handleGetDomain(getRequest)
     case listRequest: ListDomainsRequest =>
       listDomains(listRequest)
     case deleteForUser: DeleteDomainsForUserRequest =>
@@ -124,6 +123,8 @@ class DomainStoreActor private[datastore](
                   .map(_ => log.debug(s"Domain database delta history removed: $domainId"))
                 _ <- favoriteDomainStore.removeFavoritesForDomain(domainId)
                   .map(_ => log.debug(s"Favorites for Domain removed: $domainId"))
+                _ <- roleStore.removeAllRolesFromTarget(DomainRoleTarget(domainId))
+                  .map(_ => log.debug(s"Domain record removed: $domainId"))
                 _ <- domainStore.removeDomain(domainId)
                   .map(_ => log.debug(s"Domain record removed: $domainId"))
               } yield {
@@ -172,7 +173,7 @@ class DomainStoreActor private[datastore](
     }
   }
 
-  def getDomain(getRequest: GetDomainRequest): Unit = {
+  def handleGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId) = getRequest
     reply(domainStore.getDomainByFqn(DomainId(namespace, domainId)))
   }

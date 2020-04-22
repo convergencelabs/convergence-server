@@ -104,7 +104,7 @@ class DomainStore(dbProvider: DatabaseProvider)
       db.save(doc)
       ()
     }
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue
 
   private[this] val DomainExistsQuery = "SELECT count(@rid) as count FROM Domain WHERE id = :id AND namespace.id = :namespace"
   def domainExists(domainId: DomainId): Try[Boolean] = withDb { db =>
@@ -146,11 +146,11 @@ class DomainStore(dbProvider: DatabaseProvider)
     }).getOrElse("", Map[String, Any]())
 
     val whereClause = (namespace, filter) match {
-      case (Some(n), Some(f)) =>
+      case (Some(_), Some(_)) =>
         " WHERE" + namespaceWhere + " AND" + filterWhere
-      case (Some(n), None) =>
+      case (Some(_), None) =>
         " WHERE" + namespaceWhere
-      case (None, Some(f)) =>
+      case (None, Some(_)) =>
         " WHERE" + filterWhere
       case _ =>
         ""
@@ -203,7 +203,7 @@ class DomainStore(dbProvider: DatabaseProvider)
         ()
       }
     }
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue
   
   private[this] val SetDomainStatusCommand = "UPDATE Domain SET status = :status, statusMessage = :statusMessage WHERE namespace.id = :namespace AND id = :id"
   def setDomainStatus(domain: DomainId, status: DomainStatus.Value, statusMessage: String): Try[Unit] = withDb { db =>
@@ -221,7 +221,7 @@ class DomainStore(dbProvider: DatabaseProvider)
     OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomainDatabase))
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case DomainClass.Indices.NamespaceId =>

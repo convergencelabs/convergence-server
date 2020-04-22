@@ -11,39 +11,24 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import java.util.UUID
-
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.util.ExceptionUtils
+import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.datastore.{InvalidValueExcpetion, StoreActor}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.util.Timeout
-import com.convergencelabs.convergence.server.domain.Namespace
-import com.convergencelabs.convergence.server.security.AuthorizationProfile
-import com.convergencelabs.convergence.server.security.Permissions
 import com.convergencelabs.convergence.server.domain.NamespaceUpdates
-import com.convergencelabs.convergence.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
+
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object NamespaceStoreActor {
   val RelativePath = "NamespaceStoreActor"
 
   def props(dbProvider: DatabaseProvider): Props = Props(new NamespaceStoreActor(dbProvider))
 
-  case class CreateNamespace(requestor: String, namespaceId: String, displayName: String)
+  case class CreateNamespace(requester: String, namespaceId: String, displayName: String)
   case class UpdateNamespace(requestor: String, namespaceId: String, displayName: String)
-  case class DeleteNamespace(requestor: String, namespaceId: String)
-  case class GetAccessibleNamespaces(requestor: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int])
+  case class DeleteNamespace(requester: String, namespaceId: String)
+  case class GetAccessibleNamespaces(requester: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int])
   case class GetNamespace(namespaceId: String)
 }
 
@@ -52,9 +37,9 @@ class NamespaceStoreActor private[datastore] (
   extends StoreActor with ActorLogging {
 
   import NamespaceStoreActor._
-  import akka.pattern.ask
 
   private[this] val namespaceStore = new NamespaceStore(dbProvider)
+  private[this] val roleStore = new RoleStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
 
   def receive: Receive = {
@@ -65,38 +50,42 @@ class NamespaceStoreActor private[datastore] (
     case updateRequest: UpdateNamespace =>
       updateNamespace(updateRequest)
     case getRequest: GetNamespace =>
-      getNamespace(getRequest)
+      handleGetNamespace(getRequest)
     case accessibleRequest: GetAccessibleNamespaces =>
-      getAccessibleNamespaces(accessibleRequest)
+      handleGetAccessibleNamespaces(accessibleRequest)
     case message: Any =>
       unhandled(message)
   }
 
   def createNamespace(createRequest: CreateNamespace): Unit = {
-    val CreateNamespace(requestor, namespaceId, displayName) = createRequest
+    val CreateNamespace(_, namespaceId, displayName) = createRequest
     
     reply(this.validate(namespaceId, displayName)
-    .flatMap( _ => namespaceStore.createNamespace(namespaceId, displayName, false)))
+    .flatMap( _ => namespaceStore.createNamespace(namespaceId, displayName, userNamespace = false)))
   }
 
-  def getNamespace(getRequest: GetNamespace): Unit = {
+  def handleGetNamespace(getRequest: GetNamespace): Unit = {
     val GetNamespace(namespaceId) = getRequest
     reply(namespaceStore.getNamespace(namespaceId))
   }
 
   def updateNamespace(request: UpdateNamespace): Unit = {
-    val UpdateNamespace(requestor, namespaceId, displayName) = request
+    val UpdateNamespace(_, namespaceId, displayName) = request
     reply(namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName)))
   }
 
   def deleteNamespace(deleteRequest: DeleteNamespace): Unit = {
-    val DeleteNamespace(requestor, namespaceId) = deleteRequest
+    val DeleteNamespace(_, namespaceId) = deleteRequest
     log.debug("Delete Namespace: " + namespaceId)
-    reply(namespaceStore.deleteNamespace(namespaceId))
+    val result = for {
+      _ <- roleStore.removeAllRolesFromTarget(NamespaceRoleTarget(namespaceId))
+      _ <- namespaceStore.deleteNamespace(namespaceId)
+    } yield ()
+    reply(result)
   }
 
-  def getAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {
-    val GetAccessibleNamespaces(authProfile, filter, offset, limit) = getRequest
+  def handleGetAccessibleNamespaces(getRequest: GetAccessibleNamespaces): Unit = {
+    val GetAccessibleNamespaces(authProfile, _, _, _) = getRequest
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
       reply(namespaceStore.getAllNamespacesAndDomains())
     } else {

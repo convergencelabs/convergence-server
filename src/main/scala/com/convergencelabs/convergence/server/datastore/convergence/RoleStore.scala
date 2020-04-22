@@ -11,32 +11,19 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import java.util.HashSet
-import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-import scala.collection.JavaConverters._
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import com.convergencelabs.convergence.server.datastore.convergence.schema.PermissionClass
-import com.convergencelabs.convergence.server.datastore.convergence.schema.RoleClass
-import com.convergencelabs.convergence.server.datastore.convergence.schema.UserRoleClass
+import com.convergencelabs.convergence.server.datastore.convergence.schema._
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import grizzled.slf4j.Logging
-import scala.util.Success
-import com.convergencelabs.convergence.server.datastore.convergence.schema.RoleClass
-import com.convergencelabs.convergence.server.datastore.convergence.schema.DomainClass
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-import scala.util.Failure
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.convergence.schema.NamespaceClass
+import grizzled.slf4j.Logging
+
+import scala.collection.JavaConverters._
+import scala.util.{Failure, Success, Try}
 
 object RoleTargetType extends Enumeration {
   val Namespace, Domain = Value
@@ -45,14 +32,17 @@ object RoleTargetType extends Enumeration {
 sealed trait RoleTarget {
   def targetClass: Option[RoleTargetType.Value]
 }
-case class DomainRoleTarget(domainFqn: DomainId) extends RoleTarget {
-  val targetClass = Some(RoleTargetType.Domain)
+
+case class DomainRoleTarget(domainId: DomainId) extends RoleTarget {
+  val targetClass: Option[RoleTargetType.Value] = Some(RoleTargetType.Domain)
 }
+
 case class NamespaceRoleTarget(id: String) extends RoleTarget {
-  val targetClass = Some(RoleTargetType.Namespace)
+  val targetClass: Option[RoleTargetType.Value] = Some(RoleTargetType.Namespace)
 }
+
 case object ServerRoleTarget extends RoleTarget {
-  val targetClass = None
+  val targetClass: Option[RoleTargetType.Value] = None
 }
 
 object RoleStore {
@@ -78,19 +68,20 @@ object RoleStore {
     val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
     Role(
       doc.getProperty(RoleClass.Fields.Name),
-      Option(doc.getProperty(RoleClass.Fields.TargetClass).asInstanceOf[String]).map(RoleTargetType.withName(_)),
+      Option(doc.getProperty(RoleClass.Fields.TargetClass).asInstanceOf[String]).map(RoleTargetType.withName),
       permissions)
   }
 
   def docToUserRole(doc: ODocument): UserRole = {
-    val roleDoc = doc.getProperty(UserRoleClass.Fields.Role).asInstanceOf[ODocument]
+    val roleDoc = OrientDBUtil.resolveLink(doc.getProperty(UserRoleClass.Fields.Role))
     val role = docToRole(roleDoc)
-    val targetClass = Option(doc.getProperty(UserRoleClass.Fields.Target).asInstanceOf[ODocument])
-    UserRole(role, docToRoleTarget(targetClass))
+    val targetLink = doc.getProperty(UserRoleClass.Fields.Target).asInstanceOf[OIdentifiable]
+    val targetDoc = OrientDBUtil.resolveOptionalLink(targetLink)
+    UserRole(role, docToRoleTarget(targetDoc))
   }
 
-  def docToRoleTarget(doc: Option[ODocument]): RoleTarget = {
-    doc.map { d =>
+  def docToRoleTarget(targetDoc: Option[ODocument]): RoleTarget = {
+    targetDoc.map { d =>
       d.getClassName match {
         case DomainClass.ClassName =>
           val namespace = d.eval(DomainClass.Eval.NamespaceId).asInstanceOf[String]
@@ -105,9 +96,9 @@ object RoleStore {
 
   def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
     target match {
-      case DomainRoleTarget(fqn) =>
+      case DomainRoleTarget(domainId) =>
         val whereClause = "target IN (SELECT FROM Domain WHERE namespace.id = :target_namespace AND id = :target_id)"
-        val params = Map("target_namespace" -> fqn.namespace, "target_id" -> fqn.domainId)
+        val params = Map("target_namespace" -> domainId.namespace, "target_id" -> domainId.domainId)
         (whereClause, params)
       case NamespaceRoleTarget(id) =>
         val whereClause = "target IN (SELECT FROM Namespace WHERE id = :target_id)"
@@ -137,7 +128,7 @@ object RoleStore {
  * @constructor Creates a new UserStore using the provided connection pool to
  * connect to the database
  *
- * @param dbPool The database pool to use.
+ * @param dbProvider The database pool to use.
  */
 class RoleStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
   import RoleStore._
@@ -153,10 +144,10 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   }.recoverWith(handleDuplicateValue)
 
   def getRole(name: String, targetClass: Option[RoleTargetType.Value]): Try[Role] = withDb { db =>
-    val target = targetClass.map(_.toString).getOrElse(null)
+    val target = targetClass.map(_.toString).orNull
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target))
-      .map(docToRole(_))
+      .map(docToRole)
   }
 
   def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, Set[String]]): Try[Unit] = withDb { db =>
@@ -194,7 +185,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           userRoleDoc.save()
         }
       }
-    } yield (())
+    } yield ()
   }
 
   def getUserPermissionsForTarget(username: String, target: RoleTarget): Try[Set[String]] = withDb { db =>
@@ -206,7 +197,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |  UserRole
         |WHERE
         |  user.username = :username AND
-        |  ${targetWhere}""".stripMargin
+        |  $targetWhere""".stripMargin
     val params = Map(Params.Username -> username) ++ targetParams
     OrientDBUtil.findDocumentAndMap(db, query, params) { doc =>
       doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
@@ -217,7 +208,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   def getAllRolesForUser(username: String): Try[UserRoles] = withDb { db =>
     val params = Map(Params.Username -> username)
     OrientDBUtil.query(db, GetAllRolesForUserQuery, params).map { docs =>
-      val roles = docs.map(docToUserRole(_)).toSet
+      val roles = docs.map(docToUserRole).toSet
       UserRoles(username, roles)
     }
   }
@@ -231,16 +222,14 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |  UserRole
         |WHERE 
         |  user.username IN :usernames AND
-        |  ${targetWhere}
+        |  $targetWhere
         |GROUP BY
         |  user.username, target""".stripMargin
     val params = Map("usernames" -> usernames.asJava) ++ targetParams
     OrientDBUtil.queryAndMap(db, query, params) { doc =>
       val username: String = doc.getProperty("username")
-      val targetDoc: ODocument = doc.getProperty(UserRoleClass.Fields.Target)
-      val target = docToRoleTarget(Option(targetDoc))
       val roles = doc.getProperty("roles").asInstanceOf[java.util.Set[String]]
-      (username -> roles.asScala.toSet)
+      username -> roles.asScala.toSet
     }.map(_.toMap)
   }
 
@@ -253,9 +242,9 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |  UserRole
         |WHERE 
         |  user.username = :username AND
-        |  ${targetWhere}""".stripMargin
+        |  $targetWhere""".stripMargin
     val params = Map("username" -> username) ++ targetParams
-    OrientDBUtil.query(db, query, params).map(_.map(docToRole(_)).toSet)
+    OrientDBUtil.query(db, query, params).map(_.map(docToRole).toSet)
   }
 
   def getAllUserRolesForTarget(target: RoleTarget): Try[Set[UserRoles]] = withDb { db =>
@@ -266,7 +255,7 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |FROM
         |  UserRole
         |WHERE 
-        |  ${targetWhere}
+        |  $targetWhere
         |GROUP BY
         |  user.username, target""".stripMargin
     OrientDBUtil.query(db, query, targetParams).map(_.map(result => {
@@ -287,22 +276,22 @@ class RoleStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         |  UserRole
         |WHERE 
         |  user.username = :username AND
-        |  ${targetWhere}""".stripMargin
+        |  $targetWhere""".stripMargin
     val params = Map(Params.Username -> username) ++ targetParams
     OrientDBUtil.commandReturningCount(db, query, params).map(_ => ())
   }
 
   def removeAllRolesFromTarget(target: RoleTarget): Try[Unit] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
-    val query = s"DELETE FROM UserRole WHERE ${targetWhere}"
+    val query = s"DELETE FROM UserRole WHERE $targetWhere"
     OrientDBUtil.commandReturningCount(db, query, targetParams).map(_ => ())
   }
 
   private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target.map(_.toString).getOrElse(null)))
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target.map(_.toString).orNull))
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case RoleClass.Indices.NameTargetClass =>
