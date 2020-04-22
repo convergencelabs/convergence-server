@@ -5,27 +5,15 @@ language: scala
 scala:
   - 2.12.10
 
-stages:
-  - compile
-  - test
-  - distribution
-  - name: deploy
-    if: tag IS blank
-
-
-jobs:
-  include:
-    - stage: compile
-      script: sbt -J-Xmx3G -J-Xss5M compile
-    - stage: test
-      script: sbt -J-Xmx3G -J-Xss5M test
-    - stage: distribution
-      script: sbt dist/stag
-    - stage: deploy
-      script:
-        - sbt publishSigned
-        - sbt dist/publishSigned
-
+script:
+  - sbt -J-Xmx3G -J-Xss5M compile
+#  - sbt -J-Xmx3G -J-Xss5M test
+  - sbt dist/stage
+  - |
+    if [ $TRAVIS_TAG == ""]; then
+      sbt publishSigned
+      sbt dist/publishSigned
+    fi
 env:
   global:
     - SCALACTIC_FILL_FILE_PATHNAMES=yes
