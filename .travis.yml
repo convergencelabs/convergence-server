@@ -7,10 +7,10 @@ scala:
 
 script:
   - sbt -J-Xmx3G -J-Xss5M compile
-#  - sbt -J-Xmx3G -J-Xss5M test
+  - sbt -J-Xmx3G -J-Xss5M test
   - sbt dist/stage
   - |
-    if [ $TRAVIS_TAG == ""]; then
+    if [ false ]; then
       sbt publishSigned
       sbt dist/publishSigned
     fi
