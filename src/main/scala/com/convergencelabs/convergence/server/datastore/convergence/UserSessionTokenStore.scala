@@ -14,12 +14,12 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import java.time.Instant
 import java.util.Date
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.UserSessionTokenClass
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import grizzled.slf4j.Logging
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 object UserSessionTokenStore {
   object Params {
@@ -56,21 +56,23 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
   }
 
   private[this] val ValidateUserSessionToken = "SELECT FROM UserSessionToken WHERE token = :token"
+  private[this] val UpdateUserSessionTokenExpiryTime = "UPDATE UserSessionToken SET expiresAt = :expiresAt WHERE token = :token"
   def validateUserSessionToken(token: String, expiresAt: () => Instant): Try[Option[String]] = withDb { db =>
     val params = Map(Params.Token -> token)
-    OrientDBUtil.findDocument(db, ValidateUserSessionToken, params).map {
+    OrientDBUtil.findDocument(db, ValidateUserSessionToken, params).flatMap {
       case Some(doc) =>
         val expireTime: Date = doc.getProperty(UserSessionTokenClass.Fields.ExpiresAt)
         val expireInstant: Instant = expireTime.toInstant
         if (Instant.now().isBefore(expireInstant)) {
-          val username: String = doc.eval("user.username").asInstanceOf[String]
-          doc.setProperty(UserSessionTokenClass.Fields.ExpiresAt, Date.from(expiresAt()))
-          doc.save()
-          Some(username)
+          val updateParams = Map(Params.Token -> token, Params.ExpiresAt -> Date.from(expiresAt()))
+          OrientDBUtil.command(db, UpdateUserSessionTokenExpiryTime, updateParams) map { _ =>
+            val username: String = doc.eval("user.username").asInstanceOf[String]
+            Some(username)
+          }
         } else {
-          None
+          Success(None)
         }
-      case None => None
+      case None => Success(None)
     }
   }
 
