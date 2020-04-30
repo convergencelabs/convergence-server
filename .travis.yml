@@ -9,11 +9,11 @@ script:
   - sbt -J-Xmx3G -J-Xss5M compile
   - sbt -J-Xmx3G -J-Xss5M test
   - sbt dist/stage
-  - |
-    if [ false ]; then
-      sbt publishSigned
-      sbt dist/publishSigned
-    fi
+#  - |
+#    if [ false ]; then
+#      sbt publishSigned
+#      sbt dist/publishSigned
+#    fi
 env:
   global:
     - SCALACTIC_FILL_FILE_PATHNAMES=yes
