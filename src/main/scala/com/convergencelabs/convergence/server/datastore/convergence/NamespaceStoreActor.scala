@@ -26,7 +26,7 @@ object NamespaceStoreActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new NamespaceStoreActor(dbProvider))
 
   case class CreateNamespace(requester: String, namespaceId: String, displayName: String)
-  case class UpdateNamespace(requestor: String, namespaceId: String, displayName: String)
+  case class UpdateNamespace(requester: String, namespaceId: String, displayName: String)
   case class DeleteNamespace(requester: String, namespaceId: String)
   case class GetAccessibleNamespaces(requester: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int])
   case class GetNamespace(namespaceId: String)
