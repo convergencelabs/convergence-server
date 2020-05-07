@@ -229,8 +229,8 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
   }
 
   def onGetHistory(chatId: String,
-                   offset: Option[Int],
-                   limit: Option[Int],
+                   offset: Option[Long],
+                   limit: Option[Long],
                    startEvent: Option[Long],
                    forward: Option[Boolean],
                    eventTypes: Option[Set[String]],

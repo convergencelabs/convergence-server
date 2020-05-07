@@ -19,7 +19,7 @@ object ExceptionUtils {
     val sr = new StringWriter()
     val w = new PrintWriter(sr)
     e.printStackTrace(w)
-    val result = sr.getBuffer.toString()
+    val result = sr.getBuffer.toString
     sr.close()
     w.close()
     result

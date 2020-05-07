@@ -25,18 +25,18 @@ case class AuthenticationRequest(
   client:         String,
   clientVersion:  String,
   clientMetaData: String,
-  credentials:    AuthetncationCredentials) extends DomainMessage
+  credentials:    AuthenticationCredentials) extends DomainMessage
 
 case class ClientDisconnected(domainFqn: DomainId, clientActor: ActorRef) extends DomainMessage
 
 case class DomainStatusRequest(domainFqn: DomainId) extends DomainMessage
 case class DomainStatusResponse(connectedClients: Int)
 
-sealed trait AuthetncationCredentials
-case class PasswordAuthRequest(username: String, password: String) extends AuthetncationCredentials
-case class JwtAuthRequest(jwt: String) extends AuthetncationCredentials
-case class ReconnectTokenAuthRequest(token: String) extends AuthetncationCredentials
-case class AnonymousAuthRequest(displayName: Option[String]) extends AuthetncationCredentials
+sealed trait AuthenticationCredentials
+case class PasswordAuthRequest(username: String, password: String) extends AuthenticationCredentials
+case class JwtAuthRequest(jwt: String) extends AuthenticationCredentials
+case class ReconnectTokenAuthRequest(token: String) extends AuthenticationCredentials
+case class AnonymousAuthRequest(displayName: Option[String]) extends AuthenticationCredentials
 
 sealed trait AuthenticationResponse
 case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: Option[String]) extends AuthenticationResponse

@@ -15,7 +15,7 @@ import java.time.Instant
 import java.util.{Date, Set => JavaSet}
 
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
@@ -27,6 +27,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 import scala.collection.JavaConverters.{asScalaSetConverter, seqAsJavaListConverter, setAsJavaSetConverter}
+import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 case class Chat(id: String,
@@ -106,22 +107,28 @@ case class ChatMember(chatId: String, userId: DomainUserId, seen: Long)
 object ChatMembership extends Enumeration {
   val Public, Private = Value
 
-  def parse(s: String): ChatMembership.Value = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
-    case Some(v) => v
-    case None => throw new IllegalArgumentException("Invalid ChatMembership string: " + s)
+  def parse(s: String): Try[ChatMembership.Value] = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
+    case Some(v) => Success(v)
+    case None => Failure(InvalidChatMembershipValue(s))
   }
+
+  case class InvalidChatMembershipValue(value: String) extends RuntimeException("Invalid ChatMembership string: " + value)
+
 }
 
 object ChatType extends Enumeration {
   val Channel, Room, Direct = Value
 
-  def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
-
-  def parse(s: String): ChatType.Value = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
-    case Some(v) => v
-    case None => throw new IllegalArgumentException("Invalid ChatType string: " + s)
+  def parse(s: String): Try[ChatType.Value] = values.find(_.toString.toLowerCase() == s.toLowerCase()) match {
+    case Some(v) => Success(v)
+    case None => Failure(InvalidChatTypeValue(s))
   }
+
+  case class InvalidChatTypeValue(value: String) extends RuntimeException("Invalid ChatType string: " + value)
+
 }
+
+case class ChatNotFoundException(chatId: String) extends RuntimeException()
 
 object ChatStore {
 
@@ -159,7 +166,7 @@ object ChatStore {
     val created: Date = doc.getProperty(Classes.Chat.Fields.Created)
     Chat(
       doc.getProperty(Classes.Chat.Fields.Id),
-      ChatType.parse(doc.getProperty(Classes.Chat.Fields.Type)),
+      ChatType.parse(doc.getProperty(Classes.Chat.Fields.Type)).get,
       created.toInstant,
       if (doc.getProperty(Classes.Chat.Fields.Private).asInstanceOf[Boolean]) {
         ChatMembership.Private
@@ -249,7 +256,7 @@ object ChatStore {
     val lastEventTime: Instant = doc.getProperty(Classes.ChatEvent.Fields.Timestamp).asInstanceOf[Date].toInstant
     ChatInfo(
       id,
-      ChatType.parse(chatType),
+      ChatType.parse(chatType).get,
       created,
       if (isPrivate) {
         ChatMembership.Private
@@ -273,19 +280,31 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   import ChatStore._
   import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
 
-  def findChats(types: Option[Set[String]], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[PagedData[ChatInfo]] = withDb { db =>
-    val chatTypes = types.getOrElse(Set(ChatType.Channel.toString.toLowerCase(), ChatType.Room.toString.toLowerCase()))
+  def searchChats(searchTerm: Option[String],
+                  searchFields: Option[Set[String]],
+                  types: Option[Set[ChatType.Value]],
+                  membership: Option[ChatMembership.Value],
+                  offset: Option[Long],
+                  limit: Option[Long]): Try[PagedData[ChatInfo]] = withDb { db =>
+    val chatTypes: Set[String] = types.getOrElse(Set(ChatType.Channel, ChatType.Room)).map(_.toString.toLowerCase)
 
-    val (whereClause, whereParams) = filter match {
-      case Some(filter) =>
-        val where = "chat.type IN :chatTypes AND (chat.topic.toLowerCase() LIKE :term OR chat.name.toLowerCase() LIKE :term OR chat.id.toLowerCase() LIKE :term)"
-        val params = Map("chatTypes" -> chatTypes.asJava, "term" -> s"%${filter.toLowerCase}%")
-        (where, params)
-      case None =>
-        val where = "chat.type IN :chatTypes"
-        val params = Map("chatTypes" -> chatTypes.asJava)
-        (where, params)
+    val whereClauses = mutable.ListBuffer("chat.type IN :chatTypes")
+    val whereParams: mutable.Map[String, Any] = mutable.Map("chatTypes" -> chatTypes.asJava)
+
+    // If we have a term match it to the fields.
+    searchTerm.foreach { term =>
+      whereClauses += searchFields.getOrElse(Set("topic", "name", "id")).map(field => {
+        s"chat.$field.toLowerCase() LIKE :term"
+      }).mkString(" OR ")
+      whereParams += ("term" -> s"%${term.toLowerCase}%")
     }
+
+    // Filter on the membership
+    membership.foreach { m =>
+      whereClauses += "chat.membership = :membership"
+      whereParams += ("membership" -> m)
+    }
+    val whereClause = whereClauses.mkString(" AND ")
 
     val countQuery =
       s"""|SELECT
@@ -316,13 +335,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           |  $whereClause
           |GROUP BY (chat)
           |ORDER BY chat""".stripMargin
-    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit.map(_.intValue()), offset.map(_.intValue()))
 
+    val params = whereParams.toMap
     for {
-      count <- OrientDBUtil.getDocument(db, countQuery, whereParams).map(doc => doc.getProperty("count").asInstanceOf[Long])
-      data <- OrientDBUtil.queryAndMap(db, query, whereParams) { doc => toChatInfo(doc) }
+      count <- OrientDBUtil.getDocument(db, countQuery, params).map(doc => doc.getProperty("count").asInstanceOf[Long])
+      data <- OrientDBUtil.queryAndMap(db, query, params) { doc => toChatInfo(doc) }
     } yield {
-      PagedData(data, offset.getOrElse(0).longValue(), count)
+      PagedData(data, offset.getOrElse(0L).longValue(), count)
     }
   }
 
@@ -369,24 +389,40 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
 
   def getChatInfo(chatId: String): Try[ChatInfo] = withDb { db =>
     val params = Map("chatId" -> chatId)
-    OrientDBUtil.getDocument(db, GetChatInfoQuery, params).map(toChatInfo)
+    OrientDBUtil
+      .getDocument(db, GetChatInfoQuery, params)
+      .map(toChatInfo)
+      .recoverWith {
+        case _: EntityNotFoundException =>
+          Failure(ChatNotFoundException(chatId))
+      }
+  }
+
+  def findChatInfo(chatId: String): Try[Option[ChatInfo]] = withDb { db =>
+    val params = Map("chatId" -> chatId)
+    OrientDBUtil.findDocumentAndMap(db, GetChatInfoQuery, params) {
+      toChatInfo
+    }
   }
 
   def getChat(chatId: String): Try[Chat] = withDb { db =>
     ChatStore.getChatRid(chatId, db)
       .flatMap(rid => Try(rid.getRecord[ODocument]))
       .map(docToChat)
+      .recoverWith {
+        case _: EntityNotFoundException =>
+          Failure(ChatNotFoundException(chatId))
+      }
   }
 
-  def createChat(
-                  id: Option[String],
-                  chatType: ChatType.Value,
-                  creationTime: Instant,
-                  membership: ChatMembership.Value,
-                  name: String,
-                  topic: String,
-                  members: Option[Set[DomainUserId]],
-                  createdBy: DomainUserId): Try[String] = tryWithDb { db =>
+  def createChat(id: Option[String],
+                 chatType: ChatType.Value,
+                 creationTime: Instant,
+                 membership: ChatMembership.Value,
+                 name: String,
+                 topic: String,
+                 members: Option[Set[DomainUserId]],
+                 createdBy: DomainUserId): Try[String] = tryWithDb { db =>
     // FIXME: return failure if addAllChatMembers fails
     db.begin()
     val chatId = id.getOrElse {
@@ -449,7 +485,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
   }
 
-  def getJoinedChats(userId: DomainUserId): Try[List[ChatInfo]] = withDb { db =>
+  def getJoinedChannels(userId: DomainUserId): Try[Set[ChatInfo]] = withDb { db =>
     val query =
       """
         |SELECT
@@ -463,7 +499,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val params = Map("username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil
       .query(db, query, params)
-      .flatMap(docs => getChatInfo(docs.map(_.getProperty("chatId").asInstanceOf[String])))
+      .flatMap(docs => getChatInfo(docs.map(_.getProperty("chatId").asInstanceOf[String]))
+        .map(_.toSet))
   }
 
   def updateChat(chatId: String, name: Option[String], topic: Option[String]): Try[Unit] = withDb { db =>
@@ -749,8 +786,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   def getChatEvents(chatId: String,
                     eventTypes: Option[Set[String]],
                     startEvent: Option[Long],
-                    offset: Option[Int],
-                    limit: Option[Int],
+                    offset: Option[Long],
+                    limit: Option[Long],
                     forward: Option[Boolean],
                     messageFilter: Option[String]): Try[PagedData[ChatEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
@@ -786,7 +823,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
 
     val baseQuery = s"SELECT FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause $filterClause ORDER BY eventNo $orderBy"
-    val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50)), offset)
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50L)).map(_.intValue()), offset.map(_.intValue()))
 
     val countQuery = s"SELECT count(*) as count FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause $filterClause"
 
@@ -802,16 +839,16 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           }
         }))
     } yield {
-      PagedData(events, offset.getOrElse(0).longValue(), count)
+      PagedData(events, offset.getOrElse(0L), count)
     }
   }
 
-  def getChatRid(channelId: String): Try[ORID] = withDb { db =>
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, channelId)
+  def getChatRid(chatId: String): Try[ORID] = withDb { db =>
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, chatId)
   }
 
-  def getChatMemberRid(channelId: String, userId: DomainUserId): Try[ORID] = withDb { db =>
-    val channelRID = ChatStore.getChatRid(channelId, db).get
+  def getChatMemberRid(chatId: String, userId: DomainUserId): Try[ORID] = withDb { db =>
+    val channelRID = ChatStore.getChatRid(chatId, db).get
     val userRID = DomainUserStore.getUserRid(userId, db).get
     val key = List(channelRID, userRID)
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.ChatMember.Indices.Chat_User, key)

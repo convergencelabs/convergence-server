@@ -85,7 +85,7 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
 
   def receiveInitialized: Receive = {
     case message: ExistingChatMessage =>
-      processChannelMessage(message)
+      processChatMessage(message)
         .recover { case cause: Exception => this.unexpectedError(cause) }
     case ReceiveTimeout =>
       this.onReceiveTimeout()
@@ -103,7 +103,7 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
     }
   }
 
-  private[this] def processChannelMessage(message: ExistingChatMessage): Try[Unit] = {
+  private[this] def processChatMessage(message: ExistingChatMessage): Try[Unit] = {
     (for {
       messageProcessor <- this.messageProcessor match {
         case Some(mp) => Success(mp)

@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.util.UUID
 
-import com.convergencelabs.convergence.server.datastore.InvalidValueExcpetion
+import com.convergencelabs.convergence.server.datastore.InvalidValueException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.convergence.server.domain.{DomainDatabase, DomainId, DomainStatus}
@@ -87,9 +87,9 @@ abstract class DomainCreator(
 
   private[this] def validate(namespace: String, id: String): Try[Unit] = {
     if (namespace.isEmpty) {
-      Failure(InvalidValueExcpetion("namespace", "The namespace can not be empty"))
+      Failure(InvalidValueException("namespace", "The namespace can not be empty"))
     } else if (id.isEmpty) {
-      Failure(InvalidValueExcpetion("id", "The domain's namespace can not be empty"))
+      Failure(InvalidValueException("id", "The domain's namespace can not be empty"))
     } else {
       val keys = List(Namespaces.Enabled, Namespaces.UserNamespacesEnabled, Namespaces.DefaultNamespace)
       configStore.getConfigs(keys).flatMap { configs =>
@@ -97,9 +97,9 @@ abstract class DomainCreator(
         val userNamespacesEnabled = configs(Namespaces.UserNamespacesEnabled).asInstanceOf[Boolean]
         val defaultNamesapce = configs(Namespaces.DefaultNamespace).asInstanceOf[String]
         if (!namespacesEnabled && namespace != defaultNamesapce) {
-          Failure(InvalidValueExcpetion("namespace", "When namespaces are disabled, you can only create domains in the default namespace."))
+          Failure(InvalidValueException("namespace", "When namespaces are disabled, you can only create domains in the default namespace."))
         } else if (!userNamespacesEnabled && namespace.startsWith("~")) {
-          Failure(InvalidValueExcpetion("namespace", "User namespaces are disabled."))
+          Failure(InvalidValueException("namespace", "User namespaces are disabled."))
         } else {
           Success(())
         }

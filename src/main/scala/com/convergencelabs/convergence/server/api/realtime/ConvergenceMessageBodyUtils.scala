@@ -164,6 +164,8 @@ object ConvergenceMessageBodyUtils {
       case Body.GetChatHistoryRequest(message) => message
       case Body.GetChatHistoryResponse(message) => message
       case Body.ChatRemoved(message) => message
+      case Body.ChatsSearchRequest(message) => message
+      case Body.ChatsSearchResponse(message) => message
 
       // Permissions
       case Body.GetClientPermissionsRequest(message) => message
@@ -326,6 +328,8 @@ object ConvergenceMessageBodyUtils {
       case message: ChatHistoryRequestMessage => Body.GetChatHistoryRequest(message)
       case message: ChatHistoryResponseMessage => Body.GetChatHistoryResponse(message)
       case message: ChatRemovedMessage => Body.ChatRemoved(message)
+      case message: ChatsSearchRequestMessage => Body.ChatsSearchRequest(message)
+      case message: ChatsSearchResponseMessage => Body.ChatsSearchResponse(message)
 
       // Permissions
       case message: GetClientPermissionsRequestMessage => Body.GetClientPermissionsRequest(message)

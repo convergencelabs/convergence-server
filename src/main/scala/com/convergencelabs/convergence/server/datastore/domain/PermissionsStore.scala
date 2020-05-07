@@ -115,9 +115,9 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  FROM Permission
         |  WHERE 
         |    permission = :permission AND
-        |    (not(forRecord is DEFINED) OR forRecord = :forRecord) AND
+        |    (not(forRecord IS DEFINED) OR forRecord = :forRecord) AND
         |    (
-        |      not(assignedTo is DEFINED) OR
+        |      not(assignedTo IS DEFINED) OR
         |      assignedTo = :user OR
         |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
         |    )""".stripMargin
@@ -132,7 +132,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     var params = Map[String, Any]("permission" -> permission)
 
     val sb = new StringBuilder
-    sb.append("SELECT count(*) FROM Permission WHERE permission = :permission ")
+    sb.append("SELECT count(*) as count FROM Permission WHERE permission = :permission ")
 
     assignedTo.foreach { assignedTo =>
       sb.append("AND assignedTo = :assignedTo ")
@@ -161,7 +161,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
         |  WHERE forRecord = :forRecord AND
         |    permission in :permissions AND
         |    (
-        |      not(assignedTo is DEFINED) OR
+        |      not(assignedTo IS DEFINED) OR
         |      assignedTo = :user OR
         |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
         |    )""".stripMargin

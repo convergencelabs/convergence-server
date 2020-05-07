@@ -25,7 +25,7 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
 import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueExcpetion}
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.convergence.server.domain.chat.ChatSharding
@@ -64,7 +64,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     case e: DuplicateValueException =>
       complete(duplicateResponse(e.field))
 
-    case e: InvalidValueExcpetion =>
+    case e: InvalidValueException =>
       complete(invalidValueResponse(e.message, Some(e.field)))
 
     case _: EntityNotFoundException =>

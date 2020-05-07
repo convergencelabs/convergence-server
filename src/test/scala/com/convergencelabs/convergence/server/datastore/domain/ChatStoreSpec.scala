@@ -170,7 +170,7 @@ class ChatStoreSpec
         val id3 = provider.chatStore.createChat(
           None, ChatType.Channel, Instant.now(), ChatMembership.Public, "test3", "testTopic", Some(Set(user2Id, user3Id)), user1Id).get
 
-        val joined = provider.chatStore.getJoinedChats(user1Id).get
+        val joined = provider.chatStore.getJoinedChannels(user1Id).get
 
         joined.map(i => i.id).toSet shouldBe Set(id1, id2)
       }

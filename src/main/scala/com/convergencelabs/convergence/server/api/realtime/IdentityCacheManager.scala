@@ -122,7 +122,10 @@ private[realtime] class IdentityCacheManager(private[this] val clientActor: Acto
       case Body.RemoteChatMessage(body) =>
         processMessage(message, Set(body.sessionId), Set())
       case Body.GetChatHistoryResponse(body) =>
-        processChatEvent(message, body.eventData)
+        processChatEvent(message, body.data)
+      case Body.ChatsSearchResponse(body) =>
+        val users = body.data.flatMap(info => info.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        processMessage(message, Set(), users)
 
       // permissions
       case Body.GetAllUserPermissionsResponse(body) =>

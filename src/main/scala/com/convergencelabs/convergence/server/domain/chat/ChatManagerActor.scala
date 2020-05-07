@@ -14,12 +14,12 @@ package com.convergencelabs.convergence.server.domain.chat
 import java.time.Instant
 
 import akka.actor.{Actor, ActorLogging, Props, Status, actorRef2Scala}
+import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
+import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatAlreadyExistsException
 import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.ChatPermissions
-import com.convergencelabs.convergence.server.domain.{DomainUserId, UnauthorizedException}
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -34,16 +34,16 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
   def receive: Receive = {
     case message: CreateChatRequest =>
       onCreateChannel(message)
-    case message: GetChannelsRequest =>
-      onGetChannels(message)
-    case message: GetJoinedChannelsRequest =>
-      onGetJoinedChannels(message)
-    case message: GetDirectChannelsRequest =>
-      onGetDirect(message)
-    case message: ChannelsExistsRequest =>
-      onExists(message)
-    case message: FindChatInfo =>
+    case message: GetChatsRequest =>
       onGetChats(message)
+    case message: GetJoinedChatsRequest =>
+      onGetJoinedChats(message)
+    case message: GetDirectChatsRequest =>
+      onGetDirect(message)
+    case message: ChatsExistsRequest =>
+      onExists(message)
+    case message: ChatsSearchRequest =>
+      onSearchChats(message)
     case message: GetChatInfo =>
       onGetChat(message)
   }
@@ -69,9 +69,10 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
     }
   }
 
-  private[this] def onGetChats(message: FindChatInfo): Unit = {
-    val FindChatInfo(filter, offset, limit) = message
-    chatStore.findChats(None, filter, offset, limit).map { info =>
+  private[this] def onSearchChats(message: ChatsSearchRequest): Unit = {
+    val ChatsSearchRequest(searchTerm, searchFields, chatType, membership, offset, limit) = message
+
+    chatStore.searchChats(searchTerm, searchFields, chatType, membership, offset, limit).map { info =>
       sender ! info
     } recover {
       case cause: Exception =>
@@ -89,57 +90,44 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
     }
   }
 
-  private[this] def onGetChannels(message: GetChannelsRequest): Unit = {
-    val GetChannelsRequest(sk, ids) = message
-    // TODO support multiple.
-    val id = ids.head
-    chatStore.getChatInfo(id).map { info =>
-      if (info.membership == ChatMembership.Private) {
-        sender ! GetChannelsResponse(List(info))
-      } else {
-        hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
-          sender ! GetChannelsResponse(List(info))
+  private[this] def onGetChats(message: GetChatsRequest): Unit = {
+    val GetChatsRequest(sk, ids) = message
+    Try(ids.map(chatStore.findChatInfo(_).get)).flatMap { chatInfos =>
+      Try {
+        chatInfos.collect {
+          case Some(chatInfo) if chatInfo.membership == ChatMembership.Public || hasPermission(sk, chatInfo.id, ChatPermissions.JoinChannel).get =>
+            chatInfo
         }
-      } recover {
-        case _: UnauthorizedException =>
-          sender ! ChannelsExistsResponse(List(false))
-        case cause: Exception =>
-          sender ! Status.Failure(cause)
       }
-    } recover {
-      case cause: Exception =>
+    } match {
+      case Success(chatInfos) =>
+        sender ! GetChatsResponse(chatInfos)
+      case Failure(cause) =>
         sender ! Status.Failure(cause)
     }
   }
 
-  private[this] def onExists(message: ChannelsExistsRequest): Unit = {
-    val ChannelsExistsRequest(sk, ids) = message
-    // TODO support multiple.
-    // FIXME this should be an option or something.
-    val id = ids.head
-    chatStore.getChatInfo(id).map { info =>
-      if (info.membership == ChatMembership.Private) {
-        sender ! ChannelsExistsResponse(List(true))
-      } else {
-        hasPermission(sk, ChatPermissions.JoinChannel).map { _ =>
-          sender ! ChannelsExistsResponse(List(true))
-        } recover {
-          case _: UnauthorizedException =>
-            sender ! ChannelsExistsResponse(List(false))
-          case cause: Exception =>
-            sender ! Status.Failure(cause)
+  private[this] def onExists(message: ChatsExistsRequest): Unit = {
+    val ChatsExistsRequest(sk, ids) = message
+    Try(ids.map(chatStore.findChatInfo(_).get)).flatMap { chatInfos =>
+      Try {
+        chatInfos.map {
+          case Some(chatInfo) =>
+            chatInfo.membership == ChatMembership.Public || hasPermission(sk, chatInfo.id, ChatPermissions.JoinChannel).get
+          case None =>
+            false
         }
       }
-    } recover {
-      case _: EntityNotFoundException =>
-        sender ! ChannelsExistsResponse(List(false))
-      case cause: Exception =>
+    } match {
+      case Success(chatInfos) =>
+        sender ! ChatsExistsResponse(chatInfos)
+      case Failure(cause) =>
         sender ! Status.Failure(cause)
     }
   }
 
-  private[this] def onGetDirect(message: GetDirectChannelsRequest): Unit = {
-    val GetDirectChannelsRequest(userId, userIdList) = message
+  private[this] def onGetDirect(message: GetDirectChatsRequest): Unit = {
+    val GetDirectChatsRequest(userId, userIdList) = message
     // FIXME support multiple channel requests.
 
     // The channel must contain the user who is looking it up and any other users
@@ -169,48 +157,51 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
             }
         }
     } map { channel =>
-      sender ! GetDirectChannelsResponse(List(channel))
+      sender ! GetDirectChatsResponse(Set(channel))
     } recover {
       case cause: Throwable =>
         sender ! Status.Failure(cause)
     }
   }
 
-  private[this] def onGetJoinedChannels(message: GetJoinedChannelsRequest): Unit = {
-    val GetJoinedChannelsRequest(userId) = message
-    this.chatStore.getJoinedChats(userId) map { channels =>
-      sender ! GetJoinedChannelsResponse(channels)
+  private[this] def onGetJoinedChats(message: GetJoinedChatsRequest): Unit = {
+    val GetJoinedChatsRequest(userId) = message
+    this.chatStore.getJoinedChannels(userId) map { channels =>
+      sender ! GetJoinedChatsResponse(channels)
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
     }
   }
 
-  private[this] def createChannel(
-                                   chatId: Option[String],
-                                   ct: ChatType.Value,
-                                   membership: ChatMembership.Value,
-                                   name: Option[String],
-                                   topic: Option[String],
-                                   members: Set[DomainUserId],
-                                   createdBy: DomainUserId): Try[String] = {
+  private[this] def createChannel(chatId: Option[String],
+                                  ct: ChatType.Value,
+                                  membership: ChatMembership.Value,
+                                  name: Option[String],
+                                  topic: Option[String],
+                                  members: Set[DomainUserId],
+                                  createdBy: DomainUserId): Try[String] = {
 
     this.chatStore.createChat(
       chatId, ct, Instant.now(), membership, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
   }
 
-  private[this] def hasPermission(userId: DomainUserId, permission: String): Try[Unit] = {
-    Success(())
+  private[this] def hasPermission(userId: DomainUserId, permission: String): Try[Boolean] = {
     if (userId.isConvergence) {
-      Success(())
+      Success(true)
+    } else {
+      permissionsStore.hasPermission(userId, permission)
+    }
+  }
+
+  private[this] def hasPermission(userId: DomainUserId, chatId: String, permission: String): Try[Boolean] = {
+    if (userId.isConvergence) {
+      Success(true)
     } else {
       for {
-        hasPermission <- permissionsStore.hasPermission(userId, permission)
-      } yield {
-        if (!hasPermission) {
-          Failure(UnauthorizedException("Not authorized"))
-        }
-      }
+        rid <- chatStore.getChatRid(chatId)
+        permission <- permissionsStore.hasPermission(userId, rid, permission)
+      } yield permission
     }
   }
 }
@@ -223,12 +214,16 @@ object ChatManagerActor {
 
   trait ChatStoreRequest
 
-  case class FindChatInfo(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends ChatStoreRequest
+  case class ChatsSearchRequest(searchTerm: Option[String],
+                                searchFields: Option[Set[String]],
+                                chatType: Option[Set[ChatType.Value]],
+                                membership: Option[ChatMembership.Value],
+                                offset: Option[Long],
+                                limit: Option[Long]) extends ChatStoreRequest
 
   case class GetChatInfo(chatId: String) extends ChatStoreRequest
 
-  case class CreateChatRequest(
-                                chatId: Option[String],
+  case class CreateChatRequest(chatId: Option[String],
                                 createdBy: DomainUserId,
                                 chatType: ChatType.Value,
                                 membership: ChatMembership.Value,
@@ -238,21 +233,21 @@ object ChatManagerActor {
 
   case class CreateChatResponse(channelId: String)
 
-  case class GetChannelsRequest(userId: DomainUserId, ids: List[String])
+  case class GetChatsRequest(userId: DomainUserId, ids: Set[String])
 
-  case class GetChannelsResponse(channels: List[ChatInfo])
+  case class GetChatsResponse(channels: Set[ChatInfo])
 
-  case class ChannelsExistsRequest(userId: DomainUserId, ids: List[String])
+  case class ChatsExistsRequest(userId: DomainUserId, ids: List[String])
 
-  case class ChannelsExistsResponse(channels: List[Boolean])
+  case class ChatsExistsResponse(chatIds: List[Boolean])
 
-  case class GetJoinedChannelsRequest(userId: DomainUserId)
+  case class GetJoinedChatsRequest(userId: DomainUserId)
 
-  case class GetJoinedChannelsResponse(channels: List[ChatInfo])
+  case class GetJoinedChatsResponse(channels: Set[ChatInfo])
 
-  case class GetDirectChannelsRequest(userId: DomainUserId, userLists: List[Set[DomainUserId]])
+  case class GetDirectChatsRequest(userId: DomainUserId, userLists: Set[Set[DomainUserId]])
 
-  case class GetDirectChannelsResponse(channels: List[ChatInfo])
+  case class GetDirectChatsResponse(channels: Set[ChatInfo])
 
   val DefaultPermissions = List()
 }

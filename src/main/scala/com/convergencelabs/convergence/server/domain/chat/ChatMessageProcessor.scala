@@ -140,7 +140,7 @@ private[chat] abstract class ChatMessageProcessor(stateManager: ChatStateManager
     val PublishChatMessageRequest(_, chatId, requester, msg) = message
     stateManager.onPublishMessage(chatId, requester.userId, msg) map {
       case ChatMessageEvent(eventNo, chatId, _, timestamp, msg) =>
-        ChatMessageProcessingResult(Some(()), List(RemoteChatMessage(chatId, eventNo, timestamp, requester, msg)))
+        ChatMessageProcessingResult(Some(PublishChatMessageResponse(eventNo, timestamp)), List(RemoteChatMessage(chatId, eventNo, timestamp, requester, msg)))
     }
   }
 

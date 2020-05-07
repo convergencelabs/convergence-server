@@ -18,7 +18,7 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.domain._
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, InvalidValueExcpetion}
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, InvalidValueException}
 import com.convergencelabs.convergence.server.util.TryWithResource
 import grizzled.slf4j.Logging
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -43,7 +43,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
                             private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
-  def authenticate(request: AuthetncationCredentials): Try[AuthenticationResponse] = {
+  def authenticate(request: AuthenticationCredentials): Try[AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest =>
         authenticatePassword(message)
@@ -245,7 +245,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
       case _: DuplicateValueException =>
         logger.warn(s"$domainFqn: Attempted to auto create user, but user already exists, returning auth success.")
         Success(username)
-      case e: InvalidValueExcpetion =>
+      case e: InvalidValueException =>
         Failure(new IllegalArgumentException(s"$domainFqn: Lazy creation of user based on JWT authentication failed: $username", e))
     }
   }

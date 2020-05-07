@@ -14,8 +14,7 @@ package com.convergencelabs.convergence.server.domain.chat
 import java.time.Instant
 
 import akka.actor.ActorRef
-import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.datastore.domain.{ChatEvent, ChatInfo}
+import com.convergencelabs.convergence.server.datastore.domain.ChatInfo
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 
 object ChatMessages {
@@ -46,6 +45,8 @@ object ChatMessages {
   case class MarkChannelEventsSeenRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId, eventNumber: Long) extends ExistingChatMessage
 
   case class PublishChatMessageRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId, message: String) extends ExistingChatMessage
+
+  case class PublishChatMessageResponse(eventNumber: Long, timestamp: Instant)
 
   case class UserPermissions(user: DomainUserId, permissions: Set[String])
 
@@ -84,8 +85,8 @@ object ChatMessages {
   case class GetChatHistoryRequest(domainId: DomainId,
                                    chatId: String,
                                    requester: Option[DomainUserSessionId],
-                                   offset: Option[Int],
-                                   limit: Option[Int],
+                                   offset: Option[Long],
+                                   limit: Option[Long],
                                    startEvent: Option[Long],
                                    forward: Option[Boolean],
                                    eventTypes: Option[Set[String]],

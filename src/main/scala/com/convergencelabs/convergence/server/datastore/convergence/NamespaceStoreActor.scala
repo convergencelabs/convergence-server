@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.{ActorLogging, Props}
-import com.convergencelabs.convergence.server.datastore.{InvalidValueExcpetion, StoreActor}
+import com.convergencelabs.convergence.server.datastore.{InvalidValueException, StoreActor}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.NamespaceUpdates
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
@@ -97,16 +97,16 @@ class NamespaceStoreActor private[datastore] (
   
   private[this] def validate(namespace: String, displayName: String): Try[Unit] = {
     if (namespace.isEmpty) {
-      Failure(InvalidValueExcpetion("namespace", "The namespace can not be empty"))
+      Failure(InvalidValueException("namespace", "The namespace can not be empty"))
     } else if (namespace.startsWith("~")) {
-      Failure(InvalidValueExcpetion("namespace" ,"Normal namespaces can not being with a '~', as these are reserved for user namespaces"))
+      Failure(InvalidValueException("namespace" ,"Normal namespaces can not being with a '~', as these are reserved for user namespaces"))
     } else if (displayName.isEmpty) {
-      Failure(InvalidValueExcpetion("displayName","The display name can not be empty."))
+      Failure(InvalidValueException("displayName","The display name can not be empty."))
     } else {
       configStore.getConfig(ConfigKeys.Namespaces.Enabled).flatMap { config =>
         val namespacesEnabled = config.get.asInstanceOf[Boolean]
         if (!namespacesEnabled) {
-          Failure(InvalidValueExcpetion("namespace", "Can not create the namespace because namespaces are disabled"))
+          Failure(InvalidValueException("namespace", "Can not create the namespace because namespaces are disabled"))
         } else {
           Success(())
         }

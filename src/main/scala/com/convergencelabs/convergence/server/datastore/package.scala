@@ -9,29 +9,26 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server
+package com.convergencelabs.convergence.server.datastore
 
-package object datastore {
+sealed trait DataStoreException
 
-  sealed trait DatastoreExcpetion
+case class DuplicateValueException(field: String, message: String = "", cause: Throwable = null)
+  extends Exception(message, cause)
+    with DataStoreException
 
-  case class DuplicateValueException(field: String, message: String = "", cause: Throwable = null)
-    extends Exception(message, cause)
-    with DatastoreExcpetion
+case class EntityNotFoundException(message: String = "", entityId: Option[Any] = None)
+  extends Exception(message)
+    with DataStoreException
 
-  case class EntityNotFoundException(message: String = "", entityId: Option[Any] = None)
-    extends Exception(message)
-    with DatastoreExcpetion
+case class InvalidValueException(field: String, message: String = "", cause: Throwable = null)
+  extends Exception(message, cause)
+    with DataStoreException
 
-  case class InvalidValueExcpetion(field: String, message: String = "", cause: Throwable = null)
-    extends Exception(message, cause)
-    with DatastoreExcpetion
+case class DatabaseCommandException(query: String, params: Map[_, _], message: String = "", cause: Throwable = null)
+  extends Exception(message, cause)
+    with DataStoreException
 
-  case class DatabaseCommandException(query: String, params: Map[_, _], message: String = "", cause: Throwable = null)
-    extends Exception(message, cause)
-    with DatastoreExcpetion
-
-  case class MultipleValuesException()
-    extends Exception("The query unepxcectedly returned multiple results")
-    with DatastoreExcpetion
-}
+case class MultipleValuesException()
+  extends Exception("The query unexpectedly returned multiple results")
+    with DataStoreException
