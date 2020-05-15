@@ -95,12 +95,12 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
 
   override def postStop(): Unit = {
     super.postStop()
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainId)
     channelManager.foreach { cm =>
       if (cm.state().chatType == ChatType.Room) {
         cm.removeAllMembers()
       }
     }
+    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainId)
   }
 
   private[this] def processChatMessage(message: ExistingChatMessage): Try[Unit] = {
