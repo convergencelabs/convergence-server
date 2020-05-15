@@ -61,17 +61,16 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1.minute) {
-      case e: Throwable => {
+      case e: Throwable =>
         log.error(e, s"Actor at '${sender.path}' threw exception")
         Resume
-      }
     }
 
   private[this] val connectedClients = mutable.Set[ActorRef]()
   private[this] val authenticatedClients = mutable.Map[ActorRef, String]()
 
   // This is the state that will be set during the initialize method
-  private[this] var domainFqn: DomainId = _
+  private[this] var domainId: DomainId = _
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] var authenticator: AuthenticationHandler = _
   private[this] var children: DomainActorChildren = _
@@ -126,7 +125,7 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
     val connected = Instant.now()
 
     authenticator.authenticate(message.credentials) map {
-      case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), reconnectToken) =>
+      case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), _) =>
         log.debug(s"$identityString: Authenticated user successfully, creating session")
 
         val method = message.credentials match {
@@ -187,7 +186,7 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
   }
 
   private[this] def onClientDisconnect(message: ClientDisconnected): Unit = {
-    log.debug(s"$identityString: Recevied ClientDisconnected message, disconnecting client")
+    log.debug(s"$identityString: Received ClientDisconnected message, disconnecting client")
     removeClient(message.clientActor)
   }
 
@@ -220,7 +219,7 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
 
   override def passivate(): Unit = {
     super.passivate()
-    Option(this.domainFqn).foreach(domainPersistenceManager.releasePersistenceProvider(self, context, _))
+    Option(this.domainId).foreach(domainPersistenceManager.releasePersistenceProvider(self, context, _))
   }
 
   private[this] def domainDeleted(): Unit = {
@@ -233,12 +232,12 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
   //
 
   override protected def setIdentityData(message: DomainMessage): Try[String] = {
-    this.domainFqn = message.domainFqn
+    this.domainId = message.domainFqn
     Success(s"${message.domainFqn.namespace}/${message.domainFqn.domainId}")
   }
 
   override def initialize(msg: DomainMessage): Try[ShardedActorStatUpPlan] = {
-    mediator ! Subscribe(domainTopic(domainFqn), self)
+    mediator ! Subscribe(domainTopic(domainId), self)
 
     log.debug(s"$identityString: Acquiring domain persistence provider")
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
@@ -254,8 +253,8 @@ class DomainActor(private[this] val protocolConfig: ProtocolConfiguration,
         provider.sessionStore,
         context.dispatcher)
 
-      val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainFqn), IdentityServiceActor.RelativePath)
-      val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainFqn), PresenceServiceActor.RelativePath)
+      val identityServiceActor = context.actorOf(IdentityServiceActor.props(domainId), IdentityServiceActor.RelativePath)
+      val presenceServiceActor = context.actorOf(PresenceServiceActor.props(domainId), PresenceServiceActor.RelativePath)
       val chatChannelLookupActor = context.actorOf(ChatManagerActor.props(provider), ChatManagerActor.RelativePath)
       val modelStoreActor = context.actorOf(ModelStoreActor.props(provider), ModelStoreActor.RelativePath)
       val operationStoreActor = context.actorOf(ModelOperationStoreActor.props(provider.modelOperationStore), ModelOperationStoreActor.RelativePath)
