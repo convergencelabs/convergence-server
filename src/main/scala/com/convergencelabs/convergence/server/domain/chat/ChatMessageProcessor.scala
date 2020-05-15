@@ -125,7 +125,7 @@ private[chat] abstract class ChatMessageProcessor(stateManager: ChatStateManager
   protected def onMarkEventsSeen(message: MarkChannelEventsSeenRequest): Try[ChatMessageProcessingResult] = {
     val MarkChannelEventsSeenRequest(_, chatId, requester, eventNumber) = message
     stateManager.onMarkEventsSeen(chatId, requester.userId, eventNumber) map { _ =>
-      ChatMessageProcessingResult(Some(()), List())
+      ChatMessageProcessingResult(Some(()), List(EventsMarkedSeen(chatId, eventNumber, requester)))
     }
   }
 

@@ -38,9 +38,9 @@ import scala.util.{Failure, Success, Try}
 
 object ChatClientActor {
   def props(domainFqn: DomainId,
-             chatLookupActor: ActorRef,
-             session: DomainUserSessionId,
-             requestTimeout: Timeout): Props =
+            chatLookupActor: ActorRef,
+            session: DomainUserSessionId,
+            requestTimeout: Timeout): Props =
     Props(new ChatClientActor(domainFqn, chatLookupActor, session, requestTimeout))
 }
 
@@ -59,7 +59,7 @@ class ChatClientActor(domainFqn: DomainId,
   mediator ! Subscribe(chatTopicName, self)
 
   def receive: Receive = {
-    case SubscribeAck(Subscribe(chatTopicName, _, _)) ⇒
+    case SubscribeAck(Subscribe(_, _, _)) ⇒
       log.debug("Subscribe to direct chat for user")
 
     case MessageReceived(message: NormalMessage with ChatMessage) =>
@@ -80,13 +80,13 @@ class ChatClientActor(domainFqn: DomainId,
     message match {
       // Broadcast messages
       case RemoteChatMessage(chatId, eventNumber, timestamp, session, message) =>
-        if (this.session != session) {
-          // We don't need to send this back to ourselves
-          context.parent ! RemoteChatMessageMessage(chatId, eventNumber,
-            Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)),
-            session.sessionId,
-            message)
-        }
+        context.parent ! RemoteChatMessageMessage(chatId, eventNumber,
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)),
+          session.sessionId,
+          message)
+
+      case EventsMarkedSeen(chatId: String, eventNumber: Long, session: DomainUserSessionId) =>
+        context.parent ! ChatEventsMarkedSeenMessage(chatId, Some(domainUserIdToData(session.userId)), eventNumber)
 
       case UserJoinedChat(chatId, eventNumber, timestamp, userId) =>
         context.parent ! UserJoinedChatMessage(chatId, eventNumber,

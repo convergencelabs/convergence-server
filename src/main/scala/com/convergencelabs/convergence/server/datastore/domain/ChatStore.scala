@@ -772,8 +772,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     OrientDBUtil.execute(db, script, params).map(_ => ())
   }
 
-  def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit] = {
-    getChatMemberRid(chatId, userId).flatMap { memberRid =>
+  def markSeen(chatId: String, userId: DomainUserId, seen: Long): Try[Unit] = withDb { db =>
+    getChatMemberRid(chatId, userId, Some(db)).flatMap { memberRid =>
       Try {
         val doc = memberRid.getRecord[ODocument]
         doc.field(Classes.ChatMember.Fields.Seen, seen)
@@ -847,7 +847,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, chatId)
   }
 
-  def getChatMemberRid(chatId: String, userId: DomainUserId): Try[ORID] = withDb { db =>
+  def getChatMemberRid(chatId: String, userId: DomainUserId, db: Option[ODatabaseDocument] = None): Try[ORID] = withDb(db) { db =>
     val channelRID = ChatStore.getChatRid(chatId, db).get
     val userRID = DomainUserStore.getUserRid(userId, db).get
     val key = List(channelRID, userRID)

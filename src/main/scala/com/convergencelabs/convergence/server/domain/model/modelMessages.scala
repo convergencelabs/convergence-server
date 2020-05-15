@@ -153,9 +153,8 @@ case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Int
 
 sealed trait RemoteReferenceEvent extends RealtimeModelClientMessage
 
-case class RemoteReferenceShared(
-                                  modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
-                                  referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
+case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
+                                 referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
 
 case class RemoteReferenceSet(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
                               referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent

@@ -662,11 +662,15 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           val rc = this.resyncingClients.filter(_._1 != session)
           this.onClientOpened(session, clientActor, resyncClient = true)
           val referencesBySession = this.model.references()
-          clientActor ! ModelResyncServerComplete(this.modelId, openClients.keySet, rc.keySet, referencesBySession)
+          val message = ModelResyncServerComplete(this.modelId, openClients.keySet, rc.keySet, referencesBySession)
+          logger.info(message)
+          clientActor ! message
         } else {
           this.clientToSessionId -= clientActor
           this.model.clientDisconnected(session)
-          clientActor ! ModelResyncServerComplete(this.modelId, Set(), Set(), Set())
+          val message = ModelResyncServerComplete(this.modelId, Set(), Set(), Set())
+          logger.info(message)
+          clientActor ! message
         }
 
         reconnectComplete(session)

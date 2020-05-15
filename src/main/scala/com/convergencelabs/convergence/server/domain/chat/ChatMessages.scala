@@ -113,6 +113,8 @@ object ChatMessages {
 
   case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, session: DomainUserSessionId, message: String) extends ChatBroadcastMessage
 
+  case class EventsMarkedSeen(chatId: String, eventNumber: Long, session: DomainUserSessionId) extends ChatBroadcastMessage
+
   // Exceptions
   sealed abstract class ChatException(message: String) extends Exception(message)
 
