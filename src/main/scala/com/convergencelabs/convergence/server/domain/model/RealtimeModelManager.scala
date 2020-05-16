@@ -662,14 +662,15 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
           val rc = this.resyncingClients.filter(_._1 != session)
           this.onClientOpened(session, clientActor, resyncClient = true)
           val referencesBySession = this.model.references()
-          val message = ModelResyncServerComplete(this.modelId, openClients.keySet, rc.keySet, referencesBySession)
-          logger.info(message)
+          // We clone these because we don't want to serialize what is in the maps.
+          val ocClone: Set[DomainUserSessionId] = Set() ++ openClients.keySet
+          val rcClone: Set[DomainUserSessionId] = Set() ++ rc.keySet
+          val message = ModelResyncServerComplete(this.modelId, ocClone, rcClone, referencesBySession)
           clientActor ! message
         } else {
           this.clientToSessionId -= clientActor
           this.model.clientDisconnected(session)
           val message = ModelResyncServerComplete(this.modelId, Set(), Set(), Set())
-          logger.info(message)
           clientActor ! message
         }
 
