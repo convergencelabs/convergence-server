@@ -124,7 +124,6 @@ object DomainChatService {
                                         topic: String) extends ChatEventData {
     val `type` = "topic_changed"
   }
-
 }
 
 class DomainChatService(private[this] val executionContext: ExecutionContext,

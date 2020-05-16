@@ -286,7 +286,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
                   membership: Option[ChatMembership.Value],
                   offset: Option[Long],
                   limit: Option[Long]): Try[PagedData[ChatInfo]] = withDb { db =>
-    val chatTypes: Set[String] = types.getOrElse(Set(ChatType.Channel, ChatType.Room)).map(_.toString.toLowerCase)
+    val chatTypes: Set[String] = types.getOrElse(Set(ChatType.Channel, ChatType.Room, ChatType.Direct)).map(_.toString.toLowerCase)
 
     val whereClauses = mutable.ListBuffer("chat.type IN :chatTypes")
     val whereParams: mutable.Map[String, Any] = mutable.Map("chatTypes" -> chatTypes.asJava)
@@ -415,6 +415,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       }
   }
 
+  val DirectChatPrefix = "direct:"
+
   def createChat(id: Option[String],
                  chatType: ChatType.Value,
                  creationTime: Instant,
@@ -425,9 +427,20 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
                  createdBy: DomainUserId): Try[String] = tryWithDb { db =>
 
     db.begin()
-    val chatId = id.getOrElse {
-      "#" + OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.ChatId).get
+
+    val chatId = id match {
+      case Some(DirectChatPrefix) =>
+        throw new IllegalArgumentException("chatId can not start with 'direct:'")
+      case Some(id) =>
+        id
+      case None =>
+        if (chatType == ChatType.Direct) {
+          DirectChatPrefix + OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.ChatId).get
+        } else {
+          throw new IllegalArgumentException("chatId must be specified for channels and rooms'")
+        }
     }
+
     val doc = chatToDoc(Chat(chatId, chatType, creationTime, membership, name, topic))
     db.save(doc)
     db.commit()
@@ -437,9 +450,10 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
 
     db.commit()
-    this.addChatCreatedEvent(ChatCreatedEvent(0, chatId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
 
-    db.activateOnCurrentThread()
+    val event = ChatCreatedEvent(0, chatId, createdBy, creationTime, name, topic, members.getOrElse(Set()))
+    addChatCreatedEvent(event, db).get
+
     db.commit()
     chatId
   } recoverWith {
@@ -529,7 +543,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
 
   // TODO: All of the events are very similar, need to abstract some of each of these methods
 
-  def addChatCreatedEvent(event: ChatCreatedEvent): Try[Unit] = withDb { db =>
+  def addChatCreatedEvent(event: ChatCreatedEvent, db: ODatabaseDocument): Try[Unit] = {
     val ChatCreatedEvent(eventNo, chatId, user, timestamp, name, topic, members) = event
 
     val memberList = members.toList

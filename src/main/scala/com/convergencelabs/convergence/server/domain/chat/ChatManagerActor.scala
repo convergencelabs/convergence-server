@@ -33,7 +33,7 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
 
   def receive: Receive = {
     case message: CreateChatRequest =>
-      onCreateChannel(message)
+      onCreateChat(message)
     case message: GetChatsRequest =>
       onGetChats(message)
     case message: GetJoinedChatsRequest =>
@@ -48,20 +48,20 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
       onGetChat(message)
   }
 
-  private[this] def onCreateChannel(message: CreateChatRequest): Unit = {
-    val CreateChatRequest(channelId, createdBy, chatType, membership, name, topic, members) = message
+  private[this] def onCreateChat(message: CreateChatRequest): Unit = {
+    val CreateChatRequest(chatId, createdBy, chatType, membership, name, topic, members) = message
     hasPermission(createdBy, ChatPermissions.CreateChannel).map { _ =>
       (for {
-        id <- createChannel(channelId, chatType, membership, name, topic, members, createdBy)
+        id <- createChat(chatId, chatType, membership, name, topic, members, createdBy)
         forRecord <- chatStore.getChatRid(id)
         _ <- permissionsStore.addUserPermissions(ChatStateManager.AllChatPermissions, createdBy, Some(forRecord))
       } yield {
         sender ! CreateChatResponse(id)
       }) recover {
         case _: DuplicateValueException =>
-          // FIXME how to deal with this? The channel id should only conflict if it was
+          // FIXME how to deal with this? The chat id should only conflict if it was
           //   defined by the user.
-          val cId = channelId.get
+          val cId = chatId.get
           sender ! Status.Failure(ChatAlreadyExistsException(cId))
         case NonFatal(cause) =>
           sender ! Status.Failure(cause)
@@ -147,7 +147,7 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
         Success(c)
       case None =>
         // Does not exists, so create it.
-        createChannel(None, ChatType.Direct, ChatMembership.Private, None, None, userIds, requester) flatMap { chatId =>
+        createChat(None, ChatType.Direct, ChatMembership.Private, None, None, userIds, requester) flatMap { chatId =>
           // Create was successful, now let's just get the channel.
           chatStore.getChatInfo(chatId)
         } recoverWith {
@@ -177,16 +177,23 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
     }
   }
 
-  private[this] def createChannel(chatId: Option[String],
-                                  ct: ChatType.Value,
-                                  membership: ChatMembership.Value,
-                                  name: Option[String],
-                                  topic: Option[String],
-                                  members: Set[DomainUserId],
-                                  createdBy: DomainUserId): Try[String] = {
+  private[this] def createChat(chatId: Option[String],
+                               chatType: ChatType.Value,
+                               membership: ChatMembership.Value,
+                               name: Option[String],
+                               topic: Option[String],
+                               members: Set[DomainUserId],
+                               createdBy: DomainUserId): Try[String] = {
 
     this.chatStore.createChat(
-      chatId, ct, Instant.now(), membership, name.getOrElse(""), topic.getOrElse(""), Some(members), createdBy)
+      chatId,
+      chatType,
+      Instant.now(),
+      membership,
+      name.getOrElse(""),
+      topic.getOrElse(""),
+      Some(members),
+      createdBy)
   }
 
   private[this] def hasPermission(userId: DomainUserId, permission: String): Try[Boolean] = {
@@ -227,12 +234,12 @@ object ChatManagerActor {
   case class GetChatInfo(chatId: String) extends ChatStoreRequest
 
   case class CreateChatRequest(chatId: Option[String],
-                                createdBy: DomainUserId,
-                                chatType: ChatType.Value,
-                                membership: ChatMembership.Value,
-                                name: Option[String],
-                                topic: Option[String],
-                                members: Set[DomainUserId]) extends ChatStoreRequest
+                               createdBy: DomainUserId,
+                               chatType: ChatType.Value,
+                               membership: ChatMembership.Value,
+                               name: Option[String],
+                               topic: Option[String],
+                               members: Set[DomainUserId]) extends ChatStoreRequest
 
   case class CreateChatResponse(channelId: String)
 
