@@ -423,7 +423,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
                  topic: String,
                  members: Option[Set[DomainUserId]],
                  createdBy: DomainUserId): Try[String] = tryWithDb { db =>
-    // FIXME: return failure if addAllChatMembers fails
+
     db.begin()
     val chatId = id.getOrElse {
       "#" + OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.ChatId).get
@@ -433,11 +433,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     db.commit()
 
     members.foreach { userId =>
-      addAllChatMembers(chatId, userId, None).get
+      addAllChatMembers(chatId, userId, None, db).get
     }
-
-    // FIXME why is this needed? It seems like the above might put another db into the active thread.
-    db.activateOnCurrentThread()
 
     db.commit()
     this.addChatCreatedEvent(ChatCreatedEvent(0, chatId, createdBy, creationTime, name, topic, members.getOrElse(Set()))).get
@@ -719,18 +716,23 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       .map(_.toSet)
   }
 
-  def addAllChatMembers(chatId: String, userIds: Set[DomainUserId], seen: Option[Long]): Try[Unit] = withDb { db =>
-    val seenVal = seen.getOrElse(0)
-    // FIXME we should do all of this in a transaction so they all succeed or fail
-    ChatStore.getChatRid(chatId, db)
-      .flatMap { chatRid =>
-        val results = userIds.map { userId =>
-          DomainUserStore.getUserRid(userId, db)
-            .flatMap(userRid => addChatMember(db, chatRid, userRid, seen))
+  def addAllChatMembers(chatId: String, userIds: Set[DomainUserId], seen: Option[Long], db: ODatabaseDocument): Try[Unit] = {
+    for {
+      chatRid <- ChatStore.getChatRid(chatId, db)
+      userRids <- Try(userIds.map { userId =>
+        DomainUserStore.findUserRid(userId, db).get match {
+          case Some(rid) =>
+            rid
+          case None =>
+            throw EntityNotFoundException("Could not find user to add to chat", Some(userId))
         }
-
-        Try(results.map(_.get)).map(_ => ())
+      })
+      _ <- Try {
+        userRids.foreach { userRid =>
+          addChatMember(db, chatRid, userRid, seen).get
+        }
       }
+    } yield ()
   }
 
   def addChatMember(chatId: String, userId: DomainUserId, seen: Option[Long]): Try[Unit] = withDb { db =>

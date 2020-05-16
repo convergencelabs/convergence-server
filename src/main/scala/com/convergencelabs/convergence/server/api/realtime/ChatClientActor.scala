@@ -429,7 +429,7 @@ class ChatClientActor(domainFqn: DomainId,
     chatManagerActor.ask(request).mapTo[GetDirectChatsResponse] onComplete {
       case Success(GetDirectChatsResponse(channels)) =>
         val info = channels.map(channelInfoToMessage)
-        cb.reply(GetChatsResponseMessage(info.toList))
+        cb.reply(GetDirectChatsResponseMessage(info.toList))
       case Failure(cause) =>
         handleUnexpectedError(request, cause, cb)
     }

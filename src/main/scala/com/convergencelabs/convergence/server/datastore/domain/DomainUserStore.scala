@@ -60,6 +60,10 @@ object DomainUserStore {
     deletedUsernameGenerator.nextString()
   }
 
+  def findUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[Option[ORID]] = {
+    OrientDBUtil.findIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
+  }
+
   def getUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[ORID] = {
     this.getUserRid(userId.username, userId.userType, db)
   }
@@ -523,7 +527,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
     OrientDBUtil.sequenceNext(db, DomainSchema.Sequences.AnonymousUsername) map (JavaLong.toString(_, 36))
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case Indices.UsernameUserType =>

@@ -128,20 +128,28 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
 
   private[this] def onGetDirect(message: GetDirectChatsRequest): Unit = {
     val GetDirectChatsRequest(userId, userIdList) = message
-    // FIXME support multiple channel requests.
+    Try {
+      // The channel must contain the user who is looking it up and any other users
+      val members = userIdList.map(l => l + userId)
+      members.map(members => getOrCreateDirectChat(userId, members).get)
+    } map { chats =>
+      sender ! GetDirectChatsResponse(chats)
+    } recover {
+      case cause: Throwable =>
+        sender ! Status.Failure(cause)
+    }
+  }
 
-    // The channel must contain the user who is looking it up and any other users
-    val userIds = userIdList.head + userId
-
+  private[this] def getOrCreateDirectChat(requester: DomainUserId, userIds: Set[DomainUserId]): Try[ChatInfo] = {
     chatStore.getDirectChatInfoByUsers(userIds) flatMap {
       case Some(c) =>
         // The channel exists, just return it.
         Success(c)
       case None =>
         // Does not exists, so create it.
-        createChannel(None, ChatType.Direct, ChatMembership.Private, None, None, userIds, userId) flatMap { channelId =>
+        createChannel(None, ChatType.Direct, ChatMembership.Private, None, None, userIds, requester) flatMap { chatId =>
           // Create was successful, now let's just get the channel.
-          chatStore.getChatInfo(channelId)
+          chatStore.getChatInfo(chatId)
         } recoverWith {
           case DuplicateValueException(ChatClass.Fields.Members, _, _) =>
             // The channel already exists based on the members, this must have been a race condition.
@@ -151,16 +159,11 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
                 // Yup it's there.
                 Success(c)
               case None =>
-                // We are now in a bizaro world where we are told the channel exists, but can
+                // We are now in a strange world where we are told the channel exists, but can
                 // not look it up.
                 Failure(new IllegalStateException("Can not create direct channel, due to an unexpected error"))
             }
         }
-    } map { channel =>
-      sender ! GetDirectChatsResponse(Set(channel))
-    } recover {
-      case cause: Throwable =>
-        sender ! Status.Failure(cause)
     }
   }
 
