@@ -35,7 +35,7 @@ class ChatStoreSpec
   private[this] val user3Id = DomainUserId(DomainUserType.Normal, user3)
 
   private[this] val channel1Id = "channel1"
-  private[this] val firstId = "#1"
+  private[this] val firstId = "direct:1"
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
 
@@ -61,7 +61,6 @@ class ChatStoreSpec
       }
 
       "not create channel if members are invalid" in withTestData { provider =>
-
         an[EntityNotFoundException] should be thrownBy {
           provider.chatStore.createChat(
             Some(channel1Id),
@@ -164,11 +163,11 @@ class ChatStoreSpec
     "getting joined channels" must {
       "return the correct chat channels" in withTestData { provider =>
         val id1 = provider.chatStore.createChat(
-          None, ChatType.Channel, Instant.now(), ChatMembership.Public, "test1", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+          Some("c1"), ChatType.Channel, Instant.now(), ChatMembership.Public, "test1", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         val id2 = provider.chatStore.createChat(
-          None, ChatType.Channel, Instant.now(), ChatMembership.Public, "test2", "testTopic", Some(Set(user1Id, user3Id)), user1Id).get
-        val id3 = provider.chatStore.createChat(
-          None, ChatType.Channel, Instant.now(), ChatMembership.Public, "test3", "testTopic", Some(Set(user2Id, user3Id)), user1Id).get
+          Some("c2"), ChatType.Channel, Instant.now(), ChatMembership.Public, "test2", "testTopic", Some(Set(user1Id, user3Id)), user1Id).get
+        provider.chatStore.createChat(
+          Some("c3"), ChatType.Channel, Instant.now(), ChatMembership.Public, "test3", "testTopic", Some(Set(user2Id, user3Id)), user1Id).get
 
         val joined = provider.chatStore.getJoinedChannels(user1Id).get
 

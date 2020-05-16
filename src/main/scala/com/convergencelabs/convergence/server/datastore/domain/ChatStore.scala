@@ -394,7 +394,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       .map(toChatInfo)
       .recoverWith {
         case _: EntityNotFoundException =>
-          Failure(ChatNotFoundException(chatId))
+          Failure(EntityNotFoundException(s"A chat with id '$chatId' does not exist", Some(chatId)))
       }
   }
 
@@ -411,7 +411,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       .map(docToChat)
       .recoverWith {
         case _: EntityNotFoundException =>
-          Failure(ChatNotFoundException(chatId))
+          Failure(EntityNotFoundException(s"A chat with id '$chatId' does not exist", Some(chatId)))
       }
   }
 
@@ -445,8 +445,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     db.save(doc)
     db.commit()
 
-    members.foreach { userId =>
-      addAllChatMembers(chatId, userId, None, db).get
+    members.foreach { userIds =>
+      addAllChatMembers(chatId, userIds, None, db).get
     }
 
     db.commit()
