@@ -11,49 +11,17 @@
 
 package com.convergencelabs.convergence.server.domain.model.reference
 
-import com.convergencelabs.convergence.server.domain.model.ClearReference
-import com.convergencelabs.convergence.server.domain.model.ModelReferenceEvent
-import com.convergencelabs.convergence.server.domain.model.ShareReference
-import com.convergencelabs.convergence.server.domain.model.RealTimeValue
-import com.convergencelabs.convergence.server.domain.model.ReferenceType
-import com.convergencelabs.convergence.server.domain.model.SetReference
-import com.convergencelabs.convergence.server.domain.model.UnshareReference
-import ReferenceManager.ReferenceDoesNotExist
-import com.convergencelabs.convergence.server.domain.model.RealTimeValue
-import com.convergencelabs.convergence.server.domain.model.RealTimeValue
-import scala.util.Try
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model._
 
-object ReferenceManager {
-  val ReferenceDoesNotExist = "Reference does not exist"
-}
+import scala.util.Try
 
-class ReferenceManager(
-    private val source: RealTimeValue,
-    private val validTypes: List[ReferenceType.Value]) {
 
-  private[this] val rm = new ReferenceMap()
+class ReferenceManager(source: RealTimeValue,
+                       validTypes: List[ReferenceType.Value])
+  extends AbstractReferenceManager[RealTimeValue](source, validTypes) {
 
-  def referenceMap(): ReferenceMap = rm
-
-  def handleReferenceEvent(event: ModelReferenceEvent, session: DomainUserSessionId): Try[Unit] = {
-    event match {
-      case publish: ShareReference => this.handleReferencePublished(publish, session)
-      case unpublish: UnshareReference => this.handleReferenceUnpublished(unpublish, session)
-      case set: SetReference => this.handleReferenceSet(set, session)
-      case cleared: ClearReference => this.handleReferenceCleared(cleared, session)
-    }
-  }
-
-  def sessionDisconnected(session: DomainUserSessionId): Unit = {
-    this.rm.removeBySession(session)
-  }
-
-  private[this] def handleReferencePublished(event: ShareReference, session: DomainUserSessionId): Try[Unit] = Try {
-    if (!this.validTypes.contains(event.referenceType)) {
-      throw new IllegalArgumentException(s"Invalid reference type: ${event.referenceType}")
-    }
-
+  override protected def processReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit] = Try {
     val reference = event.referenceType match {
       case ReferenceType.Index =>
         new IndexReference(this.source, session, event.key)
@@ -61,40 +29,24 @@ class ReferenceManager(
         new RangeReference(this.source, session, event.key)
       case ReferenceType.Property =>
         new PropertyReference(this.source, session, event.key)
+      case _ =>
+        throw new IllegalArgumentException("Unexpected reference type")
     }
 
-    this.referenceMap.put(reference)
+    this.rm.put(reference)
+    ()
   }
 
-  private[this] def handleReferenceUnpublished(event: UnshareReference, session: DomainUserSessionId): Try[Unit] = Try {
-    this.rm.remove(session, event.key) match {
-      case Some(reference) =>
-      case None =>
-        throw new IllegalArgumentException(ReferenceDoesNotExist)
-    }
-  }
-
-  private[this] def handleReferenceCleared(event: ClearReference, session: DomainUserSessionId): Try[Unit] = Try {
-    this.rm.get(session, event.key) match {
-      case Some(reference) =>
-        reference.clear()
-      case None =>
-        throw new IllegalArgumentException(ReferenceDoesNotExist)
-    }
-  }
-
-  private[this] def handleReferenceSet(event: SetReference, session: DomainUserSessionId): Try[Unit] = Try {
-    this.rm.get(session, event.key) match {
-      case Some(reference: IndexReference) =>
+  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_], session: DomainUserSessionId): Try[Unit] = Try {
+    reference match {
+      case reference: IndexReference =>
         reference.set(event.values.asInstanceOf[List[Int]])
-      case Some(reference: RangeReference) =>
+      case reference: RangeReference =>
         reference.set(event.values.asInstanceOf[List[(Int, Int)]])
-      case Some(reference: PropertyReference) =>
+      case reference: PropertyReference =>
         reference.set(event.values.asInstanceOf[List[String]])
-      case Some(_) =>
-        throw new IllegalArgumentException("Unknown reference type")
-      case None =>
-        throw new IllegalArgumentException(ReferenceDoesNotExist)
+      case _ =>
+        throw new IllegalArgumentException("Unexpected reference type")
     }
   }
 }

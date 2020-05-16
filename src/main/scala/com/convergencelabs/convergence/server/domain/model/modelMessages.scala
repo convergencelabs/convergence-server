@@ -86,16 +86,16 @@ case class CloseRealtimeModelRequest(domainId: DomainId, modelId: String, sessio
 case class OperationSubmission(domainId: DomainId, modelId: String, seqNo: Int, contextVersion: Long, operation: Operation) extends RealTimeModelMessage
 
 sealed trait ModelReferenceEvent extends RealTimeModelMessage {
-  val id: Option[String]
+  val valueId: Option[String]
 }
 
-case class ShareReference(domainId: DomainId, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+case class ShareReference(domainId: DomainId, modelId: String, valueId: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
 
-case class SetReference(domainId: DomainId, modelId: String, id: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+case class SetReference(domainId: DomainId, modelId: String, valueId: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
 
-case class ClearReference(domainId: DomainId, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
+case class ClearReference(domainId: DomainId, modelId: String, valueId: Option[String], key: String) extends ModelReferenceEvent
 
-case class UnshareReference(domainId: DomainId, modelId: String, id: Option[String], key: String) extends ModelReferenceEvent
+case class UnshareReference(domainId: DomainId, modelId: String, valueId: Option[String], key: String) extends ModelReferenceEvent
 
 sealed trait InternalRealTimeModelMessage
 

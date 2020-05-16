@@ -21,9 +21,18 @@ class ReferenceMap {
   private[this] val references =
     collection.mutable.Map[DomainUserSessionId, collection.mutable.Map[String, ModelReference[_]]]()
 
+  def has(sessionId: DomainUserSessionId, key: String): Boolean = {
+    this.references.get(sessionId) match {
+      case Some(map) =>
+        map.contains(key)
+      case None =>
+        false
+    }
+  }
+
   def put(reference: ModelReference[_]): Unit = {
     val session: DomainUserSessionId = reference.session
-    val key: String = reference.key;
+    val key: String = reference.key
 
     val sessionRefs = this.references.get(session) match {
       case Some(map) => map
@@ -33,7 +42,7 @@ class ReferenceMap {
     }
 
     if (sessionRefs.contains(key)) {
-      throw new Error("Model reference already exists");
+      throw new Error(s"reference with key '$key' already exists for session $session")
     }
 
     sessionRefs(key) = reference
