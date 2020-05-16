@@ -7,7 +7,7 @@
   </Appenders>
   <Loggers>
     <Root level="warn"><AppenderRef ref="Console"/></Root>
-    <Logger name="com.convergencelabs" level="debug" />
+    <Logger name="com.convergencelabs" level="info" />
     <Logger name="com.orientechnologies" level="error" />
     <Logger name="akka" level="error" />
   </Loggers>
