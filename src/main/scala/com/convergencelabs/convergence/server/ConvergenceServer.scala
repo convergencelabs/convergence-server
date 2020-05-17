@@ -193,7 +193,7 @@ object ConvergenceServer extends Logging {
             }
           })
           val seedsAddresses = seedNodes.map { seed =>
-            Address("akka.tcp", ConvergenceServer.ActorSystemName, seed._1, seed._2).toString
+            Address("akka", ConvergenceServer.ActorSystemName, seed._1, seed._2).toString
           }
           logger.debug(s"Setting cluster seeds: [${seedsAddresses.mkString(", ")}]")
           baseConfig.withValue(AkkaConfig.AkkaClusterSeedNodes, ConfigValueFactory.fromIterable(seedsAddresses.asJava))
