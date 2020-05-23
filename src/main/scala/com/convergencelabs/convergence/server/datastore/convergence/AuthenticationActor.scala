@@ -14,37 +14,17 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import java.time.{Duration, Instant}
 
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
+import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.security.AuthorizationProfileData
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
 
 import scala.util.{Success, Try}
 
-object AuthenticationActor {
-  val RelativePath = "AuthActor"
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new AuthenticationActor(dbProvider))
-
-  case class AuthRequest(username: String, password: String)
-
-  sealed trait AuthResponse
-  case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
-  case object AuthFailure extends AuthResponse
-
-  case class LoginRequest(username: String, password: String)
-
-  case class ValidateSessionTokenRequest(token: String)
-  case class ValidateUserBearerTokenRequest(bearerToken: String)
-  case class ValidateUserApiKeyRequest(apiKey: String)
-
-  case class GetSessionTokenExpirationRequest(token: String)
-  case class SessionTokenExpiration(username: String, expiration: Duration)
-
-  case class InvalidateTokenRequest(token: String)
-}
-
-class AuthenticationActor private[datastore] (private[this] val dbProvider: DatabaseProvider)
+class AuthenticationActor private[datastore](private[this] val dbProvider: DatabaseProvider)
   extends StoreActor with ActorLogging {
 
   import AuthenticationActor._
@@ -60,17 +40,17 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
     case authRequest: AuthRequest =>
       authenticateUser(authRequest)
     case loginRequest: LoginRequest =>
-      login(loginRequest)
+      onLogin(loginRequest)
     case validateRequest: ValidateSessionTokenRequest =>
-      validateSessionToken(validateRequest)
+      onValidateSessionToken(validateRequest)
     case validateUserBearerTokenRequest: ValidateUserBearerTokenRequest =>
-      validateBearerToken(validateUserBearerTokenRequest)
+      onValidateBearerToken(validateUserBearerTokenRequest)
     case validateUserApiKey: ValidateUserApiKeyRequest =>
-      validateApiKey(validateUserApiKey)
+      onValidateApiKey(validateUserApiKey)
     case tokenExpirationRequest: GetSessionTokenExpirationRequest =>
-      retrieveSessionTokenExpiration(tokenExpirationRequest)
+      onGetSessionTokenExpiration(tokenExpirationRequest)
     case invalidateTokenRequest: InvalidateTokenRequest =>
-      invalidateToken(invalidateTokenRequest)
+      onInvalidateToken(invalidateTokenRequest)
     case message: Any =>
       unhandled(message)
   }
@@ -100,54 +80,96 @@ class AuthenticationActor private[datastore] (private[this] val dbProvider: Data
     reply(response)
   }
 
-  private[this] def login(loginRequest: LoginRequest): Unit = {
-    reply(userStore.login(loginRequest.username, loginRequest.password))
+  private[this] def onLogin(loginRequest: LoginRequest): Unit = {
+    reply(userStore.login(loginRequest.username, loginRequest.password).map(LoginResponse))
   }
 
-  private[this] def validateSessionToken(validateRequest: ValidateSessionTokenRequest): Unit = {
-    reply(for {
+  private[this] def onValidateSessionToken(validateRequest: ValidateSessionTokenRequest): Unit = {
+    val result = for {
       timeout <- configStore.getSessionTimeout()
       username <- userSessionTokenStore.validateUserSessionToken(validateRequest.token, () => Instant.now().plus(timeout))
       authProfile <- getAuthorizationProfile(username)
-    } yield authProfile)
+    } yield ValidateSessionTokenResponse(authProfile)
+    reply(result)
   }
 
-  private[this] def validateBearerToken(validateRequest: ValidateUserBearerTokenRequest): Unit = {
-    reply(for {
+  private[this] def onValidateBearerToken(validateRequest: ValidateUserBearerTokenRequest): Unit = {
+    val result = for {
       username <- userStore.validateBearerToken(validateRequest.bearerToken)
       authProfile <- getAuthorizationProfile(username)
-    } yield authProfile)
+    } yield ValidateUserBearerTokenResponse(authProfile)
+
+    reply(result)
   }
 
-  private[this] def validateApiKey(validateRequest: ValidateUserApiKeyRequest): Unit = {
+  private[this] def onValidateApiKey(validateRequest: ValidateUserApiKeyRequest): Unit = {
     reply(for {
       username <- userApiKeyStore.validateUserApiKey(validateRequest.apiKey)
       _ <- userApiKeyStore.setLastUsedForKey(validateRequest.apiKey, Instant.now())
       authProfile <- getAuthorizationProfile(username)
-    } yield authProfile)
+    } yield ValidateUserApiKeyResponse(authProfile))
   }
 
-  private[this] def retrieveSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
+  private[this] def onGetSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
     val result = userSessionTokenStore.expirationCheck(tokenExpirationRequest.token).map(_.map {
       case (username, expiration) =>
         val now = Instant.now()
         SessionTokenExpiration(username, Duration.between(now, expiration))
-    })
+    }).map(GetSessionTokenExpirationResponse)
     reply(result)
   }
 
-  private[this] def invalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
+  private[this] def onInvalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
     reply(userSessionTokenStore.removeToken(invalidateTokenRequest.token))
   }
 
-  private[this] def getAuthorizationProfile(username: Option[String]): Try[Option[AuthorizationProfile]] = {
+  private[this] def getAuthorizationProfile(username: Option[String]): Try[Option[AuthorizationProfileData]] = {
     username match {
       case Some(u) =>
         val userRoles = roleStore.getAllRolesForUser(u)
-        val profile = userRoles.map(r => Some(new AuthorizationProfile(u, r)))
+        val profile = userRoles.map(r => Some(AuthorizationProfileData(u, r)))
         profile
       case None =>
         Success(None)
     }
   }
+}
+
+object AuthenticationActor {
+  val RelativePath = "AuthActor"
+
+  def props(dbProvider: DatabaseProvider): Props = Props(new AuthenticationActor(dbProvider))
+
+  case class AuthRequest(username: String, password: String) extends CborSerializable
+
+  sealed trait AuthResponse extends CborSerializable
+
+  case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
+
+  case object AuthFailure extends AuthResponse
+
+  case class LoginRequest(username: String, password: String) extends CborSerializable
+
+  case class LoginResponse(bearerToken: Option[String]) extends CborSerializable
+
+  case class ValidateSessionTokenRequest(token: String) extends CborSerializable
+
+  case class ValidateSessionTokenResponse(profile: Option[AuthorizationProfileData]) extends CborSerializable
+
+  case class ValidateUserBearerTokenRequest(bearerToken: String) extends CborSerializable
+
+  case class ValidateUserBearerTokenResponse(profile: Option[AuthorizationProfileData]) extends CborSerializable
+
+  case class ValidateUserApiKeyRequest(apiKey: String) extends CborSerializable
+
+  case class ValidateUserApiKeyResponse(profile: Option[AuthorizationProfileData]) extends CborSerializable
+
+  case class GetSessionTokenExpirationRequest(token: String) extends CborSerializable
+
+  case class GetSessionTokenExpirationResponse(expiration: Option[SessionTokenExpiration]) extends CborSerializable
+
+  case class InvalidateTokenRequest(token: String) extends CborSerializable
+
+  case class SessionTokenExpiration(username: String, expiration: Duration)
+
 }

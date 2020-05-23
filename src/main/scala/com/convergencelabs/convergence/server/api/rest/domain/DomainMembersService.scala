@@ -76,7 +76,8 @@ class DomainMembersService(private[this] val executionContext: ExecutionContext,
   private[this] def getAllMembers(domain: DomainId): Future[RestResponse] = {
     val message = GetAllUserRolesRequest(DomainRoleTarget(domain))
     (roleStoreActor ? message)
-      .mapTo[Set[UserRoles]]
+      .mapTo[GetAllUserRolesResponse]
+      .map(_.userRoles)
       .map { userRoles =>
         val roleMap = userRoles.map(ur => (ur.username, ur.roles.head.role.name)).toMap
         okResponse(roleMap)
@@ -86,30 +87,33 @@ class DomainMembersService(private[this] val executionContext: ExecutionContext,
   private[this] def setAllMembers(domain: DomainId, userRoles: Map[String, String], authProfile: AuthorizationProfile): Future[RestResponse] = {
     // Force the current user to be an owner.
     val mapped = userRoles.map { case (username, role) => (username, Set(role)) } +
-        (authProfile.username -> Set(Roles.Domain.Owner))
+      (authProfile.username -> Set(Roles.Domain.Owner))
 
     val message = SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped)
     (roleStoreActor ? message).mapTo[Unit] map (_ => OkResponse)
   }
 
   private[this] def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
-    (roleStoreActor ? GetUserRolesForTargetRequest(username, DomainRoleTarget(domain))).mapTo[Set[Role]] map { roles =>
-      val role = roles.toList match {
-        case Nil =>
-          UserRoleResponse(None)
-        case first :: _ =>
-          UserRoleResponse(Some(first.name))
-      }
+    (roleStoreActor ? GetUserRolesForTargetRequest(username, DomainRoleTarget(domain)))
+      .mapTo[GetUserRolesForTargetResponse]
+      .map(_.roles)
+      .map { roles =>
+        val role = roles.toList match {
+          case Nil =>
+            UserRoleResponse(None)
+          case first :: _ =>
+            UserRoleResponse(Some(first.name))
+        }
 
-      okResponse(role)
-    }
+        okResponse(role)
+      }
   }
 
   private[this] def setRoleForUser(domain: DomainId, username: String, role: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
     if (username == authProfile.username) {
       Future.successful(forbiddenResponse(Some("You can not set your own user's role.")))
     } else {
-      val message = SeUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
+      val message = SetUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role))
       (roleStoreActor ? message) map (_ => OkResponse) recover {
         case _: EntityNotFoundException => notFoundResponse()
       }

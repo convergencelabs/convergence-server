@@ -62,9 +62,10 @@ object ConfigKeys {
   def validateConfig(key: String, value: Any): Try[Unit] = {
     typeMaps.get(key) match {
       case Some(classes) => 
-        classes.contains(value.getClass) match {
-          case true => Success(())
-          case failure => Failure(new IllegalArgumentException(s"'$key' must be of type ${classes.mkString(", ")} but was of type: ${value.getClass.getName}"))
+        if (classes.contains(value.getClass)) {
+          Success(())
+        } else {
+          Failure(new IllegalArgumentException(s"'$key' must be of type ${classes.mkString(", ")} but was of type: ${value.getClass.getName}"))
         }
       case None =>
         Failure(new IllegalArgumentException(s"'$key' is not a valid configuration key."))
@@ -172,10 +173,10 @@ class ConfigStore(dbProvider: DatabaseProvider)
 
   def getConfigsByFilter(filters: List[String]): Try[Map[String, Any]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
-    var paramNo = 0;
+    var paramNo = 0
     val where = "WHERE " + filters.map { filter =>
       params += (paramNo.toString -> filter.replace("*", "%").toLowerCase)
-      val like = s" LIKE :p${paramNo}"
+      val like = s" LIKE :p$paramNo"
       paramNo = paramNo + 1
       like
     }.mkString(" OR ")

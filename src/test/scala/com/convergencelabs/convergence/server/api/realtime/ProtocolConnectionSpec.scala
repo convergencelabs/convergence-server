@@ -16,6 +16,8 @@ import akka.testkit.{TestKit, TestProbe}
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.convergence.server.api.realtime.ClientActor.SendUnprocessedMessage
+import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.OutgoingBinaryMessage
 import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.google.protobuf.struct.Value
 import com.google.protobuf.timestamp.Timestamp
@@ -23,8 +25,8 @@ import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Assertions, BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{Assertions, BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt

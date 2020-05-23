@@ -15,25 +15,18 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, objectValueToMessage}
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor.GetOperations
+import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor.{GetOperationsRequest, GetOperationsResponse}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import com.convergencelabs.convergence.server.domain.model.{GetRealtimeModel, Model, ModelOperation, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
+import akka.pattern.ask
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
-
-object HistoricModelClientActor {
-  def props(
-    session: DomainUserSessionId,
-    domainFqn: DomainId,
-    modelStoreActor: ActorRef,
-    operationStoreActor: ActorRef): Props =
-    Props(new HistoricModelClientActor(session, domainFqn, modelStoreActor, operationStoreActor))
-}
 
 class HistoricModelClientActor(
   private[this] val session: DomainUserSessionId,
@@ -42,7 +35,7 @@ class HistoricModelClientActor(
   private[this] val operationStoreActor: ActorRef)
     extends Actor with ActorLogging {
 
-  import akka.pattern.ask
+  import HistoricModelClientActor._
 
   private[this] implicit val timeout: Timeout = Timeout(5 seconds)
   private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
@@ -52,13 +45,16 @@ class HistoricModelClientActor(
   def receive: Receive = {
     case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with HistoricalMessage] =>
       onRequestReceived(message.asInstanceOf[RequestMessage with HistoricalMessage], replyPromise)
-    case x: Any => unhandled(x)
+    case x: Any =>
+      unhandled(x)
   }
 
   private[this] def onRequestReceived(message: RequestMessage with HistoricalMessage, replyCallback: ReplyCallback): Unit = {
     message match {
-      case dataRequest: HistoricalDataRequestMessage => onDataRequest(dataRequest, replyCallback)
-      case operationRequest: HistoricalOperationRequestMessage => onOperationRequest(operationRequest, replyCallback)
+      case dataRequest: HistoricalDataRequestMessage =>
+        onDataRequest(dataRequest, replyCallback)
+      case operationRequest: HistoricalOperationRequestMessage =>
+        onOperationRequest(operationRequest, replyCallback)
     }
   }
 
@@ -82,12 +78,21 @@ class HistoricModelClientActor(
 
   private[this] def onOperationRequest(request: HistoricalOperationRequestMessage, cb: ReplyCallback): Unit = {
     val HistoricalOperationRequestMessage(modelId, first, last) = request
-    (operationStoreActor ? GetOperations(modelId, first, last)).mapResponse[List[ModelOperation]] onComplete {
-      case Success(operations) =>
+    (operationStoreActor ? GetOperationsRequest(modelId, first, last)).mapResponse[GetOperationsResponse] onComplete {
+      case Success(GetOperationsResponse(operations)) =>
         cb.reply(HistoricalOperationsResponseMessage(operations map ModelOperationMapper.mapOutgoing))
       case Failure(cause) =>
         log.error(cause, "Unexpected error getting model history.")
         cb.unknownError()
     }
   }
+}
+
+object HistoricModelClientActor {
+  def props(
+             session: DomainUserSessionId,
+             domainFqn: DomainId,
+             modelStoreActor: ActorRef,
+             operationStoreActor: ActorRef): Props =
+    Props(new HistoricModelClientActor(session, domainFqn, modelStoreActor, operationStoreActor))
 }

@@ -18,7 +18,20 @@ import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Us
 import com.convergencelabs.convergence.server.datastore.convergence.RoleTarget
 import com.convergencelabs.convergence.server.domain.DomainId
 
-class AuthorizationProfile(val username: String, userRoles: UserRoles) extends Serializable {
+object AuthorizationProfile {
+  def apply(username: String, userRoles: UserRoles): AuthorizationProfile = {
+     new AuthorizationProfile(AuthorizationProfileData(username, userRoles))
+  }
+
+  def apply(data: AuthorizationProfileData): AuthorizationProfile = {
+    new AuthorizationProfile(data)
+  }
+}
+
+class AuthorizationProfile(val data: AuthorizationProfileData) extends Serializable {
+
+  val username: String = data.username
+  val userRoles: UserRoles = data.userRoles
 
   private[this] val rolesByTarget: Map[RoleTarget, Set[String]] = userRoles.roles.groupBy( userRole => userRole.target).map {
     case (target, userRole) => (target, userRole.map(_.role.name))
@@ -29,11 +42,11 @@ class AuthorizationProfile(val username: String, userRoles: UserRoles) extends S
   }
 
   def hasServerRole(role: String): Boolean = {
-    hasRoleForTarget(role, ServerRoleTarget)
+    hasRoleForTarget(role, ServerRoleTarget())
   }
 
   def getServerRole(): Option[String] = {
-    val roles = rolesByTarget.get(ServerRoleTarget)
+    val roles = rolesByTarget.get(ServerRoleTarget())
     roles.map(_.head)
   }
   
@@ -46,7 +59,7 @@ class AuthorizationProfile(val username: String, userRoles: UserRoles) extends S
   }
   
   def hasGlobalPermission(permission: String): Boolean = {
-    hasPermissionForTarget(permission, ServerRoleTarget)
+    hasPermissionForTarget(permission, ServerRoleTarget())
   }
   
   def hasNamespacePermission(permission: String, namespaceId: String): Boolean = {

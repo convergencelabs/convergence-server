@@ -66,12 +66,12 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   def getConvergenceDeltaHistory(deltaNo: Int): Try[Option[ConvergenceDeltaHistory]] = withDb { db =>
     OrientDBUtil
       .findIdentityFromSingleValueIndex(db, ConvergenceDeltaClass.Indices.DeltaNo, deltaNo)
-      .flatMap(_ match {
+      .flatMap {
         case Some(deltaORID) =>
           OrientDBUtil.findDocumentFromSingleValueIndex(db, ConvergenceDeltaHistoryClass.Indices.Delta, deltaORID)
         case None =>
           Success(None)
-      })
+      }
       .map(_.map { doc =>
         val deltaDoc: ODocument = doc.getProperty(ConvergenceDeltaHistoryClass.Fields.Delta)
 
@@ -83,7 +83,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
         val date: Date = doc.getProperty(ConvergenceDeltaHistoryClass.Fields.Date)
 
         val delta = ConvergenceDelta(deltaNo, script)
-        ConvergenceDeltaHistory(delta, status, message, date.toInstant())
+        ConvergenceDeltaHistory(delta, status, message, date.toInstant)
       })
   }
 
@@ -102,7 +102,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
         db,
         "SELECT if(count(*) > 0, false, true) as healthy FROM ConvergenceDeltaHistory WHERE status = :status",
         Map(Params.Status -> Status.Error))
-      .map(_.map(_.field("healthy").asInstanceOf[Boolean]).getOrElse(true))
+      .map(_.forall(_.field("healthy").asInstanceOf[Boolean]))
   }
 
   def saveDomainDeltaHistory(deltaHistory: DomainDeltaHistory): Try[Unit] = withDb { db =>
@@ -127,18 +127,16 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     }
   }
 
-  def removeDeltaHistoryForDomain(domainFqn: DomainId): Try[Unit] = withDb { db =>
-    val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT FROM Domain WHERE namespace.id = :namespace AND id =:id)";
-    val params = Map(Params.Namespace -> domainFqn.namespace, Params.Id -> domainFqn.domainId)
+  def removeDeltaHistoryForDomain(domainId: DomainId): Try[Unit] = withDb { db =>
+    val query = "DELETE FROM DomainDeltaHistory WHERE domain IN (SELECT FROM Domain WHERE namespace.id = :namespace AND id =:id)"
+    val params = Map(Params.Namespace -> domainId.namespace, Params.Id -> domainId.domainId)
     OrientDBUtil.commandReturningCount(db, query, params).map(_ => ())
   }
 
-  def getDomainDeltaHistory(domainFqn: DomainId, deltaNo: Int): Try[Option[DomainDeltaHistory]] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
-
+  def getDomainDeltaHistory(domainId: DomainId, deltaNo: Int): Try[Option[DomainDeltaHistory]] = withDb { db =>
     for {
       deltaORID <- OrientDBUtil.findIdentityFromSingleValueIndex(db, DomainDeltaClass.Indices.DeltaNo, deltaNo)
-      domainORID <- DomainStore.getDomainRid(domainFqn, db)
+      domainORID <- DomainStore.getDomainRid(domainId, db)
       doc <- {
         deltaORID match {
           case Some(deltaORID) =>
@@ -159,13 +157,13 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
         val date: Date = doc.field(DomainDeltaHistoryClass.Fields.Date)
 
         val delta = DomainDelta(deltaNo, script)
-        DomainDeltaHistory(domainFqn, delta, status, message, date.toInstant())
+        DomainDeltaHistory(domainId, delta, status, message, date.toInstant)
       }
     }
   }
 
-  def getDomainDBVersion(domainFqn: DomainId): Try[Int] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
+  def getDomainDBVersion(domainId: DomainId): Try[Int] = withDb { db =>
+    val DomainId(namespace, domainId) = domainId
     val query =
       s"""SELECT max(delta.deltaNo) as version
         |FROM ${DomainDeltaHistoryClass.ClassName}
@@ -179,8 +177,8 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
       .map(_.map(_.field("version").asInstanceOf[Int]).getOrElse(0))
   }
 
-  def isDomainDBHealthy(domainFqn: DomainId): Try[Boolean] = withDb { db =>
-    val DomainId(namespace, domainId) = domainFqn
+  def isDomainDBHealthy(domainId: DomainId): Try[Boolean] = withDb { db =>
+    val DomainId(namespace, domainId) = domainId
     val query =
       s"""SELECT if(count(*) > 0, false, true) as healthy
         |FROM ${DomainDeltaHistoryClass.ClassName}
@@ -191,7 +189,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
     val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Error)
     OrientDBUtil
       .findDocument(db, query, params)
-      .map(_.map(_.field("healthy").asInstanceOf[Boolean]).getOrElse(true))
+      .map(_.forall(_.field("healthy").asInstanceOf[Boolean]))
   }
 
   private[this] def ensureConvergenceDeltaExists(delta: ConvergenceDelta, db: ODatabaseDocument): Try[Unit] = {

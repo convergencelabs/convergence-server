@@ -15,7 +15,6 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelNotFoundException}
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 
 import scala.util.{Failure, Success}
 

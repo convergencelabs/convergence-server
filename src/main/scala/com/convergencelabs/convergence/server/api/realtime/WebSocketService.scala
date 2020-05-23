@@ -20,28 +20,15 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.util.{ByteString, ByteStringBuilder}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
-import com.convergencelabs.convergence.server.api.rest.{JsonSupport, OkResponse}
+import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.{IncomingBinaryMessage, OutgoingBinaryMessage, WebSocketClosed, WebSocketOpened}
 import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
+import com.convergencelabs.convergence.server.api.rest.{JsonSupport, OkResponse}
 import com.convergencelabs.convergence.server.domain.DomainId
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.postfixOps
-
-/**
- * Represents an incoming binary message from the client.
- *
- * @param message The incoming binary web socket message data.
- */
-private[realtime] case class IncomingBinaryMessage(message: Array[Byte])
-
-/**
- * Represents an outgoing binary message from the client.
- *
- * @param message The outgoing binary web socket message data.
- */
-private[realtime] case class OutgoingBinaryMessage(message: Array[Byte])
 
 /**
  * The [[WebSocketService]] class handles incoming web socket connections and

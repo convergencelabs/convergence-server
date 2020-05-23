@@ -54,14 +54,14 @@ class UserRoleService(private[this] val executionContext: ExecutionContext,
           authorize(canManageUsers(authProfile)) {
             pathEnd {
               get {
-                complete(getUserRolesForTarget(authProfile, ServerRoleTarget))
+                complete(getUserRolesForTarget(authProfile, ServerRoleTarget()))
               } ~ post {
                 entity(as[Map[String, String]]) { userRoles =>
-                  complete(updateUserRolesForTarget(authProfile, ServerRoleTarget, userRoles))
+                  complete(updateUserRolesForTarget(authProfile, ServerRoleTarget(), userRoles))
                 }
               }
             } ~ (delete & path(Segment)) { username =>
-              complete(deleteUserRoleForTarget(authProfile, ServerRoleTarget, username))
+              complete(deleteUserRoleForTarget(authProfile, ServerRoleTarget(), username))
             }
           }
         },

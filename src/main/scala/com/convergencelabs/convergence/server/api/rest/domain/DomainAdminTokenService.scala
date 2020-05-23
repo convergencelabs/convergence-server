@@ -20,7 +20,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{RestResponse, okResponse}
 import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.{AdminTokenRequest, DomainRestMessage}
+import com.convergencelabs.convergence.server.domain.rest.RestDomainActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -50,7 +50,7 @@ class DomainAdminTokenService(executionContext: ExecutionContext,
 
   def getConvergenceUserToken(domain: DomainId, username: String): Future[RestResponse] = {
     val message = DomainRestMessage(domain, AdminTokenRequest(username))
-    (domainRestActor ? message).mapTo[String] map {
+    (domainRestActor ? message).mapTo[AdminTokenResponse].map(_.token) map {
       token: String => okResponse(AdminTokenRestResponse(token))
     }
   }

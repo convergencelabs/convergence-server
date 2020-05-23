@@ -12,22 +12,18 @@
 package com.convergencelabs.convergence.server.domain
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceManagerActor, DomainPersistenceProvider, DomainUserField, UserGroup}
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
 
 import scala.util.{Failure, Success}
 
-object IdentityServiceActor {
-
-  val RelativePath = "userService"
-
-  def props(domainFqn: DomainId): Props = Props(
-    new IdentityServiceActor(domainFqn))
-}
 
 class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor with ActorLogging {
 
   var persistenceProvider: DomainPersistenceProvider = _
+
+  import IdentityServiceActor._
 
   def receive: Receive = {
     case s: UserSearch =>
@@ -47,14 +43,14 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
 
   private[this] def onGetUsersByUsername(userIds: List[DomainUserId]): Unit = {
     persistenceProvider.userStore.getDomainUsers(userIds) match {
-      case Success(users) => sender ! users
+      case Success(users) => sender !UsersResponse(users)
       case Failure(e) => sender ! Status.Failure(e)
     }
   }
 
   private[this] def onGetUserByUsername(userId: DomainUserId): Unit = {
     persistenceProvider.userStore.getDomainUser(userId).map {
-      case Some(user) => sender ! user
+      case Some(user) => sender ! UserResponse(user)
       case None => sender ! Status.Failure(EntityNotFoundException())
     } recover {
       case cause => sender ! Status.Failure(cause)
@@ -92,7 +88,7 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
     val sortOrder = criteria.sort
 
     persistenceProvider.userStore.searchUsersByFields(fields, searchString, order, sortOrder, limit, offset) match {
-      case Success(users) => sender ! users
+      case Success(users) => sender ! UsersResponse(users)
       case Failure(e) => sender ! Status.Failure(e)
     }
   }
@@ -142,30 +138,45 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
   }
 }
 
-object UserLookUpField extends Enumeration {
-  val Username, FirstName, LastName, DisplayName, Email = Value
+
+object IdentityServiceActor {
+
+  val RelativePath = "userService"
+
+  def props(domainFqn: DomainId): Props = Props(
+    new IdentityServiceActor(domainFqn))
+
+
+  object UserLookUpField extends Enumeration {
+    val Username, FirstName, LastName, DisplayName, Email = Value
+  }
+
+  case class UserSearch(fields: List[UserLookUpField.Value],
+                        searchValue: String,
+                        offset: Option[Int],
+                        limit: Option[Int],
+                        order: Option[UserLookUpField.Value],
+                        sort: Option[SortOrder.Value])
+
+  trait IdentityServiceActorMessage extends CborSerializable
+
+  case class GetUsersByUsername(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
+
+  case class GetUserByUsername(userId: DomainUserId) extends IdentityServiceActorMessage
+
+  case class UserGroupsRequest(ids: Option[List[String]]) extends IdentityServiceActorMessage
+
+  case class IdentityResolutionRequest(sessionIds: Set[String], userIds: Set[DomainUserId]) extends IdentityServiceActorMessage
+
+  case class UserGroupsForUsersRequest(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
+
+
+  case class UsersResponse(users: List[DomainUser]) extends CborSerializable
+  case class UserResponse(user: DomainUser) extends CborSerializable
+
+  case class UserGroupsResponse(groups: List[UserGroup]) extends CborSerializable
+
+  case class UserGroupsForUsersResponse(groups: Map[DomainUserId, Set[String]]) extends CborSerializable
+
+  case class IdentityResolutionResponse(sessionMap: Map[String, DomainUserId], users: Set[DomainUser]) extends CborSerializable
 }
-
-case class GetUsersByUsername(userIds: List[DomainUserId])
-
-case class GetUserByUsername(userId: DomainUserId)
-
-
-case class UserSearch(fields: List[UserLookUpField.Value],
-                      searchValue: String,
-                      offset: Option[Int],
-                      limit: Option[Int],
-                      order: Option[UserLookUpField.Value],
-                      sort: Option[SortOrder.Value])
-
-case class UserGroupsRequest(ids: Option[List[String]])
-
-case class UserGroupsResponse(groups: List[UserGroup])
-
-case class UserGroupsForUsersRequest(userIds: List[DomainUserId])
-
-case class UserGroupsForUsersResponse(groups: Map[DomainUserId, Set[String]])
-
-case class IdentityResolutionRequest(sessionIds: Set[String], userIds: Set[DomainUserId])
-
-case class IdentityResolutionResponse(sessionMap: Map[String, DomainUserId], users: Set[DomainUser])

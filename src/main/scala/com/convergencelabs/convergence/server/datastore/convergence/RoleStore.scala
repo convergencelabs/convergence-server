@@ -15,6 +15,7 @@ import com.convergencelabs.convergence.server.datastore.convergence.schema._
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.DomainId
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -29,6 +30,14 @@ object RoleTargetType extends Enumeration {
   val Namespace, Domain = Value
 }
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[DomainRoleTarget], name = "domain"),
+    new JsonSubTypes.Type(value = classOf[NamespaceRoleTarget], name = "namespace"),
+    new JsonSubTypes.Type(value = classOf[ServerRoleTarget], name = "server")
+  )
+)
 sealed trait RoleTarget {
   def targetClass: Option[RoleTargetType.Value]
 }
@@ -41,7 +50,7 @@ case class NamespaceRoleTarget(id: String) extends RoleTarget {
   val targetClass: Option[RoleTargetType.Value] = Some(RoleTargetType.Namespace)
 }
 
-case object ServerRoleTarget extends RoleTarget {
+case class ServerRoleTarget() extends RoleTarget {
   val targetClass: Option[RoleTargetType.Value] = None
 }
 
@@ -91,7 +100,7 @@ object RoleStore {
           val id = d.getProperty(NamespaceClass.Fields.Id).asInstanceOf[String]
           NamespaceRoleTarget(id)
       }
-    }.getOrElse(ServerRoleTarget)
+    }.getOrElse(ServerRoleTarget())
   }
 
   def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
@@ -104,7 +113,7 @@ object RoleStore {
         val whereClause = "target IN (SELECT FROM Namespace WHERE id = :target_id)"
         val params = Map("target_id" -> id)
         (whereClause, params)
-      case ServerRoleTarget =>
+      case ServerRoleTarget() =>
         ("target IS NULL", Map.empty)
     }
   }
@@ -115,7 +124,7 @@ object RoleStore {
         DomainStore.getDomainRid(domainFqn, db).map(Some(_))
       case NamespaceRoleTarget(id) =>
         NamespaceStore.getNamespaceRid(id, db).map(Some(_))
-      case ServerRoleTarget =>
+      case ServerRoleTarget() =>
         Success(None)
     }
   }

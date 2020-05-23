@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.datastore
 
 object SortOrder extends Enumeration {
-  val Ascending = Value("ASC")
-  val Descending = Value("DESC")
+  type SortOder = Value
+  val Ascending: SortOder = Value("ASC")
+  val Descending: SortOder = Value("DESC")
 }

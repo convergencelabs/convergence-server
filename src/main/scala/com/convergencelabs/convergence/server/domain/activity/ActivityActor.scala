@@ -11,31 +11,21 @@
 
 package com.convergencelabs.convergence.server.domain.activity
 
-import scala.util.Success
-import scala.util.Try
-
+import akka.actor.{ActorLogging, ActorRef, Props, Status, Terminated}
+import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
+import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.activity.ActivityActor.ActivityActorMessage
 import org.json4s.JsonAST.JValue
 
-import com.convergencelabs.convergence.server.actor.ShardedActor
-import com.convergencelabs.convergence.server.actor.ShardedActorStatUpPlan
-import com.convergencelabs.convergence.server.actor.StartUpRequired
-import com.convergencelabs.convergence.server.domain.DomainId
+import scala.util.{Success, Try}
 
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.Status
-import akka.actor.Terminated
-
-object ActivityActor {
-  def props(): Props = {
-    Props(new ActivityActor())
-  }
-}
 
 class ActivityActor()
-  extends ShardedActor(classOf[IncomingActivityMessage])
+  extends ShardedActor(classOf[ActivityActorMessage])
   with ActorLogging {
+
+  import ActivityActor._
 
   /**
    * Will be initialized on the first message inside the initialize method.
@@ -47,31 +37,31 @@ class ActivityActor()
   private[this] var joinedSessions = Map[String, ActorRef]()
   private[this] var stateMap = new ActivityStateMap()
 
-  override protected def setIdentityData(message: IncomingActivityMessage): Try[String] = {
+  override protected def setIdentityData(message: ActivityActorMessage): Try[String] = {
     this.activityId = message.activityId
     this.domain = message.domain
     Success(s"${domain.namespace}/${domain.domainId}/${this.activityId}")
   }
 
-  override def initialize(message: IncomingActivityMessage): Try[ShardedActorStatUpPlan] = {
+  override def initialize(message: ActivityActorMessage): Try[ShardedActorStatUpPlan] = {
     Success(StartUpRequired)
   }
 
   override def receiveInitialized: Receive = {
-    case ActivityParticipantsRequest(domain, id) =>
+    case ActivityParticipantsRequest(_, _) =>
       participantsRequest()
-    case ActivityJoinRequest(domain, id, sessionId, state, client) =>
+    case ActivityJoinRequest(_, _, sessionId, state, client) =>
       join(sessionId, state, client)
-    case ActivityLeave(domain, id, sessionId) =>
+    case ActivityLeave(_, _, sessionId) =>
       leave(sessionId)
-    case ActivityUpdateState(domain, id, sessionId, set, complete, removed) =>
+    case ActivityUpdateState(_, _, sessionId, set, complete, removed) =>
       onStateUpdated(sessionId, set, complete, removed)
     case Terminated(actor) =>
       handleClientDeath(actor)
   }
 
   private[this] def participantsRequest(): Unit = {
-    sender ! ActivityParticipants(stateMap.getState())
+    sender ! ActivityParticipants(stateMap.getState)
   }
 
   private[this] def isSessionJoined(sessionId: String): Boolean = {
@@ -80,7 +70,7 @@ class ActivityActor()
 
   private[this] def join(sessionId: String, state: Map[String, JValue], client: ActorRef): Unit = {
     this.joinedSessions.get(sessionId) match {
-      case Some(x) =>
+      case Some(_) =>
         this.sender ! Status.Failure(ActivityAlreadyJoinedException(this.activityId))
       case None =>
         this.joinedSessions += (sessionId -> client)
@@ -97,7 +87,7 @@ class ActivityActor()
         val message = ActivitySessionJoined(activityId, sessionId, state)
         joinedSessions.values filter (_ != client) foreach (_ ! message)
 
-        sender ! ActivityJoinResponse(stateMap.getState())
+        sender ! ActivityJoinResponse(stateMap.getState)
     }
   }
   
@@ -118,7 +108,7 @@ class ActivityActor()
       val message = ActivityStateUpdated(activityId, sessionId, setState, complete, removed)
       joinedSessions.values.filter(_ != setter) foreach (_ ! message)
     } else {
-      log.warning(s"Activity(${this.identityString}): Received a state update for a session(${sessionId}) that is not joined to the activity.")
+      log.warning(s"Activity(${this.identityString}): Received a state update for a session($sessionId) that is not joined to the activity.")
     }
   }
 
@@ -149,10 +139,37 @@ class ActivityActor()
   private[this] def handleClientDeath(actor: ActorRef): Unit = {
     this.joinedClients.get(actor) match {
       case Some(sessionId) =>
-        log.debug(s"${identityString}: Client with session ${sessionId} was terminated.  Leaving activity.")
+        log.debug(s"$identityString: Client with session $sessionId was terminated.  Leaving activity.")
         this.handleSessionLeft(sessionId)
       case None =>
-        log.warning(s"${identityString}: Deathwatch on a client was triggered for an actor that did not have thi activity open")
+        log.warning(s"$identityString: Deathwatch on a client was triggered for an actor that did not have thi activity open")
     }
   }
+}
+
+object ActivityActor {
+  def props(): Props = {
+    Props(new ActivityActor())
+  }
+
+  sealed trait ActivityActorMessage extends CborSerializable {
+    val domain: DomainId
+    val activityId: String
+  }
+
+  case class ActivityParticipantsRequest(domain: DomainId, activityId: String) extends ActivityActorMessage
+
+  case class ActivityJoinRequest(domain: DomainId, activityId: String, sessionId: String, state: Map[String, JValue], actorRef: ActorRef) extends ActivityActorMessage
+  case class ActivityLeave(domain: DomainId, activityId: String, sessionId: String) extends ActivityActorMessage
+
+  case class ActivityUpdateState(domain: DomainId,
+                                  activityId: String,
+                                  sessionId: String,
+                                  state: Map[String, JValue],
+                                  complete: Boolean,
+                                  removed: List[String]) extends ActivityActorMessage
+
+  // Exceptions
+  case class ActivityAlreadyJoinedException(activityId: String) extends Exception(s"Activity '$activityId' is already joined.")
+  case class ActivityNotJoinedException(activityId: String) extends Exception(s"Activity '$activityId' is not joined.")
 }

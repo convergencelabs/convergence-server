@@ -19,7 +19,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{RestResponse, okResponse}
-import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor.{DomainStats, GetStats}
+import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor.{DomainStats, GetDomainStatsResponse, GetStatsRequest}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -45,8 +45,9 @@ class DomainStatsService(private[this] val executionContext: ExecutionContext,
     }
 
   private[this] def getStats(domain: DomainId): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetStats))
-      .mapTo[DomainStats]
+    (domainRestActor ? DomainRestMessage(domain, GetStatsRequest))
+      .mapTo[GetDomainStatsResponse]
+      .map(_.stats)
       .map { stats =>
         val DomainStats(activeSessionCount, userCount, modelCount, dbSize) = stats
         okResponse(DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize))

@@ -9,19 +9,9 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.datastore.convergence
+package com.convergencelabs.convergence.server.security
 
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Role
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
 
-class RoleProfile(private[this] val roles: Set[Role]) {
-  
-  private[this] val permissions: Set[String] = roles.flatMap(_.permissions)
-  
-  def hasRole(role: String): Boolean = {
-    roles.exists { _.name == role }
-  }
-  
-  def hasPermission(permission: String): Boolean = {
-    permissions.contains(permission)
-  }
-}
+case class AuthorizationProfileData(username: String, userRoles: UserRoles) extends CborSerializable

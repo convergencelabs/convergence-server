@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.{ActorLogging, ActorRef, Props, Status, actorRef2Scala}
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.DeleteDomainsForUserRequest
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
@@ -23,31 +24,11 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-object ConvergenceUserManagerActor {
-  val RelativePath = "ConvergenceUserManagerActor"
 
-  def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
-    Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
-
-  case class CreateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, password: String, globalRole: String)
-  case class UpdateConvergenceUserRequest(username: String, email: String, firstName: String, lastName: String, displayName: String, globalRole: String)
-  case class UpdateConvergenceUserProfileRequest(username: String, email: String, firstName: String, lastName: String, displayName: String)
-  case class SetPasswordRequest(username: String, password: String)
-  case class DeleteConvergenceUserRequest(username: String)
-
-  case class GetConvergenceUsers(filter: Option[String], limit: Option[Int], offset: Option[Int])
-  case class GetConvergenceUser(username: String)
-  case class ConvergenceUserInfo(user: User, globalRole: String)
-
-  case class GetUserBearerTokenRequest(username: String)
-  case class RegenerateUserBearerTokenRequest(username: String)
-}
-
-class ConvergenceUserManagerActor private[datastore] (
-  private[this] val dbProvider: DatabaseProvider,
-  private[this] val domainStoreActor: ActorRef)
+class ConvergenceUserManagerActor private[datastore](private[this] val dbProvider: DatabaseProvider,
+                                                     private[this] val domainStoreActor: ActorRef)
   extends StoreActor
-  with ActorLogging {
+    with ActorLogging {
 
   import ConvergenceUserManagerActor._
   import akka.pattern.ask
@@ -63,28 +44,28 @@ class ConvergenceUserManagerActor private[datastore] (
 
   def receive: Receive = {
     case message: CreateConvergenceUserRequest =>
-      createConvergenceUser(message)
+      onCreateConvergenceUser(message)
     case message: DeleteConvergenceUserRequest =>
-      deleteConvergenceUser(message)
-    case message: GetConvergenceUser =>
-      getConvergenceUser(message)
-    case message: GetConvergenceUsers =>
-      getConvergenceUsers(message)
+      onDeleteConvergenceUser(message)
+    case message: GetConvergenceUserRequest =>
+      onGetConvergenceUser(message)
+    case message: GetConvergenceUsersRequest =>
+      onGetConvergenceUsers(message)
     case message: UpdateConvergenceUserProfileRequest =>
-      updateConvergenceUserProfile(message)
+      onUpdateConvergenceUserProfile(message)
     case message: UpdateConvergenceUserRequest =>
-      updateConvergenceUser(message)
+      onUpdateConvergenceUser(message)
     case message: SetPasswordRequest =>
-      setUserPassword(message)
+      onSetUserPassword(message)
     case message: GetUserBearerTokenRequest =>
-      getUserBearerToken(message)
+      onGetUserBearerToken(message)
     case message: RegenerateUserBearerTokenRequest =>
-      regenerateUserBearerToken(message)
+      onRegenerateUserBearerToken(message)
     case message: Any =>
       unhandled(message)
   }
 
-  def createConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
+  private[this] def onCreateConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password, serverRole) = message
     val origSender = sender
     val user = User(username, email, firstName, lastName, displayName, None)
@@ -96,75 +77,124 @@ class ConvergenceUserManagerActor private[datastore] (
       }
   }
 
-  def getConvergenceUser(message: GetConvergenceUser): Unit = {
-    val GetConvergenceUser(username) = message
-    val overviews = (for {
+  private[this] def onGetConvergenceUser(message: GetConvergenceUserRequest): Unit = {
+    val GetConvergenceUserRequest(username) = message
+    val convergenceUser = (for {
       user <- userStore.getUserByUsername(username)
-      roles <- roleStore.getRolesForUsersAndTarget(Set(username), ServerRoleTarget)
+      roles <- roleStore.getRolesForUsersAndTarget(Set(username), ServerRoleTarget())
     } yield {
       user.map { u =>
         val globalRole = roles.get(u.username).flatMap(_.headOption).getOrElse("")
         ConvergenceUserInfo(u, globalRole)
       }
-    })
+    }).map(GetConvergenceUserResponse)
 
-    reply(overviews)
+    reply(convergenceUser)
   }
 
-  def getConvergenceUsers(message: GetConvergenceUsers): Unit = {
-    val GetConvergenceUsers(filter, limit, offset) = message
-    val overviews = (for {
+  private[this] def onGetConvergenceUsers(message: GetConvergenceUsersRequest): Unit = {
+    val GetConvergenceUsersRequest(filter, limit, offset) = message
+    val convergenceUsers = (for {
       users <- userStore.getUsers(filter, limit, offset)
-      roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget)
+      roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget())
     } yield {
       users.map { user =>
         val globalRole = roles.get(user.username).flatMap(_.headOption).getOrElse("")
         ConvergenceUserInfo(user, globalRole)
       }.toSet
-    })
+    }).map(GetConvergenceUsersResponse)
 
-    reply(overviews)
+    reply(convergenceUsers)
   }
 
-  def deleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
-    // FIXME remove favorites
-    val DeleteConvergenceUserRequest(username) = message;
+  private[this] def onDeleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
+    val DeleteConvergenceUserRequest(username) = message
     val result = (domainStoreActor ? DeleteDomainsForUserRequest(username))
       .mapTo[Unit]
       .flatMap(_ => FutureUtils.tryToFuture(userStore.deleteUser(username)))
     reply(result)
   }
 
-  def updateConvergenceUserProfile(message: UpdateConvergenceUserProfileRequest): Unit = {
-    val UpdateConvergenceUserProfileRequest(username, email, firstName, lastName, displayName) = message;
-    log.debug(s"Updating user: $username")
+  private[this] def onUpdateConvergenceUserProfile(message: UpdateConvergenceUserProfileRequest): Unit = {
+    val UpdateConvergenceUserProfileRequest(username, email, firstName, lastName, displayName) = message
     val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))
   }
 
-  def updateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
-    val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, globalRole) = message;
-    log.debug(s"Updating user: $username")
+  private[this] def onUpdateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
+    val UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, globalRole) = message
     val update = User(username, email, firstName, lastName, displayName, None)
     reply(userStore.updateUser(update))
   }
 
-  def setUserPassword(message: SetPasswordRequest): Unit = {
-    val SetPasswordRequest(username, password) = message;
-    log.debug(s"Setting the password for user: $username")
+  private[this] def onSetUserPassword(message: SetPasswordRequest): Unit = {
+    val SetPasswordRequest(username, password) = message
     reply(userStore.setUserPassword(username, password))
   }
 
-  def getUserBearerToken(message: GetUserBearerTokenRequest): Unit = {
-    val GetUserBearerTokenRequest(username) = message;
-    val result = userStore.getBearerToken(username);
+  private[this] def onGetUserBearerToken(message: GetUserBearerTokenRequest): Unit = {
+    val GetUserBearerTokenRequest(username) = message
+    val result = userStore.getBearerToken(username).map(GetUserBearerTokenResponse)
     reply(result)
   }
 
-  def regenerateUserBearerToken(message: RegenerateUserBearerTokenRequest): Unit = {
-    val RegenerateUserBearerTokenRequest(username) = message;
-    log.debug(s"Regenerating the api key for user: $username")
+  private[this] def onRegenerateUserBearerToken(message: RegenerateUserBearerTokenRequest): Unit = {
+    val RegenerateUserBearerTokenRequest(username) = message
     val bearerToken = userCreator.bearerTokenGen.nextString()
     reply(userStore.setBearerToken(username, bearerToken).map(_ => bearerToken))
   }
+}
+
+
+object ConvergenceUserManagerActor {
+  val RelativePath = "ConvergenceUserManagerActor"
+
+  def props(dbProvider: DatabaseProvider, domainStoreActor: ActorRef): Props =
+    Props(new ConvergenceUserManagerActor(dbProvider, domainStoreActor))
+
+  case class ConvergenceUserInfo(user: User, globalRole: String)
+
+  sealed trait ConvergenceUserManagerActorMessage extends CborSerializable
+
+  case class CreateConvergenceUserRequest(username: String,
+                                          email: String,
+                                          firstName: String,
+                                          lastName: String,
+                                          displayName: String,
+                                          password: String,
+                                          globalRole: String) extends ConvergenceUserManagerActorMessage
+
+  case class UpdateConvergenceUserRequest(username: String,
+                                          email: String,
+                                          firstName: String,
+                                          lastName: String,
+                                          displayName: String,
+                                          globalRole: String) extends ConvergenceUserManagerActorMessage
+
+  case class UpdateConvergenceUserProfileRequest(username: String,
+                                                 email: String,
+                                                 firstName: String,
+                                                 lastName: String,
+                                                 displayName: String) extends ConvergenceUserManagerActorMessage
+
+  case class SetPasswordRequest(username: String, password: String) extends ConvergenceUserManagerActorMessage
+
+  case class DeleteConvergenceUserRequest(username: String) extends ConvergenceUserManagerActorMessage
+
+  case class GetConvergenceUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int]) extends ConvergenceUserManagerActorMessage
+
+  case class GetConvergenceUsersResponse(users: Set[ConvergenceUserInfo]) extends CborSerializable
+
+  case class GetConvergenceUserRequest(username: String) extends ConvergenceUserManagerActorMessage
+
+  case class GetConvergenceUserResponse(user: Option[ConvergenceUserInfo]) extends CborSerializable
+
+  case class GetUserBearerTokenRequest(username: String) extends ConvergenceUserManagerActorMessage
+
+  case class GetUserBearerTokenResponse(token: Option[String]) extends CborSerializable
+
+  case class RegenerateUserBearerTokenRequest(username: String) extends ConvergenceUserManagerActorMessage
+
+  case class RegenerateUserBearerTokenResponse(username: String) extends CborSerializable
+
 }

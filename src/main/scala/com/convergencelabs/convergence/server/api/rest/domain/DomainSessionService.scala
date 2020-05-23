@@ -23,7 +23,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{RestResponse, notFoundResponse, okResponse}
 import com.convergencelabs.convergence.server.datastore.domain.DomainSession
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
-import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor.{GetSession, GetSessions}
+import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor.{GetSessionRequest, GetSessionResponse, GetSessionsRequest, GetSessionsResponse}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -103,7 +103,7 @@ class DomainSessionService(private[this] val executionContext: ExecutionContext,
       .flatMap(t => SessionQueryType.withNameOpt(t))
       .getOrElse(SessionQueryType.All)
 
-    val getMessage = GetSessions(
+    val getMessage = GetSessionsRequest(
       sessionId,
       username,
       remoteHost,
@@ -113,16 +113,22 @@ class DomainSessionService(private[this] val executionContext: ExecutionContext,
       limit,
       offset)
     val message = DomainRestMessage(domain, getMessage)
-    (domainRestActor ? message).mapTo[List[DomainSession]] map (sessions =>
-      okResponse(sessions.map(sessionToSessionData)))
+    (domainRestActor ? message)
+      .mapTo[GetSessionsResponse]
+      .map(_.sessions)
+      .map(sessions =>
+        okResponse(sessions.map(sessionToSessionData)))
   }
 
   private[this] def getSession(domain: DomainId, sessionId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetSession(sessionId))
-    (domainRestActor ? message).mapTo[Option[DomainSession]] map {
-      case Some(sessions) => okResponse(sessionToSessionData(sessions))
-      case None => notFoundResponse()
-    }
+    val message = DomainRestMessage(domain, GetSessionRequest(sessionId))
+    (domainRestActor ? message)
+      .mapTo[GetSessionResponse]
+      .map(_.session)
+      .map {
+        case Some(sessions) => okResponse(sessionToSessionData(sessions))
+        case None => notFoundResponse()
+      }
   }
 
   private[this] def sessionToSessionData(session: DomainSession): DomainSessionData = {

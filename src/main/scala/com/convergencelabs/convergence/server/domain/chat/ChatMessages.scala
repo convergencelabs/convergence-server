@@ -14,12 +14,13 @@ package com.convergencelabs.convergence.server.domain.chat
 import java.time.Instant
 
 import akka.actor.ActorRef
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.ChatInfo
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 
 object ChatMessages {
 
-  sealed trait ExistingChatMessage {
+  sealed trait ExistingChatMessage extends CborSerializable {
     val domainId: DomainId
     val chatId: String
   }
@@ -30,7 +31,7 @@ object ChatMessages {
 
   case class JoinChannelRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
 
-  case class JoinChannelResponse(info: ChatInfo)
+  case class JoinChannelResponse(info: ChatInfo) extends CborSerializable
 
   case class LeaveChannelRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId, client: ActorRef) extends ExistingChatMessage
 
@@ -60,27 +61,27 @@ object ChatMessages {
 
   case class GetClientChatPermissionsRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
 
-  case class GetClientChatPermissionsResponse(permissions: Set[String])
+  case class GetClientChatPermissionsResponse(permissions: Set[String]) extends CborSerializable
 
   case class GetWorldChatPermissionsRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
 
-  case class GetWorldChatPermissionsResponse(permissions: Set[String])
+  case class GetWorldChatPermissionsResponse(permissions: Set[String]) extends CborSerializable
 
   case class GetAllUserChatPermissionsRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
 
-  case class GetAllUserChatPermissionsResponse(users: Map[DomainUserId, Set[String]])
+  case class GetAllUserChatPermissionsResponse(users: Map[DomainUserId, Set[String]]) extends CborSerializable
 
   case class GetAllGroupChatPermissionsRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId) extends ExistingChatMessage
 
-  case class GetAllGroupChatPermissionsResponse(groups: Map[String, Set[String]])
+  case class GetAllGroupChatPermissionsResponse(groups: Map[String, Set[String]]) extends CborSerializable
 
   case class GetUserChatPermissionsRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId, userId: DomainUserId) extends ExistingChatMessage
 
-  case class GetUserChatPermissionsResponse(permissions: Set[String])
+  case class GetUserChatPermissionsResponse(permissions: Set[String]) extends CborSerializable
 
   case class GetGroupChatPermissionsRequest(domainId: DomainId, chatId: String, requester: DomainUserSessionId, groupId: String) extends ExistingChatMessage
 
-  case class GetGroupChatPermissionsResponse(permissions: Set[String])
+  case class GetGroupChatPermissionsResponse(permissions: Set[String]) extends CborSerializable
 
   case class GetChatHistoryRequest(domainId: DomainId,
                                    chatId: String,
@@ -92,28 +93,7 @@ object ChatMessages {
                                    eventTypes: Option[Set[String]],
                                    messageFilter: Option[String] = None) extends ExistingChatMessage
 
-  // Outgoing Broadcast Messages
-  sealed trait ChatBroadcastMessage {
-    val chatId: String
-  }
 
-  case class UserJoinedChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends ChatBroadcastMessage
-
-  case class UserLeftChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends ChatBroadcastMessage
-
-  case class UserAddedToChannel(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, addedUserId: DomainUserId) extends ChatBroadcastMessage
-
-  case class UserRemovedFromChannel(chatId: String, eventNumber: Int, timestamp: Instant, userId: DomainUserId, removedUserId: DomainUserId) extends ChatBroadcastMessage
-
-  case class ChatNameChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, name: String) extends ChatBroadcastMessage
-
-  case class ChatTopicChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, topic: String) extends ChatBroadcastMessage
-
-  case class ChannelRemoved(chatId: String) extends ChatBroadcastMessage
-
-  case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, session: DomainUserSessionId, message: String) extends ChatBroadcastMessage
-
-  case class EventsMarkedSeen(chatId: String, eventNumber: Long, session: DomainUserSessionId) extends ChatBroadcastMessage
 
   // Exceptions
   sealed abstract class ChatException(message: String) extends Exception(message)

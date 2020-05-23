@@ -11,60 +11,68 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
+import akka.actor.{ActorLogging, Props}
+import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.datastore.StoreActor
+import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.domain.{Domain, DomainId}
+
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.DomainId
 
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.util.Timeout
+class UserFavoriteDomainStoreActor private[datastore](private[this] val dbProvider: DatabaseProvider) extends StoreActor
+  with ActorLogging {
+
+  import UserFavoriteDomainStoreActor._
+
+  // FIXME: Read this from configuration
+  private[this] implicit val requestTimeout: Timeout = Timeout(2 seconds)
+  private[this] implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+
+  private[this] val favoriteStore = new UserFavoriteDomainStore(dbProvider)
+
+  def receive: Receive = {
+    case message: AddFavoriteDomainRequest =>
+      onAddFavorite(message)
+    case message: RemoveFavoriteDomainRequest =>
+      onRemoveFavorite(message)
+    case message: GetFavoritesForUserRequest =>
+      onGetFavoritesForUser(message)
+    case message: Any => unhandled(message)
+  }
+
+  private[this] def onAddFavorite(message: AddFavoriteDomainRequest): Unit = {
+    val AddFavoriteDomainRequest(username, domain) = message
+    reply(favoriteStore.addFavorite(username, domain))
+  }
+
+  private[this] def onRemoveFavorite(message: RemoveFavoriteDomainRequest): Unit = {
+    val RemoveFavoriteDomainRequest(username, domain) = message
+    reply(favoriteStore.removeFavorite(username, domain))
+  }
+
+  private[this] def onGetFavoritesForUser(message: GetFavoritesForUserRequest): Unit = {
+    val GetFavoritesForUserRequest(username) = message
+    reply(favoriteStore.getFavoritesForUser(username).map(GetFavoritesForUserResponse))
+  }
+}
 
 object UserFavoriteDomainStoreActor {
   val RelativePath = "UserFavoriteDomainStoreActor"
 
   def props(dbProvider: DatabaseProvider): Props = Props(new UserFavoriteDomainStoreActor(dbProvider))
 
-  case class AddFavoriteDomain(username: String, domain: DomainId)
-  case class RemoveFavoriteDomain(username: String, domain: DomainId)
-  case class GetFavoritesForUser(username: String)
-}
+  sealed trait UserFavoriteDomainStoreActorMessage extends CborSerializable
 
-class UserFavoriteDomainStoreActor private[datastore] (private[this] val dbProvider: DatabaseProvider) extends StoreActor
-  with ActorLogging {
+  case class AddFavoriteDomainRequest(username: String, domain: DomainId) extends UserFavoriteDomainStoreActorMessage
 
-  import UserFavoriteDomainStoreActor._
+  case class RemoveFavoriteDomainRequest(username: String, domain: DomainId) extends UserFavoriteDomainStoreActorMessage
 
-  // FIXME: Read this from configuration
-  private[this] implicit val requstTimeout = Timeout(2 seconds)
-  private[this] implicit val exectionContext = context.dispatcher
+  case class GetFavoritesForUserRequest(username: String) extends UserFavoriteDomainStoreActorMessage
 
-  private[this] val favoriteStore = new UserFavoriteDomainStore(dbProvider)
+  case class GetFavoritesForUserResponse(domains: Set[Domain]) extends UserFavoriteDomainStoreActorMessage
 
-  def receive: Receive = {
-    case message: AddFavoriteDomain => 
-      addFavorite(message)
-    case message: RemoveFavoriteDomain => 
-      removeFavorite(message)
-    case message: GetFavoritesForUser => 
-      getFavoritesForUser(message)
-    case message: Any => unhandled(message)
-  }
-
-  def addFavorite(message: AddFavoriteDomain): Unit = {
-    val AddFavoriteDomain(username, domain) = message
-    reply(favoriteStore.addFavorite(username, domain))
-  }
-
-  def removeFavorite(message: RemoveFavoriteDomain): Unit = {
-    val RemoveFavoriteDomain(username, domain) = message
-    reply(favoriteStore.removeFavorite(username, domain))
-  }
-  
-  def getFavoritesForUser(message: GetFavoritesForUser): Unit = {
-    val GetFavoritesForUser(username) = message
-    reply(favoriteStore.getFavoritesForUser(username))
-  }
 }

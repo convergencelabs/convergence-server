@@ -18,6 +18,9 @@ import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.ProtocolConfiguration
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.api.realtime.ClientActor.SendUnprocessedMessage
+import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.OutgoingBinaryMessage
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
@@ -75,7 +78,7 @@ trait ReplyCallback {
  * The [[ProtocolMessageEvent]] defines the events related to receiving a
  * message from the client.
  */
-sealed trait ProtocolMessageEvent {
+sealed trait ProtocolMessageEvent extends CborSerializable {
   def message: GeneratedMessage
 }
 

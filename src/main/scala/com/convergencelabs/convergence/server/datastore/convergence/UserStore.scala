@@ -14,9 +14,9 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import java.time.Instant
 import java.util.Date
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.UserClass
 import com.convergencelabs.convergence.server.datastore.domain.PasswordUtil
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
@@ -25,53 +25,6 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Try}
-
-object UserStore {
-
-  object Params {
-    val Username = "username"
-    val BearerToken = "bearerToken"
-    val PasswordHash = "passwordHash"
-    val PasswordLastSet = "passwordLastSet"
-    val LastLogin = "lastLogin"
-  }
-
-  def docToUser(doc: ODocument): User = {
-    User(
-      doc.getProperty(UserClass.Fields.Username),
-      doc.getProperty(UserClass.Fields.Email),
-      doc.getProperty(UserClass.Fields.FirstName),
-      doc.getProperty(UserClass.Fields.LastName),
-      doc.getProperty(UserClass.Fields.DisplayName),
-      Option(doc.getProperty(UserClass.Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant()))
-  }
-
-  def userToDoc(user: User, bearerToken: Option[String] = None, passwordHash: Option[String] = None, passwordLastSet: Option[Date] = None): ODocument = {
-    val doc = new ODocument(UserClass.ClassName)
-    doc.setProperty(UserClass.Fields.Username, user.username)
-    doc.setProperty(UserClass.Fields.Email, user.email)
-    doc.setProperty(UserClass.Fields.FirstName, user.firstName)
-    doc.setProperty(UserClass.Fields.LastName, user.lastName)
-    doc.setProperty(UserClass.Fields.DisplayName, user.displayName)
-    bearerToken.foreach(doc.setProperty(UserClass.Fields.BearerToken, _))
-    passwordHash.foreach(doc.setProperty(UserClass.Fields.PasswordHash, _))
-    passwordLastSet.foreach(doc.setProperty(UserClass.Fields.PasswordLastSet, _))
-    doc
-  }
-
-  def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, UserClass.Indices.Username, username)
-  }
-
-  case class User(
-                   username: String,
-                   email: String,
-                   firstName: String,
-                   lastName: String,
-                   displayName: String,
-                   lastLogin: Option[Instant])
-
-}
 
 /**
  * Manages the persistence of Users.  This class manages both user records
@@ -257,4 +210,50 @@ class UserStore(dbProvider: DatabaseProvider)
           Failure(e)
       }
   }
+}
+
+object UserStore {
+
+  object Params {
+    val Username = "username"
+    val BearerToken = "bearerToken"
+    val PasswordHash = "passwordHash"
+    val PasswordLastSet = "passwordLastSet"
+    val LastLogin = "lastLogin"
+  }
+
+  def docToUser(doc: ODocument): User = {
+    User(
+      doc.getProperty(UserClass.Fields.Username),
+      doc.getProperty(UserClass.Fields.Email),
+      doc.getProperty(UserClass.Fields.FirstName),
+      doc.getProperty(UserClass.Fields.LastName),
+      doc.getProperty(UserClass.Fields.DisplayName),
+      Option(doc.getProperty(UserClass.Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant()))
+  }
+
+  def userToDoc(user: User, bearerToken: Option[String] = None, passwordHash: Option[String] = None, passwordLastSet: Option[Date] = None): ODocument = {
+    val doc = new ODocument(UserClass.ClassName)
+    doc.setProperty(UserClass.Fields.Username, user.username)
+    doc.setProperty(UserClass.Fields.Email, user.email)
+    doc.setProperty(UserClass.Fields.FirstName, user.firstName)
+    doc.setProperty(UserClass.Fields.LastName, user.lastName)
+    doc.setProperty(UserClass.Fields.DisplayName, user.displayName)
+    bearerToken.foreach(doc.setProperty(UserClass.Fields.BearerToken, _))
+    passwordHash.foreach(doc.setProperty(UserClass.Fields.PasswordHash, _))
+    passwordLastSet.foreach(doc.setProperty(UserClass.Fields.PasswordLastSet, _))
+    doc
+  }
+
+  def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, UserClass.Indices.Username, username)
+  }
+
+  case class User(username: String,
+                  email: String,
+                  firstName: String,
+                  lastName: String,
+                  displayName: String,
+                  lastLogin: Option[Instant])
+
 }

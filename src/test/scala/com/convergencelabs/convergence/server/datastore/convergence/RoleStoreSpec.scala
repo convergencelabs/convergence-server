@@ -100,8 +100,8 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
         val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
         roleStore.createRole(Role4).get
         roleStore.createRole(Role2).get
-        roleStore.setUserRolesForTarget(TestUser.username, ServerRoleTarget, Set(Role4Id, Role2Id)).get
-        roleStore.getUserPermissionsForTarget(TestUser.username, ServerRoleTarget).get.size shouldBe 2
+        roleStore.setUserRolesForTarget(TestUser.username, ServerRoleTarget(), Set(Role4Id, Role2Id)).get
+        roleStore.getUserPermissionsForTarget(TestUser.username, ServerRoleTarget()).get.size shouldBe 2
       }
     }
 
@@ -127,9 +127,9 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
         roleStore.createRole(Role3).get
         roleStore.createRole(Role4).get
         
-        roleStore.setUserRolesForTarget(TestUser.username, ServerRoleTarget, Set(Role4Id)).get
-        roleStore.setUserRolesForTarget(TestUser2.username, ServerRoleTarget, Set(Role2Id, Role3Id)).get
-        roleStore.getUserRolesForTarget(TestUser2.username, ServerRoleTarget).get shouldBe Set(Role2, Role3)
+        roleStore.setUserRolesForTarget(TestUser.username, ServerRoleTarget(), Set(Role4Id)).get
+        roleStore.setUserRolesForTarget(TestUser2.username, ServerRoleTarget(), Set(Role2Id, Role3Id)).get
+        roleStore.getUserRolesForTarget(TestUser2.username, ServerRoleTarget()).get shouldBe Set(Role2, Role3)
       }
     }
 

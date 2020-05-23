@@ -125,10 +125,10 @@ class DomainStore(dbProvider: DatabaseProvider)
     OrientDBUtil.findDocument(db, GetDomainQuery, params).map(_.map(docToDomain))
   }
 
-  private[this] val GetDomainsByNamesapceQuery = "SELECT FROM Domain WHERE namespace.id = :namespace"
+  private[this] val GetDomainsByNamespaceQuery = "SELECT FROM Domain WHERE namespace.id = :namespace"
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = withDb { db =>
     val params = Map(Params.Namespace -> namespace)
-    OrientDBUtil.query(db, GetDomainsByNamesapceQuery, params).map(_.map(docToDomain))
+    OrientDBUtil.query(db, GetDomainsByNamespaceQuery, params).map(_.map(docToDomain))
   }
 
   def getDomains(namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>

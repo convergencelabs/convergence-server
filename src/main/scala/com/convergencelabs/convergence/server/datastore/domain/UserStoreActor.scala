@@ -12,45 +12,16 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
-import com.convergencelabs.convergence.server.datastore.{SortOrder, StoreActor}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.datastore.{SortOrder, StoreActor}
+import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 
 import scala.util.Success
 
-object UserStoreActor {
-  def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
 
-  trait UserStoreRequest
-  case class GetUsers(
-    filter: Option[String],
-    offset: Option[Int],
-    limit: Option[Int]) extends UserStoreRequest
-  case class GetUserByUsername(userId: DomainUserId) extends UserStoreRequest
-  case class CreateUser(
-    username: String,
-    firstName: Option[String],
-    lastName: Option[String],
-    displayName: Option[String],
-    email: Option[String],
-    password: Option[String]) extends UserStoreRequest
-  case class DeleteDomainUser(username: String) extends UserStoreRequest
-  case class UpdateUser(
-    username: String,
-    firstName: Option[String],
-    lastName: Option[String],
-    displayName: Option[String],
-    email: Option[String],
-    disabled: Option[Boolean]) extends UserStoreRequest
-  case class SetPassword(
-    uid: String,
-    password: String) extends UserStoreRequest
-
-  case class FindUser(filter: String, exclude: Option[List[DomainUserId]], offset: Option[Int], limit: Option[Int]) extends UserStoreRequest
-}
-
-class UserStoreActor private[datastore] (private[this] val userStore: DomainUserStore)
-    extends StoreActor with ActorLogging {
+class UserStoreActor private[datastore](private[this] val userStore: DomainUserStore)
+  extends StoreActor with ActorLogging {
 
   import UserStoreActor._
 
@@ -61,39 +32,46 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
 
   def onUserStoreRequest(message: UserStoreRequest): Unit = {
     message match {
-      case message: GetUserByUsername => getUserByUsername(message)
-      case message: CreateUser => createUser(message)
-      case message: DeleteDomainUser => deleteUser(message)
-      case message: UpdateUser => updateUser(message)
-      case message: SetPassword => setPassword(message)
-      case message: GetUsers => getAllUsers(message)
-      case message: FindUser => findUser(message)
+      case message: GetUserByUsernameRequest =>
+        onGetUserByUsername(message)
+      case message: CreateUserRequest =>
+        onCreateUser(message)
+      case message: DeleteDomainUserRequest =>
+        onDeleteUser(message)
+      case message: UpdateUserRequest =>
+        onUpdateUser(message)
+      case message: SetPasswordRequest =>
+        onSetPassword(message)
+      case message: GetUsersRequest =>
+        onGetAllUsers(message)
+      case message: FindUsersRequest =>
+        onFindUser(message)
     }
   }
 
-  def getAllUsers(message: GetUsers): Unit = {
-    val GetUsers(filter, offset, limit) = message
-    filter match {
+  private[this] def onGetAllUsers(message: GetUsersRequest): Unit = {
+    val GetUsersRequest(filter, offset, limit) = message
+    reply((filter match {
       case Some(filterString) =>
-        reply(userStore.searchUsersByFields(
+        userStore.searchUsersByFields(
           List(DomainUserField.Username, DomainUserField.Email),
           filterString,
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
           offset,
-          limit))
+          limit)
       case None =>
-        reply(userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), limit, offset))
-    }
-  }
-  
-  def findUser(message: FindUser): Unit = {
-    val FindUser(search, exclude, limit, offset) = message
-    reply(userStore.findUser(search, exclude.getOrElse(List()), offset.getOrElse(0), limit.getOrElse(10)))
+        userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), limit, offset)
+    }).map(GetUsersResponse))
   }
 
-  def createUser(message: CreateUser): Unit = {
-    val CreateUser(username, firstName, lastName, displayName, email, password) = message
+  private[this] def onFindUser(message: FindUsersRequest): Unit = {
+    val FindUsersRequest(search, exclude, limit, offset) = message
+    reply(userStore.findUser(search, exclude.getOrElse(List()), offset.getOrElse(0), limit.getOrElse(10)).map(FindUsersResponse))
+  }
+
+  private[this] def onCreateUser(message: CreateUserRequest): Unit = {
+    val CreateUserRequest(username, firstName, lastName, displayName, email, password) = message
     val domainUser = CreateNormalDomainUser(username, firstName, lastName, displayName, email)
     val result = userStore.createNormalDomainUser(domainUser) flatMap { createResult =>
       // FIXME this only works as a hack because of the way our create result works.
@@ -106,25 +84,68 @@ class UserStoreActor private[datastore] (private[this] val userStore: DomainUser
           }
       }
     }
-    reply(result)
+    reply(result.map(CreateUserResponse))
   }
 
-  def updateUser(message: UpdateUser): Unit = {
-    val UpdateUser(username, firstName, lastName, displayName, email, disabled) = message
-    val domainUser = UpdateDomainUser(DomainUserId.normal(username), firstName, lastName, displayName, email, disabled);
+  private[this] def onUpdateUser(message: UpdateUserRequest): Unit = {
+    val UpdateUserRequest(username, firstName, lastName, displayName, email, disabled) = message
+    val domainUser = UpdateDomainUser(DomainUserId.normal(username), firstName, lastName, displayName, email, disabled)
     reply(userStore.updateDomainUser(domainUser))
   }
 
-  def setPassword(message: SetPassword): Unit = {
-    val SetPassword(username, password) = message
+  private[this] def onSetPassword(message: SetPasswordRequest): Unit = {
+    val SetPasswordRequest(username, password) = message
     reply(userStore.setDomainUserPassword(username, password))
   }
 
-  def deleteUser(message: DeleteDomainUser): Unit = {
+  private[this] def onDeleteUser(message: DeleteDomainUserRequest): Unit = {
     reply(userStore.deleteNormalDomainUser(message.username))
   }
 
-  def getUserByUsername(message: GetUserByUsername): Unit = {
-    reply(userStore.getDomainUser(message.userId))
+  private[this] def onGetUserByUsername(message: GetUserByUsernameRequest): Unit = {
+    reply(userStore.getDomainUser(message.userId).map(GetUserByUsernameResponse))
   }
+}
+
+
+object UserStoreActor {
+  def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
+
+  trait UserStoreRequest extends CborSerializable
+
+  case class GetUsersRequest(filter: Option[String],
+                             offset: Option[Int],
+                             limit: Option[Int]) extends UserStoreRequest
+
+  case class GetUsersResponse(users: List[DomainUser]) extends CborSerializable
+
+  case class GetUserByUsernameRequest(userId: DomainUserId) extends UserStoreRequest
+
+  case class GetUserByUsernameResponse(user: Option[DomainUser]) extends CborSerializable
+
+  case class CreateUserRequest(username: String,
+                               firstName: Option[String],
+                               lastName: Option[String],
+                               displayName: Option[String],
+                               email: Option[String],
+                               password: Option[String]) extends UserStoreRequest
+
+  case class CreateUserResponse(username: String) extends CborSerializable
+
+  case class DeleteDomainUserRequest(username: String) extends UserStoreRequest
+
+  case class UpdateUserRequest(username: String,
+                               firstName: Option[String],
+                               lastName: Option[String],
+                               displayName: Option[String],
+                               email: Option[String],
+                               disabled: Option[Boolean]) extends UserStoreRequest
+
+  case class SetPasswordRequest(uid: String,
+                          password: String) extends UserStoreRequest
+
+  case class FindUsersRequest(filter: String, exclude: Option[List[DomainUserId]], offset: Option[Int], limit: Option[Int]) extends UserStoreRequest
+
+  case class FindUsersResponse(users: List[DomainUser])
+
 }

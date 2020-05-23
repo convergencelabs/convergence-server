@@ -12,25 +12,24 @@
 package com.convergencelabs.convergence.server.api.realtime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.activity._
-import com.convergencelabs.convergence.server.domain.activity._
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.domain.activity.ActivityActor._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
+import org.json4s.JsonAST.JValue
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-object ActivityClientActor {
-  def props(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId): Props =
-    Props(new ActivityClientActor(activityServiceActor, domain, session))
-}
-
 class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId) extends Actor with ActorLogging {
-  import akka.pattern.ask
+
+  import ActivityClientActor._
 
   private[this] implicit val timeout: Timeout = Timeout(5 seconds)
   private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
@@ -49,13 +48,13 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
       context.parent ! ActivitySessionLeftMessage(activityId, sessionId)
     case ActivityStateUpdated(activityId, sessionId, state, complete, removed) =>
       context.parent ! ActivityStateUpdatedMessage(
-          activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state), complete, removed)
-      
+        activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state), complete, removed)
+
     // Everything else
     case x: Any =>
       log.warning("Unexpected activity message: {}", x)
   }
-  
+
 
   //
   // Incoming Messages
@@ -63,9 +62,9 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
 
   def onMessageReceived(message: NormalMessage with ActivityMessage): Unit = {
     message match {
-      case leave: ActivityLeaveMessage => 
+      case leave: ActivityLeaveMessage =>
         onActivityLeave(leave)
-      case setState: ActivityUpdateStateMessage => 
+      case setState: ActivityUpdateStateMessage =>
         onActivityUpdateState(setState)
     }
   }
@@ -73,7 +72,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
   def onActivityUpdateState(message: ActivityUpdateStateMessage): Unit = {
     val ActivityUpdateStateMessage(id, state, complete, removed) = message
     this.activityServiceActor ! ActivityUpdateState(
-        domain, id, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state), complete, removed.toList)
+      domain, id, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state), complete, removed.toList)
   }
 
 
@@ -123,4 +122,26 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
     val ActivityLeaveMessage(activityId) = RequestMessage
     this.activityServiceActor ! ActivityLeave(domain, activityId, session.sessionId)
   }
+}
+
+object ActivityClientActor {
+  def props(activityServiceActor: ActorRef, domain: DomainId, session: DomainUserSessionId): Props =
+    Props(new ActivityClientActor(activityServiceActor, domain, session))
+
+  sealed trait OutgoingActivityMessage extends CborSerializable
+
+  case class ActivityJoinResponse(state: Map[String, Map[String, JValue]]) extends OutgoingActivityMessage
+
+  case class ActivityParticipants(state: Map[String, Map[String, JValue]]) extends OutgoingActivityMessage
+
+  case class ActivitySessionJoined(activityId: String, sessionId: String, state: Map[String, JValue]) extends OutgoingActivityMessage
+
+  case class ActivitySessionLeft(activityId: String, sessionId: String) extends OutgoingActivityMessage
+
+  case class ActivityStateUpdated(activityId: String,
+                                  sessionId: String,
+                                  state: Map[String, JValue],
+                                  complete: Boolean,
+                                  removed: List[String]) extends OutgoingActivityMessage
+
 }

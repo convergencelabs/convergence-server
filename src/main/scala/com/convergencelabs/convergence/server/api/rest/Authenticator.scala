@@ -23,14 +23,14 @@ import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor.{ValidateSessionTokenRequest, ValidateUserApiKeyRequest, ValidateUserBearerTokenRequest}
+import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * This class provides a helper directive to authenticate users and validate
- * tokens
+ * tokens / API keys.
  */
 class Authenticator(private[this] val authActor: ActorRef,
                     private[this] val timeout: Timeout,
@@ -79,14 +79,21 @@ class Authenticator(private[this] val authActor: ActorRef,
   }
 
   private[this] def validateSessionToken(token: String): Future[Option[AuthorizationProfile]] = {
-    (authActor ? ValidateSessionTokenRequest(token)).mapTo[Option[AuthorizationProfile]]
+    (authActor ? ValidateSessionTokenRequest(token))
+      .mapTo[ValidateSessionTokenResponse]
+      .map(_.profile.map(data => AuthorizationProfile(data)))
   }
 
   private[this] def validateUserBearerToken(token: String): Future[Option[AuthorizationProfile]] = {
-    (authActor ? ValidateUserBearerTokenRequest(token)).mapTo[Option[AuthorizationProfile]]
+    (authActor ? ValidateUserBearerTokenRequest(token))
+      .mapTo[ValidateUserBearerTokenResponse]
+      .map(_.profile.map(data => AuthorizationProfile(data)))
+
   }
 
   private[this] def validateUserApiKey(apiKey: String): Future[Option[AuthorizationProfile]] = {
-    (authActor ? ValidateUserApiKeyRequest(apiKey)).mapTo[Option[AuthorizationProfile]]
+    (authActor ? ValidateUserApiKeyRequest(apiKey))
+      .mapTo[ValidateUserApiKeyResponse]
+      .map(_.profile.map(data => AuthorizationProfile(data)))
   }
 }

@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.{ActorLogging, Props}
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
@@ -21,22 +22,6 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-object UserApiKeyStoreActor {
-  val RelativePath = "UserApiKeyStoreActor"
-
-  def props(dbProvider: DatabaseProvider): Props = Props(new UserApiKeyStoreActor(dbProvider))
-
-  case class GetApiKeysForUser(username: String)
-
-  case class GetApiKeyRequest(username: String, key: String)
-
-  case class CreateApiKeyRequest(username: String, name: String, enabled: Option[Boolean])
-
-  case class DeleteApiKeyRequest(username: String, key: String)
-
-  case class UpdateKeyRequest(username: String, key: String, name: String, enabled: Boolean)
-
-}
 
 class UserApiKeyStoreActor private[datastore](private[this] val dbProvider: DatabaseProvider) extends StoreActor
   with ActorLogging {
@@ -51,25 +36,31 @@ class UserApiKeyStoreActor private[datastore](private[this] val dbProvider: Data
   private[this] val keyGen = new RandomStringGenerator(length = 64, RandomStringGenerator.AlphaNumeric)
 
   def receive: Receive = {
-    case message: GetApiKeysForUser => getKeys(message)
-    case message: GetApiKeyRequest => getKey(message)
-    case message: CreateApiKeyRequest => createKey(message)
-    case message: DeleteApiKeyRequest => deleteKey(message)
-    case message: UpdateKeyRequest => updateKey(message)
-    case message: Any => unhandled(message)
+    case message: GetApiKeysForUserRequest =>
+      onGetKeys(message)
+    case message: GetApiKeyRequest =>
+      onGetKey(message)
+    case message: CreateApiKeyRequest =>
+      onCreateKey(message)
+    case message: DeleteApiKeyRequest =>
+      onDeleteKey(message)
+    case message: UpdateKeyRequest =>
+      onUpdateKey(message)
+    case message: Any =>
+      unhandled(message)
   }
 
-  def getKeys(message: GetApiKeysForUser): Unit = {
-    val GetApiKeysForUser(username) = message
-    reply(userApiKeyStore.getKeysForUser(username))
+  private[this] def onGetKeys(message: GetApiKeysForUserRequest): Unit = {
+    val GetApiKeysForUserRequest(username) = message
+    reply(userApiKeyStore.getKeysForUser(username).map(GetApiKeysForUserResponse))
   }
 
-  def getKey(message: GetApiKeyRequest): Unit = {
+  private[this] def onGetKey(message: GetApiKeyRequest): Unit = {
     val GetApiKeyRequest(username, key) = message
-    reply(userApiKeyStore.getKeyForUser(username, key))
+    reply(userApiKeyStore.getKeyForUser(username, key).map(GetApiKeyResponse))
   }
 
-  def createKey(message: CreateApiKeyRequest): Unit = {
+  private[this] def onCreateKey(message: CreateApiKeyRequest): Unit = {
     val CreateApiKeyRequest(username, keyName, enabled) = message
     val key = UserApiKey(username, keyName, keyGen.nextString(), enabled.getOrElse(true), None)
     reply(userApiKeyStore
@@ -77,13 +68,35 @@ class UserApiKeyStoreActor private[datastore](private[this] val dbProvider: Data
       .map(_ => key))
   }
 
-  def deleteKey(message: DeleteApiKeyRequest): Unit = {
+  private[this] def onDeleteKey(message: DeleteApiKeyRequest): Unit = {
     val DeleteApiKeyRequest(username, key) = message
     reply(userApiKeyStore.deleteKey(key, username))
   }
 
-  def updateKey(message: UpdateKeyRequest): Unit = {
+  private[this] def onUpdateKey(message: UpdateKeyRequest): Unit = {
     val UpdateKeyRequest(username, key, name, enabled) = message
     reply(userApiKeyStore.updateKeyKey(key, username, name, enabled))
   }
+}
+
+
+object UserApiKeyStoreActor {
+  val RelativePath = "UserApiKeyStoreActor"
+
+  def props(dbProvider: DatabaseProvider): Props = Props(new UserApiKeyStoreActor(dbProvider))
+
+  trait UserApiKeyStoreActorRequest extends CborSerializable
+  case class GetApiKeysForUserRequest(username: String) extends UserApiKeyStoreActorRequest
+
+  case class GetApiKeysForUserResponse(keys: Set[UserApiKey])
+
+  case class GetApiKeyRequest(username: String, key: String)  extends UserApiKeyStoreActorRequest
+  case class GetApiKeyResponse(key: Option[UserApiKey])
+
+  case class CreateApiKeyRequest(username: String, name: String, enabled: Option[Boolean])  extends UserApiKeyStoreActorRequest
+
+  case class DeleteApiKeyRequest(username: String, key: String)  extends UserApiKeyStoreActorRequest
+
+  case class UpdateKeyRequest(username: String, key: String, name: String, enabled: Boolean)  extends UserApiKeyStoreActorRequest
+
 }

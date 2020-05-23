@@ -11,61 +11,40 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
 
-object ModelPermissionsStoreActor {
-  def props(modelPermissionsStore: ModelPermissionsStore): Props =
-    Props(new ModelPermissionsStoreActor(modelPermissionsStore))
+class ModelPermissionsStoreActor private[datastore](private[this] val modelPermissionsStore: ModelPermissionsStore)
+  extends StoreActor with ActorLogging {
 
-  sealed trait ModelPermissionsStoreRequest
-
-  case class GetModelOverridesPermissions(modelId: String) extends ModelPermissionsStoreRequest
-  case class SetModelOverridesPermissions(modelId: String, overridesPermissions: Boolean) extends ModelPermissionsStoreRequest
-  case class GetModelPermissions(modelId: String) extends ModelPermissionsStoreRequest
-  case class GetModelWorldPermissions(modelId: String) extends ModelPermissionsStoreRequest
-  case class SetModelWorldPermissions(modelId: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
-  case class GetAllModelUserPermissions(modelId: String) extends ModelPermissionsStoreRequest
-  case class GetModelUserPermissions(modelId: String, userId: DomainUserId) extends ModelPermissionsStoreRequest
-  case class SetModelUserPermissions(modelId: String, userId: DomainUserId, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
-  case class RemoveModelUserPermissions(modelId: String, userId: DomainUserId) extends ModelPermissionsStoreRequest
-
-  case class ModelUserPermissions(userId: DomainUserId, permissions: ModelPermissions)
-  case class ModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
-}
-
-class ModelPermissionsStoreActor private[datastore] (
-  private[this] val modelPermissionsStore: ModelPermissionsStore)
-    extends StoreActor with ActorLogging {
-  
   import ModelPermissionsStoreActor._
 
   def receive: Receive = {
-    case GetModelOverridesPermissions(modelId) =>
-      modelOverridesCollectionPermissions(modelId)
-    case SetModelOverridesPermissions(modelId, overridesPermissions) =>
-      setModelOverridesCollectionPermissions(modelId, overridesPermissions)
-    case GetModelPermissions(modelId) =>
-      getModelPermissions(modelId)
-    case GetModelWorldPermissions(modelId) =>
-      getModelWorldPermissions(modelId)
-    case SetModelWorldPermissions(modelId, permissions) =>
-      setModelWorldPermissions(modelId, permissions)
-    case GetAllModelUserPermissions(modelId) =>
-      getAllModelUserPermissions(modelId)
-    case GetModelUserPermissions(modelId, userId) =>
-      getModelUserPermissions(modelId, userId)
-    case SetModelUserPermissions(modelId, userId, permissions: ModelPermissions) =>
-      setModelUserPermissions(modelId, userId, permissions)
-    case RemoveModelUserPermissions(modelId, userId) =>
-      removeModelUserPermissions(modelId, userId)
-
-    case message: Any => unhandled(message)
+    case GetModelOverridesPermissionsRequest(modelId) =>
+      onGetModelOverridesCollectionPermissions(modelId)
+    case SetModelOverridesPermissionsRequest(modelId, overridesPermissions) =>
+      onSetModelOverridesCollectionPermissions(modelId, overridesPermissions)
+    case GetModelPermissionsRequest(modelId) =>
+      onGetModelPermissions(modelId)
+    case GetModelWorldPermissionsRequest(modelId) =>
+      onGetModelWorldPermissions(modelId)
+    case SetModelWorldPermissionsRequest(modelId, permissions) =>
+      onSetModelWorldPermissions(modelId, permissions)
+    case GetAllModelUserPermissionsRequest(modelId) =>
+      onGetAllModelUserPermissions(modelId)
+    case GetModelUserPermissionsRequest(modelId, userId) =>
+      onGetModelUserPermissions(modelId, userId)
+    case SetModelUserPermissionsRequest(modelId, userId, permissions: ModelPermissions) =>
+      onSetModelUserPermissions(modelId, userId, permissions)
+    case RemoveModelUserPermissionsRequest(modelId, userId) =>
+      onRemoveModelUserPermissions(modelId, userId)
+    case message: Any =>
+      unhandled(message)
   }
 
-  def getModelPermissions(modelId: String): Unit = {
+  private[this] def onGetModelPermissions(modelId: String): Unit = {
     val result = for {
       overrideWorld <- modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
       worldPermissions <- modelPermissionsStore.getModelWorldPermissions(modelId)
@@ -74,42 +53,81 @@ class ModelPermissionsStoreActor private[datastore] (
       val userPermissionsList = userPermissions.toList.map {
         case Tuple2(userId, permissions) => ModelUserPermissions(userId, permissions)
       }
-      ModelPermissionsResponse(overrideWorld, worldPermissions, userPermissionsList)
+      GetModelPermissionsResponse(ModelPermissionsResponse(overrideWorld, worldPermissions, userPermissionsList))
     }
     reply(result)
   }
 
-  def modelOverridesCollectionPermissions(modelId: String): Unit = {
-    reply(modelPermissionsStore.modelOverridesCollectionPermissions(modelId))
+  private[this] def onGetModelOverridesCollectionPermissions(modelId: String): Unit = {
+    reply(modelPermissionsStore.modelOverridesCollectionPermissions(modelId).map(GetModelOverridesPermissionsResponse))
   }
 
-  def setModelOverridesCollectionPermissions(modelId: String, overridePermissions: Boolean): Unit = {
+  private[this] def onSetModelOverridesCollectionPermissions(modelId: String, overridePermissions: Boolean): Unit = {
     reply(modelPermissionsStore.setOverrideCollectionPermissions(modelId, overridePermissions))
   }
 
-  def getModelWorldPermissions(modelId: String): Unit = {
-    reply(modelPermissionsStore.getModelWorldPermissions(modelId))
+  private[this] def onGetModelWorldPermissions(modelId: String): Unit = {
+    reply(modelPermissionsStore.getModelWorldPermissions(modelId).map(GetModelWorldPermissionsResponse))
   }
 
-  def setModelWorldPermissions(modelId: String, permissions: ModelPermissions): Unit = {
+  private[this] def onSetModelWorldPermissions(modelId: String, permissions: ModelPermissions): Unit = {
     reply(modelPermissionsStore.setModelWorldPermissions(modelId, permissions))
   }
 
-  def getAllModelUserPermissions(modelId: String): Unit = {
+  private[this] def onGetAllModelUserPermissions(modelId: String): Unit = {
     reply(modelPermissionsStore.getAllModelUserPermissions(modelId).map(_.toList.map {
       case Tuple2(username, permissions) => ModelUserPermissions(username, permissions)
-    }))
+    }).map(GetAllModelUserPermissionsResponse))
   }
 
-  def getModelUserPermissions(modelId: String, userId: DomainUserId): Unit = {
-    reply(modelPermissionsStore.getModelUserPermissions(modelId, userId))
+  private[this] def onGetModelUserPermissions(modelId: String, userId: DomainUserId): Unit = {
+    reply(modelPermissionsStore.getModelUserPermissions(modelId, userId).map(GetModelUserPermissionsResponse))
   }
 
-  def setModelUserPermissions(modelId: String, userId: DomainUserId, permissions: ModelPermissions): Unit = {
+  private[this] def onSetModelUserPermissions(modelId: String, userId: DomainUserId, permissions: ModelPermissions): Unit = {
     reply(modelPermissionsStore.updateModelUserPermissions(modelId, userId, permissions))
   }
 
-  def removeModelUserPermissions(modelId: String, userId: DomainUserId): Unit = {
+  private[this] def onRemoveModelUserPermissions(modelId: String, userId: DomainUserId): Unit = {
     reply(modelPermissionsStore.removeModelUserPermissions(modelId, userId))
   }
+}
+
+object ModelPermissionsStoreActor {
+  def props(modelPermissionsStore: ModelPermissionsStore): Props =
+    Props(new ModelPermissionsStoreActor(modelPermissionsStore))
+
+  sealed trait ModelPermissionsStoreRequest extends CborSerializable
+
+  case class GetModelOverridesPermissionsRequest(modelId: String) extends ModelPermissionsStoreRequest
+
+  case class GetModelOverridesPermissionsResponse(overrides: Boolean) extends CborSerializable
+
+  case class SetModelOverridesPermissionsRequest(modelId: String, overridesPermissions: Boolean) extends ModelPermissionsStoreRequest
+
+  case class GetModelPermissionsRequest(modelId: String) extends ModelPermissionsStoreRequest
+
+  case class GetModelPermissionsResponse(permissions: ModelPermissionsResponse) extends CborSerializable
+
+  case class GetModelWorldPermissionsRequest(modelId: String) extends ModelPermissionsStoreRequest
+
+  case class GetModelWorldPermissionsResponse(permissions: ModelPermissions) extends CborSerializable
+
+  case class SetModelWorldPermissionsRequest(modelId: String, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
+
+  case class GetAllModelUserPermissionsRequest(modelId: String) extends ModelPermissionsStoreRequest
+
+  case class GetAllModelUserPermissionsResponse(permissions: List[ModelUserPermissions]) extends CborSerializable
+
+  case class GetModelUserPermissionsRequest(modelId: String, userId: DomainUserId) extends ModelPermissionsStoreRequest
+
+  case class GetModelUserPermissionsResponse(permissions: Option[ModelPermissions]) extends CborSerializable
+
+  case class SetModelUserPermissionsRequest(modelId: String, userId: DomainUserId, permissions: ModelPermissions) extends ModelPermissionsStoreRequest
+
+  case class RemoveModelUserPermissionsRequest(modelId: String, userId: DomainUserId) extends ModelPermissionsStoreRequest
+
+  case class ModelUserPermissions(userId: DomainUserId, permissions: ModelPermissions)
+
+  case class ModelPermissionsResponse(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
 }

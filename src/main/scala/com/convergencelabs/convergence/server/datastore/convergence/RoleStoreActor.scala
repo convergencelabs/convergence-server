@@ -13,35 +13,16 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.{ActorLogging, Props}
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Role
+import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.{Role, UserRoles}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-object RoleStoreActor {
-  val RelativePath = "RoleStoreActor"
-
-  def props(dbProvider: DatabaseProvider): Props = Props(new RoleStoreActor(dbProvider))
-
-  case class CreateRoleRequest(role: Role)
-  case class SeUsersRolesForTargetRequest(username: String, target: RoleTarget, roles: Set[String])
-
-  case class GetRoleProfileRequest(target: RoleTarget, username: String)
-  case class GetAllUserRolesRequest(target: RoleTarget)
-
-  case class GetUserRolesForTargetRequest(username: String, target: RoleTarget)
-  case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]])
-  case class SetAllUserRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]])
-
-  case class RemoveUserFromTarget(target: RoleTarget, username: String)
-
-  case class GetUserPermissionsRequest(username: String, target: RoleTarget)
-}
-
-class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseProvider) extends StoreActor
+class RoleStoreActor private[datastore](private[this] val dbProvider: DatabaseProvider) extends StoreActor
   with ActorLogging {
 
   import RoleStoreActor._
@@ -53,65 +34,113 @@ class RoleStoreActor private[datastore] (private[this] val dbProvider: DatabaseP
   private[this] val permissionsStore: RoleStore = new RoleStore(dbProvider)
 
   def receive: Receive = {
-    case message: CreateRoleRequest => createRole(message)
-    case message: SeUsersRolesForTargetRequest => setRolesRequest(message)
-    case message: GetRoleProfileRequest => getPermissionsProfile(message)
-    case message: GetAllUserRolesRequest => getAllUserRoles(message)
-    case message: GetUserRolesForTargetRequest => getUserRoles(message)
-    case message: GetUserPermissionsRequest => getUserPermissions(message)
-    case message: UpdateRolesForTargetRequest => updateRolesForTarget(message)
-    case message: SetAllUserRolesForTargetRequest => setRolesForTarget(message)
-    case message: RemoveUserFromTarget => removeUserRoleFromTarget(message)
-    case message: Any => unhandled(message)
+    case message: CreateRoleRequest =>
+      onCreateRole(message)
+    case message: SetUsersRolesForTargetRequest =>
+      onSetRolesRequest(message)
+    case message: GetRoleProfileRequest =>
+      onGetRoleProfile(message)
+    case message: GetAllUserRolesRequest =>
+      onGetAllUserRoles(message)
+    case message: GetUserRolesForTargetRequest =>
+      onGetUserRoles(message)
+    case message: GetUserPermissionsRequest =>
+      onGetUserPermissions(message)
+    case message: UpdateRolesForTargetRequest =>
+      onUpdateRolesForTarget(message)
+    case message: SetAllUserRolesForTargetRequest =>
+      onSetRolesForTarget(message)
+    case message: RemoveUserFromTarget =>
+      onRemoveUserRoleFromTarget(message)
+    case message: Any =>
+      unhandled(message)
   }
 
-  def createRole(message: CreateRoleRequest): Unit = {
+  private[this] def onCreateRole(message: CreateRoleRequest): Unit = {
     val CreateRoleRequest(role) = message
     reply(permissionsStore.createRole(role))
   }
 
-  def setRolesRequest(message: SeUsersRolesForTargetRequest): Unit = {
-    val SeUsersRolesForTargetRequest(username, target, roles) = message
+  private[this] def onSetRolesRequest(message: SetUsersRolesForTargetRequest): Unit = {
+    val SetUsersRolesForTargetRequest(username, target, roles) = message
     reply(permissionsStore.setUserRolesForTarget(username, target, roles))
   }
-  
-  def updateRolesForTarget(message: UpdateRolesForTargetRequest): Unit = {
+
+  private[this] def onUpdateRolesForTarget(message: UpdateRolesForTargetRequest): Unit = {
     val UpdateRolesForTargetRequest(target, userRoles) = message
     reply(permissionsStore.setUserRolesForTarget(target, userRoles))
   }
-  
-  def setRolesForTarget(message: SetAllUserRolesForTargetRequest): Unit = {
+
+  private[this] def onSetRolesForTarget(message: SetAllUserRolesForTargetRequest): Unit = {
     val SetAllUserRolesForTargetRequest(target, userRoles) = message
     reply(for {
       _ <- permissionsStore.removeAllRolesFromTarget(target)
       _ <- permissionsStore.setUserRolesForTarget(target, userRoles)
-    } yield (()))
+    } yield {
+      ()
+    })
   }
-  
-  
 
-  def getPermissionsProfile(message: GetRoleProfileRequest): Unit = {
+  private[this] def onGetRoleProfile(message: GetRoleProfileRequest): Unit = {
     val GetRoleProfileRequest(target, username) = message
-    reply(permissionsStore.getUserRolesForTarget(username, target).map { roles => new RoleProfile(roles) })
+    reply(permissionsStore.getUserRolesForTarget(username, target)
+      .map(GetRoleProfileResponse)
+    )
   }
 
-  def getAllUserRoles(message: GetAllUserRolesRequest): Unit = {
+  private[this] def onGetAllUserRoles(message: GetAllUserRolesRequest): Unit = {
     val GetAllUserRolesRequest(target) = message
-    reply(permissionsStore.getAllUserRolesForTarget(target))
+    reply(permissionsStore.getAllUserRolesForTarget(target).map(GetAllUserRolesResponse))
   }
 
-  def getUserRoles(message: GetUserRolesForTargetRequest): Unit = {
+  private[this] def onGetUserRoles(message: GetUserRolesForTargetRequest): Unit = {
     val GetUserRolesForTargetRequest(username, target) = message
-    reply(permissionsStore.getUserRolesForTarget(username, target))
+    reply(permissionsStore.getUserRolesForTarget(username, target).map(GetUserRolesForTargetResponse))
   }
 
-  def getUserPermissions(message: GetUserPermissionsRequest): Unit = {
+  private[this] def onGetUserPermissions(message: GetUserPermissionsRequest): Unit = {
     val GetUserPermissionsRequest(username, target) = message
-    reply(permissionsStore.getUserPermissionsForTarget(username, target))
+    reply(permissionsStore.getUserPermissionsForTarget(username, target).map(GetUserPermissionsResponse))
   }
-  
-  def removeUserRoleFromTarget(message: RemoveUserFromTarget): Unit = {
+
+  private[this] def onRemoveUserRoleFromTarget(message: RemoveUserFromTarget): Unit = {
     val RemoveUserFromTarget(target, username) = message
     reply(permissionsStore.removeUserRoleFromTarget(target, username))
   }
+}
+
+
+object RoleStoreActor {
+  val RelativePath = "RoleStoreActor"
+
+  def props(dbProvider: DatabaseProvider): Props = Props(new RoleStoreActor(dbProvider))
+
+  trait RoleStoreActorMessages extends CborSerializable
+
+  case class CreateRoleRequest(role: Role) extends RoleStoreActorMessages
+
+  case class SetUsersRolesForTargetRequest(username: String, target: RoleTarget, roles: Set[String]) extends RoleStoreActorMessages
+
+  case class GetRoleProfileRequest(target: RoleTarget, username: String) extends RoleStoreActorMessages
+
+  case class GetRoleProfileResponse(profile: Set[Role]) extends CborSerializable
+
+  case class GetAllUserRolesRequest(target: RoleTarget) extends RoleStoreActorMessages
+
+  case class GetAllUserRolesResponse(userRoles: Set[UserRoles]) extends CborSerializable
+
+  case class GetUserRolesForTargetRequest(username: String, target: RoleTarget) extends RoleStoreActorMessages
+
+  case class GetUserRolesForTargetResponse(roles: Set[Role]) extends CborSerializable
+
+  case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]]) extends RoleStoreActorMessages
+
+  case class SetAllUserRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]]) extends RoleStoreActorMessages
+
+  case class RemoveUserFromTarget(target: RoleTarget, username: String) extends RoleStoreActorMessages
+
+  case class GetUserPermissionsRequest(username: String, target: RoleTarget) extends RoleStoreActorMessages
+
+  case class GetUserPermissionsResponse(permissions: Set[String]) extends CborSerializable
+
 }

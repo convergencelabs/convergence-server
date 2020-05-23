@@ -23,8 +23,8 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.api.rest.{okResponse, _}
 import com.convergencelabs.convergence.server.datastore.domain._
-import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.{CreateChatRequest, CreateChatResponse, ChatsSearchRequest, GetChatInfo}
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatAlreadyExistsException, GetChatHistoryRequest, RemoveChatRequest, SetChatNameRequest, SetChatTopicRequest}
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
+import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -178,7 +178,7 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
 
   private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     val message = DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, offset, limit))
-    (domainRestActor ? message).mapTo[PagedData[ChatInfo]] map { pagedData =>
+    (domainRestActor ? message).mapTo[ChatsSearchResponse].map(_.chats) map { pagedData =>
       val PagedData(chatInfo, offset, total) = pagedData
       val data = chatInfo.map { chat => toChatInfoData(chat) }
       val response = PagedRestResponse(data, offset, total)
@@ -187,8 +187,8 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getChat(domain: DomainId, chatId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetChatInfo(chatId))
-    (domainRestActor ? message).mapTo[ChatInfo] map { chat =>
+    val message = DomainRestMessage(domain, GetChatInfoRequest(chatId))
+    (domainRestActor ? message).mapTo[GetChatInfoResponse].map(_.chat) map { chat =>
       okResponse(toChatInfoData(chat))
     }
   }

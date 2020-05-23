@@ -21,8 +21,8 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor._
+import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
-import com.convergencelabs.convergence.server.domain.{DomainId, JwtAuthKey}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -65,29 +65,31 @@ class DomainKeyService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getKeys(domain: DomainId): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetDomainApiKeys(None, None))).mapTo[List[JwtAuthKey]] map {
-      keys => okResponse(keys)
+    (domainRestActor ? DomainRestMessage(domain, GetJwtAuthKeysRequest(None, None))).mapTo[GetJwtAuthKeysResponse] map {
+      response => okResponse(response.keys)
     }
   }
 
   private[this] def getKey(domain: DomainId, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetDomainApiKey(keyId))).mapTo[Option[JwtAuthKey]] map {
-      case Some(key) => okResponse(key)
-      case None => notFoundResponse()
+    (domainRestActor ? DomainRestMessage(domain, GetJwtAuthKeyRequest(keyId))).mapTo[GetJwtAuthKeyResponse] map { response =>
+      response.key match {
+        case Some(key) => okResponse(key)
+        case None => notFoundResponse()
+      }
     }
   }
 
   private[this] def createKey(domain: DomainId, key: KeyInfo): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, CreateDomainApiKey(key))) map (_ => CreatedResponse)
+    (domainRestActor ? DomainRestMessage(domain, CreateDomainJwtAuthKey(key))) map (_ => CreatedResponse)
   }
 
   private[this] def updateKey(domain: DomainId, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
     val info = KeyInfo(keyId, description, key, enabled)
-    (domainRestActor ? DomainRestMessage(domain, UpdateDomainApiKey(info))) map (_ => OkResponse)
+    (domainRestActor ? DomainRestMessage(domain, UpdateDomainJwtAuthKey(info))) map (_ => OkResponse)
   }
 
   private[this] def deleteKey(domain: DomainId, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, DeleteDomainApiKey(keyId))) map (_ => DeletedResponse)
+    (domainRestActor ? DomainRestMessage(domain, DeleteDomainJwtAuthKey(keyId))) map (_ => DeletedResponse)
   }
 }

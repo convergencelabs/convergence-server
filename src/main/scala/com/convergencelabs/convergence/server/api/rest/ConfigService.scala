@@ -18,7 +18,7 @@ import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _se
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor.{GetConfigs, SetConfigs}
+import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor.{GetConfigsRequest, GetConfigsResponse, SetConfigsRequest}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
@@ -59,18 +59,18 @@ class ConfigService(private[this] val executionContext: ExecutionContext,
       case Nil => None
       case k => Some(k)
     }
-    val message = GetConfigs(keyFilter)
-    (configActor ? message).mapTo[Map[String, Any]].map(okResponse(_))
+    val message = GetConfigsRequest(keyFilter)
+    (configActor ? message).mapTo[GetConfigsResponse].map(_.configs).map(okResponse(_))
   }
 
   private[this] def getAppConfigs(authProfile: AuthorizationProfile): Future[RestResponse] = {
     // FIXME request specific keys
-    val message = GetConfigs(None)
-    (configActor ? message).mapTo[Map[String, Any]].map(okResponse(_))
+    val message = GetConfigsRequest(None)
+    (configActor ? message).mapTo[GetConfigsResponse].map(_.configs).map(okResponse(_))
   }
 
   private[this] def setConfigs(authProfile: AuthorizationProfile, configs: Map[String, Any]): Future[RestResponse] = {
-    val message = SetConfigs(configs)
+    val message = SetConfigsRequest(configs)
     (configActor ? message).mapTo[Unit].map(_ => OkResponse)
   }
 }

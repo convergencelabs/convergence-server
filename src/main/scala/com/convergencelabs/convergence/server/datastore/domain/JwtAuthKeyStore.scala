@@ -82,7 +82,7 @@ class JwtAuthKeyStore private[datastore] (
     val doc = JwtAuthKeyStore.jwtAuthKeyToDoc(jwtAuthKey)
     db.save(doc)
     ()
-  } recoverWith (handleDuplicateValue)
+  } recoverWith handleDuplicateValue
 
   private[this] val UpdateKeyQuery = "SELECT FROM JwtAuthKey WHERE id = :id"
   def updateKey(info: KeyInfo): Try[Unit] = withDb { db =>
@@ -108,7 +108,7 @@ class JwtAuthKeyStore private[datastore] (
       .mutateOneDocument(db, DeleteKeyCommand, params)
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case Indices.Id =>

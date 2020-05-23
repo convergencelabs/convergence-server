@@ -20,16 +20,6 @@ import com.convergencelabs.convergence.server.datastore.convergence.Authenticati
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object AuthService {
-
-  case class SessionTokenResponse(token: String, expiresIn: Long)
-
-  case class ExpirationResponse(valid: Boolean, username: Option[String], expiresIn: Option[Long])
-
-  case class BearerTokenResponse(token: String)
-
-}
-
 class AuthService(private[this] val executionContext: ExecutionContext,
                   private[this] val authActor: ActorRef,
                   private[this] val defaultTimeout: Timeout)
@@ -42,21 +32,20 @@ class AuthService(private[this] val executionContext: ExecutionContext,
 
   val route: Route = pathPrefix("auth") {
     (path("login") & post) {
-      handleWith(authRequest)
-    } ~
-      (path("validate") & post) {
-        handleWith(tokenExpirationCheck)
-      } ~
-      (path("logout") & post) {
-        handleWith(invalidateToken)
-      } ~
-      (path("apiKey") & post) {
-        handleWith(login)
-      }
+      handleWith(login)
+    } ~ (path("validate") & post) {
+      handleWith(validate)
+    } ~ (path("logout") & post) {
+      handleWith(logout)
+    } ~ (path("bearerToken") & post) {
+      handleWith(bearerToken)
+    }
   }
 
-  private[this] def authRequest(req: AuthRequest): Future[RestResponse] = {
-    (authActor ? req).mapTo[AuthResponse].map {
+  private[this] def login(req: LoginRequestData): Future[RestResponse] = {
+    val LoginRequestData(username, password) = req
+    val message = AuthRequest(username, password)
+    (authActor ? message).mapTo[AuthResponse].map {
       case AuthSuccess(token, expiration) =>
         okResponse(SessionTokenResponse(token, expiration.toMillis))
       case _ =>
@@ -64,25 +53,54 @@ class AuthService(private[this] val executionContext: ExecutionContext,
     }
   }
 
-  private[this] def login(req: LoginRequest): Future[RestResponse] = {
-    (authActor ? req).mapTo[Option[String]].map {
-      case Some(token) =>
-        okResponse(BearerTokenResponse(token))
-      case None =>
-        AuthFailureError
-    }
+  private[this] def bearerToken(req: BearerTokenRequestData): Future[RestResponse] = {
+    val BearerTokenRequestData(username, password) = req
+    val message = LoginRequest(username, password)
+    (authActor ? message).mapTo[LoginResponse]
+      .map(_.bearerToken)
+      .map {
+        case Some(token) =>
+          okResponse(BearerTokenResponse(token))
+        case None =>
+          AuthFailureError
+      }
   }
 
-  private[this] def tokenExpirationCheck(req: GetSessionTokenExpirationRequest): Future[RestResponse] = {
-    (authActor ? req).mapTo[Option[SessionTokenExpiration]].map {
-      case Some(SessionTokenExpiration(username, expireDelta)) =>
-        okResponse(ExpirationResponse(valid = true, Some(username), Some(expireDelta.toMillis)))
-      case None =>
-        okResponse(ExpirationResponse(valid = false, None, None))
-    }
+  private[this] def validate(req: ValidateRequestData): Future[RestResponse] = {
+    val ValidateRequestData(token) = req
+    val message = GetSessionTokenExpirationRequest(token)
+    (authActor ? message)
+      .mapTo[GetSessionTokenExpirationResponse]
+      .map(_.expiration)
+      .map {
+        case Some(SessionTokenExpiration(username, expireDelta)) =>
+          okResponse(ExpirationResponse(valid = true, Some(username), Some(expireDelta.toMillis)))
+        case None =>
+          okResponse(ExpirationResponse(valid = false, None, None))
+      }
   }
 
-  private[this] def invalidateToken(req: InvalidateTokenRequest): Future[RestResponse] = {
-    (authActor ? req).map(_ => OkResponse)
+  private[this] def logout(req: LogoutRequestData): Future[RestResponse] = {
+    val LogoutRequestData(token) = req
+    val message = InvalidateTokenRequest(token)
+    (authActor ? message).map(_ => OkResponse)
   }
+}
+
+object AuthService {
+
+  case class SessionTokenResponse(token: String, expiresIn: Long)
+
+  case class ExpirationResponse(valid: Boolean, username: Option[String], expiresIn: Option[Long])
+
+  case class BearerTokenResponse(token: String)
+
+  case class ValidateRequestData(token: String)
+
+  case class LogoutRequestData(token: String)
+
+  case class LoginRequestData(username: String, password: String)
+
+  case class BearerTokenRequestData(username: String, password: String)
+
 }

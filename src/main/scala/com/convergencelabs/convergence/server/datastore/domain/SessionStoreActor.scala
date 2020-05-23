@@ -12,40 +12,25 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
-
-object SessionStoreActor {
-  def props(sessionStore: SessionStore): Props = Props(new SessionStoreActor(sessionStore))
-
-  trait SessionStoreRequest
-  case class GetSessions(
-    sessionId: Option[String],
-    username: Option[String],
-    remoteHost: Option[String],
-    authMethod: Option[String],
-    excludeDisconnected: Boolean,
-    sessionType: SessionQueryType.Value,
-    limit: Option[Int],
-    offset: Option[Int]) extends SessionStoreRequest
-  case class GetSession(id: String) extends SessionStoreRequest
-}
 
 class SessionStoreActor private[datastore] (private[this] val sessionStore: SessionStore)
     extends StoreActor with ActorLogging {
   import SessionStoreActor._
 
   def receive: Receive = {
-    case message: GetSessions =>
-      getSessions(message)
-    case message: GetSession =>
-      getSession(message)
+    case message: GetSessionsRequest =>
+      onGetSessions(message)
+    case message: GetSessionRequest =>
+      onGetSession(message)
     case message: Any =>
       unhandled(message)
   }
 
-  def getSessions(message: GetSessions): Unit = {
-    val GetSessions(
+  private[this] def onGetSessions(message: GetSessionsRequest): Unit = {
+    val GetSessionsRequest(
       sessionId,
       username,
       remoteHost,
@@ -61,11 +46,31 @@ class SessionStoreActor private[datastore] (private[this] val sessionStore: Sess
       excludeDisconnected,
       st,
       limit,
-      offset))
+      offset).map(GetSessionsResponse))
   }
 
-  def getSession(message: GetSession): Unit = {
-    val GetSession(sessionId) = message
-    reply(sessionStore.getSession(sessionId))
+  private[this] def onGetSession(message: GetSessionRequest): Unit = {
+    val GetSessionRequest(sessionId) = message
+    reply(sessionStore.getSession(sessionId).map(GetSessionResponse))
   }
+}
+
+
+object SessionStoreActor {
+  def props(sessionStore: SessionStore): Props = Props(new SessionStoreActor(sessionStore))
+
+  trait SessionStoreRequest extends CborSerializable
+  case class GetSessionsRequest(
+                                 sessionId: Option[String],
+                                 username: Option[String],
+                                 remoteHost: Option[String],
+                                 authMethod: Option[String],
+                                 excludeDisconnected: Boolean,
+                                 sessionType: SessionQueryType.Value,
+                                 limit: Option[Int],
+                                 offset: Option[Int]) extends SessionStoreRequest
+  case class GetSessionsResponse(sessions: List[DomainSession]) extends CborSerializable
+
+  case class GetSessionRequest(id: String) extends SessionStoreRequest
+  case class GetSessionResponse(session: Option[DomainSession]) extends CborSerializable
 }

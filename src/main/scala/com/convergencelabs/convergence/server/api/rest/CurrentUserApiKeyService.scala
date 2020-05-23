@@ -65,11 +65,11 @@ class CurrentUserApiKeyService(private[this] val executionContext: ExecutionCont
             get {
               complete(getApiKey(authProfile, keyId))
             } ~
-            put {
-              entity(as[UpdateKeyData]) { keyData =>
-                complete(updateApiKey(authProfile, keyId, keyData))
-              }
-            } ~ delete {
+              put {
+                entity(as[UpdateKeyData]) { keyData =>
+                  complete(updateApiKey(authProfile, keyId, keyData))
+                }
+              } ~ delete {
               complete(deleteApiKey(authProfile, keyId))
             }
           }
@@ -79,14 +79,17 @@ class CurrentUserApiKeyService(private[this] val executionContext: ExecutionCont
   }
 
   private[this] def getApiKeysForUser(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val request = GetApiKeysForUser(authProfile.username)
-    (userApiKeyStoreActor ? request).mapTo[Set[UserApiKey]] map { keys =>
-      val keyData = keys.map(key => {
-        val UserApiKey(_, name, keyId, enabled, lastUsed) = key
-        UserApiKeyData(name, keyId, enabled, lastUsed)
-      }).toList
-      okResponse(keyData)
-    }
+    val request = GetApiKeysForUserRequest(authProfile.username)
+    (userApiKeyStoreActor ? request)
+      .mapTo[GetApiKeysForUserResponse]
+      .map(_.keys)
+      .map { keys =>
+        val keyData = keys.map(key => {
+          val UserApiKey(_, name, keyId, enabled, lastUsed) = key
+          UserApiKeyData(name, keyId, enabled, lastUsed)
+        }).toList
+        okResponse(keyData)
+      }
   }
 
   private[this] def getApiKey(authProfile: AuthorizationProfile, key: String): Future[RestResponse] = {

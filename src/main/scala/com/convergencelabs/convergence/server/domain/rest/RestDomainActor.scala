@@ -13,11 +13,11 @@ package com.convergencelabs.convergence.server.domain.rest
 
 import akka.actor.{ActorRef, Props, ReceiveTimeout, actorRef2Scala}
 import com.convergencelabs.convergence.common.ConvergenceJwtUtil
-import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor.CollectionStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.ConfigStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor.DomainStatsRequest
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor.ApiKeyStoreRequest
+import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor.JwtAuthKeyStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.ModelPermissionsStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor.ModelStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor.SessionStoreRequest
@@ -26,7 +26,7 @@ import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor.UserStoreRequest
 import com.convergencelabs.convergence.server.domain.{AuthenticationHandler, DomainId}
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
-import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.ChatStoreRequest
+import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.ChatManagerActorRequest
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 
 import scala.concurrent.duration.FiniteDuration
@@ -38,8 +38,9 @@ object RestDomainActor {
     domainPersistenceManager: DomainPersistenceManager,
     receiveTimeout: FiniteDuration): Props = Props(new RestDomainActor(domainPersistenceManager, receiveTimeout))
 
-  case class AdminTokenRequest(convergenceUsername: String)
-  case class DomainRestMessage(domainFqn: DomainId, message: Any)
+  case class AdminTokenRequest(convergenceUsername: String) extends CborSerializable
+  case class AdminTokenResponse(token: String) extends CborSerializable
+  case class DomainRestMessage(domainFqn: DomainId, message: Any) extends CborSerializable
 }
 
 class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
@@ -85,7 +86,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
         modelStoreActor forward message
       case message: ModelPermissionsStoreRequest =>
         modelPermissionsStoreActor forward message
-      case message: ApiKeyStoreRequest =>
+      case message: JwtAuthKeyStoreRequest =>
         keyStoreActor forward message
       case message: ConfigStoreRequest =>
         configStoreActor forward message
@@ -93,7 +94,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
         statsActor forward message
       case message: SessionStoreRequest =>
         sessionStoreActor forward message
-      case message: ChatStoreRequest =>
+      case message: ChatManagerActorRequest =>
         chatActor forward message
       case message: Any =>
         unhandled(message)
@@ -106,7 +107,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
     } flatMap { util =>
       util.generateToken(convergenceUsername)
     } match {
-      case Success(token) => sender ! token
+      case Success(token) => sender ! AdminTokenResponse(token)
       case Failure(cause) => sender ! akka.actor.Status.Failure(cause)
     }
   }

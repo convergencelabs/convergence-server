@@ -18,6 +18,7 @@ import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.Subscribe
 import akka.pattern.Patterns
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor.{AcquireDomainPersistence, DomainNotFoundException, ReleaseDomainPersistence}
 import com.convergencelabs.convergence.server.db.PooledDatabaseProvider
@@ -29,56 +30,6 @@ import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
-/**
- * The companion object for the [[DomainPersistenceManagerActor]] class
- * provided helper methods to instantiate the [[DomainPersistenceManagerActor]]
- * and also implements the [[DomainPersistenceManager]] trait allowing
- * consumers to easily use the [[DomainPersistenceManagerActor]] as a
- * [[DomainPersistenceManager]].
- */
-object DomainPersistenceManagerActor extends DomainPersistenceManager with Logging {
-  val RelativePath = "DomainPersistenceManagerActor"
-  val persistenceProviderTimeout = 10
-
-  def props(baseDbUri: String,
-            domainStore: DomainStore): Props = Props(
-    new DomainPersistenceManagerActor(baseDbUri, domainStore))
-
-  def getLocalInstancePath(requester: ActorPath): ActorPath = {
-    requester.root / "user" / RelativePath
-  }
-
-  def acquirePersistenceProvider(requester: ActorRef, context: ActorContext, domainId: DomainId): Try[DomainPersistenceProvider] = {
-    debug(s"Sending message to acquire domain persistence for $domainId by ${requester.path}")
-
-    val path = DomainPersistenceManagerActor.getLocalInstancePath(requester.path)
-    val selection = context.actorSelection(path)
-
-    val message = AcquireDomainPersistence(domainId, requester)
-    val timeout = Timeout(persistenceProviderTimeout, TimeUnit.SECONDS)
-
-    Try {
-      val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceProvider]
-      Await.result(f, FiniteDuration(persistenceProviderTimeout, TimeUnit.SECONDS))
-    }
-  }
-
-  def releasePersistenceProvider(requester: ActorRef, context: ActorContext, domainId: DomainId): Unit = {
-    val path = DomainPersistenceManagerActor.getLocalInstancePath(requester.path)
-    val selection = context.actorSelection(path)
-    selection.tell(ReleaseDomainPersistence(domainId, requester), requester)
-  }
-
-
-  sealed trait Command
-
-  case class AcquireDomainPersistence(domainId: DomainId, requester: ActorRef) extends Command
-
-  case class ReleaseDomainPersistence(domainId: DomainId, requester: ActorRef) extends Command
-
-  case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
-
-}
 
 /**
  * The [[DomainPersistenceManagerActor]] implements a reference counted
@@ -225,4 +176,56 @@ class DomainPersistenceManagerActor(private[this] val baseDbUri: String,
         log.warning(s"$domainId: Attempted to shutdown a persistence provider that was not open")
     }
   }
+}
+
+
+/**
+ * The companion object for the [[DomainPersistenceManagerActor]] class
+ * provided helper methods to instantiate the [[DomainPersistenceManagerActor]]
+ * and also implements the [[DomainPersistenceManager]] trait allowing
+ * consumers to easily use the [[DomainPersistenceManagerActor]] as a
+ * [[DomainPersistenceManager]].
+ */
+object DomainPersistenceManagerActor extends DomainPersistenceManager with Logging {
+  val RelativePath = "DomainPersistenceManagerActor"
+  val persistenceProviderTimeout = 10
+
+  def props(baseDbUri: String,
+            domainStore: DomainStore): Props = Props(
+    new DomainPersistenceManagerActor(baseDbUri, domainStore))
+
+  def getLocalInstancePath(requester: ActorPath): ActorPath = {
+    requester.root / "user" / RelativePath
+  }
+
+  def acquirePersistenceProvider(requester: ActorRef, context: ActorContext, domainId: DomainId): Try[DomainPersistenceProvider] = {
+    debug(s"Sending message to acquire domain persistence for $domainId by ${requester.path}")
+
+    val path = DomainPersistenceManagerActor.getLocalInstancePath(requester.path)
+    val selection = context.actorSelection(path)
+
+    val message = AcquireDomainPersistence(domainId, requester)
+    val timeout = Timeout(persistenceProviderTimeout, TimeUnit.SECONDS)
+
+    Try {
+      val f = Patterns.ask(selection, message, timeout).mapTo[DomainPersistenceProvider]
+      Await.result(f, FiniteDuration(persistenceProviderTimeout, TimeUnit.SECONDS))
+    }
+  }
+
+  def releasePersistenceProvider(requester: ActorRef, context: ActorContext, domainId: DomainId): Unit = {
+    val path = DomainPersistenceManagerActor.getLocalInstancePath(requester.path)
+    val selection = context.actorSelection(path)
+    selection.tell(ReleaseDomainPersistence(domainId, requester), requester)
+  }
+
+
+  sealed trait Command extends CborSerializable
+
+  case class AcquireDomainPersistence(domainId: DomainId, requester: ActorRef) extends Command
+
+  case class ReleaseDomainPersistence(domainId: DomainId, requester: ActorRef) extends Command
+
+  case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
+
 }

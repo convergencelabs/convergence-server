@@ -9,19 +9,15 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.datastore.convergence
+package com.convergencelabs.convergence.server.actor
 
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Role
-
-class RoleProfile(private[this] val roles: Set[Role]) {
-  
-  private[this] val permissions: Set[String] = roles.flatMap(_.permissions)
-  
-  def hasRole(role: String): Boolean = {
-    roles.exists { _.name == role }
-  }
-  
-  def hasPermission(permission: String): Boolean = {
-    permissions.contains(permission)
-  }
-}
+/**
+ * The CborSerializable is simply a marker interface used to instruct Akka that
+ * subclasses of this interface should be serialized by the Jackson CBOR
+ * serializer:
+ *
+ * https://cbor.io/
+ * https://github.com/FasterXML/jackson-dataformats-binary
+ * https://doc.akka.io/docs/akka/current/serialization-jackson.html
+ */
+trait CborSerializable

@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, actorRef2Scala}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
@@ -25,11 +23,14 @@ import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.
 import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.ErrorData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.ProtocolConfiguration
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.api.realtime.ConnectionActor._
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DomainDeleted, domainTopic}
+import com.convergencelabs.convergence.server.domain.IdentityServiceActor.{GetUserByUsername, UserResponse}
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.convergence.server.domain.presence.{PresenceRequest, UserPresence}
+import com.convergencelabs.convergence.server.domain.presence.{GetPresenceRequest, GetPresenceResponse, UserPresence}
 import com.convergencelabs.convergence.server.util.concurrent.AskFuture
 import scalapb.GeneratedMessage
 
@@ -53,6 +54,7 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
                                     private[this] val modelSyncInterval: FiniteDuration)
   extends Actor with ActorLogging {
 
+  import ClientActor._
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Unit]
 
@@ -129,30 +131,38 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
         case Failure(cause) =>
           invalidMessage(cause)
       }
+
     case SendUnprocessedMessage(convergenceMessage) =>
       Option(identityCacheManager) match {
         case Some(icm) => icm ! convergenceMessage
         case _ => this.protocolConnection.serializeAndSend(convergenceMessage)
       }
+
     case SendProcessedMessage(convergenceMessage) =>
       this.protocolConnection.serializeAndSend(convergenceMessage)
+
     case message: GeneratedMessage with NormalMessage =>
       onOutgoingMessage(message)
+
     case message: GeneratedMessage with RequestMessage =>
       onOutgoingRequest(message)
 
     case WebSocketClosed =>
       log.debug(s"$domainId: WebSocketClosed for session: $sessionId")
       onConnectionClosed()
+
     case WebSocketError(cause) =>
       onConnectionError(cause)
 
     case SubscribeAck(_) =>
     // no-op
+
     case DomainDeleted(_) =>
       domainDeleted()
+
     case Disconnect =>
       this.handleDisconnect()
+
     case x: Any =>
       invalidMessage(x)
   }
@@ -314,13 +324,14 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
   private[this] def getPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback) {
     (for {
       // TODO implement a method that just gets one.
-      presence <- (this.presenceServiceActor ? PresenceRequest(List(session.userId)))
-        .mapTo[List[UserPresence]]
+      presence <- (this.presenceServiceActor ? GetPresenceRequest(List(session.userId)))
+        .mapTo[GetPresenceResponse]
+        .map(_.presence)
         .flatMap {
-          case first :: nil => Future.successful(first)
+          case first :: _ => Future.successful(first)
           case _ => Future.failed(EntityNotFoundException())
         }
-      user <- (this.identityServiceActor ? GetUserByUsername(session.userId)).mapTo[DomainUser]
+      user <- (this.identityServiceActor ? GetUserByUsername(session.userId)).mapTo[UserResponse].map(_.user)
     } yield {
       self ! InternalAuthSuccess(user, session, reconnectToken, presence, cb)
     }).recover {
@@ -465,14 +476,26 @@ private[realtime] object ClientActor {
       remoteHost,
       userAgent,
       modelSyncInterval))
+
+  sealed trait ClientActorMessage extends CborSerializable
+
+  case class SendUnprocessedMessage(message: ConvergenceMessage) extends ClientActorMessage
+
+  case class SendProcessedMessage(message: ConvergenceMessage) extends ClientActorMessage
+
+  case class InternalAuthSuccess(user: DomainUser,
+                                 session: DomainUserSessionId,
+                                 reconnectToken: Option[String],
+                                 presence: UserPresence,
+                                 cb: ReplyCallback) extends ClientActorMessage
+
+  case class InternalHandshakeSuccess(client: String,
+                                      clientVersion: String,
+                                      handshakeSuccess: HandshakeSuccess,
+                                      cb: ReplyCallback) extends ClientActorMessage
+
+  case object Disconnect extends ClientActorMessage
+
 }
 
-case class SendUnprocessedMessage(message: ConvergenceMessage)
 
-case class SendProcessedMessage(message: ConvergenceMessage)
-
-case class InternalAuthSuccess(user: DomainUser, session: DomainUserSessionId, reconnectToken: Option[String], presence: UserPresence, cb: ReplyCallback)
-
-case class InternalHandshakeSuccess(client: String, clientVersion: String, handshakeSuccess: HandshakeSuccess, cb: ReplyCallback)
-
-case object Disconnect

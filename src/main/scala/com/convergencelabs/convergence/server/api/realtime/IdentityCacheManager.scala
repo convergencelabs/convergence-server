@@ -19,7 +19,9 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
-import com.convergencelabs.convergence.server.domain.{DomainUserId, IdentityResolutionRequest, IdentityResolutionResponse}
+import com.convergencelabs.convergence.server.api.realtime.ClientActor.SendProcessedMessage
+import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.IdentityServiceActor.{IdentityResolutionRequest, IdentityResolutionResponse}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor

@@ -14,6 +14,8 @@ package com.convergencelabs.convergence.server.domain.chat
 import java.time.Instant
 
 import akka.actor.{Actor, ActorLogging, Props, Status, actorRef2Scala}
+import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
@@ -44,7 +46,7 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
       onExists(message)
     case message: ChatsSearchRequest =>
       onSearchChats(message)
-    case message: GetChatInfo =>
+    case message: GetChatInfoRequest =>
       onGetChat(message)
   }
 
@@ -73,17 +75,17 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
     val ChatsSearchRequest(searchTerm, searchFields, chatType, membership, offset, limit) = message
 
     chatStore.searchChats(searchTerm, searchFields, chatType, membership, offset, limit).map { info =>
-      sender ! info
+      sender ! ChatsSearchResponse(info)
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
     }
   }
 
-  private[this] def onGetChat(message: GetChatInfo): Unit = {
-    val GetChatInfo(chatId) = message
+  private[this] def onGetChat(message: GetChatInfoRequest): Unit = {
+    val GetChatInfoRequest(chatId) = message
     chatStore.getChatInfo(chatId).map { info =>
-      sender ! info
+      sender ! GetChatInfoResponse(info)
     } recover {
       case cause: Exception =>
         sender ! Status.Failure(cause)
@@ -222,16 +224,20 @@ object ChatManagerActor {
 
   def props(provider: DomainPersistenceProvider): Props = Props(new ChatManagerActor(provider))
 
-  trait ChatStoreRequest
+  trait ChatManagerActorRequest extends CborSerializable
 
   case class ChatsSearchRequest(searchTerm: Option[String],
                                 searchFields: Option[Set[String]],
                                 chatType: Option[Set[ChatType.Value]],
                                 membership: Option[ChatMembership.Value],
                                 offset: Option[Long],
-                                limit: Option[Long]) extends ChatStoreRequest
+                                limit: Option[Long]) extends ChatManagerActorRequest
 
-  case class GetChatInfo(chatId: String) extends ChatStoreRequest
+  case class ChatsSearchResponse(chats: PagedData[ChatInfo]) extends CborSerializable
+
+  case class GetChatInfoRequest(chatId: String) extends ChatManagerActorRequest
+
+  case class GetChatInfoResponse(chat: ChatInfo) extends CborSerializable
 
   case class CreateChatRequest(chatId: Option[String],
                                createdBy: DomainUserId,
@@ -239,25 +245,25 @@ object ChatManagerActor {
                                membership: ChatMembership.Value,
                                name: Option[String],
                                topic: Option[String],
-                               members: Set[DomainUserId]) extends ChatStoreRequest
+                               members: Set[DomainUserId]) extends ChatManagerActorRequest
 
-  case class CreateChatResponse(channelId: String)
+  case class CreateChatResponse(channelId: String) extends CborSerializable
 
-  case class GetChatsRequest(userId: DomainUserId, ids: Set[String])
+  case class GetChatsRequest(userId: DomainUserId, ids: Set[String]) extends ChatManagerActorRequest
 
-  case class GetChatsResponse(channels: Set[ChatInfo])
+  case class GetChatsResponse(channels: Set[ChatInfo]) extends CborSerializable
 
-  case class ChatsExistsRequest(userId: DomainUserId, ids: List[String])
+  case class ChatsExistsRequest(userId: DomainUserId, ids: List[String]) extends ChatManagerActorRequest
 
-  case class ChatsExistsResponse(chatIds: List[Boolean])
+  case class ChatsExistsResponse(chatIds: List[Boolean]) extends CborSerializable
 
-  case class GetJoinedChatsRequest(userId: DomainUserId)
+  case class GetJoinedChatsRequest(userId: DomainUserId) extends ChatManagerActorRequest
 
-  case class GetJoinedChatsResponse(channels: Set[ChatInfo])
+  case class GetJoinedChatsResponse(channels: Set[ChatInfo]) extends CborSerializable
 
-  case class GetDirectChatsRequest(userId: DomainUserId, userLists: Set[Set[DomainUserId]])
+  case class GetDirectChatsRequest(userId: DomainUserId, userLists: Set[Set[DomainUserId]]) extends ChatManagerActorRequest
 
-  case class GetDirectChatsResponse(channels: Set[ChatInfo])
+  case class GetDirectChatsResponse(channels: Set[ChatInfo]) extends CborSerializable
 
   val DefaultPermissions = List()
 }

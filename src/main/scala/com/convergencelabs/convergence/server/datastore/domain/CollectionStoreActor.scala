@@ -12,20 +12,11 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
+import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.domain.model.Collection
-
-object CollectionStoreActor {
-  def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
-
-  trait CollectionStoreRequest
-  case class GetCollections(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
-  case class GetCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
-  case class GetCollection(id: String) extends CollectionStoreRequest
-  case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
-  case class CreateCollection(collection: Collection) extends CollectionStoreRequest
-  case class UpdateCollection(collectionId: String, collection: Collection) extends CollectionStoreRequest
-}
 
 class CollectionStoreActor private[datastore] (
   private[this] val collectionStore: CollectionStore)
@@ -34,36 +25,61 @@ class CollectionStoreActor private[datastore] (
   import CollectionStoreActor._
 
   def receive: Receive = {
-    case GetCollections(filter, offset, limit) => getCollections(filter, offset, limit)
-    case GetCollectionSummaries(filter, offset, limit) => getCollectionSummaries(filter, offset, limit)
-    case GetCollection(collectionId) => getCollectionConfig(collectionId)
-    case CreateCollection(collection) => createCollection(collection)
-    case DeleteCollection(collectionId) => deleteCollection(collectionId)
-    case UpdateCollection(collectionId, collection) => updateCollection(collectionId, collection)
-    case message: Any => unhandled(message)
+    case GetCollectionsRequest(filter, offset, limit) =>
+      onGetCollections(filter, offset, limit)
+    case GetCollectionSummariesRequest(filter, offset, limit) =>
+      onGetCollectionSummaries(filter, offset, limit)
+    case GetCollectionRequest(collectionId) =>
+      onGetCollectionConfig(collectionId)
+    case CreateCollection(collection) =>
+      onCreateCollection(collection)
+    case DeleteCollection(collectionId) =>
+      onDeleteCollection(collectionId)
+    case UpdateCollection(collectionId, collection) =>
+      onUpdateCollection(collectionId, collection)
+    case message: Any =>
+      unhandled(message)
   }
 
-  def getCollections(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(collectionStore.getAllCollections(filter, offset, limit))
+  private[this] def onGetCollections(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
+    reply(collectionStore.getAllCollections(filter, offset, limit).map(GetCollectionsResponse))
   }
 
-  def getCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(collectionStore.getCollectionSummaries(filter, offset, limit))
+  private[this] def onGetCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
+    reply(collectionStore.getCollectionSummaries(filter, offset, limit).map(GetCollectionSummariesResponse))
   }
 
-  def getCollectionConfig(id: String): Unit = {
+  private[this] def onGetCollectionConfig(id: String): Unit = {
     reply(collectionStore.getCollection(id))
   }
 
-  def createCollection(collection: Collection): Unit = {
+  private[this] def onCreateCollection(collection: Collection): Unit = {
     reply(collectionStore.createCollection(collection))
   }
 
-  def updateCollection(collectionId: String, collection: Collection): Unit = {
+  private[this] def onUpdateCollection(collectionId: String, collection: Collection): Unit = {
     reply(collectionStore.updateCollection(collectionId, collection))
   }
 
-  def deleteCollection(collectionId: String): Unit = {
+  private[this] def onDeleteCollection(collectionId: String): Unit = {
     reply(collectionStore.deleteCollection(collectionId))
   }
+}
+
+object CollectionStoreActor {
+  def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
+
+  trait CollectionStoreRequest extends CborSerializable
+  case class GetCollectionsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
+  case class GetCollectionsResponse(collections: PagedData[Collection]) extends CborSerializable
+
+  case class GetCollectionSummariesRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
+  case class GetCollectionSummariesResponse(collections: PagedData[CollectionSummary]) extends CborSerializable
+
+  case class GetCollectionRequest(id: String) extends CollectionStoreRequest
+  case class GetCollectionResponse(collection: Option[Collection]) extends CborSerializable
+
+  case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
+  case class CreateCollection(collection: Collection) extends CollectionStoreRequest
+  case class UpdateCollection(collectionId: String, collection: Collection) extends CollectionStoreRequest
 }

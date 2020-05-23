@@ -14,11 +14,12 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.{ActorLogging, ActorRef, Props, actorRef2Scala}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, StoreActor}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DestroyDomain, ProvisionDomain}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainStatus}
-import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
+import com.convergencelabs.convergence.server.domain.{Domain, DomainId, DomainStatus}
+import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
 import com.typesafe.config.Config
 
 import scala.concurrent.duration.DurationInt
@@ -26,34 +27,12 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object DomainStoreActor {
-  val RelativePath = "DomainStoreActor"
-
-  def props(dbProvider: DatabaseProvider,
-            provisionerActor: ActorRef): Props =
-    Props(new DomainStoreActor(dbProvider, provisionerActor))
-
-  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, anonymousAuth: Boolean, owner: String)
-
-  case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String)
-
-  case class DeleteDomainRequest(namespace: String, domainId: String)
-
-  case class GetDomainRequest(namespace: String, domainId: String)
-
-  case class ListDomainsRequest(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int])
-
-  case class DeleteDomainsForUserRequest(username: String)
-
-}
-
 class DomainStoreActor private[datastore](
                                            private[this] val dbProvider: DatabaseProvider,
                                            private[this] val domainProvisioner: ActorRef)
   extends StoreActor with ActorLogging {
 
   import DomainStoreActor._
-
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
@@ -83,13 +62,13 @@ class DomainStoreActor private[datastore](
     case message: Any => unhandled(message)
   }
 
-  def createDomain(createRequest: CreateDomainRequest): Unit = {
+  private[this] def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth, owner) = createRequest
     configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
     reply(domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth, owner).map(_ => ()))
   }
 
-  def updateDomain(request: UpdateDomainRequest): Unit = {
+  private[this] def updateDomain(request: UpdateDomainRequest): Unit = {
     val UpdateDomainRequest(namespace, domainId, displayName) = request
     reply(
       domainStore.getDomainByFqn(DomainId(namespace, domainId)).flatMap {
@@ -101,13 +80,13 @@ class DomainStoreActor private[datastore](
       })
   }
 
-  def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
+  private[this] def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
     val DeleteDomainRequest(namespace, domainId) = deleteRequest
     val domainFqn = DomainId(namespace, domainId)
     reply(deleteDomain(domainFqn))
   }
 
-  def deleteDomain(domainId: DomainId): Try[Unit] = {
+  private[this] def deleteDomain(domainId: DomainId): Try[Unit] = {
     (for {
       _ <- domainStore.setDomainStatus(domainId, DomainStatus.Deleting, "")
       domainDatabase <- domainStore.getDomainDatabase(domainId)
@@ -151,7 +130,7 @@ class DomainStoreActor private[datastore](
     }
   }
 
-  def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
+  private[this] def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
     val DeleteDomainsForUserRequest(username) = request
     log.debug(s"Deleting domains for user: $username")
 
@@ -173,17 +152,18 @@ class DomainStoreActor private[datastore](
     }
   }
 
-  def handleGetDomain(getRequest: GetDomainRequest): Unit = {
+  private[this] def handleGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId) = getRequest
-    reply(domainStore.getDomainByFqn(DomainId(namespace, domainId)))
+    reply(domainStore.getDomainByFqn(DomainId(namespace, domainId)).map(GetDomainResponse))
   }
 
-  def listDomains(listRequest: ListDomainsRequest): Unit = {
-    val ListDomainsRequest(authProfile, namespace, filter, offset, limit) = listRequest
+  private[this] def listDomains(listRequest: ListDomainsRequest): Unit = {
+    val ListDomainsRequest(authProfileData, namespace, filter, offset, limit) = listRequest
+    val authProfile = AuthorizationProfile(authProfileData)
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
-      reply(domainStore.getDomains(namespace, filter, offset, limit))
+      reply(domainStore.getDomains(namespace, filter, offset, limit).map(ListDomainsResponse))
     } else {
-      reply(domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit))
+      reply(domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit).map(ListDomainsResponse))
     }
   }
 }
@@ -197,4 +177,37 @@ class ActorBasedDomainCreator(databaseProvider: DatabaseProvider, config: Config
     implicit val t: Timeout = Timeout(4 minutes)
     domainProvisioner.ask(request).mapTo[Unit]
   }
+}
+
+
+object DomainStoreActor {
+  val RelativePath = "DomainStoreActor"
+
+  def props(dbProvider: DatabaseProvider,
+            provisionerActor: ActorRef): Props =
+    Props(new DomainStoreActor(dbProvider, provisionerActor))
+
+  sealed trait DomainStoreActorRequest extends CborSerializable
+
+  case class CreateDomainRequest(namespace: String, domainId: String, displayName: String, anonymousAuth: Boolean, owner: String) extends DomainStoreActorRequest
+
+  case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String) extends DomainStoreActorRequest
+
+  case class DeleteDomainRequest(namespace: String, domainId: String) extends DomainStoreActorRequest
+
+  case class DeleteDomainsForUserRequest(username: String) extends DomainStoreActorRequest
+
+  case class GetDomainRequest(namespace: String, domainId: String) extends DomainStoreActorRequest
+
+  case class GetDomainResponse(domain: Option[Domain]) extends CborSerializable
+
+  case class ListDomainsRequest(authProfile: AuthorizationProfileData,
+                                namespace: Option[String],
+                                filter: Option[String],
+                                offset: Option[Int],
+                                limit: Option[Int]) extends DomainStoreActorRequest
+
+  case class ListDomainsResponse(domains: List[Domain]) extends CborSerializable
+
+
 }

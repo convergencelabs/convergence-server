@@ -20,7 +20,6 @@ import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatena
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
 import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
@@ -98,17 +97,16 @@ class DomainCollectionService(private[this] val executionContext: ExecutionConte
   }
 
   private[this] def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollections(filter, offset, limit))
-    (domainRestActor ? message).mapTo[PagedData[Collection]] map { results =>
-      val collections = results.data.map(collectionToCollectionData)
-      val response = PagedRestResponse(collections, results.offset, results.count)
-      okResponse(response)
+    val message = DomainRestMessage(domain, GetCollectionsRequest(filter, offset, limit))
+    (domainRestActor ? message).mapTo[GetCollectionsResponse] map { response =>
+      val collections = response.collections.data.map(collectionToCollectionData)
+      okResponse(PagedRestResponse(collections, response.collections.offset, response.collections.count))
     }
   }
 
   private[this] def getCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollection(collectionId))
-    (domainRestActor ? message).mapTo[Option[Collection]] map {
+    val message = DomainRestMessage(domain, GetCollectionRequest(collectionId))
+    (domainRestActor ? message).mapTo[GetCollectionResponse].map(_.collection).map {
       case Some(collection) => okResponse(collectionToCollectionData(collection))
       case None => notFoundResponse()
     }
@@ -134,8 +132,8 @@ class DomainCollectionService(private[this] val executionContext: ExecutionConte
   }
 
   private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollectionSummaries(filter, offset, limit))
-    (domainRestActor ? message).mapTo[PagedData[CollectionSummary]] map { results =>
+    val message = DomainRestMessage(domain, GetCollectionSummariesRequest(filter, offset, limit))
+    (domainRestActor ? message).mapTo[GetCollectionSummariesResponse].map(_.collections) map { results =>
       val collections = results.data.map { c =>
         val CollectionSummary(id, desc, count) = c
         CollectionSummaryData(id, desc, count)

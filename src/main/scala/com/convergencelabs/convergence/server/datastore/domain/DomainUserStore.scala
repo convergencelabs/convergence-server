@@ -122,13 +122,13 @@ object DomainUserStore {
 }
 
 /**
-  * Manages the persistence of Domain Users.  This class manages both user profile records
-  * as well as user credentials for users authenticated by Convergence itself.
-  *
-  * @constructor Creates a new DomainUserStore using the provided connection pool to
-  *              connect to the database
-  * @param dbProvider The database pool to use.
-  */
+ * Manages the persistence of Domain Users.  This class manages both user profile records
+ * as well as user credentials for users authenticated by Convergence itself.
+ *
+ * @constructor Creates a new DomainUserStore using the provided connection pool to
+ *              connect to the database
+ * @param dbProvider The database pool to use.
+ */
 class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
@@ -145,13 +145,13 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   private[this] val reconnectTokenGenerator = new RandomStringGenerator(32)
 
   /**
-    * Creates a new domain user in the system, and optionally set a password.
-    * Note the uid as well as the username of the user must be unique among all
-    * users in this domain.
-    *
-    * @param domainUser The user to add to the system.
-    * @return A String representing the created users uid.
-    */
+   * Creates a new domain user in the system, and optionally set a password.
+   * Note the uid as well as the username of the user must be unique among all
+   * users in this domain.
+   *
+   * @param domainUser The user to add to the system.
+   * @return A String representing the created users uid.
+   */
   def createNormalDomainUser(domainUser: CreateNormalDomainUser): Try[String] = {
     val normalUser = DomainUser(
       DomainUserType.Normal,
@@ -210,11 +210,11 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   } recoverWith handleDuplicateValue
 
   /**
-    * Deletes a single domain user by username. This is a soft delete that will
-    * mark the user as deleted, rename them, and store the original username.
-    *
-    * @param username the username of the normal user to delete.
-    */
+   * Deletes a single domain user by username. This is a soft delete that will
+   * mark the user as deleted, rename them, and store the original username.
+   *
+   * @param username the username of the normal user to delete.
+   */
   def deleteNormalDomainUser(username: String): Try[Unit] = withDb { db =>
     val newUsername = DomainUserStore.generateDeletedUsername()
     val params = Map(Fields.Username -> username, "newUsername" -> newUsername)
@@ -222,11 +222,11 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   }
 
   /**
-    * Updates a DomainUser with new information.  The username of the domain user argument must
-    * correspond to an existing user in the database.
-    *
-    * @param update The user to update.
-    */
+   * Updates a DomainUser with new information.  The username of the domain user argument must
+   * correspond to an existing user in the database.
+   *
+   * @param update The user to update.
+   */
   def updateDomainUser(update: UpdateDomainUser): Try[Unit] = withDb { db =>
     val UpdateDomainUser(userId, firstName, lastName, displayName, email, disabled) = update
 
@@ -252,11 +252,11 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   }
 
   /**
-    * Gets a single domain user by username.
-    *
-    * @param userId The uid of the user to retrieve.
-    * @return Some(DomainUser) if a user with the specified username exists, or None if no such user exists.
-    */
+   * Gets a single domain user by username.
+   *
+   * @param userId The uid of the user to retrieve.
+   * @return Some(DomainUser) if a user with the specified username exists, or None if no such user exists.
+   */
   def getDomainUser(userId: DomainUserId): Try[Option[DomainUser]] = withDb { db =>
     OrientDBUtil
       .findDocumentFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
@@ -271,11 +271,11 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   }
 
   /**
-    * Checks to see if a given username exists in the system.
-    *
-    * @param username The username to check existence for.
-    * @return true if the user exists, false otherwise.
-    */
+   * Checks to see if a given username exists in the system.
+   *
+   * @param username The username to check existence for.
+   * @return true if the user exists, false otherwise.
+   */
   def domainUserExists(username: String): Try[Boolean] = {
     this.userExists(username, DomainUserType.Normal)
   }
@@ -293,13 +293,13 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   }
 
   /**
-    * Gets a listing of all domain users based on ordering and paging.
-    *
-    * @param orderBy   The property of the domain user to order by. Defaults to username.
-    * @param sortOrder The order (ascending or descending) of the ordering. Defaults to descending.
-    * @param limit     maximum number of users to return.  Defaults to unlimited.
-    * @param offset    The offset into the ordering to start returning entries.  Defaults to 0.
-    */
+   * Gets a listing of all domain users based on ordering and paging.
+   *
+   * @param orderBy   The property of the domain user to order by. Defaults to username.
+   * @param sortOrder The order (ascending or descending) of the ordering. Defaults to descending.
+   * @param limit     maximum number of users to return.  Defaults to unlimited.
+   * @param offset    The offset into the ordering to start returning entries.  Defaults to 0.
+   */
   def getAllDomainUsers(
                          orderBy: Option[DomainUserField.Field],
                          sortOrder: Option[SortOrder.Value],
@@ -342,11 +342,10 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
       .map(_.map(DomainUserStore.docToDomainUser))
   }
 
-  def findUser(
-                search: String,
-                exclude: List[DomainUserId],
-                offset: Int,
-                limit: Int): Try[List[DomainUser]] = withDb { db =>
+  def findUser(search: String,
+               exclude: List[DomainUserId],
+               offset: Int,
+               limit: Int): Try[List[DomainUser]] = withDb { db =>
 
     // This is a bit hacky, there is a more idiomatic way to do this
     Try {
@@ -388,21 +387,21 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   }
 
   /**
-    * Set the password for an existing user by uid.
-    *
-    * @param username The unique username of the user.
-    * @param password The new password to use for internal authentication
-    */
+   * Set the password for an existing user by uid.
+   *
+   * @param username The unique username of the user.
+   * @param password The new password to use for internal authentication
+   */
   def setDomainUserPassword(username: String, password: String): Try[Unit] = {
     setDomainUserPasswordHash(username, PasswordUtil.hashPassword(password))
   }
 
   /**
-    * Set the password for an existing user by uid.
-    *
-    * @param username     The unique username of the user.
-    * @param passwordHash The new password to use for internal authentication
-    */
+   * Set the password for an existing user by uid.
+   *
+   * @param username     The unique username of the user.
+   * @param passwordHash The new password to use for internal authentication
+   */
   def setDomainUserPasswordHash(username: String, passwordHash: String): Try[Unit] = withDb { db =>
     // FIXME use index.
     val query = "SELECT @rid as rid FROM User WHERE username = :username AND userType = 'normal'"
@@ -436,12 +435,12 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   }
 
   /**
-    * Validated that the username and password combination are valid.
-    *
-    * @param username The username of the user to check the password for.
-    * @param password The cleartext password of the user
-    * @return true if the username and password match, false otherwise.
-    */
+   * Validated that the username and password combination are valid.
+   *
+   * @param username The username of the user to check the password for.
+   * @param password The cleartext password of the user
+   * @return true if the username and password match, false otherwise.
+   */
   def validateCredentials(username: String, password: String): Try[Boolean] = withDb { db =>
     val query = "SELECT password FROM UserCredential WHERE user.username = :username AND user.userType = 'normal' AND user.disabled = false"
     val params = Map(Fields.Username -> username)

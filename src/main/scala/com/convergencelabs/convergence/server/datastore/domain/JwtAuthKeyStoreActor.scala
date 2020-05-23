@@ -12,19 +12,11 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
+import com.convergencelabs.convergence.server.domain.JwtAuthKey
 
-object JwtAuthKeyStoreActor {
-  def props(keyStore: JwtAuthKeyStore): Props = Props(new JwtAuthKeyStoreActor(keyStore))
-
-  sealed trait ApiKeyStoreRequest
-  case class GetDomainApiKeys(offset: Option[Int], limit: Option[Int]) extends ApiKeyStoreRequest
-  case class GetDomainApiKey(id: String) extends ApiKeyStoreRequest
-  case class DeleteDomainApiKey(id: String) extends ApiKeyStoreRequest
-  case class UpdateDomainApiKey(key: KeyInfo) extends ApiKeyStoreRequest
-  case class CreateDomainApiKey(key: KeyInfo) extends ApiKeyStoreRequest
-}
 
 class JwtAuthKeyStoreActor private[datastore] (private[this] val keyStore: JwtAuthKeyStore)
     extends StoreActor with ActorLogging {
@@ -32,31 +24,55 @@ class JwtAuthKeyStoreActor private[datastore] (private[this] val keyStore: JwtAu
   import JwtAuthKeyStoreActor._
 
   def receive: Receive = {
-    case GetDomainApiKeys(offset, limit) => getKeys(offset, limit)
-    case GetDomainApiKey(id) => getKey(id)
-    case DeleteDomainApiKey(id) => deleteKey(id)
-    case CreateDomainApiKey(key) => createKey(key)
-    case UpdateDomainApiKey(key) => updateKey(key)
-    case message: Any => unhandled(message)
+    case GetJwtAuthKeysRequest(offset, limit) =>
+      onGetKeys(offset, limit)
+    case GetJwtAuthKeyRequest(id) =>
+      onGetKey(id)
+    case DeleteDomainJwtAuthKey(id) =>
+      onDeleteKey(id)
+    case CreateDomainJwtAuthKey(key) =>
+      onCreateKey(key)
+    case UpdateDomainJwtAuthKey(key) =>
+      onUpdateKey(key)
+    case message: Any =>
+      unhandled(message)
   }
 
-  def getKeys(offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(keyStore.getKeys(offset, limit))
+  private[this] def onGetKeys(offset: Option[Int], limit: Option[Int]): Unit = {
+    reply(keyStore.getKeys(offset, limit).map(GetJwtAuthKeysResponse))
   }
 
-  def getKey(id: String): Unit = {
-    reply(keyStore.getKey(id))
+  private[this] def onGetKey(id: String): Unit = {
+    reply(keyStore.getKey(id).map(GetJwtAuthKeyResponse))
   }
 
-  def deleteKey(id: String): Unit = {
+  private[this] def onDeleteKey(id: String): Unit = {
     reply(keyStore.deleteKey(id))
   }
 
-  def createKey(key: KeyInfo): Unit = {
+  private[this] def onCreateKey(key: KeyInfo): Unit = {
     reply(keyStore.createKey(key))
   }
 
-  def updateKey(key: KeyInfo): Unit = {
+  private[this] def onUpdateKey(key: KeyInfo): Unit = {
     reply(keyStore.updateKey(key))
   }
+}
+
+
+object JwtAuthKeyStoreActor {
+  def props(keyStore: JwtAuthKeyStore): Props = Props(new JwtAuthKeyStoreActor(keyStore))
+
+  sealed trait JwtAuthKeyStoreRequest extends CborSerializable
+
+  case class GetJwtAuthKeysRequest(offset: Option[Int], limit: Option[Int]) extends JwtAuthKeyStoreRequest
+  case class GetJwtAuthKeysResponse(keys: List[JwtAuthKey])  extends CborSerializable
+
+  case class GetJwtAuthKeyRequest(id: String) extends JwtAuthKeyStoreRequest
+  case class GetJwtAuthKeyResponse(key: Option[JwtAuthKey]) extends CborSerializable
+
+  case class DeleteDomainJwtAuthKey(id: String) extends JwtAuthKeyStoreRequest
+  case class UpdateDomainJwtAuthKey(key: KeyInfo) extends JwtAuthKeyStoreRequest
+  case class CreateDomainJwtAuthKey(key: KeyInfo) extends JwtAuthKeyStoreRequest
+
 }

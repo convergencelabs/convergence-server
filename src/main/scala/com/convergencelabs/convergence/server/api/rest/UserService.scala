@@ -41,9 +41,9 @@ object UserService {
 }
 
 class UserService(
-                              private[this] val executionContext: ExecutionContext,
-                              private[this] val userManagerActor: ActorRef,
-                              private[this] val defaultTimeout: Timeout) extends JsonSupport {
+                   private[this] val executionContext: ExecutionContext,
+                   private[this] val userManagerActor: ActorRef,
+                   private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
   import UserService._
 
@@ -93,17 +93,23 @@ class UserService(
   }
 
   private[this] def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int], authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUsers(filter, limit, offset)).mapTo[Set[ConvergenceUserInfo]] map { users =>
-      val publicData = users.map(mapUser(_, authorizationProfile))
-      okResponse(publicData)
-    }
+    (userManagerActor ? GetConvergenceUsersRequest(filter, limit, offset))
+      .mapTo[GetConvergenceUsersResponse]
+      .map(_.users)
+      .map { users =>
+        val publicData = users.map(mapUser(_, authorizationProfile))
+        okResponse(publicData)
+      }
   }
 
   private[this] def getUser(username: String, authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUser(username)).mapTo[Option[ConvergenceUserInfo]] map { user =>
-      val publicUser = user.map(mapUser(_, authorizationProfile))
-      okResponse(publicUser)
-    }
+    (userManagerActor ? GetConvergenceUserRequest(username))
+      .mapTo[GetConvergenceUserResponse]
+      .map(_.user)
+      .map { user =>
+        val publicUser = user.map(mapUser(_, authorizationProfile))
+        okResponse(publicUser)
+      }
   }
 
   private[this] def createConvergenceUser(createRequest: CreateUserRequest): Future[RestResponse] = {
@@ -122,7 +128,7 @@ class UserService(
   }
 
   private[this] def updateUser(username: String, updateData: UpdateUserData, authProfile: AuthorizationProfile): Future[RestResponse] = {
-    if (username == authProfile.username && !authProfile.hasServerRole(updateData.serverRole) ) {
+    if (username == authProfile.username && !authProfile.hasServerRole(updateData.serverRole)) {
       Future.successful(forbiddenResponse(Some("You can not change your own server role.")))
     } else {
       val UpdateUserData(firstName, lastName, displayName, email, serverRole) = updateData

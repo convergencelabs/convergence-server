@@ -19,9 +19,9 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor._
-import com.convergencelabs.convergence.server.datastore.convergence.UserFavoriteDomainStoreActor.{AddFavoriteDomain, GetFavoritesForUser, RemoveFavoriteDomain}
+import com.convergencelabs.convergence.server.datastore.convergence.UserFavoriteDomainStoreActor._
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
-import com.convergencelabs.convergence.server.domain.{Domain, DomainId}
+import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
@@ -51,7 +51,6 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
   extends JsonSupport with Logging {
 
   import CurrentUserService._
-
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
@@ -109,13 +108,16 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = GetConvergenceUser(authProfile.username)
-    (convergenceUserActor ? message).mapTo[Option[ConvergenceUserInfo]].map {
-      case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole)) =>
-        okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName, globalRole))
-      case None =>
-        notFoundResponse()
-    }
+    val message = GetConvergenceUserRequest(authProfile.username)
+    (convergenceUserActor ? message)
+      .mapTo[GetConvergenceUserResponse]
+      .map(_.user)
+      .map {
+        case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole)) =>
+          okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName, globalRole))
+        case None =>
+          notFoundResponse()
+      }
   }
 
   private[this] def updateProfile(authProfile: AuthorizationProfile, profile: UpdateProfileRequest): Future[RestResponse] = {
@@ -125,8 +127,8 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getFavoriteDomains(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = GetFavoritesForUser(authProfile.username)
-    (favoriteDomainsActor ? message).mapTo[List[Domain]] map { domains =>
+    val message = GetFavoritesForUserRequest(authProfile.username)
+    (favoriteDomainsActor ? message).mapTo[GetFavoritesForUserResponse].map(_.domains) map { domains =>
       okResponse(domains.map(domain => DomainRestData(
         domain.displayName,
         domain.domainFqn.namespace,
@@ -136,14 +138,14 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def addFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
-    val message = AddFavoriteDomain(authProfile.username, DomainId(namespace, domain))
+    val message = AddFavoriteDomainRequest(authProfile.username, DomainId(namespace, domain))
     (favoriteDomainsActor ? message).mapTo[Unit] map {
       okResponse(_)
     }
   }
 
   private[this] def removeFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
-    val message = RemoveFavoriteDomain(authProfile.username, DomainId(namespace, domain))
+    val message = RemoveFavoriteDomainRequest(authProfile.username, DomainId(namespace, domain))
     (favoriteDomainsActor ? message).mapTo[Unit] map {
       okResponse(_)
     }

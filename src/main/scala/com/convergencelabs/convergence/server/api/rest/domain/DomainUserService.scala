@@ -37,13 +37,13 @@ object DomainUserService {
                                email: Option[String],
                                password: Option[String])
 
-  case class UpdateUserRequest(firstName: Option[String],
+  case class UpdateUserRequestData(firstName: Option[String],
                                lastName: Option[String],
                                displayName: Option[String],
                                email: Option[String],
                                disabled: Option[Boolean])
 
-  case class SetPasswordRequest(password: String)
+  case class SetPasswordRequestData(password: String)
 
   case class UserLookupRequest(filter: String, exclude: Option[List[String]], offset: Option[Int], limit: Option[Int])
 
@@ -85,14 +85,14 @@ class DomainUserService(private[this] val executionContext: ExecutionContext,
           } ~ delete {
             complete(deleteUser(domainUsername, domain))
           } ~ put {
-            entity(as[UpdateUserRequest]) { request =>
+            entity(as[UpdateUserRequestData]) { request =>
               complete(updateUserRequest(domainUsername, request, domain))
             }
           }
         } ~ pathPrefix("password") {
           pathEnd {
             put {
-              entity(as[SetPasswordRequest]) { request =>
+              entity(as[SetPasswordRequestData]) { request =>
                 complete(setPasswordRequest(domainUsername, request, domain))
               }
             }
@@ -115,36 +115,37 @@ class DomainUserService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetUsers(filter, offset, limit))).mapTo[List[DomainUser]] map
+    (domainRestActor ? DomainRestMessage(domain, GetUsersRequest(filter, offset, limit)))
+      .mapTo[GetUsersResponse].map(_.users) map
       (users => okResponse(users.map(toUserData)))
   }
 
   private[this] def findUser(domain: DomainId, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
-    val findUser = FindUser(filter, excludes.map(_.map(DomainUserId(DomainUserType.Normal, _))), offset, limit)
-    (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[List[DomainUser]] map
+    val findUser = FindUsersRequest(filter, excludes.map(_.map(DomainUserId(DomainUserType.Normal, _))), offset, limit)
+    (domainRestActor ? DomainRestMessage(domain, findUser)).mapTo[FindUsersResponse].map(_.users) map
       (users => okResponse(users.map(toUserData)))
   }
 
   private[this] def createUserRequest(createRequest: CreateUserRequest, domain: DomainId): Future[RestResponse] = {
     val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
-    val message = DomainRestMessage(domain, CreateUser(username, firstName, lastName, displayName, email, password))
+    val message = DomainRestMessage(domain, CreateUserRequest(username, firstName, lastName, displayName, email, password))
     (domainRestActor ? message) map ( _ => CreatedResponse )
   }
 
-  private[this] def updateUserRequest(username: String, updateRequest: UpdateUserRequest, domain: DomainId): Future[RestResponse] = {
-    val UpdateUserRequest(firstName, lastName, displayName, email, disabled) = updateRequest
-    val message = DomainRestMessage(domain, UpdateUser(username, firstName, lastName, displayName, email, disabled))
+  private[this] def updateUserRequest(username: String, updateRequest: UpdateUserRequestData, domain: DomainId): Future[RestResponse] = {
+    val UpdateUserRequestData(firstName, lastName, displayName, email, disabled) = updateRequest
+    val message = DomainRestMessage(domain, UpdateUserRequest(username, firstName, lastName, displayName, email, disabled))
     (domainRestActor ? message) map ( _ => OkResponse )
   }
 
-  private[this] def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequest, domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetPassword(uid, setPasswordRequest.password))
+  private[this] def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequestData, domain: DomainId): Future[RestResponse] = {
+    val message = DomainRestMessage(domain, SetPasswordRequest(uid, setPasswordRequest.password))
     (domainRestActor ? message) map ( _ => OkResponse )
   }
 
   private[this] def getUserByUsername(username: String, domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetUserByUsername(DomainUserId(DomainUserType.Normal, username)))
+    val message = DomainRestMessage(domain, GetUserByUsernameRequest(DomainUserId(DomainUserType.Normal, username)))
     (domainRestActor ? message).mapTo[Option[DomainUser]] map {
       case Some(user) =>
         okResponse(toUserData(user))
@@ -154,7 +155,7 @@ class DomainUserService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def deleteUser(uid: String, domain: DomainId): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, DeleteDomainUser(uid))) map ( _ => DeletedResponse )
+    (domainRestActor ? DomainRestMessage(domain, DeleteDomainUserRequest(uid))) map ( _ => DeletedResponse )
   }
 
   private[this] def toUserData(user: DomainUser): DomainUserData = {

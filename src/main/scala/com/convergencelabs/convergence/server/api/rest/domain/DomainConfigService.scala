@@ -21,7 +21,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{OkResponse, RestResponse, okResponse}
-import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.{GetAnonymousAuth, GetModelSnapshotPolicy, SetAnonymousAuth, SetModelSnapshotPolicy}
+import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor._
 import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -81,19 +81,19 @@ class DomainConfigService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getAnonymousAuthEnabled(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetAnonymousAuth)
-    (domainRestActor ? message).mapTo[Boolean] map
+    val message = DomainRestMessage(domain, GetAnonymousAuthRequest)
+    (domainRestActor ? message).mapTo[GetAnonymousAuthResponse].map(_.enabled) map
       (enabled => okResponse(AnonymousAuthResponse(enabled)))
   }
 
   private[this] def setAnonymousAuthEnabled(domain: DomainId, request: AnonymousAuthPut): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetAnonymousAuth(request.enabled))
+    val message = DomainRestMessage(domain, SetAnonymousAuthRequest(request.enabled))
     (domainRestActor ? message) map (_ => OkResponse)
   }
 
   private[this] def getModelSnapshotPolicy(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelSnapshotPolicy)
-    (domainRestActor ? message).mapTo[ModelSnapshotConfig] map { config =>
+    val message = DomainRestMessage(domain, GetModelSnapshotPolicyRequest)
+    (domainRestActor ? message).mapTo[GetModelSnapshotPolicyResponse].map(_.policy) map { policy =>
       val ModelSnapshotConfig(
       snapshotsEnabled,
       triggerByVersion,
@@ -103,7 +103,7 @@ class DomainConfigService(private[this] val executionContext: ExecutionContext,
       triggerByTime,
       limitByTime,
       minimumTimeInterval,
-      maximumTimeInterval) = config
+      maximumTimeInterval) = policy
       okResponse(ModelSnapshotPolicyData(
         snapshotsEnabled,
         triggerByVersion,
@@ -142,7 +142,7 @@ class DomainConfigService(private[this] val executionContext: ExecutionContext,
         Duration.ofMillis(minimumTimeInterval),
         Duration.ofMillis(maximumTimeInterval))
 
-    val message = DomainRestMessage(domain, SetModelSnapshotPolicy(policy))
+    val message = DomainRestMessage(domain, SetModelSnapshotPolicyRequest(policy))
     (domainRestActor ? message) map (_ => OkResponse)
   }
 }

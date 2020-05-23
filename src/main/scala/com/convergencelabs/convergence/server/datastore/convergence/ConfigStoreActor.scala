@@ -11,26 +11,15 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import scala.language.postfixOps
-
+import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 
-import akka.actor.ActorLogging
-import akka.actor.Props
+import scala.language.postfixOps
 
-object ConfigStoreActor {
-  val RelativePath = "ConfigStoreActor"
-
-  def props(dbProvider: DatabaseProvider): Props = Props(new ConfigStoreActor(dbProvider))
-
-  case class SetConfigs(configs: Map[String, Any])
-  case class GetConfigs(keys: Option[List[String]])
-  case class GetConfigsByFilter(filters: List[String])
-}
-
-class ConfigStoreActor private[datastore] (
-  private[this] val dbProvider: DatabaseProvider)
+class ConfigStoreActor private[datastore](
+                                           private[this] val dbProvider: DatabaseProvider)
   extends StoreActor with ActorLogging {
 
   import ConfigStoreActor._
@@ -38,31 +27,49 @@ class ConfigStoreActor private[datastore] (
   private[this] val configStore = new ConfigStore(dbProvider)
 
   def receive: Receive = {
-    case msg: SetConfigs =>
-      setConfigs(msg)
-    case msg: GetConfigs =>
-      getConfigs(msg)
-    case msg: GetConfigsByFilter =>
-      getConfigsByFilter(msg)
+    case msg: SetConfigsRequest =>
+      onSetConfigs(msg)
+    case msg: GetConfigsRequest =>
+      onGetConfigs(msg)
+    case msg: GetConfigsByFilterRequest =>
+      onGetConfigsByFilter(msg)
     case message: Any =>
       unhandled(message)
   }
 
-  def setConfigs(setConfigs: SetConfigs): Unit = {
-    val SetConfigs(configs) = setConfigs
+  private[this] def onSetConfigs(setConfigs: SetConfigsRequest): Unit = {
+    val SetConfigsRequest(configs) = setConfigs
     reply(configStore.setConfigs(configs))
   }
 
-  def getConfigs(getConfigs: GetConfigs): Unit = {
-    val GetConfigs(keys) = getConfigs
-    keys match {
-      case Some(k) => reply(configStore.getConfigs(k))
-      case None => reply(configStore.getConfigs())
-    }
+  private[this] def onGetConfigs(getConfigs: GetConfigsRequest): Unit = {
+    val GetConfigsRequest(keys) = getConfigs
+    reply((keys match {
+      case Some(k) => configStore.getConfigs(k)
+      case None => configStore.getConfigs()
+    }).map(GetConfigsResponse))
   }
-  
-  def getConfigsByFilter(getConfigs: GetConfigsByFilter): Unit = {
-    val GetConfigsByFilter(filters) = getConfigs
-    reply(configStore.getConfigsByFilter(filters))
+
+  private[this] def onGetConfigsByFilter(getConfigs: GetConfigsByFilterRequest): Unit = {
+    val GetConfigsByFilterRequest(filters) = getConfigs
+    reply(configStore.getConfigsByFilter(filters).map(GetConfigsByFilterResponse))
   }
+}
+
+
+object ConfigStoreActor {
+  val RelativePath = "ConfigStoreActor"
+
+  def props(dbProvider: DatabaseProvider): Props = Props(new ConfigStoreActor(dbProvider))
+
+  sealed trait ConfigStoreActorRequest extends CborSerializable
+
+  case class SetConfigsRequest(configs: Map[String, Any]) extends ConfigStoreActorRequest
+
+  case class GetConfigsRequest(keys: Option[List[String]]) extends ConfigStoreActorRequest
+  case class GetConfigsResponse(configs: Map[String, Any]) extends CborSerializable
+
+  case class GetConfigsByFilterRequest(filters: List[String]) extends ConfigStoreActorRequest
+  case class GetConfigsByFilterResponse(configs: Map[String, Any]) extends CborSerializable
+
 }

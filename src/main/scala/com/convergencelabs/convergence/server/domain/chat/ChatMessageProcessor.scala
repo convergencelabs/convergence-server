@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
+import com.convergencelabs.convergence.server.api.realtime.ChatClientActor._
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages._

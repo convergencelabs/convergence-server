@@ -11,16 +11,10 @@
 
 package com.convergencelabs.convergence.server.datastore
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import akka.actor.{Actor, ActorLogging, ActorRef, Status}
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Status
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext
-import akka.actor.ActorRef
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 abstract class StoreActor private[datastore] extends Actor with ActorLogging {
 
@@ -28,31 +22,32 @@ abstract class StoreActor private[datastore] extends Actor with ActorLogging {
     case x: Any => x
   }
 
-  def mapAndReply[T](value: Try[T])(mapper: Function[T, Any]): Unit = {
-    sender ! (mapReply(value, mapper))
+  protected def mapAndReply[T](value: Try[T])(mapper: Function[T, Any]): Unit = {
+    sender ! mapReply(value, mapper)
   }
 
-  def reply[T](value: Try[T], sender: ActorRef): Unit = {
-    sender ! (mapReply(value, defaultMapper))
+  protected def reply[T](value: Try[T], replyTo: ActorRef): Unit = {
+    val response = mapReply(value, defaultMapper)
+    replyTo ! response
   }
-  
-  def reply[T](value: Try[T]): Unit = {
+
+  protected def reply[T](value: Try[T]): Unit = {
     reply(value, sender)
   }
-  
-  def reply[T](f: Throwable): Unit = {
+
+  protected def reply[T](f: Throwable): Unit = {
     reply(f, sender)
   }
-  
-  def reply[T](f: Throwable, sender: ActorRef): Unit = {
-    sender ! Status.Failure(f)
+
+  protected def reply[T](f: Throwable, replyTo: ActorRef): Unit = {
+    replyTo ! Status.Failure(f)
   }
 
-  def reply[T](future: Future[T])(implicit ec: ExecutionContext): Unit = {
+  protected def reply[T](future: Future[T])(implicit ec: ExecutionContext): Unit = {
     mapAndReply(future)(defaultMapper)(ec)
   }
-  
-  def mapAndReply[T](future: Future[T])(mapper: Function[T, Any])(implicit ec: ExecutionContext): Unit = {
+
+  protected def mapAndReply[T](future: Future[T])(mapper: Function[T, Any])(implicit ec: ExecutionContext): Unit = {
     val currentSender = sender
     future onComplete {
       case Success(s) =>
@@ -61,8 +56,8 @@ abstract class StoreActor private[datastore] extends Actor with ActorLogging {
         currentSender ! Status.Failure(cause)
     }
   }
-  
-  def mapReply[T](t: Try[T], f: Function[T, Any]): Any = {
+
+  protected def mapReply[T](t: Try[T], f: Function[T, Any]): Any = {
     t match {
       case Failure(cause) =>
         Status.Failure(cause)

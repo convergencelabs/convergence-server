@@ -12,11 +12,7 @@
 package com.convergencelabs.convergence.server.api.realtime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated, actorRef2Scala}
-
-case object WebSocketClosed
-case class WebSocketOpened(ref: ActorRef)
-case class WebSocketError(cause: Throwable)
-case object CloseConnection
+import com.convergencelabs.convergence.server.actor.CborSerializable
 
 /**
  * The [[ConnectionActor]] is a light weight actor that will receive
@@ -33,6 +29,8 @@ case object CloseConnection
  * @param clientActor The client actor this connection is owned by.
  */
 class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
+  import ConnectionActor._
+
   private[this] var socketActor: Option[ActorRef] = None
 
   this.context.watch(clientActor)
@@ -72,5 +70,54 @@ class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
 }
 
 object ConnectionActor {
+  /**
+   * Creates a new ConnectionActor for a specific ClientActor.
+   *
+   * @param clientActor The ClientActor this connection will be bound to.
+   *
+   * @return The new ConnectionActor.
+   */
   def props(clientActor: ActorRef): Props = Props(new ConnectionActor(clientActor))
+
+  /**
+   * Indicates that the connection should now be open and use he supplied
+   * ActorRef to send outgoing messages too.
+   *
+   * @param outgoingMessageSink The ActorRef to use to send outgoing messages
+   *                            to the Web Socket.
+   */
+  private[realtime] case class WebSocketOpened(outgoingMessageSink: ActorRef) extends CborSerializable
+
+  /**
+   * Indicates that the Web Socket for this connection has been closed.
+   */
+  private[realtime] case object WebSocketClosed extends CborSerializable
+
+  /**
+   * Indicates that the Web Socket associated with this connection emitted an
+   * error.
+   *
+   * @param cause The cause of the error.
+   */
+  private[realtime] case class WebSocketError(cause: Throwable) extends CborSerializable
+
+  /**
+   * Indicates that this connection should be closed. This message does not
+   * come from the web socket, but rather from within Convergence.
+   */
+  private[realtime] case object CloseConnection extends CborSerializable
+
+  /**
+   * Represents an incoming binary message from the client.
+   *
+   * @param message The incoming binary web socket message data.
+   */
+  private[realtime] case class IncomingBinaryMessage(message: Array[Byte]) extends CborSerializable
+
+  /**
+   * Represents an outgoing binary message from the client.
+   *
+   * @param message The outgoing binary web socket message data.
+   */
+  private[realtime] case class OutgoingBinaryMessage(message: Array[Byte]) extends CborSerializable
 }

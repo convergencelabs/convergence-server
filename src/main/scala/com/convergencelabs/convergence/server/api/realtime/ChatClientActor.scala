@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+import java.time.Instant
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, actorRef2Scala}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
@@ -20,6 +22,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions._
 import com.convergencelabs.convergence.server.datastore.domain.ChatMembership.InvalidChatMembershipValue
 import com.convergencelabs.convergence.server.datastore.domain.ChatType.InvalidChatTypeValue
@@ -27,7 +30,7 @@ import com.convergencelabs.convergence.server.datastore.domain.{ChatEvent, ChatI
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatSharding}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 import com.google.protobuf.timestamp.Timestamp
 import org.json4s.JsonAST.JString
 import scalapb.GeneratedMessage
@@ -36,18 +39,12 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object ChatClientActor {
-  def props(domainFqn: DomainId,
-            chatLookupActor: ActorRef,
-            session: DomainUserSessionId,
-            requestTimeout: Timeout): Props =
-    Props(new ChatClientActor(domainFqn, chatLookupActor, session, requestTimeout))
-}
-
 class ChatClientActor(domainFqn: DomainId,
                       chatManagerActor: ActorRef,
                       session: DomainUserSessionId,
                       implicit val requestTimeout: Timeout) extends Actor with ActorLogging {
+
+  import ChatClientActor._
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
@@ -543,4 +540,35 @@ class ChatClientActor(domainFqn: DomainId,
           Map())
     }
   }
+}
+
+object ChatClientActor {
+  def props(domainFqn: DomainId,
+            chatLookupActor: ActorRef,
+            session: DomainUserSessionId,
+            requestTimeout: Timeout): Props =
+    Props(new ChatClientActor(domainFqn, chatLookupActor, session, requestTimeout))
+
+
+  sealed trait ChatBroadcastMessage extends CborSerializable{
+    val chatId: String
+  }
+
+  case class UserJoinedChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends ChatBroadcastMessage
+
+  case class UserLeftChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends ChatBroadcastMessage
+
+  case class UserAddedToChannel(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, addedUserId: DomainUserId) extends ChatBroadcastMessage
+
+  case class UserRemovedFromChannel(chatId: String, eventNumber: Int, timestamp: Instant, userId: DomainUserId, removedUserId: DomainUserId) extends ChatBroadcastMessage
+
+  case class ChatNameChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, name: String) extends ChatBroadcastMessage
+
+  case class ChatTopicChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, topic: String) extends ChatBroadcastMessage
+
+  case class ChannelRemoved(chatId: String) extends ChatBroadcastMessage
+
+  case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, session: DomainUserSessionId, message: String) extends ChatBroadcastMessage
+
+  case class EventsMarkedSeen(chatId: String, eventNumber: Long, session: DomainUserSessionId) extends ChatBroadcastMessage
 }

@@ -13,63 +13,89 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
 
-object UserGroupStoreActor {
-  def props(groupStore: UserGroupStore): Props = Props(new UserGroupStoreActor(groupStore))
-
-  sealed trait UserGroupStoreRequest
-  case class AddUserToGroup(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
-  case class RemoveUserFromGroup(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
-  case class CreateUserGroup(group: UserGroup) extends UserGroupStoreRequest
-  case class UpdateUserGroup(id: String, group: UserGroup) extends UserGroupStoreRequest
-  case class UpdateUserGroupInfo(id: String, group: UserGroupInfo) extends UserGroupStoreRequest
-  case class DeleteUserGroup(id: String) extends UserGroupStoreRequest
-  case class GetUserGroup(id: String) extends UserGroupStoreRequest
-  case class GetUserGroupInfo(id: String) extends UserGroupStoreRequest
-  case class GetUserGroupSummary(id: String) extends UserGroupStoreRequest
-  case class GetUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
-  case class GetUserGroupSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
-}
-
-class UserGroupStoreActor private[datastore] (private[this] val groupStore: UserGroupStore)
-    extends StoreActor with ActorLogging {
+class UserGroupStoreActor private[datastore](private[this] val groupStore: UserGroupStore)
+  extends StoreActor with ActorLogging {
 
   import UserGroupStoreActor._
 
   def receive: Receive = {
-    case message: UserGroupStoreRequest => onUserGroupStoreRequest(message)
-    case message: Any => unhandled(message)
+    case message: UserGroupStoreRequest =>
+      onUserGroupStoreRequest(message)
+    case message: Any =>
+      unhandled(message)
   }
 
   def onUserGroupStoreRequest(message: UserGroupStoreRequest): Unit = {
     message match {
-      case CreateUserGroup(group) =>
+      case CreateUserGroupRequest(group) =>
         reply(groupStore.createUserGroup(group))
-      case DeleteUserGroup(id) =>
+      case DeleteUserGroupRequest(id) =>
         reply(groupStore.deleteUserGroup(id))
-      
-      case GetUserGroup(id) =>
-        reply(groupStore.getUserGroup(id))
-      case GetUserGroups(filter, offset, limit) =>
-        reply(groupStore.getUserGroups(filter, offset, limit))
-      case GetUserGroupSummary(id) =>
-        reply(groupStore.getUserGroupSummary(id))
-      case GetUserGroupSummaries(filter, offset, limit) =>
-        reply(groupStore.getUserGroupSummaries(filter, offset, limit))
-      case GetUserGroupInfo(id) =>
-        reply(groupStore.getUserGroupInfo(id))
-      
-      case UpdateUserGroup(id, group) =>
+
+      case GetUserGroupRequest(id) =>
+        reply(groupStore.getUserGroup(id).map(GetUserGroupResponse))
+      case GetUserGroupsRequest(filter, offset, limit) =>
+        reply(groupStore.getUserGroups(filter, offset, limit).map(GetUserGroupsResponse))
+      case GetUserGroupSummaryRequest(id) =>
+        reply(groupStore.getUserGroupSummary(id).map(GetUserGroupSummaryResponse))
+      case GetUserGroupSummariesRequest(filter, offset, limit) =>
+        reply(groupStore.getUserGroupSummaries(filter, offset, limit).map(GetUserGroupSummariesResponse))
+      case GetUserGroupInfoRequest(id) =>
+        reply(groupStore.getUserGroupInfo(id).map(GetUserGroupInfoResponse))
+
+      case UpdateUserGroupRequest(id, group) =>
         reply(groupStore.updateUserGroup(id, group))
-      case UpdateUserGroupInfo(id, info) =>
+      case UpdateUserGroupInfoRequest(id, info) =>
         reply(groupStore.updateUserGroupInfo(id, info))
-        
-      case AddUserToGroup(id, userId) =>
+
+      case AddUserToGroupRequest(id, userId) =>
         reply(groupStore.addUserToGroup(id, userId))
-      case RemoveUserFromGroup(id, userId) =>
+      case RemoveUserFromGroupRequest(id, userId) =>
         reply(groupStore.removeUserFromGroup(id, userId))
     }
   }
+}
+
+
+object UserGroupStoreActor {
+  def props(groupStore: UserGroupStore): Props = Props(new UserGroupStoreActor(groupStore))
+
+  sealed trait UserGroupStoreRequest extends CborSerializable
+
+  case class AddUserToGroupRequest(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
+
+  case class RemoveUserFromGroupRequest(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
+
+  case class CreateUserGroupRequest(group: UserGroup) extends UserGroupStoreRequest
+
+  case class UpdateUserGroupRequest(id: String, group: UserGroup) extends UserGroupStoreRequest
+
+  case class UpdateUserGroupInfoRequest(id: String, group: UserGroupInfo) extends UserGroupStoreRequest
+
+  case class DeleteUserGroupRequest(id: String) extends UserGroupStoreRequest
+
+  case class GetUserGroupRequest(id: String) extends UserGroupStoreRequest
+
+  case class GetUserGroupResponse(userGroup: Option[UserGroup]) extends CborSerializable
+
+  case class GetUserGroupInfoRequest(id: String) extends UserGroupStoreRequest
+
+  case class GetUserGroupInfoResponse(groupInfo: Option[UserGroupInfo]) extends CborSerializable
+
+  case class GetUserGroupSummaryRequest(id: String) extends UserGroupStoreRequest
+
+  case class GetUserGroupSummaryResponse(summary: Option[UserGroupSummary]) extends CborSerializable
+
+  case class GetUserGroupsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
+
+  case class GetUserGroupsResponse(userGroups: List[UserGroup]) extends CborSerializable
+
+  case class GetUserGroupSummariesRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
+
+  case class GetUserGroupSummariesResponse(summaries: List[UserGroupSummary]) extends CborSerializable
+
 }

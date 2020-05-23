@@ -180,20 +180,34 @@ private[realtime] class ModelClientActor(private[this] val domainId: DomainId,
   //
   private[this] def onOutgoingModelMessage(event: RealtimeModelClientMessage): Unit = {
     event match {
-      case op: OutgoingOperation => onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement => onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened => onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed => onRemoteClientClosed(remoteClosed)
-      case forceClosed: ModelForceClose => onModelForceClose(forceClosed)
-      case autoCreateRequest: ClientAutoCreateModelConfigRequest => onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refShared: RemoteReferenceShared => onRemoteReferenceShared(refShared)
-      case refUnshared: RemoteReferenceUnshared => onRemoteReferenceUnshared(refUnshared)
-      case refSet: RemoteReferenceSet => onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared => onRemoteReferenceCleared(refCleared)
-      case permsChanged: ModelPermissionsChanged => onModelPermissionsChanged(permsChanged)
-      case message: ModelResyncServerComplete => onModelResyncServerComplete(message)
-      case resyncStarted: RemoteClientResyncStarted => onRemoteClientResyncStarted(resyncStarted)
-      case resyncCompleted: RemoteClientResyncCompleted => onRemoteClientResyncCompleted(resyncCompleted)
+      case op: OutgoingOperation =>
+        onOutgoingOperation(op)
+      case opAck: OperationAcknowledgement =>
+        onOperationAcknowledgement(opAck)
+      case remoteOpened: RemoteClientOpened =>
+        onRemoteClientOpened(remoteOpened)
+      case remoteClosed: RemoteClientClosed =>
+        onRemoteClientClosed(remoteClosed)
+      case forceClosed: ModelForceClose =>
+        onModelForceClose(forceClosed)
+      case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
+        onAutoCreateModelConfigRequest(autoCreateRequest)
+      case refShared: RemoteReferenceShared =>
+        onRemoteReferenceShared(refShared)
+      case refUnshared: RemoteReferenceUnshared =>
+        onRemoteReferenceUnshared(refUnshared)
+      case refSet: RemoteReferenceSet =>
+        onRemoteReferenceSet(refSet)
+      case refCleared: RemoteReferenceCleared =>
+        onRemoteReferenceCleared(refCleared)
+      case permsChanged: ModelPermissionsChanged =>
+        onModelPermissionsChanged(permsChanged)
+      case message: ModelResyncServerComplete =>
+        onModelResyncServerComplete(message)
+      case resyncStarted: RemoteClientResyncStarted =>
+        onRemoteClientResyncStarted(resyncStarted)
+      case resyncCompleted: RemoteClientResyncCompleted =>
+        onRemoteClientResyncCompleted(resyncCompleted)
     }
   }
 

@@ -11,10 +11,9 @@
 
 package com.convergencelabs.convergence.server.domain.activity
 
-import com.convergencelabs.convergence.server.actor.ActorSharding
-
-import akka.actor.Props
 import akka.cluster.sharding.ShardRegion
+import com.convergencelabs.convergence.server.actor.ActorSharding
+import com.convergencelabs.convergence.server.domain.activity.ActivityActor.ActivityActorMessage
 
 
 object ActivityActorSharding extends ActorSharding(
@@ -23,13 +22,13 @@ object ActivityActorSharding extends ActorSharding(
     classOf[ActivityActor]){
   
   override def extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: IncomingActivityMessage ⇒ 
+    case msg: ActivityActorMessage ⇒
       val id = s"${msg.domain.namespace}::${msg.domain.namespace}::${msg.activityId}"
       (id, msg)
   }
  
   override def extractShardId(numberOfShards: Int): ShardRegion.ExtractShardId = {
-    case msg: IncomingActivityMessage => 
+    case msg: ActivityActorMessage =>
       Math.abs(msg.domain.hashCode + msg.activityId.hashCode % numberOfShards).toString
   }
 }

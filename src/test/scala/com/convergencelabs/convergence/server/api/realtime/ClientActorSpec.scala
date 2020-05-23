@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolC
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.WebSocketOpened
 import org.json4s.JsonAST.JValue
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.scalatest.mockito.MockitoSugar

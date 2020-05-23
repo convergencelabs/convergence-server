@@ -13,17 +13,18 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.Props
+import com.convergencelabs.convergence.server.actor.CborSerializable
+
+import scala.concurrent.ExecutionContextExecutor
 
 object UserSessionTokenReaperActor {
   def props(dbProvider: DatabaseProvider): Props = Props(new UserSessionTokenReaperActor(dbProvider))
 
-  case object CleanUpSessions
+  case object CleanUpSessions extends CborSerializable
 }
 
 class UserSessionTokenReaperActor(dbProvider: DatabaseProvider) extends Actor with ActorLogging {
@@ -34,7 +35,7 @@ class UserSessionTokenReaperActor(dbProvider: DatabaseProvider) extends Actor wi
 
   private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
 
-  implicit val ec = this.context.system.dispatcher
+  implicit val ec: ExecutionContextExecutor = this.context.system.dispatcher
   this.context.system.scheduler.scheduleWithFixedDelay(0 seconds, 5 minutes, self, CleanUpSessions)
 
   def receive: Receive = {

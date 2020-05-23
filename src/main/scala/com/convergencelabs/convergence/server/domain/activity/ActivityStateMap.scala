@@ -30,7 +30,7 @@ class ActivityStateMap private[activity] () {
     state = Map()
   }
 
-  def getState(): Map[String, Map[String, JValue]] = {
+  def getState: Map[String, Map[String, JValue]] = {
     state
   }
 

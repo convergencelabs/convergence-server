@@ -50,8 +50,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
 
   
   def receive: Receive = {
-    case PresenceRequest(userIds) =>
-      getPresence(userIds)
+    case GetPresenceRequest(userIds) =>
+      onGetPresence(userIds)
     case UserConnected(userId, client) =>
       userConnected(userId, client)
     case UserPresenceSetState(userId, state) =>
@@ -68,8 +68,9 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
       handleDeathwatch(client)
   }
 
-  private[this] def getPresence(userIds: List[DomainUserId]): Unit = {
-    sender ! lookupPresence(userIds)
+  private[this] def onGetPresence(userIds: List[DomainUserId]): Unit = {
+    val presence = lookupPresence(userIds)
+    sender ! GetPresenceResponse(presence)
   }
 
   private[this] def userConnected(userId: DomainUserId, client: ActorRef): Unit = {
@@ -80,8 +81,8 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
       case Some(presence) =>
         presence.copy(clients = presence.clients + client)
       case None => {
-        this.broadcastToSubscribed(userId, UserPresenceAvailability(userId, true))
-        UserPresence(userId, true, Map(), Set(client))
+        this.broadcastToSubscribed(userId, UserPresenceAvailability(userId, available = true))
+        UserPresence(userId, available = true, Map(), Set(client))
       }
     }
     
@@ -160,7 +161,7 @@ class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor w
         case Some(presence) =>
           presence
         case None =>
-          UserPresence(userId, false, Map(), Set())
+          UserPresence(userId, available = false, Map(), Set())
       }
     }
   }

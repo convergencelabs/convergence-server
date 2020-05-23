@@ -14,12 +14,13 @@ package com.convergencelabs.convergence.server.domain.model
 import java.time.Instant
 
 import akka.actor.ActorRef
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.ModelPermissions
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 
-sealed trait ModelMessage {
+sealed trait ModelMessage extends CborSerializable {
   val domainId: DomainId
   val modelId: String
 }
@@ -110,18 +111,21 @@ case class OpenModelSuccess(valuePrefix: Long,
                             resyncingClients: Set[DomainUserSessionId],
                             referencesBySession: Set[ReferenceState],
                             modelData: ObjectValue,
-                            modelPermissions: ModelPermissions)
+                            modelPermissions: ModelPermissions) extends CborSerializable
 
-case class ModelResyncResponse(currentVersion: Long, modelPermissions: ModelPermissions)
+case class ModelResyncResponse(currentVersion: Long, modelPermissions: ModelPermissions) extends CborSerializable
 
 case class ModelResyncServerComplete(modelId: String,
                                      connectedClients: Set[DomainUserSessionId],
                                      resyncingClients: Set[DomainUserSessionId],
                                      references: Set[ReferenceState]) extends RealtimeModelClientMessage
 
-case class GetModelPermissionsResponse(overridesCollection: Boolean, worldPermissions: ModelPermissions, userPermissions: Map[DomainUserId, ModelPermissions])
+case class GetModelPermissionsResponse(overridesCollection: Boolean,
+                                       worldPermissions: ModelPermissions,
+                                       userPermissions: Map[DomainUserId, ModelPermissions]) extends CborSerializable
 
-trait RealtimeModelClientMessage {
+
+trait RealtimeModelClientMessage extends CborSerializable {
   val modelId: String
 }
 

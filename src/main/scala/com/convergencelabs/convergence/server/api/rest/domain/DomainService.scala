@@ -21,7 +21,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor._
 import com.convergencelabs.convergence.server.datastore.convergence.NamespaceNotFoundException
-import com.convergencelabs.convergence.server.domain.{Domain, DomainId}
+import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -112,9 +112,10 @@ class DomainService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val message = ListDomainsRequest(authProfile, namespace, filter, offset, limit)
+    val message = ListDomainsRequest(authProfile.data, namespace, filter, offset, limit)
     (domainStoreActor ? message)
-      .mapTo[List[Domain]]
+      .mapTo[ListDomainsResponse]
+      .map(_.domains)
       .map(domains =>
         okResponse(
           domains map (domain => DomainRestData(
@@ -125,7 +126,10 @@ class DomainService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainStoreActor ? GetDomainRequest(namespace, domainId)).mapTo[Option[Domain]].map {
+    (domainStoreActor ? GetDomainRequest(namespace, domainId))
+      .mapTo[GetDomainResponse]
+      .map(_.domain)
+      .map {
       case Some(domain) =>
         okResponse(DomainRestData(
           domain.displayName,

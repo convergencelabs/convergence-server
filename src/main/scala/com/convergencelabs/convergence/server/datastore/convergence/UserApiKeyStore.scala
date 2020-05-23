@@ -141,7 +141,7 @@ class UserApiKeyStore(
     OrientDBUtil.mutateOneDocument(db, UpdateKey, params)
   } recoverWith handleDuplicateValue
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case UserApiKeyClass.Indices.Key =>

@@ -89,8 +89,8 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     val chatActorRegion: ActorRef = ChatSharding.shardRegion(system)
 
     // Routers to backend services. We add them to a list so we can shut them down.
-    val authStoreActor = createBackendRouter(system, AuthenticationActor.RelativePath, "authActor")
-    routers += authStoreActor
+    val authenticationActor = createBackendRouter(system, AuthenticationActor.RelativePath, "authActor")
+    routers += authenticationActor
     val convergenceUserActor = createBackendRouter(system, ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
     routers += convergenceUserActor
     val namespaceActor = createBackendRouter(system, NamespaceStoreActor.RelativePath, "namespaceActor")
@@ -114,7 +114,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
 
     // The Rest Services
     val infoService = new InfoService(ec, defaultRequestTimeout)
-    val authService = new AuthService(ec, authStoreActor, defaultRequestTimeout)
+    val authService = new AuthService(ec, authenticationActor, defaultRequestTimeout)
     val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
     val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
     val roleService = new UserRoleService(ec, roleActor, defaultRequestTimeout)
@@ -136,7 +136,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
       defaultRequestTimeout)
 
     // The authenticator that will be used to authenticate HTTP requests.
-    val authenticator = new Authenticator(authStoreActor, defaultRequestTimeout, ec)
+    val authenticator = new Authenticator(authenticationActor, defaultRequestTimeout, ec)
 
     val corsSettings: CorsSettings = CorsSettings.defaultSettings.withAllowedMethods(
       List(

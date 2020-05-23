@@ -13,38 +13,30 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.BuildInfo
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 
 import scala.language.postfixOps
 import scala.util.Try
 
-object ServerStatusActor {
-  val RelativePath = "ServerStatusActor"
-
-  def props(dbProvider: DatabaseProvider): Props = Props(new ServerStatusActor(dbProvider))
-
-  case object GetStatusRequest
-  case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
-}
-
-class ServerStatusActor private[datastore] (
-  private[this] val dbProvider: DatabaseProvider)
+class ServerStatusActor private[datastore](
+                                            private[this] val dbProvider: DatabaseProvider)
   extends StoreActor with ActorLogging {
 
   import ServerStatusActor._
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val namespaceStore = new NamespaceStore(dbProvider)
-  
+
   def receive: Receive = {
     case GetStatusRequest =>
-      handleGetStatus()
+      onGetStatus()
     case message: Any =>
       unhandled(message)
   }
 
-  def handleGetStatus(): Unit = {
+  private[this] def onGetStatus(): Unit = {
     reply(for {
       domains <- domainStore.domainCount()
       namespaces <- namespaceStore.namespaceCount()
@@ -53,5 +45,17 @@ class ServerStatusActor private[datastore] (
       ServerStatusResponse(BuildInfo.version, distribution, "healthy", namespaces, domains)
     })
   }
+
+}
+
+
+object ServerStatusActor {
+  val RelativePath = "ServerStatusActor"
+
+  def props(dbProvider: DatabaseProvider): Props = Props(new ServerStatusActor(dbProvider))
+
+  case object GetStatusRequest extends CborSerializable
+
+  case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
 
 }

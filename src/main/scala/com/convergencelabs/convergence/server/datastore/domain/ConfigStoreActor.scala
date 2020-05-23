@@ -12,18 +12,10 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.{ActorLogging, Props}
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 
-object ConfigStoreActor {
-  def props(store: DomainConfigStore): Props = Props(new ConfigStoreActor(store))
-
-  trait ConfigStoreRequest
-  case object GetAnonymousAuth extends ConfigStoreRequest
-  case class SetAnonymousAuth(enabled: Boolean) extends ConfigStoreRequest
-  case object GetModelSnapshotPolicy extends ConfigStoreRequest
-  case class SetModelSnapshotPolicy(policy: ModelSnapshotConfig) extends ConfigStoreRequest
-}
 
 class ConfigStoreActor private[datastore] (private[this] val store: DomainConfigStore)
     extends StoreActor with ActorLogging {
@@ -31,26 +23,49 @@ class ConfigStoreActor private[datastore] (private[this] val store: DomainConfig
   import ConfigStoreActor._
 
   def receive: Receive = {
-    case GetAnonymousAuth => getAnonymousAuthEnabled()
-    case SetAnonymousAuth(enabled) => setAnonymousAuthEnabled(enabled)
-    case GetModelSnapshotPolicy => getModelSnapshotPolicy()
-    case SetModelSnapshotPolicy(policy) => setModelSnapshotPolicy(policy)
-    case message: Any => unhandled(message)
+    case GetAnonymousAuthRequest =>
+      onGetAnonymousAuthEnabled()
+    case SetAnonymousAuthRequest(enabled) =>
+      onSetAnonymousAuthEnabled(enabled)
+    case GetModelSnapshotPolicyRequest =>
+      onGetModelSnapshotPolicy()
+    case SetModelSnapshotPolicyRequest(policy) =>
+      onSetModelSnapshotPolicy(policy)
+    case message: Any =>
+      unhandled(message)
   }
 
-  def getAnonymousAuthEnabled(): Unit = {
-    reply(store.isAnonymousAuthEnabled())
+  private[this] def onGetAnonymousAuthEnabled(): Unit = {
+    reply(store.isAnonymousAuthEnabled().map(GetAnonymousAuthResponse))
   }
-  
-  def setAnonymousAuthEnabled(enabled: Boolean): Unit = {
+
+  private[this] def onSetAnonymousAuthEnabled(enabled: Boolean): Unit = {
     reply(store.setAnonymousAuthEnabled(enabled))
   }
-  
-  def getModelSnapshotPolicy(): Unit = {
-    reply(store.getModelSnapshotConfig())
+
+  private[this] def onGetModelSnapshotPolicy(): Unit = {
+    reply(store.getModelSnapshotConfig().map(GetModelSnapshotPolicyResponse))
   }
-  
-  def setModelSnapshotPolicy(policy: ModelSnapshotConfig): Unit = {
+
+  private[this] def onSetModelSnapshotPolicy(policy: ModelSnapshotConfig): Unit = {
     reply(store.setModelSnapshotConfig(policy))
   }
+}
+
+
+object ConfigStoreActor {
+  def props(store: DomainConfigStore): Props = Props(new ConfigStoreActor(store))
+
+  trait ConfigStoreRequest extends CborSerializable
+  case object GetAnonymousAuthRequest extends ConfigStoreRequest
+
+  case class GetAnonymousAuthResponse(enabled: Boolean) extends CborSerializable
+
+  case class SetAnonymousAuthRequest(enabled: Boolean) extends ConfigStoreRequest
+
+  case object GetModelSnapshotPolicyRequest extends ConfigStoreRequest
+
+  case class GetModelSnapshotPolicyResponse(policy: ModelSnapshotConfig) extends CborSerializable
+
+  case class SetModelSnapshotPolicyRequest(policy: ModelSnapshotConfig) extends ConfigStoreRequest
 }
