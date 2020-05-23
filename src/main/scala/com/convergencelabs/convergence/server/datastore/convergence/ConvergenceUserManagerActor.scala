@@ -24,7 +24,6 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-
 class ConvergenceUserManagerActor private[datastore](private[this] val dbProvider: DatabaseProvider,
                                                      private[this] val domainStoreActor: ActorRef)
   extends StoreActor

@@ -37,43 +37,43 @@ private[realtime] object OperationMapper {
   // FIXME handle missing values.
   def mapIncomingDiscrete(op: DiscreteOperationData): DiscreteOperation = {
     op.operation match {
-      case DiscreteOperationData.Operation.StringInsertOperation(StringInsertOperationData(id, noOp, index, value)) =>
+      case DiscreteOperationData.Operation.StringInsertOperation(StringInsertOperationData(id, noOp, index, value, _)) =>
         StringInsertOperation(id, noOp, index, value)
-      case DiscreteOperationData.Operation.StringRemoveOperation(StringRemoveOperationData(id, noOp, index, value)) =>
+      case DiscreteOperationData.Operation.StringRemoveOperation(StringRemoveOperationData(id, noOp, index, value, _)) =>
         StringRemoveOperation(id, noOp, index, value)
-      case DiscreteOperationData.Operation.StringSetOperation(StringSetOperationData(id, noOp, value)) =>
+      case DiscreteOperationData.Operation.StringSetOperation(StringSetOperationData(id, noOp, value, _)) =>
         StringSetOperation(id, noOp, value)
 
-      case DiscreteOperationData.Operation.ArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, newVal)) =>
+      case DiscreteOperationData.Operation.ArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, newVal, _)) =>
         ArrayInsertOperation(id, noOp, idx, newVal.get)
-      case DiscreteOperationData.Operation.ArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx)) =>
+      case DiscreteOperationData.Operation.ArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx, _)) =>
         ArrayRemoveOperation(id, noOp, idx)
-      case DiscreteOperationData.Operation.ArrayMoveOperation(ArrayMoveOperationData(id, noOp, fromIdx, toIdx)) =>
+      case DiscreteOperationData.Operation.ArrayMoveOperation(ArrayMoveOperationData(id, noOp, fromIdx, toIdx, _)) =>
         ArrayMoveOperation(id, noOp, fromIdx, toIdx)
-      case DiscreteOperationData.Operation.ArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, newVal)) =>
+      case DiscreteOperationData.Operation.ArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, newVal, _)) =>
         ArrayReplaceOperation(id, noOp, idx, newVal.get)
-      case DiscreteOperationData.Operation.ArraySetOperation(ArraySetOperationData(id, noOp, array)) =>
+      case DiscreteOperationData.Operation.ArraySetOperation(ArraySetOperationData(id, noOp, array, _)) =>
         ArraySetOperation(id, noOp, array.map(messageToDataValue).toList)
 
-      case DiscreteOperationData.Operation.ObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, newVal)) =>
+      case DiscreteOperationData.Operation.ObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, newVal, _)) =>
         ObjectSetPropertyOperation(id, noOp, prop, newVal.get)
-      case DiscreteOperationData.Operation.ObjectAddPropertyOperation(ObjectAddPropertyOperationData(id, noOp, prop, newVal)) =>
+      case DiscreteOperationData.Operation.ObjectAddPropertyOperation(ObjectAddPropertyOperationData(id, noOp, prop, newVal, _)) =>
         ObjectAddPropertyOperation(id, noOp, prop, newVal.get)
-      case DiscreteOperationData.Operation.ObjectRemovePropertyOperation(ObjectRemovePropertyOperationData(id, noOp, prop)) =>
+      case DiscreteOperationData.Operation.ObjectRemovePropertyOperation(ObjectRemovePropertyOperationData(id, noOp, prop, _)) =>
         ObjectRemovePropertyOperation(id, noOp, prop)
-      case DiscreteOperationData.Operation.ObjectSetOperation(ObjectSetOperationData(id, noOp, objectData)) =>
+      case DiscreteOperationData.Operation.ObjectSetOperation(ObjectSetOperationData(id, noOp, objectData, _)) =>
         val mappedData = objectData.map { case (k, v) => (k, messageToDataValue(v)) }
         ObjectSetOperation(id, noOp, mappedData)
 
-      case DiscreteOperationData.Operation.NumberDeltaOperation(NumberDeltaOperationData(id, noOp, delta)) =>
+      case DiscreteOperationData.Operation.NumberDeltaOperation(NumberDeltaOperationData(id, noOp, delta, _)) =>
         NumberAddOperation(id, noOp, delta)
-      case DiscreteOperationData.Operation.NumberSetOperation(NumberSetOperationData(id, noOp, number)) =>
+      case DiscreteOperationData.Operation.NumberSetOperation(NumberSetOperationData(id, noOp, number, _)) =>
         NumberSetOperation(id, noOp, number)
 
-      case DiscreteOperationData.Operation.BooleanSetOperation(BooleanSetOperationData(id, noOp, value)) =>
+      case DiscreteOperationData.Operation.BooleanSetOperation(BooleanSetOperationData(id, noOp, value, _)) =>
         BooleanSetOperation(id, noOp, value)
 
-      case DiscreteOperationData.Operation.DateSetOperation(DateSetOperationData(id, noOp, value)) =>
+      case DiscreteOperationData.Operation.DateSetOperation(DateSetOperationData(id, noOp, value, _)) =>
         DateSetOperation(id, noOp, value.get)
 
       case DiscreteOperationData.Operation.Empty =>

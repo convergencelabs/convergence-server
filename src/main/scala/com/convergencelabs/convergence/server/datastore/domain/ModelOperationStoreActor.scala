@@ -15,6 +15,7 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.model.ModelOperation
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 class ModelOperationStoreActor private[datastore] (
   private[this] val operationStore: ModelOperationStore)
@@ -37,7 +38,7 @@ object ModelOperationStoreActor {
 
   def props(operationStore: ModelOperationStore): Props = Props(new ModelOperationStoreActor(operationStore))
 
-  trait ModelOperationStoreRequest extends CborSerializable
+  sealed trait ModelOperationStoreRequest extends CborSerializable with DomainRestMessageBody
 
   case class GetOperationsRequest(modelId: String, first: Long, last: Long) extends ModelOperationStoreRequest
 

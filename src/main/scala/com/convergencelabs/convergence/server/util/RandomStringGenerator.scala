@@ -27,39 +27,33 @@ object RandomStringGenerator {
  * Generates random strings. NOTE this class is NOT thread safe.
  *
  * @param length
- *   The length of the random strings to generate.
+ * The length of the random strings to generate.
  * @param random
- *   The random number generator to use.
+ * The random number generator to use.
  * @param symbols
- *   The symbols to draw upon to generate the random string.
+ * The symbols to draw upon to generate the random string.
  */
 class RandomStringGenerator(
-    val length: Int,
-    private[this] val random: Random,
-    val symbols: String) {
+                             val length: Int,
+                             private[this] val random: Random,
+                             val symbols: String) {
 
   if (length < 1) {
     throw new IllegalArgumentException("length must be >= 1")
   }
-  
+
   if (symbols.length < 2) {
     throw new IllegalArgumentException("The length of symbols must be >= 2")
   }
 
   private[this] val buf = new Array[Char](length)
 
-  def this(length: Int, symbols: String) {
-    this(length, new SecureRandom(), symbols)
-  }
-  
-  def this(length: Int, random: Random) {
-    this(length, random, RandomStringGenerator.Base64)
-  }
-  
-  def this(length: Int) {
-    this(length, new SecureRandom())
-  }
- 
+  def this(length: Int, symbols: String) = this(length, new SecureRandom(), symbols)
+
+  def this(length: Int, random: Random) = this (length, random, RandomStringGenerator.Base64)
+
+  def this(length: Int) = this(length, new SecureRandom())
+
   def nextString(): String = {
     for (idx <- buf.indices) {
       buf(idx) = symbols(random.nextInt(symbols.length))

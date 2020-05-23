@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Role
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
@@ -33,7 +33,7 @@ case class RoleStoreSpecStores(
   domainStore: DomainStore)
 
 class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCategory.Convergence)
-  with WordSpecLike with Matchers {
+  with AnyWordSpecLike with Matchers {
   def createStore(dbProvider: DatabaseProvider): RoleStoreSpecStores = {
     RoleStoreSpecStores(new RoleStore(dbProvider), new UserStore(dbProvider), new NamespaceStore(dbProvider), new DomainStore(dbProvider))
   }

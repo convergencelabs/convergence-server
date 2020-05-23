@@ -33,11 +33,11 @@ abstract class RealTimeValue(private[model] val id: String,
     }
   }
 
-  def addDetachListener(listener: String => Unit) {
+  def addDetachListener(listener: String => Unit): Unit = {
     listeners ::= listener
   }
 
-  def removeDetachListener(listener: String => Unit) {
+  def removeDetachListener(listener: String => Unit): Unit = {
     listeners filter (!_.equals(listener))
   }
 

@@ -19,18 +19,17 @@ import scala.util.Failure
 import scala.util.Success
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.WordSpecLike
-import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.convergence.server.domain.DomainId
 import akka.actor.{ActorRef, ActorSystem, Props, Status}
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 
 class DomainProvisionerActorSpec
     extends TestKit(ActorSystem("DomainProvisionerActor"))
-    with WordSpecLike
+    with AnyWordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
 
@@ -46,7 +45,7 @@ class DomainProvisionerActorSpec
           .thenReturn(Success(()))
 
         val client = new TestProbe(system)
-        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
+        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)
         domainProvisionerActor.tell(message, client.ref)
 
         client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Success])
@@ -58,7 +57,7 @@ class DomainProvisionerActorSpec
           .thenReturn(Failure(new IllegalStateException("Induced error for testing")))
 
         val client = new TestProbe(system)
-        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false)
+        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)
         domainProvisionerActor.tell(message, client.ref)
 
         client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])

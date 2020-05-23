@@ -11,21 +11,18 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.util.Try
+import java.time.Duration
 
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.ConfigClass
 import com.convergencelabs.convergence.server.datastore.convergence.schema.ConfigClass.Fields
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import grizzled.slf4j.Logging
-import scala.util.Success
-import scala.util.Failure
-import java.time.Duration
+
+import scala.jdk.CollectionConverters._
+import scala.util.{Failure, Success, Try}
 
 object ConfigKeys {
   object Namespaces {
@@ -100,8 +97,8 @@ object ConfigStore {
   def toInteger(value: Any): Integer = {
     value match {
       case v: Integer => v
-      case v: BigInt  => v.intValue()
-      case v: Long    => v.intValue()
+      case v: BigInt  => v.intValue
+      case v: Long    => v.intValue
       case v: String  => Integer.parseInt(v)
     }
   }

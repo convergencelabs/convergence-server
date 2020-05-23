@@ -21,7 +21,7 @@ object RealtimeModelSharding extends ActorSharding(
     classOf[RealtimeModelActor]) {
 
   override val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ModelMessage ⇒
+    case msg: ModelMessage =>
       (s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.modelId}", msg)
   }
 

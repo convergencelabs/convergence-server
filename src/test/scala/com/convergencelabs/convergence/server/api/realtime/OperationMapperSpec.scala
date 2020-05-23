@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
 import com.convergencelabs.convergence.server.domain.model.ot.ArrayInsertOperation
@@ -33,7 +33,7 @@ import com.convergencelabs.convergence.server.domain.model.ot.StringRemoveOperat
 import com.convergencelabs.convergence.server.domain.model.ot.StringSetOperation
 
 // scalastyle:off magic.number
-class OperationMapperSpec extends WordSpec with Matchers {
+class OperationMapperSpec extends AnyWordSpec with Matchers {
 
   val X = "X"
 

@@ -23,13 +23,13 @@ import org.json4s.JsonDSL.jobject2assoc
 import org.json4s.JsonDSL.pair2jvalue
 import org.json4s.reflect.Reflector
 import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 import org.json4s.MappingException
 
 class TypeMapSerializerSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with MockitoSugar {
 

@@ -14,15 +14,15 @@ package com.convergencelabs.convergence.server.datastore.domain
 import akka.actor.{Actor, ActorLogging, Props, Status}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.convergencelabs.convergence.server.util.concurrent.UnexpectedErrorException
 
 import scala.util.Try
 
-class DomainStatsActor(
-    persistence: DomainPersistenceProvider) extends Actor with ActorLogging {
+class DomainStatsActor(persistence: DomainPersistenceProvider) extends Actor with ActorLogging {
 
   import DomainStatsActor._
-  
+
   def receive: Receive = {
     case GetStatsRequest =>
       onGetStats()
@@ -54,9 +54,12 @@ object DomainStatsActor {
   def props(persistence: DomainPersistenceProvider): Props =
     Props(new DomainStatsActor(persistence))
 
-  trait DomainStatsRequest extends CborSerializable
+  sealed trait DomainStatsRequest extends CborSerializable with DomainRestMessageBody
+
   case object GetStatsRequest extends DomainStatsRequest
 
   case class GetDomainStatsResponse(stats: DomainStats) extends CborSerializable
+
   case class DomainStats(connectedSessions: Long, users: Long, models: Long, dbSize: Long)
+
 }

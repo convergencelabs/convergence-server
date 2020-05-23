@@ -22,14 +22,15 @@ import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData
 import com.convergencelabs.convergence.server.domain.model.data.{ObjectValue, StringValue}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore, permissions: ModelPermissionsStore)
 
 // scalastyle:off magic.number
 class ModelStoreSpec
   extends PersistenceStoreSpec[ModelStoreSpecStores](DeltaCategory.Domain)
-  with WordSpecLike
+  with AnyWordSpecLike
   with Matchers {
 
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")

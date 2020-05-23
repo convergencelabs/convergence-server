@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.util
 import akka.actor.ActorRef
 
 trait EventLoop {
-  def schedule(task: => Unit)
+  def schedule(task: => Unit): Unit
 }
 
 object ActorBackedEventLoop {

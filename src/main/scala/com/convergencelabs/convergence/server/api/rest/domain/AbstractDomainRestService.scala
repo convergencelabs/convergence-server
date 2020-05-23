@@ -18,7 +18,7 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Pe
 
 import scala.concurrent.ExecutionContext
 
-class DomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
+class AbstractDomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
 
   implicit val ec: ExecutionContext = executionContext
   implicit val t: Timeout = defaultTimeout

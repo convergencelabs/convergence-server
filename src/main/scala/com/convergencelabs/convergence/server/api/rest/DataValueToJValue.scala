@@ -42,7 +42,7 @@ object DataValueToJValue {
       case DateValue(_, v) =>
         JObject(
           ConvergenceTypeFlag -> JString(DateTypeValue),
-          DateTypeValue -> JDouble(v.toEpochMilli()))
+          DateTypeValue -> JLong(v.toEpochMilli()))
     }
   }
 }

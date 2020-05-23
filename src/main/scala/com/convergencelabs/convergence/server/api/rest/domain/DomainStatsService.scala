@@ -21,7 +21,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{RestResponse, okResponse}
 import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor.{DomainStats, GetDomainStatsResponse, GetStatsRequest}
 import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,7 +35,7 @@ object DomainStatsService {
 class DomainStatsService(private[this] val executionContext: ExecutionContext,
                          private[this] val timeout: Timeout,
                          private[this] val domainRestActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainStatsService._
 

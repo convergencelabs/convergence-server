@@ -11,11 +11,11 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class PathComparatorSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   val parent = List("level1")

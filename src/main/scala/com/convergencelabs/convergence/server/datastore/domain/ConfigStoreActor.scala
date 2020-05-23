@@ -15,11 +15,12 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 
-class ConfigStoreActor private[datastore] (private[this] val store: DomainConfigStore)
-    extends StoreActor with ActorLogging {
-  
+class ConfigStoreActor private[datastore](private[this] val store: DomainConfigStore)
+  extends StoreActor with ActorLogging {
+
   import ConfigStoreActor._
 
   def receive: Receive = {
@@ -56,7 +57,8 @@ class ConfigStoreActor private[datastore] (private[this] val store: DomainConfig
 object ConfigStoreActor {
   def props(store: DomainConfigStore): Props = Props(new ConfigStoreActor(store))
 
-  trait ConfigStoreRequest extends CborSerializable
+  sealed trait ConfigStoreRequest extends CborSerializable with DomainRestMessageBody
+
   case object GetAnonymousAuthRequest extends ConfigStoreRequest
 
   case class GetAnonymousAuthResponse(enabled: Boolean) extends CborSerializable
@@ -68,4 +70,5 @@ object ConfigStoreActor {
   case class GetModelSnapshotPolicyResponse(policy: ModelSnapshotConfig) extends CborSerializable
 
   case class SetModelSnapshotPolicyRequest(policy: ModelSnapshotConfig) extends ConfigStoreRequest
+
 }

@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -22,7 +22,7 @@ import NumberAddOperationMapper.NumberAddOperationToODocument
 import NumberAddOperationMapper.ODocumentToNumberAddOperation
 
 class NumberAddOperationMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "An NumberAddOperationMapper" when {

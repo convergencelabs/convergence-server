@@ -70,12 +70,12 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
   }
 
   private[this] def onPresenceStateSet(message: PresenceSetStateMessage): Unit = {
-    val PresenceSetStateMessage(state) = message
+    val PresenceSetStateMessage(state, _) = message
     this.presenceServiceActor ! UserPresenceSetState(session.userId, JsonProtoConverter.valueMapToJValueMap(state))
   }
 
   private[this] def onPresenceStateRemoved(message: PresenceRemoveStateMessage): Unit = {
-    val PresenceRemoveStateMessage(keys) = message
+    val PresenceRemoveStateMessage(keys, _) = message
     this.presenceServiceActor ! UserPresenceRemoveState(session.userId, keys.toList)
   }
 
@@ -84,7 +84,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
   }
 
   private[this] def onUnsubscribePresence(message: UnsubscribePresenceMessage): Unit = {
-    val UnsubscribePresenceMessage(userIdData) = message
+    val UnsubscribePresenceMessage(userIdData, _) = message
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
     this.presenceServiceActor ! UnsubscribePresence(userIds.toList, self)
   }
@@ -97,7 +97,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
   }
 
   private[this] def onPresenceRequest(request: PresenceRequestMessage, cb: ReplyCallback): Unit = {
-    val PresenceRequestMessage(userIdData) = request
+    val PresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
     val future = this.presenceServiceActor ? GetPresenceRequest(userIds.toList)
 
@@ -110,7 +110,7 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
   }
 
   private[this] def onSubscribeRequest(request: SubscribePresenceRequestMessage, cb: ReplyCallback): Unit = {
-    val SubscribePresenceRequestMessage(userIdData) = request
+    val SubscribePresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
     val future = this.presenceServiceActor ? SubscribePresence(userIds.toList, self)
 

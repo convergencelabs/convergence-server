@@ -27,15 +27,14 @@ class ModelCreator {
 
   def generateModelId(): String = UUID.randomUUID().toString
 
-  def createModel(
-                   persistenceProvider: DomainPersistenceProvider,
-                   creatorUserId: Option[DomainUserId],
-                   collectionId: String,
-                   modelId: String,
-                   data: ObjectValue,
-                   overrideWorld: Option[Boolean],
-                   worldPermissions: Option[ModelPermissions],
-                   userPermissions: Map[DomainUserId, ModelPermissions]): Try[Model] = {
+  def createModel(persistenceProvider: DomainPersistenceProvider,
+                  creatorUserId: Option[DomainUserId],
+                  collectionId: String,
+                  modelId: String,
+                  data: ObjectValue,
+                  overrideWorld: Option[Boolean],
+                  worldPermissions: Option[ModelPermissions],
+                  userPermissions: Map[DomainUserId, ModelPermissions]): Try[Model] = {
 
     verifyCanCreate(collectionId, creatorUserId, persistenceProvider) flatMap { _ =>
       persistenceProvider.collectionStore.ensureCollectionExists(collectionId)
@@ -60,7 +59,7 @@ class ModelCreator {
             Success(())
         }
       } flatMap { _ =>
-        val userPerms = userPermissions.mapValues(Some(_))
+        val userPerms = userPermissions.transform((_, v) => Some(v))
         persistenceProvider
           .modelPermissionsStore
           .updateAllModelUserPermissions(model.metaData.id, userPerms)

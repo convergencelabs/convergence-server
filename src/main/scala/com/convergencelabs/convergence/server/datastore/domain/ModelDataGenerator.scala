@@ -48,11 +48,11 @@ class ModelDataGenerator() {
       case num: Double =>
         DoubleValue(nextId(), num)
       case num: Int =>
-        DoubleValue(nextId(), num.doubleValue())
+        DoubleValue(nextId(), num.doubleValue)
       case num: BigInt =>
-        DoubleValue(nextId(), num.doubleValue())
+        DoubleValue(nextId(), num.doubleValue)
       case num: Long =>
-        DoubleValue(nextId(), num.doubleValue())
+        DoubleValue(nextId(), num.doubleValue)
       case bool: Boolean =>
         BooleanValue(nextId(), bool)
       case str: String =>

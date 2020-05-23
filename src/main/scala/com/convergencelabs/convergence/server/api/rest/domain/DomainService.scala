@@ -41,7 +41,7 @@ class DomainService(private[this] val executionContext: ExecutionContext,
                     private[this] val modelClusterRegion: ActorRef,
                     private[this] val chatClusterRegion: ActorRef,
                     private[this] val defaultTimeout: Timeout)
-  extends DomainRestService(executionContext, defaultTimeout) {
+  extends AbstractDomainRestService(executionContext, defaultTimeout) {
 
   import DomainService._
 

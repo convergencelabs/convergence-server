@@ -22,7 +22,7 @@ object ActivityActorSharding extends ActorSharding(
     classOf[ActivityActor]){
   
   override def extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ActivityActorMessage ⇒
+    case msg: ActivityActorMessage =>
       val id = s"${msg.domain.namespace}::${msg.domain.namespace}::${msg.activityId}"
       (id, msg)
   }

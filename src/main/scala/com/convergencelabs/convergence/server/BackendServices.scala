@@ -24,7 +24,7 @@ import com.convergencelabs.convergence.server.domain.DomainActorSharding
 import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.convergence.server.domain.chat.ChatSharding
 import com.convergencelabs.convergence.server.domain.model.{ModelCreator, ModelPermissionResolver, RealtimeModelSharding}
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActorSharding
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActorSharding
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration._
@@ -143,7 +143,7 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
 
     // This bootstraps the subsystem that handles REST calls for domains.
     // Since the number of domains is unbounded, these actors are sharded.
-    RestDomainActorSharding.start(system, shardCount, List(DomainPersistenceManagerActor, receiveTimeout))
+    DomainRestActorSharding.start(system, shardCount, List(DomainPersistenceManagerActor, receiveTimeout))
 
     logger.info("Convergence Backend Services started up.")
   }

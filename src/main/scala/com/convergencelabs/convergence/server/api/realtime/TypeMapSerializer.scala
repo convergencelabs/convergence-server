@@ -33,7 +33,7 @@ class TypeMapSerializer[A: Manifest](typeField: String, typeMap: Map[Int, Class[
     case (TypeInfo(Class, _), json) =>
       json \ typeField match {
         case JInt(t) =>
-          typeMap.get(t.asInstanceOf[BigInt].intValue()) match {
+          typeMap.get(t.asInstanceOf[BigInt].intValue) match {
             case Some(tpe) =>
               Extraction.extract(json, Reflector.scalaTypeOf(tpe))(formats).asInstanceOf[A]
             case _ =>

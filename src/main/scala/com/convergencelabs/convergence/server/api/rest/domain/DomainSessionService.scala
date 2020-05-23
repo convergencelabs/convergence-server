@@ -25,7 +25,7 @@ import com.convergencelabs.convergence.server.datastore.domain.DomainSession
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor.{GetSessionRequest, GetSessionResponse, GetSessionsRequest, GetSessionsResponse}
 import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -49,7 +49,7 @@ object DomainSessionService {
 class DomainSessionService(private[this] val executionContext: ExecutionContext,
                            private[this] val timeout: Timeout,
                            private[this] val domainRestActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainSessionService._
 

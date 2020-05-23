@@ -11,11 +11,12 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import org.scalatest.WordSpecLike
-import org.scalatest.Matchers
-import org.scalatest.TryValues._
 
-class DeltaManagerSpec extends WordSpecLike with Matchers {
+import org.scalatest.TryValues._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+
+class DeltaManagerSpec extends AnyWordSpecLike with Matchers {
 
   "DeltaManager" when {
 

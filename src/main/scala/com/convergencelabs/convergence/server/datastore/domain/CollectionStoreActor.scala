@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.domain.model.Collection
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 class CollectionStoreActor private[datastore] (
   private[this] val collectionStore: CollectionStore)
@@ -69,7 +70,7 @@ class CollectionStoreActor private[datastore] (
 object CollectionStoreActor {
   def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
 
-  trait CollectionStoreRequest extends CborSerializable
+  trait CollectionStoreRequest extends CborSerializable with DomainRestMessageBody
   case class GetCollectionsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
   case class GetCollectionsResponse(collections: PagedData[Collection]) extends CborSerializable
 

@@ -15,9 +15,9 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 // scalastyle:off line.size.limit
 class DomainConfigStoreSpec
     extends PersistenceStoreSpec[DomainConfigStore](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers {
 
   val initialSnapshotConfig = ModelSnapshotConfig(

@@ -31,10 +31,11 @@ sealed trait ModelMessage extends CborSerializable {
 sealed trait StatelessModelMessage extends ModelMessage
 
 // Basic Model CRUD
-case class GetRealtimeModel(domainId: DomainId, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
+case class GetRealtimeModelRequest(domainId: DomainId, modelId: String, session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
-case class CreateOrUpdateRealtimeModel(
-                                        domainId: DomainId,
+case class GetRealtimeModelResponse(model: Option[Model]) extends CborSerializable
+
+case class CreateOrUpdateRealtimeModel(domainId: DomainId,
                                         modelId: String,
                                         collectionId: String,
                                         data: ObjectValue,
@@ -43,8 +44,7 @@ case class CreateOrUpdateRealtimeModel(
                                         userPermissions: Map[DomainUserId, ModelPermissions],
                                         session: Option[DomainUserSessionId]) extends StatelessModelMessage
 
-case class CreateRealtimeModel(
-                                domainId: DomainId,
+case class CreateRealtimeModel(domainId: DomainId,
                                 modelId: String,
                                 collectionId: String,
                                 data: ObjectValue,

@@ -17,16 +17,18 @@ import com.convergencelabs.convergence.server.datastore.SortOrder
 import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProviderImpl, DomainUserField, ModelPermissions}
 import com.convergencelabs.convergence.server.db.ConnectedSingleDatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.{DeltaCategory, TestingSchemaManager}
+import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.domain.model._
 import com.convergencelabs.convergence.server.domain.model.data.{ObjectValue, StringValue}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.convergence.server.domain._
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class DomainImporterSpec extends WordSpecLike with Matchers {
+
+class DomainImporterSpec extends AnyWordSpecLike with Matchers {
 
   "A DomainImporterSpec" when {
     "importing" must {

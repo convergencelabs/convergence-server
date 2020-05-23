@@ -25,8 +25,10 @@ import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{Assertions, BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.{Assertions, BeforeAndAfterAll}
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -35,7 +37,7 @@ import scala.language.postfixOps
 // scalastyle:off magic.number
 class ProtocolConnectionSpec
   extends TestKit(ActorSystem("ProtocolConnectionSpec"))
-  with WordSpecLike
+  with AnyWordSpecLike
   with BeforeAndAfterAll
   with Matchers
   with MockitoSugar
@@ -311,7 +313,7 @@ class ProtocolConnectionSpec
         response shouldBe replyMessage
       }
 
-      "resolve the future with a failure if an error is recieved" in new TestFixture(system) {
+      "resolve the future with a failure if an error is received" in new TestFixture(system) {
         val toSend = AutoCreateModelConfigRequestMessage(autoCreateId)
         val f = connection.request(toSend)
 

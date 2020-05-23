@@ -16,6 +16,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 
 class JwtAuthKeyStoreActor private[datastore] (private[this] val keyStore: JwtAuthKeyStore)
@@ -63,7 +64,7 @@ class JwtAuthKeyStoreActor private[datastore] (private[this] val keyStore: JwtAu
 object JwtAuthKeyStoreActor {
   def props(keyStore: JwtAuthKeyStore): Props = Props(new JwtAuthKeyStoreActor(keyStore))
 
-  sealed trait JwtAuthKeyStoreRequest extends CborSerializable
+  sealed trait JwtAuthKeyStoreRequest extends CborSerializable with DomainRestMessageBody
 
   case class GetJwtAuthKeysRequest(offset: Option[Int], limit: Option[Int]) extends JwtAuthKeyStoreRequest
   case class GetJwtAuthKeysResponse(keys: List[JwtAuthKey])  extends CborSerializable

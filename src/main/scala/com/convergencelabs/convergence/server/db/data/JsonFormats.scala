@@ -16,18 +16,16 @@ import java.time.Instant
 import java.util.Date
 import java.util.TimeZone
 
-import org.json4s.CustomSerializer
-import org.json4s.DefaultFormats
+import org.json4s.{CustomSerializer, DefaultFormats, Formats}
 import org.json4s.JsonAST.JDecimal
 import org.json4s.JsonAST.JDouble
 import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JLong
 import org.json4s.JsonAST.JString
-
 import com.convergencelabs.convergence.server.util.MappedTypeHits
 
 object JsonFormats {
-  val jsonTypeHints = new MappedTypeHits(
+  private[this] val jsonTypeHints = MappedTypeHits(
     Map(
       "object" -> classOf[CreateObjectValue],
       "array" -> classOf[CreateArrayValue],
@@ -61,29 +59,29 @@ object JsonFormats {
       
       "DateSet" -> classOf[CreateDateSetOperation]))
 
-  val UTC = TimeZone.getTimeZone("UTC")
-  val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+  private[this] val UTC = TimeZone.getTimeZone("UTC")
+  private[this] val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
   df.setTimeZone(UTC)
 
-  val instantSerializer = new CustomSerializer[Instant](formats => ({
+  private[this] val instantSerializer = new CustomSerializer[Instant](formats => ({
     case JString(dateString) =>
       // TODO look into Instant.Parse
       val date = df.parse(dateString)
       Instant.ofEpochMilli(date.getTime)
     case JInt(millis) =>
-      Instant.ofEpochMilli(millis.longValue())
+      Instant.ofEpochMilli(millis.longValue)
     case JLong(millis) =>
       Instant.ofEpochMilli(millis)
     case JDouble(millis) =>
-      Instant.ofEpochMilli(millis.longValue())
+      Instant.ofEpochMilli(millis.longValue)
     case JDecimal(millis) =>
-      Instant.ofEpochMilli(millis.longValue())
+      Instant.ofEpochMilli(millis.longValue)
   }, {
     case x: Instant =>
       JString(df.format(Date.from(x)))
   }))
 
-  val format = DefaultFormats.withTypeHintFieldName("type") + 
+  val format: Formats = DefaultFormats.withTypeHintFieldName("type") +
     jsonTypeHints  + 
     instantSerializer 
 }

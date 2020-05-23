@@ -56,7 +56,7 @@ class ChatClientActor(domainFqn: DomainId,
   mediator ! Subscribe(chatTopicName, self)
 
   def receive: Receive = {
-    case SubscribeAck(Subscribe(_, _, _)) ⇒
+    case SubscribeAck(Subscribe(_, _, _)) =>
       log.debug("Subscribe to direct chat for user")
 
     case MessageReceived(message: NormalMessage with ChatMessage) =>
@@ -183,7 +183,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onCreateChannel(message: CreateChatRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData) = message
+    val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData, _) = message
     val members = memberData.toSet.map(ImplicitMessageConversions.dataToDomainUserId)
     (for {
       t <- ChatType.parse(chatType)
@@ -211,13 +211,13 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onRemoveChannel(message: RemoveChatRequestMessage, cb: ReplyCallback): Unit = {
-    val RemoveChatRequestMessage(chatId) = message
+    val RemoveChatRequestMessage(chatId, _) = message
     val request = RemoveChatRequest(domainFqn, chatId, session.userId)
     handleSimpleChannelRequest(request, { () => RemoveChatResponseMessage() }, cb)
   }
 
   private[this] def onJoinChannel(message: JoinChatRequestMessage, cb: ReplyCallback): Unit = {
-    val JoinChatRequestMessage(chatId) = message
+    val JoinChatRequestMessage(chatId, _) = message
     val request = JoinChannelRequest(domainFqn, chatId, session, self)
     chatShardRegion.ask(request).mapTo[JoinChannelResponse] onComplete {
       case Success(JoinChannelResponse(info)) =>
@@ -230,43 +230,43 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onLeaveChannel(message: LeaveChatRequestMessage, cb: ReplyCallback): Unit = {
-    val LeaveChatRequestMessage(chatId) = message
+    val LeaveChatRequestMessage(chatId, _) = message
     val request = LeaveChannelRequest(domainFqn, chatId, session, self)
     handleSimpleChannelRequest(request, { () => LeaveChatResponseMessage() }, cb)
   }
 
   private[this] def onAddUserToChannel(message: AddUserToChatChannelRequestMessage, cb: ReplyCallback): Unit = {
-    val AddUserToChatChannelRequestMessage(chatId, userToAdd) = message
+    val AddUserToChatChannelRequestMessage(chatId, userToAdd, _) = message
     val request = AddUserToChannelRequest(domainFqn, chatId, session, ImplicitMessageConversions.dataToDomainUserId(userToAdd.get))
     handleSimpleChannelRequest(request, { () => AddUserToChatChannelResponseMessage() }, cb)
   }
 
   private[this] def onRemoveUserFromChannel(message: RemoveUserFromChatChannelRequestMessage, cb: ReplyCallback): Unit = {
-    val RemoveUserFromChatChannelRequestMessage(chatId, userToRemove) = message
+    val RemoveUserFromChatChannelRequestMessage(chatId, userToRemove, _) = message
     val request = RemoveUserFromChannelRequest(domainFqn, chatId, session, ImplicitMessageConversions.dataToDomainUserId(userToRemove.get))
     handleSimpleChannelRequest(request, { () => RemoveUserFromChatChannelResponseMessage() }, cb)
   }
 
   private[this] def onSetChatChannelName(message: SetChatNameRequestMessage, cb: ReplyCallback): Unit = {
-    val SetChatNameRequestMessage(chatId, name) = message
+    val SetChatNameRequestMessage(chatId, name, _) = message
     val request = SetChatNameRequest(domainFqn, chatId, session.userId, name)
     handleSimpleChannelRequest(request, { () => SetChatNameResponseMessage() }, cb)
   }
 
   private[this] def onSetChatChannelTopic(message: SetChatTopicRequestMessage, cb: ReplyCallback): Unit = {
-    val SetChatTopicRequestMessage(chatId, topic) = message
+    val SetChatTopicRequestMessage(chatId, topic, _) = message
     val request = SetChatTopicRequest(domainFqn, chatId, session.userId, topic)
     handleSimpleChannelRequest(request, { () => SetChatTopicResponseMessage() }, cb)
   }
 
   private[this] def onMarkEventsSeen(message: MarkChatEventsSeenRequestMessage, cb: ReplyCallback): Unit = {
-    val MarkChatEventsSeenRequestMessage(chatId, eventNumber) = message
+    val MarkChatEventsSeenRequestMessage(chatId, eventNumber, _) = message
     val request = MarkChannelEventsSeenRequest(domainFqn, chatId, session, eventNumber)
     handleSimpleChannelRequest(request, { () => MarkChatEventsSeenResponseMessage() }, cb)
   }
 
   private[this] def onAddChatPermissions(message: AddPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val AddPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData) = message
+    val AddPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
     val groupPermissions = groupPermissionData map {
       case (groupId, permissions) => GroupPermissions(groupId, permissions.values.toSet)
     }
@@ -278,7 +278,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onRemoveChatPermissions(message: RemovePermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val RemovePermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData) = message
+    val RemovePermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
     val groupPermissions = groupPermissionData map {
       case (groupId, permissions) => GroupPermissions(groupId, permissions.values.toSet)
     }
@@ -289,7 +289,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onSetChatPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val SetPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData) = message
+    val SetPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
     val groupPermissions = groupPermissionData map {
       case (groupId, permissions) => GroupPermissions(groupId, permissions.values.toSet)
     }
@@ -300,7 +300,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetClientChatPermissions(message: GetClientPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetClientPermissionsRequestMessage(_, id) = message
+    val GetClientPermissionsRequestMessage(_, id, _) = message
     val request = GetClientChatPermissionsRequest(domainFqn, id, session)
     chatShardRegion.ask(request).mapTo[GetClientChatPermissionsResponse] onComplete {
       case Success(GetClientChatPermissionsResponse(permissions)) =>
@@ -313,7 +313,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetWorldPermissions(message: GetWorldPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetWorldPermissionsRequestMessage(_, id) = message
+    val GetWorldPermissionsRequestMessage(_, id, _) = message
     val request = GetWorldChatPermissionsRequest(domainFqn, id, session)
     chatShardRegion.ask(request).mapTo[GetWorldChatPermissionsResponse] onComplete {
       case Success(GetWorldChatPermissionsResponse(permissions)) =>
@@ -326,7 +326,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetAllUserPermissions(message: GetAllUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetAllUserPermissionsRequestMessage(_, id) = message
+    val GetAllUserPermissionsRequestMessage(_, id, _) = message
     val request = GetAllUserChatPermissionsRequest(domainFqn, id, session)
     chatShardRegion.ask(request).mapTo[GetAllUserChatPermissionsResponse] onComplete {
       case Success(GetAllUserChatPermissionsResponse(users)) =>
@@ -342,7 +342,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetAllGroupPermissions(message: GetAllGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetAllGroupPermissionsRequestMessage(_, id) = message
+    val GetAllGroupPermissionsRequestMessage(_, id, _) = message
     val request = GetAllGroupChatPermissionsRequest(domainFqn, id, session)
     chatShardRegion.ask(request).mapTo[GetAllGroupChatPermissionsResponse] onComplete {
       case Success(GetAllGroupChatPermissionsResponse(groups)) =>
@@ -355,7 +355,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetUserPermissions(message: GetUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetUserPermissionsRequestMessage(_, id, user) = message
+    val GetUserPermissionsRequestMessage(_, id, user, _) = message
     val request = GetUserChatPermissionsRequest(domainFqn, id, session, ImplicitMessageConversions.dataToDomainUserId(user.get))
     chatShardRegion.ask(request).mapTo[GetUserChatPermissionsResponse] onComplete {
       case Success(GetUserChatPermissionsResponse(permissions)) =>
@@ -368,7 +368,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetGroupPermissions(message: GetGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetGroupPermissionsRequestMessage(_, id, groupId) = message
+    val GetGroupPermissionsRequestMessage(_, id, groupId, _) = message
     val request = GetGroupChatPermissionsRequest(domainFqn, id, session, groupId)
     chatShardRegion.ask(request).mapTo[GetGroupChatPermissionsResponse] onComplete {
       case Success(GetGroupChatPermissionsResponse(permissions)) =>
@@ -381,7 +381,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onPublishMessage(message: PublishChatRequestMessage, cb: ReplyCallback): Unit = {
-    val PublishChatRequestMessage(chatId, msg) = message
+    val PublishChatRequestMessage(chatId, msg, _) = message
     val request = PublishChatMessageRequest(domainFqn, chatId, session, msg)
 
     chatShardRegion.ask(request).mapTo[PublishChatMessageResponse] onComplete {
@@ -395,7 +395,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onChannelsExist(message: ChatsExistRequestMessage, cb: ReplyCallback): Unit = {
-    val ChatsExistRequestMessage(chatIds) = message
+    val ChatsExistRequestMessage(chatIds, _) = message
     val request = ChatsExistsRequest(session.userId, chatIds.toList)
     chatManagerActor.ask(request).mapTo[ChatsExistsResponse] onComplete {
       case Success(ChatsExistsResponse(channels)) =>
@@ -406,7 +406,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetChannels(message: GetChatsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetChatsRequestMessage(ids) = message
+    val GetChatsRequestMessage(ids, _) = message
     val request = GetChatsRequest(session.userId, ids.toSet)
     chatManagerActor.ask(request).mapTo[GetChatsResponse] onComplete {
       case Success(GetChatsResponse(channels)) =>
@@ -419,7 +419,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetDirect(message: GetDirectChatsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetDirectChatsRequestMessage(usernameLists) = message
+    val GetDirectChatsRequestMessage(usernameLists, _) = message
     val request = GetDirectChatsRequest(
       session.userId,
       usernameLists.map(_.values.map(ImplicitMessageConversions.dataToDomainUserId).toSet).toSet)
@@ -444,7 +444,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onGetHistory(message: ChatHistoryRequestMessage, cb: ReplyCallback): Unit = {
-    val ChatHistoryRequestMessage(chatId, offset, limit, startEvent, forward, eventFilter) = message
+    val ChatHistoryRequestMessage(chatId, offset, limit, startEvent, forward, eventFilter, _) = message
     val request = GetChatHistoryRequest(domainFqn, chatId, Some(session), offset, limit, startEvent, forward, Some(eventFilter.toSet), None)
     chatShardRegion.ask(request).mapTo[PagedData[ChatEvent]] onComplete {
       case Success(PagedData(events, startIndex, totalResults)) =>
@@ -458,7 +458,7 @@ class ChatClientActor(domainFqn: DomainId,
   }
 
   private[this] def onChatsSearch(message: ChatsSearchRequestMessage, cb: ReplyCallback): Unit = {
-    val ChatsSearchRequestMessage(term, fields, chatTypes, membershipString, offset, limit) = message
+    val ChatsSearchRequestMessage(term, fields, chatTypes, membershipString, offset, limit, _) = message
     (for {
       membership <- if (membershipString == "") {
         Success(None)

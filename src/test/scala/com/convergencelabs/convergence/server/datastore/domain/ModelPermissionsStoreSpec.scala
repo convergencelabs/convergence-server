@@ -17,11 +17,12 @@ import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class ModelPermissionsStoreSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers {
 
   val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)

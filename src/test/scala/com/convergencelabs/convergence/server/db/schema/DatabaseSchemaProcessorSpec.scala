@@ -13,12 +13,13 @@ package com.convergencelabs.convergence.server.db.schema
 
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db._
-import com.orientechnologies.orient.core.metadata.function.OFunction
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class DatabaseSchemaProcessorSpec extends WordSpecLike with Matchers {
+
+class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
   OLogManager.instance().setConsoleLevel("WARNING")
 
   "An DatabaseSchemaProcessor" when {

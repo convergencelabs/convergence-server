@@ -21,14 +21,12 @@ import akka.http.scaladsl.server.Directives.{Segment, _}
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.{GetModelPermissionsRequest => MpsGetModelPermissionsRequest, GetModelPermissionsResponse => MpsGetModelPermissionsResponse}
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor._
-import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor.{GetModels, GetModelsInCollection, QueryModelsRequest}
+import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.{GetModelPermissionsRequest => MpsGetModelPermissionsRequest, GetModelPermissionsResponse => MpsGetModelPermissionsResponse, _}
+import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor._
 import com.convergencelabs.convergence.server.datastore.domain.{ModelDataGenerator, ModelPermissions}
 import com.convergencelabs.convergence.server.domain.model._
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import org.json4s.JsonAST.JObject
@@ -83,7 +81,7 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
                          private[this] val timeout: Timeout,
                          private[this] val domainRestActor: ActorRef,
                          private[this] val modelClusterRegion: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainModelService._
 
@@ -166,8 +164,8 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getModels(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModels(None, None))
-    (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
+    val message = DomainRestMessage(domain, GetModelsRequest(None, None))
+    (domainRestActor ? message).mapTo[GetModelsResponse].map(_.models) map {
       _.map(mapMetaData)
     } map {
       models => okResponse(models)
@@ -175,8 +173,8 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getModelsInCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelsInCollection(collectionId, None, None))
-    (domainRestActor ? message).mapTo[List[ModelMetaData]] map {
+    val message = DomainRestMessage(domain, GetModelsInCollectionRequest(collectionId, None, None))
+    (domainRestActor ? message).mapTo[GetModelsInCollectionResponse].map(_.models) map {
       _.map(mapMetaData)
     } map {
       models => okResponse(models)
@@ -193,8 +191,8 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getModel(domain: DomainId, modelId: String, data: Boolean): Future[RestResponse] = {
-    val message = GetRealtimeModel(domain, modelId, None)
-    (modelClusterRegion ? message).mapTo[Option[Model]] map {
+    val message = GetRealtimeModelRequest(domain, modelId, None)
+    (modelClusterRegion ? message).mapTo[GetRealtimeModelResponse].map(_.model) map {
       case Some(model) =>
         val result = if (data) {
           ModelData(
@@ -246,7 +244,8 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
     val userId = DomainUserId.convergence(authProfile.username)
     val message = DomainRestMessage(domain, QueryModelsRequest(userId, query))
     (domainRestActor ? message)
-      .mapTo[PagedData[ModelQueryResult]]
+      .mapTo[QueryModelsResponse]
+      .map(_.result)
       .map { results =>
         val models = results.data.map(model => ModelData(
           model.metaData.id,

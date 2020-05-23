@@ -11,12 +11,12 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
 
 class IndexTransformerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "An IndexTransformer" when {

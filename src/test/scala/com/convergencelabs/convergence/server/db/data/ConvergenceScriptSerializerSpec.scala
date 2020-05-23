@@ -16,9 +16,10 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.domain.DomainUserType
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ConvergenceScriptSerializerSpec extends WordSpecLike with Matchers {
+class ConvergenceScriptSerializerSpec extends AnyWordSpecLike with Matchers {
 
   "A ConvergenceScriptSerializerSpec" when {
     "deserializing a script" must {

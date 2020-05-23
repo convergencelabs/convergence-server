@@ -29,9 +29,9 @@ trait JsonSupport extends Json4sSupport {
 
   val instantSerializer = new CustomSerializer[Instant](_ => ( {
     case JInt(num) =>
-      Instant.ofEpochMilli(num.longValue())
+      Instant.ofEpochMilli(num.longValue)
     case JLong(num) =>
-      Instant.ofEpochMilli(num.longValue())
+      Instant.ofEpochMilli(num.longValue)
   }, {
     case x: Instant =>
       JLong(x.toEpochMilli)
@@ -39,7 +39,7 @@ trait JsonSupport extends Json4sSupport {
 
   val durationSerializer = new CustomSerializer[Duration](_ => ( {
     case JInt(int) =>
-      val l = int.longValue()
+      val l = int.longValue
       Duration.ofMillis(l)
     case JLong(long) =>
       Duration.ofMillis(long)

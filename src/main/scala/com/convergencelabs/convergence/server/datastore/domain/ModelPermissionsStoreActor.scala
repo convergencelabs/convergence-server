@@ -15,6 +15,7 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 class ModelPermissionsStoreActor private[datastore](private[this] val modelPermissionsStore: ModelPermissionsStore)
   extends StoreActor with ActorLogging {
@@ -97,7 +98,7 @@ object ModelPermissionsStoreActor {
   def props(modelPermissionsStore: ModelPermissionsStore): Props =
     Props(new ModelPermissionsStoreActor(modelPermissionsStore))
 
-  sealed trait ModelPermissionsStoreRequest extends CborSerializable
+  sealed trait ModelPermissionsStoreRequest extends CborSerializable with DomainRestMessageBody
 
   case class GetModelOverridesPermissionsRequest(modelId: String) extends ModelPermissionsStoreRequest
 

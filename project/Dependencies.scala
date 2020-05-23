@@ -19,14 +19,15 @@ object Dependencies {
     val akkaHttp  = "10.1.12"
     val orientDb  = "3.0.31"
     val log4j     = "2.13.1"
+    val jackson   = "2.10.3"
   }
 
   object Compile {
     // Convergence
-    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto-scala"      % "1.0.0-rc.3"                // Apache 2.0
+    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto-scala"      % "1.0.0-SNAPSHOT"            // Apache 2.0
 
     // Protobuf
-    val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.8.4"                     // Apache 2.0
+    val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.10.3"                    // Apache 2.0
 
     // Akka
     val akkaActor          = "com.typesafe.akka"        %% "akka-actor"                   % Versions.akka               // Apache 2.0
@@ -70,14 +71,19 @@ object Dependencies {
     val javaWebsockets     = "org.java-websocket"       % "Java-WebSocket"                % "1.3.0"                     // MIT
 
     //Command Line Parser
-    val scallop            = "org.rogach"               %% "scallop"                        % "2.0.5"                   // MIT
+    val scallop            = "org.rogach"               %% "scallop"                        % "3.4.0"                   // MIT
 
     // MISC
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                   % "3.4"                     // Apache 2.0
-    val json4s             = "org.json4s"               %% "json4s-jackson"                 % "3.5.4"                   // Apache 2.0
-    val json4sExt          = "org.json4s"               %% "json4s-ext"                     % "3.5.4"                   // Apache 2.0
-    val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.7.4"                   // Apache 2.0
-    val parboiled          = "org.parboiled"            %% "parboiled"                      % "2.1.4"                   // Apache 2.0
+    val json4s             = "org.json4s"               %% "json4s-jackson"                 % "3.6.8"                   // Apache 2.0
+    val json4sExt          = "org.json4s"               %% "json4s-ext"                     % "3.6.8"                   // Apache 2.0
+//    val jacksonDatabind    = "com.fasterxml.jackson.core" % "jackson-databind" % Versions.jackson          // Apache 2.0
+    val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % Versions.jackson          // Apache 2.0
+//    val jacksonCbor        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % Versions.jackson          // Apache 2.0
+//    val jacksonJdk8        = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8"     % Versions.jackson          // Apache 2.0
+//    val jacksonJsr310      = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310"   % Versions.jackson          // Apache 2.0
+//    val jacksonScala       = "com.fasterxml.jackson.module" %% "jackson-module-scala"       % Versions.jackson          // Apache 2.0
+    val parboiled          = "org.parboiled"            %% "parboiled"                      % "2.2.0"                   // Apache 2.0
   }
 
   object Test {
@@ -90,11 +96,12 @@ object Dependencies {
 
     // Testing Dependencies
     val akkaTestKit       = "com.typesafe.akka"           %% "akka-testkit"                % Versions.akka              // Apache 2.0
-    val akkaMockScheduler = "com.miguno.akka"             %% "akka-mock-scheduler"         % "0.5.1"                    // Apache 2.0
-    val scalatest         = "org.scalatest"               %% "scalatest"                   % "3.0.5"                    // Apache 2.0
+    val akkaMockScheduler = "com.miguno.akka"             %% "akka-mock-scheduler"         % "0.5.5"                    // Apache 2.0
+    val scalatest         = "org.scalatest"               %%  "scalatest"                  % "3.1.2"                    // Apache 2.0
+    val scalatestMockito  = "org.scalatestplus"           %% "scalatestplus-mockito"       % "1.0.0-M2"                 // Apache 2.0
     val mockito           = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"               // MIT
     val junit             = "junit"                       % "junit"                        % "4.12"                     // EPL 1.0
-    val testingCore: Seq[ModuleID] = Seq(scalatest, mockito, junit)
+    val testingCore: Seq[ModuleID] = Seq(scalatest, scalatestMockito, mockito, junit)
     val testingAkka: Seq[ModuleID] = testingCore ++ Seq(akkaTestKit, akkaMockScheduler)
   }
 }

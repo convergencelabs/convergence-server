@@ -12,12 +12,12 @@
 package com.convergencelabs.convergence.server.domain
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpec
 
 class DomainStatusSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "A DomainStatus" when {

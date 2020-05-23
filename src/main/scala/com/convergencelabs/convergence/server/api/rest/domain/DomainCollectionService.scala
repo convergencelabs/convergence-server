@@ -26,7 +26,7 @@ import com.convergencelabs.convergence.server.datastore.domain.CollectionPermiss
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor._
 import com.convergencelabs.convergence.server.domain.model.Collection
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
@@ -56,7 +56,7 @@ object DomainCollectionService {
 class DomainCollectionService(private[this] val executionContext: ExecutionContext,
                               private[this] val timeout: Timeout,
                               private[this] val domainRestActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainCollectionService._
 

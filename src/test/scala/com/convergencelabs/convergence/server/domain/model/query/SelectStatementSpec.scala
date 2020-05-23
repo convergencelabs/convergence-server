@@ -11,15 +11,15 @@
 
 package com.convergencelabs.convergence.server.domain.model.query
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 import Ast._
 import scala.reflect.macros.ParseException
 import org.parboiled2.ParseError
 
 class SelectStatementSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "A QueryParser" when {

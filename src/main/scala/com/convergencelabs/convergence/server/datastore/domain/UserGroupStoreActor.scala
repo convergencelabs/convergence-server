@@ -16,6 +16,7 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 class UserGroupStoreActor private[datastore](private[this] val groupStore: UserGroupStore)
   extends StoreActor with ActorLogging {
@@ -64,7 +65,7 @@ class UserGroupStoreActor private[datastore](private[this] val groupStore: UserG
 object UserGroupStoreActor {
   def props(groupStore: UserGroupStore): Props = Props(new UserGroupStoreActor(groupStore))
 
-  sealed trait UserGroupStoreRequest extends CborSerializable
+  sealed trait UserGroupStoreRequest extends CborSerializable with DomainRestMessageBody
 
   case class AddUserToGroupRequest(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
 

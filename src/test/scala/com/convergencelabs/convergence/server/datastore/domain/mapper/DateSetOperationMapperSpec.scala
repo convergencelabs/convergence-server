@@ -16,10 +16,11 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.datastore.domain.mapper.DateSetOperationMapper.{DateSetOperationToODocument, ODocumentToDateSetOperation}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class DateSetOperationMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "An DateSetOperationMapper" when {

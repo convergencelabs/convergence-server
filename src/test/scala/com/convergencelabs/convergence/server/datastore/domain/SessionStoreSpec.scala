@@ -16,13 +16,15 @@ import com.convergencelabs.convergence.server.datastore.domain.SessionStore.Sess
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
+import org.scalatest.OptionValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, OptionValues, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number multiple.string.literals
 class SessionStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with OptionValues
     with Matchers {
 

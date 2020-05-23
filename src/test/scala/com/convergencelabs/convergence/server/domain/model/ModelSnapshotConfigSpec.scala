@@ -11,21 +11,16 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import java.time.Duration
-import java.time.Instant
+import java.time.{Duration, Instant}
 import java.time.temporal.ChronoUnit
 
-import org.junit.runner.RunWith
-import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
-import org.scalatest.junit.JUnitRunner
-
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-@RunWith(classOf[JUnitRunner]) // scalastyle:off magic.number
+// scalastyle:off magic.number
 class ModelSnapshotConfigSpec
-    extends WordSpec
+  extends AnyWordSpec
     with Matchers {
 
   val versionBasedConfig = ModelSnapshotConfig(

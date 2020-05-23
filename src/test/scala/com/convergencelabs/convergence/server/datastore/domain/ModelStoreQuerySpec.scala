@@ -20,14 +20,15 @@ import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData
 import com.convergencelabs.convergence.server.domain.model.data._
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.{DefaultFormats, JArray, JBool, JField, JInt, JObject, JString, jvalue2extractable, jvalue2monadic, string2JsonInput}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
 case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 
 // scalastyle:off magic.number
-class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores](DeltaCategory.Domain) with WordSpecLike with Matchers {
+class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores](DeltaCategory.Domain) with AnyWordSpecLike with Matchers {
 
   implicit val formats = DefaultFormats
   var vid = 0

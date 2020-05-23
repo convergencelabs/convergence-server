@@ -28,9 +28,10 @@ import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager
 import org.mockito.Matchers.any
 import org.mockito.Mockito.{times, verify}
 import org.mockito.{Matchers, Mockito}
-import org.scalatest.Matchers._
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers._
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
@@ -38,7 +39,7 @@ import scala.util.{Failure, Success}
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
   extends TestKit(ActorSystem("RealtimeModelActorSpec"))
-    with WordSpecLike
+    with AnyWordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
 

@@ -25,7 +25,7 @@ import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
-import scala.collection.JavaConverters.{asJavaCollectionConverter, collectionAsScalaIterableConverter}
+import scala.jdk.CollectionConverters._
 import scala.util.{Success, Try}
 
 case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)

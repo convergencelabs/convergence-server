@@ -22,31 +22,22 @@ import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsS
 import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor.ModelStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor.SessionStoreRequest
 import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor.UserGroupStoreRequest
-import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor.UserStoreRequest
-import com.convergencelabs.convergence.server.domain.{AuthenticationHandler, DomainId}
+import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor.ChatManagerActorRequest
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.{AuthenticationHandler, DomainId}
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
-object RestDomainActor {
-  def props(
-    domainPersistenceManager: DomainPersistenceManager,
-    receiveTimeout: FiniteDuration): Props = Props(new RestDomainActor(domainPersistenceManager, receiveTimeout))
-
-  case class AdminTokenRequest(convergenceUsername: String) extends CborSerializable
-  case class AdminTokenResponse(token: String) extends CborSerializable
-  case class DomainRestMessage(domainFqn: DomainId, message: Any) extends CborSerializable
-}
-
-class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
+class DomainRestActor(domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
   extends ShardedActor[DomainRestMessage](classOf[DomainRestMessage]) {
 
-  import RestDomainActor._
+  import DomainRestActor._
 
   private[this] var domainFqn: DomainId = _
   private[this] var userStoreActor: ActorRef = _
@@ -60,7 +51,7 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
   private[this] var groupStoreActor: ActorRef = _
   private[this] var chatActor: ActorRef = _
   private[this] var domainConfigStore: DomainConfigStore = _
-  
+
   this.context.setReceiveTimeout(this.receiveTimeout)
 
   def receiveInitialized: Receive = {
@@ -72,10 +63,10 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
       unhandled(message)
   }
 
-  def receiveDomainRestMessage(msg: Any): Unit = {
+  private[this] def receiveDomainRestMessage(msg: Any): Unit = {
     msg match {
       case AdminTokenRequest(convergenceUsername) =>
-        getAdminToken(convergenceUsername)
+        onGetAdminToken(convergenceUsername)
       case message: UserStoreRequest =>
         userStoreActor forward message
       case message: UserGroupStoreRequest =>
@@ -101,19 +92,20 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
     }
   }
 
-  def getAdminToken(convergenceUsername: String): Unit = {
+  private[this] def onGetAdminToken(convergenceUsername: String): Unit = {
     domainConfigStore.getAdminKeyPair() flatMap { pair =>
       ConvergenceJwtUtil.fromString(AuthenticationHandler.AdminKeyId, pair.privateKey)
     } flatMap { util =>
       util.generateToken(convergenceUsername)
     } match {
-      case Success(token) => sender ! AdminTokenResponse(token)
-      case Failure(cause) => sender ! akka.actor.Status.Failure(cause)
+      case Success(token) =>
+        sender ! AdminTokenResponse(token)
+      case Failure(cause) =>
+        sender ! akka.actor.Status.Failure(cause)
     }
   }
 
   override protected def initialize(msg: DomainRestMessage): Try[ShardedActorStatUpPlan] = {
-    log.debug("RestDomainActor initializing: '{}'", msg.domainFqn)
     domainPersistenceManager.acquirePersistenceProvider(self, context, msg.domainFqn) map { provider =>
       domainConfigStore = provider.configStore
       statsActor = context.actorOf(DomainStatsActor.props(provider))
@@ -127,24 +119,38 @@ class RestDomainActor(domainPersistenceManager: DomainPersistenceManager, receiv
       groupStoreActor = context.actorOf(UserGroupStoreActor.props(provider.userGroupStore))
       chatActor = context.actorOf(ChatManagerActor.props(provider))
 
-      log.debug(s"RestDomainActor initialized: {}", domainFqn)
       StartUpRequired
     } recoverWith {
       case NonFatal(cause) =>
-        log.debug(s"Error initializing DomainActor: {}", domainFqn)
         Failure(cause)
     }
   }
 
   override protected def passivate(): Unit = {
     super.passivate()
-    Option(this.domainFqn).foreach( d =>
+    Option(this.domainFqn).foreach(d =>
       domainPersistenceManager.releasePersistenceProvider(self, context, d)
     )
   }
-  
+
   override protected def setIdentityData(message: DomainRestMessage): Try[String] = {
     this.domainFqn = message.domainFqn
     Success(s"${message.domainFqn.namespace}/${message.domainFqn.domainId}")
   }
+}
+
+object DomainRestActor {
+  def props(
+             domainPersistenceManager: DomainPersistenceManager,
+             receiveTimeout: FiniteDuration): Props = Props(new DomainRestActor(domainPersistenceManager, receiveTimeout))
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
+  trait DomainRestMessageBody
+
+  case class AdminTokenRequest(convergenceUsername: String) extends DomainRestMessageBody
+
+  case class AdminTokenResponse(token: String) extends DomainRestMessageBody
+
+  case class DomainRestMessage(domainFqn: DomainId, message: DomainRestMessageBody) extends CborSerializable
+
 }

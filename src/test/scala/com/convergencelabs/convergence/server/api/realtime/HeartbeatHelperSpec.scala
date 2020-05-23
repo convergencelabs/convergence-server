@@ -13,26 +13,23 @@ package com.convergencelabs.convergence.server.api.realtime
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Promise
+import com.miguno.akka.testing.VirtualTime
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+
+import scala.concurrent.{Await, ExecutionContext, Promise}
 import scala.concurrent.duration.FiniteDuration
 
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
-import org.scalatest.concurrent.ScalaFutures
-
-import com.miguno.akka.testing.VirtualTime
-
 // scalastyle:off magic.number
-class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
+class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
-  implicit val ec = ExecutionContext.Implicits.global
+  private[this] implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
-  val pingInterval = FiniteDuration(5, TimeUnit.SECONDS)
-  val pongTimeout = FiniteDuration(10, TimeUnit.SECONDS)
+  private[this] val pingInterval = FiniteDuration(5, TimeUnit.SECONDS)
+  private[this] val pongTimeout = FiniteDuration(10, TimeUnit.SECONDS)
 
-  val resolutionTimeout = FiniteDuration(250, TimeUnit.MILLISECONDS)
+  private[this] val resolutionTimeout = FiniteDuration(250, TimeUnit.MILLISECONDS)
 
   "A HeartbeatHelper" when {
     "started" must {
@@ -42,7 +39,7 @@ class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
         val p = Promise[Unit]
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
-          case PingRequest => p.success(Unit)
+          case PingRequest => p.success(())
           case PongTimeout =>
         })
 
@@ -62,7 +59,7 @@ class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
           case PingRequest =>
-          case PongTimeout => p.success(Unit)
+          case PongTimeout => p.success(())
         })
 
         hbh.start()
@@ -82,7 +79,7 @@ class HeartbeatHelperSpec extends WordSpec with Matchers with ScalaFutures {
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
           case PingRequest =>
-          case PongTimeout => p.success(Unit)
+          case PongTimeout => p.success(())
         })
 
         hbh.start()

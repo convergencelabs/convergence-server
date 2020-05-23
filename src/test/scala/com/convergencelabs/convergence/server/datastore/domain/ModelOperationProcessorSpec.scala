@@ -18,9 +18,9 @@ import scala.language.postfixOps
 import scala.util.Try
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
@@ -61,7 +61,7 @@ import com.convergencelabs.convergence.server.domain.DomainUserId
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-  with WordSpecLike
+  with AnyWordSpecLike
   with OptionValues
   with Matchers {
 

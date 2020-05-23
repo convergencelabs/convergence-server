@@ -13,15 +13,13 @@ package com.convergencelabs.convergence.server.db.data
 
 import java.time.Instant
 
-import org.scalatest.Matchers
+import com.convergencelabs.convergence.server.domain.DomainUserType
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.DomainUserType
-
-class DomainScriptSerializerSpec extends WordSpecLike with Matchers {
+class DomainScriptSerializerSpec extends AnyWordSpecLike with Matchers {
 
   "A CreateDomainScriptSerializer" when {
     "deserializing a script" must {

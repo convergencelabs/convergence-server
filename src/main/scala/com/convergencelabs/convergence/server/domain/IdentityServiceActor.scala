@@ -28,9 +28,9 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
   def receive: Receive = {
     case s: UserSearch =>
       searchUsers(s)
-    case GetUsersByUsername(userIds) =>
+    case GetUsersRequest(userIds) =>
       onGetUsersByUsername(userIds)
-    case GetUserByUsername(userId) =>
+    case GetUserRequest(userId) =>
       onGetUserByUsername(userId)
     case message: UserGroupsRequest =>
       onGetUserGroups(message)
@@ -43,15 +43,17 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
 
   private[this] def onGetUsersByUsername(userIds: List[DomainUserId]): Unit = {
     persistenceProvider.userStore.getDomainUsers(userIds) match {
-      case Success(users) => sender !UsersResponse(users)
+      case Success(users) => sender ! GetUsersResponse(users)
       case Failure(e) => sender ! Status.Failure(e)
     }
   }
 
   private[this] def onGetUserByUsername(userId: DomainUserId): Unit = {
     persistenceProvider.userStore.getDomainUser(userId).map {
-      case Some(user) => sender ! UserResponse(user)
-      case None => sender ! Status.Failure(EntityNotFoundException())
+      case Some(user) =>
+        sender ! GetUserResponse(user)
+      case None =>
+        sender ! Status.Failure(EntityNotFoundException())
     } recover {
       case cause => sender ! Status.Failure(cause)
     }
@@ -88,7 +90,7 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
     val sortOrder = criteria.sort
 
     persistenceProvider.userStore.searchUsersByFields(fields, searchString, order, sortOrder, limit, offset) match {
-      case Success(users) => sender ! UsersResponse(users)
+      case Success(users) => sender ! GetUsersResponse(users)
       case Failure(e) => sender ! Status.Failure(e)
     }
   }
@@ -102,7 +104,7 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
         persistenceProvider.userGroupStore.getUserGroups(None, None, None)
     }) match {
       case Success(groups) =>
-        sender ! UserGroupsResponse(groups)
+        sender ! GetUserGroupsResponse(groups)
       case Failure(cause) =>
         sender ! Status.Failure(cause)
     }
@@ -112,7 +114,7 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
     val UserGroupsForUsersRequest(userIds) = request
     persistenceProvider.userGroupStore.getUserGroupIdsForUsers(userIds) match {
       case Success(result) =>
-        sender ! UserGroupsForUsersResponse(result)
+        sender ! GetUserGroupsForUsersResponse(result)
       case Failure(cause) =>
         sender ! Status.Failure(cause)
     }
@@ -160,23 +162,23 @@ object IdentityServiceActor {
 
   trait IdentityServiceActorMessage extends CborSerializable
 
-  case class GetUsersByUsername(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
+  case class GetUsersRequest(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
 
-  case class GetUserByUsername(userId: DomainUserId) extends IdentityServiceActorMessage
+  case class GetUsersResponse(users: List[DomainUser]) extends CborSerializable
+
+  case class GetUserRequest(userId: DomainUserId) extends IdentityServiceActorMessage
+
+  case class GetUserResponse(user: DomainUser) extends CborSerializable
 
   case class UserGroupsRequest(ids: Option[List[String]]) extends IdentityServiceActorMessage
 
+  case class GetUserGroupsResponse(groups: List[UserGroup]) extends CborSerializable
+
   case class IdentityResolutionRequest(sessionIds: Set[String], userIds: Set[DomainUserId]) extends IdentityServiceActorMessage
+
+  case class IdentityResolutionResponse(sessionMap: Map[String, DomainUserId], users: Set[DomainUser]) extends CborSerializable
 
   case class UserGroupsForUsersRequest(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
 
-
-  case class UsersResponse(users: List[DomainUser]) extends CborSerializable
-  case class UserResponse(user: DomainUser) extends CborSerializable
-
-  case class UserGroupsResponse(groups: List[UserGroup]) extends CborSerializable
-
-  case class UserGroupsForUsersResponse(groups: Map[DomainUserId, Set[String]]) extends CborSerializable
-
-  case class IdentityResolutionResponse(sessionMap: Map[String, DomainUserId], users: Set[DomainUser]) extends CborSerializable
+  case class GetUserGroupsForUsersResponse(groups: Map[DomainUserId, Set[String]]) extends CborSerializable
 }

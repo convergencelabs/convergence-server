@@ -80,18 +80,18 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
       .collect {
         case BinaryMessage.Strict(msg) =>
           Future.successful(IncomingBinaryMessage(msg.toArray))
-        case BinaryMessage.Streamed(stream) ⇒
+        case BinaryMessage.Streamed(stream) =>
           stream
             .limit(maxFrames)
             .completionTimeout(maxStreamDuration)
             .runFold(new ByteStringBuilder())((b, e) => b.append(e))
-            .map(b ⇒ b.result)
+            .map(b => b.result)
             .flatMap(msg => Future.successful(IncomingBinaryMessage(msg.toArray)))
       }
       .mapAsync(parallelism = 3)(identity)
       .via(createFlowForConnection(namespace, domain, remoteAddress, ua))
       .map {
-        case OutgoingBinaryMessage(msg) ⇒ BinaryMessage.Strict(ByteString.fromArray(msg))
+        case OutgoingBinaryMessage(msg) => BinaryMessage.Strict(ByteString.fromArray(msg))
       }
   }
 

@@ -18,7 +18,7 @@ import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object OrientDataValueBuilder {
 

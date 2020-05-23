@@ -27,18 +27,20 @@ import org.bouncycastle.util.io.pem.PemReader
 import org.jose4j.jws.{AlgorithmIdentifiers, JsonWebSignature}
 import org.jose4j.jwt.JwtClaims
 import org.mockito.{Mockito, Matchers => MockitoMatchers}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.TryValues._
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.{Failure, Success}
 
 class AuthenticationHandlerSpec()
   extends TestKit(ActorSystem("AuthManagerActorSpec"))
-  with WordSpecLike
-  with BeforeAndAfterAll
-  with MockitoSugar
-  with Matchers {
+    with AnyWordSpecLike
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with Matchers {
 
   override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
@@ -70,7 +72,7 @@ class AuthenticationHandlerSpec()
     "authenticating a user by token" must {
       "successfully authenticate a user with a valid key" in new TestFixture {
         val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id))).get
-        result shouldBe AuthenticationSuccess(DomainUserSessionId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)) 
+        result shouldBe AuthenticationSuccess(DomainUserSessionId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {

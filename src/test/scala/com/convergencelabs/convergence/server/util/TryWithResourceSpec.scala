@@ -13,13 +13,13 @@ package com.convergencelabs.convergence.server.util
 
 import org.mockito.Mockito
 import org.scalatest.Finders
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number null
 class TryWithResourceSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   val executionMessage = "execution"

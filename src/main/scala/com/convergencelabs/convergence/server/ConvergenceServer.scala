@@ -28,16 +28,16 @@ import com.convergencelabs.convergence.server.domain.DomainActorSharding
 import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.convergence.server.domain.chat.ChatSharding
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActorSharding
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActorSharding
 import com.convergencelabs.convergence.server.util.SystemOutRedirector
 import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
-import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 import scala.concurrent.Await
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -98,7 +98,7 @@ object ConvergenceServer extends Logging {
    * @see ConvergenceServerCLIConf
    */
   def main(args: Array[String]): Unit = {
-    val options = ConvergenceServerCLIConf(args)
+    val options = ConvergenceServerCLIConf(args.toIndexedSeq)
 
     SystemOutRedirector.setOutAndErrToLog()
 
@@ -280,7 +280,7 @@ object ConvergenceServer extends Logging {
     val env: Option[String] = Option(System.getenv().get(Environment.ConvergenceLog4jConfigFile))
 
     // Take one or the other
-    val config: Option[String] = (logFile orElse env) ensuring (_ => (logFile, env).zipped.isEmpty)
+    val config: Option[String] = logFile orElse env ensuring (_ => (logFile zip env).isEmpty)
 
     Try {
       config.foreach { path =>
@@ -454,7 +454,7 @@ class ConvergenceServer(private[this] val config: Config) extends Logging {
       DomainActorSharding.startProxy(system, shardCount)
       RealtimeModelSharding.startProxy(system, shardCount)
       ChatSharding.startProxy(system, shardCount)
-      RestDomainActorSharding.startProxy(system, shardCount)
+      DomainRestActorSharding.startProxy(system, shardCount)
       ActivityActorSharding.startProxy(system, shardCount)
     }
   }

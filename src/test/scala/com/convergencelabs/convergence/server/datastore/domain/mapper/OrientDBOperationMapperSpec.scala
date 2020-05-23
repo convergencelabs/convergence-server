@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
 import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
@@ -39,7 +39,7 @@ import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemov
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringSetOperation
 
 class OrientDBOperationMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   val valueId = "vid"

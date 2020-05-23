@@ -15,21 +15,19 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
-import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
+import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.typesafe.config.ConfigFactory
-import org.junit.runner.RunWith
-import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
 
-@RunWith(classOf[JUnitRunner])
 class DomainActorSpec
     extends TestKit(ActorSystem("DomainActorSpec", ConfigFactory.parseResources("cluster-application.conf")))
-    with WordSpecLike
+    with AnyWordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
 

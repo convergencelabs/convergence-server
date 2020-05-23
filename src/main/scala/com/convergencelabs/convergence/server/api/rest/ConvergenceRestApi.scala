@@ -30,7 +30,7 @@ import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.convergence.server.domain.chat.ChatSharding
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActorSharding
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActorSharding
 import com.convergencelabs.convergence.server.util.AkkaRouterUtils._
 import grizzled.slf4j.Logging
 
@@ -85,7 +85,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     // Shard regions we will use. This does not start the shard regions / proxies,
     // it assumes that they are already running.
     val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(system)
-    val restDomainActorRegion: ActorRef = RestDomainActorSharding.shardRegion(system)
+    val restDomainActorRegion: ActorRef = DomainRestActorSharding.shardRegion(system)
     val chatActorRegion: ActorRef = ChatSharding.shardRegion(system)
 
     // Routers to backend services. We add them to a list so we can shut them down.
@@ -199,10 +199,10 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
 
     // Now we start up the server
     Http().bindAndHandle(route, interface, port).onComplete {
-      case Success(b) ⇒
+      case Success(b) =>
         this.binding = Some(b)
         logger.info(s"Rest API started at: http://$interface:$port")
-      case Failure(e) ⇒
+      case Failure(e) =>
         logger.info(s"Rest API binding failed with ${e.getMessage}")
         system.terminate()
     }

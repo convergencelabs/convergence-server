@@ -11,18 +11,13 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import scala.math.BigInt.int2bigInt
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JObject
-import org.scalatest.FunSuite
-import org.scalatest.Matchers
-import org.json4s.JsonAST.JDouble
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
 import java.time.Instant
 
-class OperationsSpec extends FunSuite with Matchers {
+import com.convergencelabs.convergence.server.domain.model.data.NullValue
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
+class OperationsSpec extends AnyFunSuite with Matchers {
 
   val valueId = "vid"
 

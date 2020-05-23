@@ -18,11 +18,12 @@ import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues._
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class ChatStoreSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-  with WordSpecLike
+  with AnyWordSpecLike
   with Matchers {
 
   private[this] val user1 = "user1"

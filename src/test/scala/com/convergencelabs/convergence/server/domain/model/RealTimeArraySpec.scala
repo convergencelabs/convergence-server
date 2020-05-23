@@ -11,22 +11,15 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import org.junit.runner.RunWith
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.junit.JUnitRunner
-
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
+import com.convergencelabs.convergence.server.domain.model.data.{ArrayValue, BooleanValue, DoubleValue, StringValue}
 import com.convergencelabs.convergence.server.domain.model.ot.ArraySetOperation
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 
 // scalastyle:off magic.number
-@RunWith(classOf[JUnitRunner]) 
 class RealTimeArraySpec
-  extends WordSpec
+  extends AnyWordSpec
   with Matchers
   with MockitoSugar {
 

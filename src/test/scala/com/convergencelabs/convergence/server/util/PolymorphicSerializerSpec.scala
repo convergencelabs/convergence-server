@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.util
 
-import org.scalatest.WordSpecLike
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -27,7 +27,7 @@ import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 
-class PolymorphicSerializerSpec extends WordSpecLike with Matchers {
+class PolymorphicSerializerSpec extends AnyWordSpecLike with Matchers {
 
   "An PolymorphicSerializer" when {
     "Being constructed" must {

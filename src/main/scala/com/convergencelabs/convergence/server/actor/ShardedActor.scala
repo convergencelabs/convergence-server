@@ -64,8 +64,8 @@ abstract class ShardedActor[T](
   private[this] val receiveUninitialized: Receive = {
     case msg if messageClass.isInstance(msg) =>
       receiveInitialMessage(msg.asInstanceOf[T])
-    case _ =>
-      this.unhandled(_)
+    case x: Any =>
+      this.unhandled(x)
   }
 
   private[this] val receivePassivating: Receive = {

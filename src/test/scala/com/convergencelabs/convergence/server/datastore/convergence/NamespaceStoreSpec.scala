@@ -13,10 +13,10 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.time.Duration
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.domain.PersistenceStoreSpec
@@ -38,7 +38,7 @@ object NamespaceStoreSpec {
 
 class NamespaceStoreSpec
   extends PersistenceStoreSpec[NamespaceStoreSpec.SpecStores](DeltaCategory.Convergence)
-  with WordSpecLike
+  with AnyWordSpecLike
   with Matchers {
 
   def createStore(dbProvider: DatabaseProvider): NamespaceStoreSpec.SpecStores = {

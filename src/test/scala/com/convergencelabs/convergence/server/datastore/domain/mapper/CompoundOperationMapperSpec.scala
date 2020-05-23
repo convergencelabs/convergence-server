@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import com.convergencelabs.convergence.server.domain.model.data.DataValue
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
@@ -26,7 +26,7 @@ import CompoundOperationMapper.CompoundOperationToODocument
 import CompoundOperationMapper.ODocumentToCompoundOperation
 
 class CompoundOperationMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "An CompoundOperationMapper" when {

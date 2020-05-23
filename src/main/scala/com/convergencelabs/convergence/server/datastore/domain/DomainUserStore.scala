@@ -29,8 +29,8 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
 object DomainUserStore {
@@ -86,7 +86,7 @@ object DomainUserStore {
     obj.lastName.foreach(doc.setProperty(Fields.LastName, _))
     obj.displayName.foreach(doc.setProperty(Fields.DisplayName, _))
     obj.email.foreach(doc.setProperty(Fields.Email, _))
-    obj.lastLogin.foreach(doc.setProperty(Fields.LastLogin, _))
+    obj.lastLogin.foreach(d => doc.setProperty(Fields.LastLogin, Date.from(d)))
     doc.setProperty(Fields.Disabled, obj.disabled)
     doc.setProperty(Fields.Deleted, obj.deleted)
     obj.deletedUsername.foreach(doc.setProperty(Fields.DeletedUsername, _))
@@ -101,7 +101,7 @@ object DomainUserStore {
       Option(doc.getProperty(Fields.LastName)),
       Option(doc.getProperty(Fields.DisplayName)),
       Option(doc.getProperty(Fields.Email)),
-      Option(doc.getProperty(Fields.LastLogin)),
+      Option(doc.getProperty(Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant),
       doc.getProperty(Fields.Disabled),
       doc.getProperty(Fields.Deleted),
       Option(doc.getProperty(Fields.DeletedUsername)))

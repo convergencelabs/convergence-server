@@ -11,14 +11,14 @@
 
 package com.convergencelabs.convergence.server.domain.model.query
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.jdk.CollectionConverters._
 
 import Ast._
 
-class ModelQueryBuilderSpec extends WordSpec with Matchers {
+class ModelQueryBuilderSpec extends AnyWordSpec with Matchers {
 
   "A ModelQueryBuilder" when {
 

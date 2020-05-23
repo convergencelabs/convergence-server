@@ -12,11 +12,11 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class OrientPathUtilSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers {
 
   "A  OrientPathUtil" when {

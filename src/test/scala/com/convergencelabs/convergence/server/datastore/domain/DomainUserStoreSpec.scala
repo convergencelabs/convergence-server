@@ -20,11 +20,12 @@ import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class DomainUserStoreSpec
     extends PersistenceStoreSpec[DomainUserStore](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers {
 
   // Pre-loaded Users

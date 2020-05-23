@@ -11,20 +11,16 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import org.scalatest.WordSpecLike
-import org.scalatest.Matchers
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.ODatabaseType
-import com.orientechnologies.orient.core.db.ODatabaseSession
+import com.orientechnologies.orient.core.db.{ODatabaseSession, ODatabaseType, OrientDB, OrientDBConfig}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class SchemaEqualitySpec
-    extends WordSpecLike
+  extends AnyWordSpecLike
     with Matchers {
 
-  var dbCounter = 1
-  val dbName = getClass.getSimpleName
+  private[this] var dbCounter = 1
+  private[this] val dbName = getClass.getSimpleName
 
   "Schema Equality" when {
     "comparing pre-released convergence schema" must {
@@ -113,13 +109,13 @@ class SchemaEqualitySpec
 
   def withDatabases(testCode: (ODatabaseSession, ODatabaseSession) => Any): Unit = {
     val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())    
-    val dbName1 = s"${dbName}${dbCounter}"
+    val dbName1 = s"$dbName$dbCounter"
     dbCounter += 1
     
     odb.create(dbName1, ODatabaseType.MEMORY)
     val db1 = odb.open(dbName1, "admin", "admin")
 
-    val dbName2 = s"${dbName}${dbCounter}"
+    val dbName2 = s"$dbName$dbCounter"
     dbCounter += 1
 
     odb.create(dbName2, ODatabaseType.MEMORY)

@@ -21,12 +21,13 @@ import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers {
 
   def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)

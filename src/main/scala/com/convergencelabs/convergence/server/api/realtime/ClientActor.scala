@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ConnectionActor._
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DomainDeleted, domainTopic}
-import com.convergencelabs.convergence.server.domain.IdentityServiceActor.{GetUserByUsername, UserResponse}
+import com.convergencelabs.convergence.server.domain.IdentityServiceActor.{GetUserRequest, GetUserResponse}
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
 import com.convergencelabs.convergence.server.domain.presence.{GetPresenceRequest, GetPresenceResponse, UserPresence}
@@ -283,13 +283,13 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
 
   private[this] def authenticate(requestMessage: AuthenticationRequestMessage, cb: ReplyCallback): Unit = {
     (requestMessage.auth match {
-      case AuthenticationRequestMessage.Auth.Password(PasswordAuthRequestData(username, password)) =>
+      case AuthenticationRequestMessage.Auth.Password(PasswordAuthRequestData(username, password, _)) =>
         Some(PasswordAuthRequest(username, password))
-      case AuthenticationRequestMessage.Auth.Jwt(JwtAuthRequestData(jwt)) =>
+      case AuthenticationRequestMessage.Auth.Jwt(JwtAuthRequestData(jwt, _)) =>
         Some(JwtAuthRequest(jwt))
-      case AuthenticationRequestMessage.Auth.Reconnect(ReconnectTokenAuthRequestData(token)) =>
+      case AuthenticationRequestMessage.Auth.Reconnect(ReconnectTokenAuthRequestData(token, _)) =>
         Some(ReconnectTokenAuthRequest(token))
-      case AuthenticationRequestMessage.Auth.Anonymous(AnonymousAuthRequestData(displayName)) =>
+      case AuthenticationRequestMessage.Auth.Anonymous(AnonymousAuthRequestData(displayName, _)) =>
         Some(AnonymousAuthRequest(displayName))
       case AuthenticationRequestMessage.Auth.Empty =>
         None
@@ -321,7 +321,7 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
     }
   }
 
-  private[this] def getPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback) {
+  private[this] def getPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback): Unit = {
     (for {
       // TODO implement a method that just gets one.
       presence <- (this.presenceServiceActor ? GetPresenceRequest(List(session.userId)))
@@ -331,7 +331,7 @@ private[realtime] class ClientActor(private[this] val domainId: DomainId,
           case first :: _ => Future.successful(first)
           case _ => Future.failed(EntityNotFoundException())
         }
-      user <- (this.identityServiceActor ? GetUserByUsername(session.userId)).mapTo[UserResponse].map(_.user)
+      user <- (this.identityServiceActor ? GetUserRequest(session.userId)).mapTo[GetUserResponse].map(_.user)
     } yield {
       self ! InternalAuthSuccess(user, session, reconnectToken, presence, cb)
     }).recover {

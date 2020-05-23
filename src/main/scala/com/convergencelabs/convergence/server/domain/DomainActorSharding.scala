@@ -20,7 +20,7 @@ object DomainActorSharding extends ActorSharding(
   classOf[DomainActor]) {
 
   override val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: DomainMessage ⇒
+    case msg: DomainMessage =>
       (s"${msg.domainFqn.namespace}::${msg.domainFqn.domainId}", msg)
   }
 

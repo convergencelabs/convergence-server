@@ -11,63 +11,54 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import org.scalatest.WordSpecLike
-import org.scalatest.Matchers
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import org.scalatest.BeforeAndAfterEach
-import com.orientechnologies.orient.core.db.ODatabaseSession
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.ODatabaseType
-import org.scalatest.BeforeAndAfterAll
+import com.orientechnologies.orient.core.db.{ODatabaseSession, ODatabaseType, OrientDB, OrientDBConfig}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 class SchemaEqualityTesterSpec 
-  extends WordSpecLike 
-  with Matchers 
+  extends AnyWordSpecLike
+  with Matchers
   with BeforeAndAfterEach
   with BeforeAndAfterAll {
 
-  val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())
-  
-  var dbCounter = 1
-  val dbName = getClass.getSimpleName
+  private[this] val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())
 
-  var db1: ODatabaseSession = null
-  var db2: ODatabaseSession = null
+  private[this] var dbCounter = 1
+  private[this] val dbName = getClass.getSimpleName
 
-  var processor1: DatabaseDeltaProcessor = null
-  var processor2: DatabaseDeltaProcessor = null
+  private[this] var db1: ODatabaseSession = _
+  private[this] var db2: ODatabaseSession = _
 
-  override def beforeEach() {
-    val dbName1 = s"${dbName}${dbCounter}"
+  override def beforeEach(): Unit =  {
+    val dbName1 = s"$dbName$dbCounter"
     dbCounter += 1
     
     odb.create(dbName1, ODatabaseType.MEMORY)
     db1 = odb.open(dbName1, "admin", "admin")
 
-    val dbName2 = s"${dbName}${dbCounter}"
+    val dbName2 = s"$dbName$dbCounter"
     dbCounter += 1
 
     odb.create(dbName2, ODatabaseType.MEMORY)
     db2 = odb.open(dbName2, "admin", "admin")
   }
 
-  override def afterEach() {
+  override def afterEach(): Unit = {
     db1.activateOnCurrentThread()
     db1.close()
     
     db2.activateOnCurrentThread()
     db2.close()
     
-    odb.drop(db1.getName())
-    odb.drop(db2.getName())
+    odb.drop(db1.getName)
+    odb.drop(db2.getName)
     
     db1 = null
     db2 = null
   }
   
-  override def afterAll() {
+  override def afterAll(): Unit = {
     odb.close()
   }
 

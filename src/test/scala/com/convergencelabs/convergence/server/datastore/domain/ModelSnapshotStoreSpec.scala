@@ -13,10 +13,10 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
@@ -33,7 +33,7 @@ import java.util.Date
 // scalastyle:off magic.number
 class ModelSnapshotStoreSpec
     extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers {
 
   override def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =

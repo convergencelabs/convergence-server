@@ -70,7 +70,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
   }
 
   def onActivityUpdateState(message: ActivityUpdateStateMessage): Unit = {
-    val ActivityUpdateStateMessage(id, state, complete, removed) = message
+    val ActivityUpdateStateMessage(id, state, complete, removed, _) = message
     this.activityServiceActor ! ActivityUpdateState(
       domain, id, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state), complete, removed.toList)
   }
@@ -86,7 +86,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
   }
 
   def onParticipantsRequest(RequestMessage: ActivityParticipantsRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityParticipantsRequestMessage(activityId) = RequestMessage
+    val ActivityParticipantsRequestMessage(activityId, _) = RequestMessage
     val future = this.activityServiceActor ? ActivityParticipantsRequest(domain, activityId)
 
     future.mapResponse[ActivityParticipants] onComplete {
@@ -102,7 +102,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
   }
 
   def onActivityJoin(RequestMessage: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityJoinRequestMessage(activityId, state) = RequestMessage
+    val ActivityJoinRequestMessage(activityId, state, _) = RequestMessage
     val message = ActivityJoinRequest(domain, activityId, session.sessionId, JsonProtoConverter.valueMapToJValueMap(state), self)
     val future = this.activityServiceActor ? message
 
@@ -119,7 +119,7 @@ class ActivityClientActor(activityServiceActor: ActorRef, domain: DomainId, sess
   }
 
   def onActivityLeave(RequestMessage: ActivityLeaveMessage): Unit = {
-    val ActivityLeaveMessage(activityId) = RequestMessage
+    val ActivityLeaveMessage(activityId, _) = RequestMessage
     this.activityServiceActor ! ActivityLeave(domain, activityId, session.sessionId)
   }
 }

@@ -11,13 +11,13 @@
 
 package com.convergencelabs.convergence.server.datastore.mapper
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 // scalastyle:off null
 class ODocumentMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "An ODocumentMapper" when {

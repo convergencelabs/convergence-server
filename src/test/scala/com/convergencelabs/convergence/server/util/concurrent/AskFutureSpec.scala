@@ -17,9 +17,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.concurrent.ScalaFutures
 
 import com.convergencelabs.convergence.server.UnknownErrorResponse
@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.UnknownErrorResponse
 import akka.pattern.AskTimeoutException
 
 class AskFutureSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with ScalaFutures {
 

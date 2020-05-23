@@ -21,12 +21,13 @@ import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.domain.model.Collection
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
   extends PersistenceStoreSpec[CollectionStore](DeltaCategory.Domain)
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers {
 
   def createStore(dbProvider: DatabaseProvider): CollectionStore = new CollectionStore(

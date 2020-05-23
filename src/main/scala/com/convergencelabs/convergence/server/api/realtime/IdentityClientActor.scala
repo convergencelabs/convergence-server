@@ -64,7 +64,7 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
   }
 
   private[this] def onUserSearch(request: UserSearchMessage, cb: ReplyCallback): Unit = {
-    val UserSearchMessage(fieldCodes, value, offset, limit, orderField, ascending) = request
+    val UserSearchMessage(fieldCodes, value, offset, limit, orderField, ascending, _) = request
 
     val fields = fieldCodes.map { x => mapUserField(x) }
     val orderBy = mapUserField(orderField)
@@ -77,8 +77,8 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
     val future = this.userServiceActor ?
       UserSearch(fields.toList, value, offset, limit, Some(orderBy), Some(sort))
 
-    future.mapResponse[UsersResponse] onComplete {
-      case Success(UsersResponse(users)) =>
+    future.mapResponse[GetUsersResponse] onComplete {
+      case Success(GetUsersResponse(users)) =>
         val userData = users.map(ImplicitMessageConversions.mapDomainUser)
         cb.reply(UserListMessage(userData))
       case Failure(cause) =>
@@ -89,11 +89,11 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
   }
 
   private[this] def onGetUsers(request: GetUsersMessage, cb: ReplyCallback): Unit = {
-    val GetUsersMessage(userIdData) = request
+    val GetUsersMessage(userIdData, _) = request
     val userIds = userIdData.map { userIdData => ImplicitMessageConversions.dataToDomainUserId(userIdData) }
-    val future = this.userServiceActor ? GetUsersByUsername(userIds.toList)
-    future.mapResponse[UsersResponse] onComplete {
-      case Success(UsersResponse(users)) =>
+    val future = this.userServiceActor ? GetUsersRequest(userIds.toList)
+    future.mapResponse[GetUsersResponse] onComplete {
+      case Success(GetUsersResponse(users)) =>
         val userData = users.map(ImplicitMessageConversions.mapDomainUser)
         cb.reply(UserListMessage(userData))
       case Failure(cause) =>
@@ -116,10 +116,10 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
   }
 
   private[this] def onUserGroupsRequest(request: UserGroupsRequestMessage, cb: ReplyCallback): Unit = {
-    val UserGroupsRequestMessage(ids) = request
+    val UserGroupsRequestMessage(ids, _) = request
     val message = UserGroupsRequest(Some(ids.toList))
-    this.userServiceActor.ask(message).mapTo[UserGroupsResponse] onComplete {
-      case Success(UserGroupsResponse(groups)) =>
+    this.userServiceActor.ask(message).mapTo[GetUserGroupsResponse] onComplete {
+      case Success(GetUserGroupsResponse(groups)) =>
         val groupData = groups.map { case UserGroup(id, desc, members) => UserGroupData(id, desc, members.map(ImplicitMessageConversions.domainUserIdToData).toSeq) }
         cb.reply(UserGroupsResponseMessage(groupData))
       case Failure(EntityNotFoundException(_, Some(groupId))) =>
@@ -135,10 +135,10 @@ private[realtime] class IdentityClientActor(userServiceActor: ActorRef) extends 
   }
 
   private[this] def onUserGroupsForUsersRequest(request: UserGroupsForUsersRequestMessage, cb: ReplyCallback): Unit = {
-    val UserGroupsForUsersRequestMessage(users) = request
+    val UserGroupsForUsersRequestMessage(users, _) = request
     val message = UserGroupsForUsersRequest(users.map(ImplicitMessageConversions.dataToDomainUserId).toList)
-    this.userServiceActor.ask(message).mapTo[UserGroupsForUsersResponse] onComplete {
-      case Success(UserGroupsForUsersResponse(groups)) =>
+    this.userServiceActor.ask(message).mapTo[GetUserGroupsForUsersResponse] onComplete {
+      case Success(GetUserGroupsForUsersResponse(groups)) =>
         val entries = groups.map { case (user, groups) =>
           (user, UserGroupsEntry(Some(ImplicitMessageConversions.domainUserIdToData(user)), groups.toSeq))
         }

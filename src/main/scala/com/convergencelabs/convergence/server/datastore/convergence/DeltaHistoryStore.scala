@@ -163,7 +163,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
   }
 
   def getDomainDBVersion(domainId: DomainId): Try[Int] = withDb { db =>
-    val DomainId(namespace, domainId) = domainId
+    val DomainId(namespace, id) = domainId
     val query =
       s"""SELECT max(delta.deltaNo) as version
         |FROM ${DomainDeltaHistoryClass.ClassName}
@@ -171,14 +171,14 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
         |  domain.namespace = :namespace AND
         |  domain.id = :id AND
         |  status = :status""".stripMargin
-    val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Success)
+    val params = Map("id" -> id, "namespace" -> namespace, "status" -> Status.Success)
     OrientDBUtil
       .findDocument(db, query, params)
       .map(_.map(_.field("version").asInstanceOf[Int]).getOrElse(0))
   }
 
   def isDomainDBHealthy(domainId: DomainId): Try[Boolean] = withDb { db =>
-    val DomainId(namespace, domainId) = domainId
+    val DomainId(namespace, id) = domainId
     val query =
       s"""SELECT if(count(*) > 0, false, true) as healthy
         |FROM ${DomainDeltaHistoryClass.ClassName}
@@ -186,7 +186,7 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
         |  domain.namespace = :namespace AND
         |  domain.id = :id AND
         |  status = :status""".stripMargin
-    val params = Map("id" -> domainId, "namespace" -> namespace, "status" -> Status.Error)
+    val params = Map("id" -> id, "namespace" -> namespace, "status" -> Status.Error)
     OrientDBUtil
       .findDocument(db, query, params)
       .map(_.forall(_.field("healthy").asInstanceOf[Boolean]))

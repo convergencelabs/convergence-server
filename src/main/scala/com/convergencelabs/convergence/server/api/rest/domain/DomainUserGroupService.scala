@@ -23,7 +23,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor._
 import com.convergencelabs.convergence.server.datastore.domain.{UserGroup, UserGroupInfo, UserGroupSummary}
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
@@ -42,7 +42,7 @@ object DomainUserGroupService {
 class DomainUserGroupService(private[this] val executionContext: ExecutionContext,
                              private[this] val timeout: Timeout,
                              private[this] val domainRestActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainUserGroupService._
 

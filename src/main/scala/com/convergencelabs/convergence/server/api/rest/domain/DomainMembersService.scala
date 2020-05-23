@@ -39,7 +39,7 @@ object DomainMembersService {
 class DomainMembersService(private[this] val executionContext: ExecutionContext,
                            private[this] val timeout: Timeout,
                            private[this] val roleStoreActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainMembersService._
 

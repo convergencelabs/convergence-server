@@ -59,10 +59,10 @@ class ConvergenceRealtimeApi(private[this] val system: ActorSystem,
     val service = new WebSocketService(protoConfig, system)
 
     Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
-      case Success(b) ⇒
+      case Success(b) =>
         this.binding = Some(b)
         logger.info(s"Realtime API started at: http://$interface:$websocketPort")
-      case Failure(e) ⇒
+      case Failure(e) =>
         logger.error("Realtime API startup failed", e)
         system.terminate()
     }

@@ -22,7 +22,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{OkResponse, RestResponse, okResponse}
 import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor._
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
@@ -49,7 +49,7 @@ object DomainConfigService {
 class DomainConfigService(private[this] val executionContext: ExecutionContext,
                           private[this] val timeout: Timeout,
                           private[this] val domainRestActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainConfigService._
 

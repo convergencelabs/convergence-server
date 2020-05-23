@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import org.scalatest.WordSpec
-import org.scalatest.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.times
@@ -21,11 +21,11 @@ import org.mockito.Mockito.when
 import org.mockito.Mockito
 import org.mockito.Matchers.any
 import org.mockito.Matchers.anyObject
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 // scalastyle:off multiple.string.literals
 class OperationTransformerSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers
     with MockitoSugar {
 

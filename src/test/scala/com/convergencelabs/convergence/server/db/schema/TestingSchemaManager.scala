@@ -11,12 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import scala.util.Success
-import scala.util.Try
-
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-
 import grizzled.slf4j.Logging
+
+import scala.util.{Success, Try}
 
 class TestingSchemaManager(
   db: ODatabaseDocument,

@@ -11,12 +11,12 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import org.scalatest.Matchers
+
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-import org.scalatest.WordSpec
-
-class ProductionDeltasSpec extends WordSpec with Matchers {
+class ProductionDeltasSpec extends AnyWordSpec with Matchers {
 
   "Production Deltas" when {
     "processing Convergence Deltas" must {

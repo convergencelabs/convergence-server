@@ -24,6 +24,7 @@ import com.convergencelabs.convergence.server.datastore.domain.DomainPersistence
 import com.convergencelabs.convergence.server.db.PooledDatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DomainDeleted, DomainLifecycleTopic}
 import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import grizzled.slf4j.Logging
 
 import scala.concurrent.Await
@@ -68,8 +69,8 @@ class DomainPersistenceManagerActor(private[this] val baseDbUri: String,
       this.onDomainDeleted(domainId)
     case Terminated(actor) =>
       onActorDeath(actor)
-    case _ =>
-      unhandled(_)
+    case x: Any =>
+      unhandled(x)
   }
 
   private[this] def onAcquire(domainId: DomainId, requester: ActorRef, replyTo: ActorRef): Unit = {
@@ -220,7 +221,7 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
   }
 
 
-  sealed trait Command extends CborSerializable
+  sealed trait Command extends CborSerializable with DomainRestMessageBody
 
   case class AcquireDomainPersistence(domainId: DomainId, requester: ActorRef) extends Command
 

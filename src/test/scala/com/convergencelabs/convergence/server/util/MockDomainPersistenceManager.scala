@@ -23,7 +23,7 @@ import com.convergencelabs.convergence.server.domain.DomainId
 import akka.actor.ActorContext
 import akka.actor.ActorRef
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.convergence.server.datastore.domain.DomainConfigStore
 import com.convergencelabs.convergence.server.datastore.domain.ChatStore
@@ -83,7 +83,7 @@ class MockDomainPersistenceProvider extends DomainPersistenceProvider with Mocki
 
   val permissionsStore: PermissionsStore = mock[PermissionsStore]
   
-  private[this] var validateConnectionResponse: Try[Unit] = Success(Unit)
+  private[this] var validateConnectionResponse: Try[Unit] = Success(())
   
   def setValidateConnectionResponse(result: Try[Unit]): Unit = {
     this.validateConnectionResponse = result;

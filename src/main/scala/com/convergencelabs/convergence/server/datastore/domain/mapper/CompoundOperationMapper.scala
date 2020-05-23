@@ -11,16 +11,15 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
-
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.language.implicitConversions
+import java.util.{List => JavaList}
 
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedCompoundOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
+
+import scala.jdk.CollectionConverters._
+import scala.language.implicitConversions
 
 object CompoundOperationMapper extends ODocumentMapper {
 
@@ -31,7 +30,7 @@ object CompoundOperationMapper extends ODocumentMapper {
   private[domain] implicit def compoundOperationToODocument(obj: AppliedCompoundOperation): ODocument = {
     val AppliedCompoundOperation(ops) = obj
     val doc = new ODocument(DocumentClassName)
-    val opDocs = ops.map { OrientDBOperationMapper.operationToODocument(_) }
+    val opDocs = ops.map( OrientDBOperationMapper.operationToODocument)
     doc.field(Fields.Ops, opDocs.asJava, OType.EMBEDDEDLIST)
     doc
   }
@@ -44,7 +43,7 @@ object CompoundOperationMapper extends ODocumentMapper {
     validateDocumentClass(doc, DocumentClassName)
 
     val opDocs: JavaList[ODocument] = doc.field(Fields.Ops, OType.EMBEDDEDLIST)
-    val ops = opDocs.asScala.toList.map { OrientDBOperationMapper.oDocumentToDiscreteOperation(_) }
+    val ops = opDocs.asScala.toList.map (OrientDBOperationMapper.oDocumentToDiscreteOperation )
     AppliedCompoundOperation(ops)
   }
 

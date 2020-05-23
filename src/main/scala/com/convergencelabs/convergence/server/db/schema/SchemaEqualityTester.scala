@@ -11,18 +11,14 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.asScalaSetConverter
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
-
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.index.OIndex
 import com.orientechnologies.orient.core.metadata.function.OFunction
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OProperty
+import com.orientechnologies.orient.core.metadata.schema.{OClass, OProperty}
 import com.orientechnologies.orient.core.metadata.sequence.OSequence
-
 import grizzled.slf4j.Logging
+
+import scala.jdk.CollectionConverters._
 
 object SchemaEqualityTester extends Logging {
   def assertEqual(db1: ODatabaseDocument, db2: ODatabaseDocument): Unit = {

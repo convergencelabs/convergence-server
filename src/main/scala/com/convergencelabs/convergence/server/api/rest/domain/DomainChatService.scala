@@ -25,7 +25,7 @@ import com.convergencelabs.convergence.server.api.rest.{okResponse, _}
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
@@ -130,7 +130,7 @@ class DomainChatService(private[this] val executionContext: ExecutionContext,
                         private[this] val timeout: Timeout,
                         private[this] val domainRestActor: ActorRef,
                         private[this] val chatSharding: ActorRef)
-  extends DomainRestService(executionContext, timeout) with Logging {
+  extends AbstractDomainRestService(executionContext, timeout) with Logging {
 
   import DomainChatService._
 

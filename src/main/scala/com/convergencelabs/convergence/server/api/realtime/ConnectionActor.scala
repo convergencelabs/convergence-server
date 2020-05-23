@@ -36,7 +36,7 @@ class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
   this.context.watch(clientActor)
 
   def receive: Receive = {
-    case incoming: IncomingBinaryMessage ⇒
+    case incoming: IncomingBinaryMessage =>
       clientActor ! incoming
 
     case outgoing: OutgoingBinaryMessage =>

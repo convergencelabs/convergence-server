@@ -22,7 +22,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor._
-import com.convergencelabs.convergence.server.domain.rest.RestDomainActor.DomainRestMessage
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
@@ -30,7 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object DomainUserService {
 
-  case class CreateUserRequest(username: String,
+  case class CreateUserRequestData(username: String,
                                firstName: Option[String],
                                lastName: Option[String],
                                displayName: Option[String],
@@ -62,7 +62,7 @@ object DomainUserService {
 class DomainUserService(private[this] val executionContext: ExecutionContext,
                         private[this] val timeout: Timeout,
                         private[this] val domainRestActor: ActorRef)
-  extends DomainRestService(executionContext, timeout) {
+  extends AbstractDomainRestService(executionContext, timeout) {
 
   import DomainUserService._
 
@@ -74,7 +74,7 @@ class DomainUserService(private[this] val executionContext: ExecutionContext,
             complete(getAllUsersRequest(domain, filter, offset, limit))
           }
         } ~ post {
-          entity(as[CreateUserRequest]) { request =>
+          entity(as[CreateUserRequestData]) { request =>
             complete(createUserRequest(request, domain))
           }
         }
@@ -105,10 +105,6 @@ class DomainUserService(private[this] val executionContext: ExecutionContext,
           entity(as[UserLookupRequest]) { request =>
             complete(findUser(domain, request))
           }
-        } ~ post {
-          entity(as[CreateUserRequest]) { request =>
-            complete(createUserRequest(request, domain))
-          }
         }
       }
     }
@@ -127,8 +123,8 @@ class DomainUserService(private[this] val executionContext: ExecutionContext,
       (users => okResponse(users.map(toUserData)))
   }
 
-  private[this] def createUserRequest(createRequest: CreateUserRequest, domain: DomainId): Future[RestResponse] = {
-    val CreateUserRequest(username, firstName, lastName, displayName, email, password) = createRequest
+  private[this] def createUserRequest(createRequest: CreateUserRequestData, domain: DomainId): Future[RestResponse] = {
+    val CreateUserRequestData(username, firstName, lastName, displayName, email, password) = createRequest
     val message = DomainRestMessage(domain, CreateUserRequest(username, firstName, lastName, displayName, email, password))
     (domainRestActor ? message) map ( _ => CreatedResponse )
   }

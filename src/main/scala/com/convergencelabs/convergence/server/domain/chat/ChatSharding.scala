@@ -24,7 +24,7 @@ object ChatSharding extends ActorSharding(
     classOf[ChatActor]){
   
   override val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ExistingChatMessage ⇒ 
+    case msg: ExistingChatMessage =>
       (s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.chatId}", msg)
   }
  

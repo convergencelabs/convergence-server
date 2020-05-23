@@ -15,6 +15,7 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.{SortOrder, StoreActor}
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 
 import scala.util.Success
@@ -111,7 +112,7 @@ class UserStoreActor private[datastore](private[this] val userStore: DomainUserS
 object UserStoreActor {
   def props(userStore: DomainUserStore): Props = Props(new UserStoreActor(userStore))
 
-  trait UserStoreRequest extends CborSerializable
+  trait UserStoreRequest extends CborSerializable with DomainRestMessageBody
 
   case class GetUsersRequest(filter: Option[String],
                              offset: Option[Int],

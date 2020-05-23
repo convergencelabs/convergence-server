@@ -108,7 +108,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
         doc.setProperty(Fields.Description, description)
         doc.save()
         ()
-      } recoverWith (handleDuplicateValue)
+      } recoverWith handleDuplicateValue
   }
 
   def updateUserGroup(groupId: String, update: UserGroup): Try[Unit] = withDb { db =>
@@ -120,7 +120,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
           doc.save()
           ()
         }
-    } recoverWith (handleDuplicateValue)
+    } recoverWith handleDuplicateValue
   }
 
   def setGroupMembers(groupId: String, members: Set[DomainUserId]): Try[Unit] = withDb { db =>
@@ -198,7 +198,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
     OrientDBUtil
       .queryAndMap(db, query, params)(docToGroup)
       .map { results =>
-        val mapped: Map[String, UserGroup] = results.map(a => a.id -> a)(collection.breakOut)
+        val mapped: Map[String, UserGroup] = results.map(a => a.id -> a).toMap
         val orderedList = ids.map(id => mapped.getOrElse(id, throw EntityNotFoundException(entityId = Some(id))))
         orderedList
       }
@@ -206,7 +206,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
 
   def getUserGroupIdsForUsers(userIds: List[DomainUserId]): Try[Map[DomainUserId, Set[String]]] = tryWithDb { db =>
     val result: Map[DomainUserId, Set[String]] = userIds
-      .map(userId => userId -> this.getUserGroupIdsForUser(userId).get)(collection.breakOut)
+      .map(userId => userId -> this.getUserGroupIdsForUser(userId).get).toMap
     result
   }
 
@@ -285,7 +285,7 @@ class UserGroupStore private[domain] (private[this] val dbProvider: DatabaseProv
       }
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case Indices.Id =>

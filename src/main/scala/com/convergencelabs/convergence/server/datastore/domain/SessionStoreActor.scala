@@ -15,9 +15,11 @@ import akka.actor.{ActorLogging, Props}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
-class SessionStoreActor private[datastore] (private[this] val sessionStore: SessionStore)
-    extends StoreActor with ActorLogging {
+class SessionStoreActor private[datastore](private[this] val sessionStore: SessionStore)
+  extends StoreActor with ActorLogging {
+
   import SessionStoreActor._
 
   def receive: Receive = {
@@ -31,14 +33,14 @@ class SessionStoreActor private[datastore] (private[this] val sessionStore: Sess
 
   private[this] def onGetSessions(message: GetSessionsRequest): Unit = {
     val GetSessionsRequest(
-      sessionId,
-      username,
-      remoteHost,
-      authMethod,
-      excludeDisconnected,
-      st,
-      limit,
-      offset) = message
+    sessionId,
+    username,
+    remoteHost,
+    authMethod,
+    excludeDisconnected,
+    st,
+    limit,
+    offset) = message
     reply(sessionStore.getSessions(sessionId,
       username,
       remoteHost,
@@ -59,18 +61,21 @@ class SessionStoreActor private[datastore] (private[this] val sessionStore: Sess
 object SessionStoreActor {
   def props(sessionStore: SessionStore): Props = Props(new SessionStoreActor(sessionStore))
 
-  trait SessionStoreRequest extends CborSerializable
-  case class GetSessionsRequest(
-                                 sessionId: Option[String],
-                                 username: Option[String],
-                                 remoteHost: Option[String],
-                                 authMethod: Option[String],
-                                 excludeDisconnected: Boolean,
-                                 sessionType: SessionQueryType.Value,
-                                 limit: Option[Int],
-                                 offset: Option[Int]) extends SessionStoreRequest
+  trait SessionStoreRequest extends CborSerializable with DomainRestMessageBody
+
+  case class GetSessionsRequest(sessionId: Option[String],
+                                username: Option[String],
+                                remoteHost: Option[String],
+                                authMethod: Option[String],
+                                excludeDisconnected: Boolean,
+                                sessionType: SessionQueryType.Value,
+                                limit: Option[Int],
+                                offset: Option[Int]) extends SessionStoreRequest
+
   case class GetSessionsResponse(sessions: List[DomainSession]) extends CborSerializable
 
   case class GetSessionRequest(id: String) extends SessionStoreRequest
+
   case class GetSessionResponse(session: Option[DomainSession]) extends CborSerializable
+
 }

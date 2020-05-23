@@ -55,7 +55,7 @@ object ConvergenceJwtUtil {
     pemReader.close()
 
     val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
-    val privateKeySpec = new PKCS8EncodedKeySpec(obj.getContent())
+    val privateKeySpec = new PKCS8EncodedKeySpec(obj.getContent)
     val privateKey = keyFactory.generatePrivate(privateKeySpec)
     new ConvergenceJwtUtil(keyId, privateKey)
   }
@@ -67,10 +67,10 @@ class ConvergenceJwtUtil(
   
   import ConvergenceJwtUtil._
 
-  var expirationMinutes = DefaultExpirationMinutes
-  var notBeforeMinutes = DefaultNotBeforeMinutes
+  private[this] var expirationMinutes = DefaultExpirationMinutes
+  private[this] var notBeforeMinutes = DefaultNotBeforeMinutes
 
-  def getExpirationMinutes(): Int = {
+  def getExpirationMinutes: Int = {
     expirationMinutes
   }
 
@@ -78,7 +78,7 @@ class ConvergenceJwtUtil(
     this.expirationMinutes = expirationMinutes
   }
 
-  def getNotBeforeMinutes(): Int = {
+  def getNotBeforeMinutes: Int = {
     notBeforeMinutes
   }
 
@@ -86,11 +86,11 @@ class ConvergenceJwtUtil(
     this.notBeforeMinutes = notBeforeMinutes
   }
 
-  def getPrivateKey(): PrivateKey = {
+  def getPrivateKey: PrivateKey = {
     privateKey
   }
 
-  def getKeyId(): String = {
+  def getKeyId: String = {
     keyId
   }
 
@@ -100,9 +100,9 @@ class ConvergenceJwtUtil(
     jwtClaims.setIssuer("ConvergenceJwtUtil")
     jwtClaims.setAudience(JwtConstants.Audience)
     jwtClaims.setGeneratedJwtId()
-    jwtClaims.setExpirationTimeMinutesInTheFuture(expirationMinutes)
+    jwtClaims.setExpirationTimeMinutesInTheFuture(expirationMinutes.floatValue())
     jwtClaims.setIssuedAtToNow()
-    jwtClaims.setNotBeforeMinutesInThePast(this.notBeforeMinutes)
+    jwtClaims.setNotBeforeMinutesInThePast(notBeforeMinutes.floatValue())
 
     // Add claims the user is providing.
     jwtClaims.setSubject(username)
@@ -114,12 +114,12 @@ class ConvergenceJwtUtil(
 
     // The JWS will be used to sign the payload.
     val jws = new JsonWebSignature()
-    jws.setPayload(jwtClaims.toJson())
-    jws.setKey(this.privateKey)
+    jws.setPayload(jwtClaims.toJson)
+    jws.setKey(privateKey)
 
     // We set the Key Id so that the server knows which key to check against.
-    jws.setKeyIdHeaderValue(this.keyId)
+    jws.setKeyIdHeaderValue(keyId)
     jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256)
-    jws.getCompactSerialization()
+    jws.getCompactSerialization
   }
 }

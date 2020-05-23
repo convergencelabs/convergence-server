@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.domain.model.ot.OTFTestHarnessSpec
 import org.json4s.JsonAST._
 import org.json4s.jackson.Serialization.read
 import org.json4s.{DefaultFormats, JArray, JBool, JInt, JString, jvalue2monadic}
-import org.scalatest.FunSpec
+import org.scalatest.funspec.AnyFunSpec
 
 import scala.language.implicitConversions
 
@@ -32,7 +32,7 @@ object OTFTestHarnessSpec {
   val Prop = "prop"
 }
 
-class OTFTestHarnessSpec extends FunSpec {
+class OTFTestHarnessSpec extends AnyFunSpec {
 
   val valueId = "vid"
 
@@ -93,21 +93,21 @@ class OTFTestHarnessSpec extends FunSpec {
   implicit def jObject2Operation(obj: JObject): DiscreteOperation = {
     obj match {
       case JObject(List((Type, JString("StringInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
-        StringInsertOperation(valueId, noOp, index.intValue(), value)
+        StringInsertOperation(valueId, noOp, index.intValue, value)
       case JObject(List((Type, JString("StringRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
-        StringRemoveOperation(valueId, noOp, index.intValue(), value)
+        StringRemoveOperation(valueId, noOp, index.intValue, value)
       case JObject(List((Type, JString("StringSet")), (NoOp, JBool(noOp)), (Value, JString(value)))) =>
         StringSetOperation(valueId, noOp, value)
 
       case JObject(List((Type, JString("ArrayInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
-        ArrayInsertOperation(valueId, noOp, index.intValue(), mapToDataValue(value))
+        ArrayInsertOperation(valueId, noOp, index.intValue, mapToDataValue(value))
       case JObject(List((Type, JString("ArrayRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)))) =>
-        ArrayRemoveOperation(valueId, noOp, index.intValue())
+        ArrayRemoveOperation(valueId, noOp, index.intValue)
       case JObject(List((Type, JString("ArrayReplace")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
-        ArrayReplaceOperation(valueId, noOp, index.intValue(), mapToDataValue(value))
+        ArrayReplaceOperation(valueId, noOp, index.intValue, mapToDataValue(value))
       case JObject(List((Type, JString("ArrayMove")), (NoOp, JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
-        ArrayMoveOperation(valueId, noOp, fromIndex.intValue(), toIndex.intValue())
-      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value @ JArray(values)))) =>
+        ArrayMoveOperation(valueId, noOp, fromIndex.intValue, toIndex.intValue)
+      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value@JArray(values)))) =>
         ArraySetOperation(valueId, noOp, values.map { v => mapToDataValue(v) })
 
       case JObject(List((Type, JString("ObjectAddProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
@@ -116,12 +116,12 @@ class OTFTestHarnessSpec extends FunSpec {
         ObjectSetPropertyOperation(valueId, noOp, prop, mapToDataValue(value))
       case JObject(List((Type, JString("ObjectRemoveProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)))) =>
         ObjectRemovePropertyOperation(valueId, noOp, prop)
-      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value @ JObject(fields)))) =>
-        ObjectSetOperation(valueId, noOp, fields.toMap.mapValues { x => mapToDataValue(x) })
+      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value@JObject(fields)))) =>
+        ObjectSetOperation(valueId, noOp, fields.toMap.transform((_, v) => mapToDataValue(v)))
 
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
         BooleanSetOperation(valueId, noOp, value)
-        
+
       case JObject(List((Type, JString("DateSet")), (NoOp, JBool(noOp)), (Value, value))) =>
         DateSetOperation(valueId, noOp, Instant.ofEpochMilli(value.values.toString.toLong))
 
@@ -136,6 +136,7 @@ class OTFTestHarnessSpec extends FunSpec {
         throw new IllegalArgumentException(s"Invalid operation definition: $obj")
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 
   // scalastyle:off cyclomatic.complexity
@@ -151,12 +152,15 @@ class OTFTestHarnessSpec extends FunSpec {
       case JNothing => NullValue(valueId)
       case JArray(arr) => ArrayValue(valueId, arr.map { v => mapToDataValue(v) })
       case JSet(set) => ArrayValue(valueId, set.toList.map { v => mapToDataValue(v) })
-      case JObject(fields) => ObjectValue(valueId, fields.toMap.mapValues { v => mapToDataValue(v) })
+      case JObject(fields) => ObjectValue(valueId, fields.toMap.transform( (_, v) => mapToDataValue(v) ))
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 }
 
 case class OperationPair(serverOp: JObject, clientOp: JObject)
+
 case class OTFTestCase(id: String, input: OperationPair, output: Option[OperationPair], error: Option[Boolean])
+
 case class OTFSpec(serverOpType: String, clientOpType: String, cases: List[OTFTestCase])

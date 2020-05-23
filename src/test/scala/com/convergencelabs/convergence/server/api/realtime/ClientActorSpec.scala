@@ -17,27 +17,29 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model.RemoteAddress.IP
 import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.PasswordAuthRequestData
 import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.AuthSuccessData
-import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
-import com.convergencelabs.convergence.server.domain._
-import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.WebSocketOpened
+import com.convergencelabs.convergence.server.domain._
+import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import org.json4s.JsonAST.JValue
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 import scalapb.GeneratedMessage
 
-import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Future, Promise}
 import scala.language.postfixOps
 
 
 // scalastyle:off magic.number
 class ClientActorSpec
   extends TestKit(ActorSystem("ClientActorSpec"))
-  with WordSpecLike
+  with AnyWordSpecLike
   with BeforeAndAfterAll
   with MockitoSugar 
   with Matchers {
@@ -114,7 +116,7 @@ class ClientActorSpec
 
     val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
     authResponse.response.isSuccess shouldBe true
-    val AuthSuccessData(username, sessionId, reconnectToken, presenceState) = authResponse.getSuccess
+    val AuthSuccessData(username, sessionId, reconnectToken, presenceState, _) = authResponse.getSuccess
   }
 
   class TestReplyCallback() extends ReplyCallback {

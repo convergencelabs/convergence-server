@@ -94,7 +94,7 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
 
   private[this] def handleStatelessMessage(msg: StatelessModelMessage): Unit = {
     msg match {
-      case msg: GetRealtimeModel =>
+      case msg: GetRealtimeModelRequest =>
         this.retrieveModel(msg)
       case msg: CreateRealtimeModel =>
         this.createModel(msg)
@@ -139,7 +139,7 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
     val SetModelPermissionsRequest(_, modelId, session, overrideWorld, world, setAllUsers, addedUsers, removedUsers) = msg
     val users = scala.collection.mutable.Map[DomainUserId, Option[ModelPermissions]]()
-    users ++= addedUsers.mapValues(Some(_))
+    users ++= addedUsers.transform((_, v) => Some(v))
     removedUsers.foreach(username => users += (username -> None))
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
@@ -287,9 +287,8 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
     super.passivate()
   }
 
-  private[this] def retrieveModel(msg: GetRealtimeModel): Unit = {
-    val GetRealtimeModel(_, getModelId, session) = msg
-    log.debug(s"$identityString: Getting model")
+  private[this] def retrieveModel(msg: GetRealtimeModelRequest): Unit = {
+    val GetRealtimeModelRequest(_, getModelId, session) = msg
     (session match {
       case Some(s) =>
         modelPermissionResolver.getModelUserPermissions(getModelId, s.userId, persistenceProvider)
@@ -298,8 +297,8 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
         Success(true)
     }) flatMap { canRead =>
       if (canRead) {
-        // FIXME we could dump this into a future to get it of the actor thread.
-        persistenceProvider.modelStore.getModel(getModelId)
+        // TODO we could dump this into a future to get it of the actor thread.
+        persistenceProvider.modelStore.getModel(getModelId).map(GetRealtimeModelResponse)
       } else {
         val message = "User must have 'read' permissions on the model to get it."
         Failure(UnauthorizedException(message))

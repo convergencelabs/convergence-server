@@ -11,16 +11,15 @@
 
 package com.convergencelabs.convergence.server.datastore
 
-import scala.util.Failure
-import scala.util.Success
-import org.mockito.Mockito
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
-import org.scalatest.mockito.MockitoSugar
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import org.scalactic.source.Position.apply
+import org.mockito.Mockito
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.mockito.MockitoSugar
 
-class AbstractPersistenceProviderSpec extends WordSpec with MockitoSugar with Matchers {
+import scala.util.{Failure, Success}
+
+class AbstractPersistenceProviderSpec extends AnyWordSpec with MockitoSugar with Matchers {
   "A AbstractPersistenceProvider" when {
     "validating the connection" must {
       "return true if a connection can be aquired and closed" in {

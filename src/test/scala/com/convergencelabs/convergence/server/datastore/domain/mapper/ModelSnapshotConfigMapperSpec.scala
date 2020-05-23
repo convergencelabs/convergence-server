@@ -15,8 +15,8 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 
 import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.WordSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -25,7 +25,7 @@ import ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
 import ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
 
 class ModelSnapshotConfigMapperSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "An ModelSnapshotConfigMapper" when {

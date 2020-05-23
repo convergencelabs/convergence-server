@@ -22,6 +22,7 @@ import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatAlreadyExistsException
 import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.ChatPermissions
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -224,7 +225,7 @@ object ChatManagerActor {
 
   def props(provider: DomainPersistenceProvider): Props = Props(new ChatManagerActor(provider))
 
-  trait ChatManagerActorRequest extends CborSerializable
+  trait ChatManagerActorRequest extends CborSerializable with DomainRestMessageBody
 
   case class ChatsSearchRequest(searchTerm: Option[String],
                                 searchFields: Option[Set[String]],

@@ -165,7 +165,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
     val replyPromise = Promise[GeneratedMessage with ResponseMessage]
 
     val timeout = protocolConfig.defaultRequestTimeout
-    val timeoutFuture = scheduler.scheduleOnce(timeout)(() => {
+    val timeoutFuture = scheduler.scheduleOnce(timeout) {
       requests.synchronized({
         requests.remove(requestId) match {
           case Some(record) =>
@@ -175,7 +175,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
           // no action required.
         }
       })
-    })
+    }
 
     val body = ConvergenceMessageBodyUtils.toBody(message)
     val convergenceMessage = ConvergenceMessage()
@@ -289,7 +289,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
         case Some(record) =>
           record.future.cancel()
           message match {
-            case ErrorMessage(code, message, _) =>
+            case ErrorMessage(code, message, _, _) =>
               record.promise.failure(ClientErrorResponseException(code, message))
             case _ =>
               // There should be no type on a reply message if it is a successful
@@ -349,6 +349,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
       sendMessage(envelope)
     }
   }
+
 }
 
 object ProtocolConnection {

@@ -150,7 +150,7 @@ object ImplicitMessageConversions {
   }
 
   implicit def dataToDomainUserId(userIdData: DomainUserIdData): DomainUserId = {
-    val DomainUserIdData(userTypeData, username) = userIdData
+    val DomainUserIdData(userTypeData, username, _) = userIdData
 
     val userType = userTypeData match {
       case DomainUserTypeData.Normal => DomainUserType.Normal

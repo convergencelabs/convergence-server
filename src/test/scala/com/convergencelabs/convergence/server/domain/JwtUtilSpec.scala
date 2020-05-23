@@ -11,17 +11,17 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import org.jose4j.jwt.JwtClaims
-import org.scalatest.Finders
-import org.scalatest.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.WordSpec
+import java.util.{List => JavaList}
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import java.util.{ List => JavaList }
+import org.jose4j.jwt.JwtClaims
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+
+import scala.jdk.CollectionConverters._
 
 class JwtUtilSpec
-    extends WordSpec
+    extends AnyWordSpec
     with Matchers {
 
   "A JwtUtil" when {

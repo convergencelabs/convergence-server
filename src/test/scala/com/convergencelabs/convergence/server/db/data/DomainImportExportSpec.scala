@@ -11,10 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
@@ -28,7 +28,7 @@ import com.orientechnologies.orient.core.db.OrientDBConfig
 import com.convergencelabs.convergence.server.db.ConnectedSingleDatabaseProvider
 import com.orientechnologies.orient.core.db.ODatabaseType
 
-class DomainImportExportSpec extends WordSpecLike with Matchers {
+class DomainImportExportSpec extends AnyWordSpecLike with Matchers {
 
   "A DomainImport and Export" must {
     "import the correct data" in {

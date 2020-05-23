@@ -43,7 +43,7 @@ object RealtimeModelManager {
 
     def onClientClosed(clientActor: ActorRef): Unit
 
-    def closeModel()
+    def closeModel(): Unit
   }
 
   object State extends Enumeration {
@@ -153,7 +153,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
    * @param request The request received by the RealtimeModelActor.
    * @param replyTo The actor that the reply should go to.
    */
-  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequest, replyTo: ActorRef) {
+  def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequest, replyTo: ActorRef): Unit = {
     state match {
       case State.Uninitialized =>
         onOpenModelWhileUninitialized(request, replyTo)
@@ -513,7 +513,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
     broadcastToAllOthers(msg, session)
   }
 
-  def onModelResyncRequest(request: ModelResyncRequest, replyTo: ActorRef) {
+  def onModelResyncRequest(request: ModelResyncRequest, replyTo: ActorRef): Unit = {
     state match {
       case State.Uninitialized =>
         onResyncWhileUninitialized(request, replyTo)

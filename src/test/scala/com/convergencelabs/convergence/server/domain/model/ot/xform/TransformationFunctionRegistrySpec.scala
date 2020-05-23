@@ -17,9 +17,9 @@ import org.json4s.JsonAST.JInt
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import org.scalatest.Finders
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpec
 import org.json4s.JsonAST.JDouble
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.model.ReferenceType
@@ -33,7 +33,7 @@ import com.convergencelabs.convergence.server.domain.model.ReferenceValue
 import java.time.Instant
 
 // scalastyle:off multiple.string.literals
-class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
+class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
 
   val valueId = "testId"
 
@@ -61,7 +61,7 @@ class TransformationFunctionRegistrySpec extends WordSpec with Matchers {
   
   val referenceKey = "refKey"
   
-  val SetRef = ReferenceValue(Some(valueId), referenceKey, ReferenceType.Index, List(3), 1l)
+  val SetRef = ReferenceValue(Some(valueId), referenceKey, ReferenceType.Index, List(3), 1L)
 
   "A TransformationFunctionRegistry" when {
 
