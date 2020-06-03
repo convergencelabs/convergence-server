@@ -255,8 +255,8 @@ object ConvergenceMessageBodyUtils {
       case message: OfflineModelUpdatedMessage => Body.ModelOfflineUpdated(message)
 
       // Identity
-      case message: GetUsersMessage => Body.UsersGetRequest(message)
-      case message: UserSearchMessage => Body.UserSearchRequest(message)
+      case message: GetUsersRequestMessage => Body.UsersGetRequest(message)
+      case message: SearchUsersRequestMessage => Body.UserSearchRequest(message)
       case message: UserListMessage => Body.UserListResponse(message)
       case message: UserGroupsRequestMessage => Body.UserGroupsRequest(message)
       case message: UserGroupsResponseMessage => Body.UserGroupsResponse(message)

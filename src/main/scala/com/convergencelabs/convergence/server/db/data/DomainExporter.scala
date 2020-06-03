@@ -11,47 +11,15 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.JwtAuthKey
-import com.convergencelabs.convergence.server.domain.model.Collection
-import com.convergencelabs.convergence.server.domain.model.ModelOperation
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshot
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayMoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringSetOperation
-
-import grizzled.slf4j.Logging
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserField
 import com.convergencelabs.convergence.server.datastore.SortOrder
-import com.convergencelabs.convergence.server.datastore.domain.DomainSession
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProvider, DomainSession, DomainUserField}
+import com.convergencelabs.convergence.server.domain.{DomainUser, JwtAuthKey}
+import com.convergencelabs.convergence.server.domain.model.{Collection, ModelOperation, ModelSnapshot}
+import com.convergencelabs.convergence.server.domain.model.data._
+import com.convergencelabs.convergence.server.domain.model.ot._
+import grizzled.slf4j.Logging
+
+import scala.util.Try
 
 class DomainExporter(private[this] val persistence: DomainPersistenceProvider) extends Logging {
 
@@ -95,7 +63,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
   private[this] def exportUsers(): Try[List[CreateDomainUser]] = {
     logger.debug("Exporting domain users")
     persistence.userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None) map {
-      _.map { domainUser =>
+      _.data.map { domainUser =>
         // FIXME better error handling here
         val pwHash = persistence.userStore.getDomainUserPasswordHash(domainUser.username).get map { hash =>
           SetPassword("hash", hash)

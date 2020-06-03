@@ -13,9 +13,13 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import com.convergencelabs.convergence.server.datastore.AbstractPersistenceProvider
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.domain.DomainId
+
 import scala.util.Try
 
 trait DomainPersistenceProvider {
+  val domainId: DomainId
+
   val dbProvider: DatabaseProvider
   
   val configStore: DomainConfigStore
@@ -44,12 +48,12 @@ trait DomainPersistenceProvider {
 
   val permissionsStore: PermissionsStore
   
-  def validateConnection(): Try[Unit];
+  def validateConnection(): Try[Unit]
 
-  def shutdown(): Unit;
+  def shutdown(): Unit
 }
 
-class DomainPersistenceProviderImpl(val dbProvider: DatabaseProvider)
+class DomainPersistenceProviderImpl(val domainId: DomainId, val dbProvider: DatabaseProvider)
     extends AbstractPersistenceProvider(dbProvider)
     with DomainPersistenceProvider {
 

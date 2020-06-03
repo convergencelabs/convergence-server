@@ -228,7 +228,7 @@ class RealtimeModelActorSpec
 
     "open and a model is deleted" must {
       "force close all clients" in new TwoOpenClients {
-        val message = DeleteRealtimeModel(domainFqn, modelId, None)
+        val message = DeleteRealtimeModelRequest(domainFqn, modelId, None)
         realtimeModelActor.tell(message, ActorRef.noSender)
         client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
         client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
@@ -252,7 +252,7 @@ class RealtimeModelActorSpec
           .thenReturn(Success(Model(ModelMetaData(noModelId, collectionId, 0, now, now, true, modelPermissions, 1), data)))
 
         Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
-        realtimeModelActor.tell(CreateRealtimeModel(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
+        realtimeModelActor.tell(CreateRealtimeModelRequest(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), noModelId)
       }
 
@@ -260,7 +260,7 @@ class RealtimeModelActorSpec
         val client = new TestProbe(system)
         val data = ObjectValue("", Map())
 
-        realtimeModelActor.tell(CreateRealtimeModel(domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
+        realtimeModelActor.tell(CreateRealtimeModelRequest(domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
         client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelAlreadyExistsException(modelId)))
       }
     }
@@ -268,13 +268,13 @@ class RealtimeModelActorSpec
     "requested to delete a model" must {
       "return Success if the model exists" in new MockDatabaseWithModel {
         val client = new TestProbe(system)
-        realtimeModelActor.tell(DeleteRealtimeModel(domainFqn, modelId, None), client.ref)
+        realtimeModelActor.tell(DeleteRealtimeModelRequest(domainFqn, modelId, None), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
       }
 
       "return ModelNotFoundException if the model does not exist" in new TestFixture {
         val client = new TestProbe(system)
-        realtimeModelActor.tell(DeleteRealtimeModel(domainFqn, noModelId, Some(skU1S1)), client.ref)
+        realtimeModelActor.tell(DeleteRealtimeModelRequest(domainFqn, noModelId, Some(skU1S1)), client.ref)
         val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
       }
     }

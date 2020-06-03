@@ -11,37 +11,34 @@
 
 package com.convergencelabs.convergence.server
 
-import akka.actor.{Actor, ActorLogging}
-import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{InitialStateAsEvents, MemberEvent, MemberRemoved, MemberUp, UnreachableMember}
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{Behavior, PostStop}
+import akka.cluster.ClusterEvent.{MemberEvent, MemberRemoved, MemberUp}
+import akka.cluster.typed.{Cluster, Subscribe, Unsubscribe}
+import grizzled.slf4j.Logging
 
 /**
  * A helper Actor that will listen to Akka Cluster events and log debug
  * messages to the console.
- *
- * @param cluster The Akka Cluster to listen to.
  */
-class AkkaClusterDebugListener(cluster: Cluster) extends Actor with ActorLogging {
-  override def preStart(): Unit = {
-    cluster.subscribe(
-      self,
-      initialStateMode = InitialStateAsEvents,
-      classOf[MemberEvent],
-      classOf[UnreachableMember])
-  }
-
-  override def postStop(): Unit = {
-    cluster.unsubscribe(self)
-  }
-
-  def receive: Receive = {
-    case MemberUp(member) =>
-      log.debug(s"Akka Cluster Member with role '${member.roles}' is Up: ${member.address}")
-    case UnreachableMember(member) =>
-      log.debug("Akka Cluster Member detected as unreachable: {}", member)
-    case MemberRemoved(member, previousStatus) =>
-      log.debug("Akka Cluster Member is Removed: {} after {}", member.address, previousStatus)
-    case msg: MemberEvent =>
-      log.debug(msg.toString)
-  }
+object AkkaClusterDebugListener extends Logging {
+  def apply(cluster: Cluster): Behavior[MemberEvent] =
+    Behaviors.setup { context =>
+      cluster.subscriptions ! Subscribe(context.self, classOf[MemberEvent])
+      Behaviors.receiveMessage[MemberEvent] {
+        case MemberUp(member) =>
+          debug(s"Akka Cluster Member with role '${member.roles}' is Up: ${member.address}")
+          Behaviors.same
+        case MemberRemoved(member, previousStatus) =>
+          debug(s"Akka Cluster Member is Removed: ${member.address} after $previousStatus")
+          Behaviors.same
+        case msg: MemberEvent =>
+          debug(msg.toString)
+          Behaviors.same
+      }.receiveSignal {
+        case (context, PostStop) =>
+          cluster.subscriptions ! Unsubscribe(context.self)
+          Behaviors.same
+      }
+    }
 }

@@ -14,18 +14,19 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import java.time.Instant
 import java.util.UUID
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive._
 import akka.http.scaladsl.server.Directives.{Segment, _}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.{GetModelPermissionsRequest => MpsGetModelPermissionsRequest, GetModelPermissionsResponse => MpsGetModelPermissionsResponse, _}
+import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.{ModelPermissionsData, ModelUserPermissions}
 import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor._
-import com.convergencelabs.convergence.server.datastore.domain.{ModelDataGenerator, ModelPermissions}
+import com.convergencelabs.convergence.server.datastore.domain.{ModelDataGenerator, ModelPermissions, ModelPermissionsStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.domain.model._
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -33,55 +34,13 @@ import org.json4s.JsonAST.JObject
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainModelService {
 
-  case class ModelPost(collection: String,
-                       data: Map[String, Any],
-                       overrideWorld: Option[Boolean],
-                       worldPermissions: Option[ModelPermissions],
-                       userPermissions: Option[Map[String, ModelPermissions]])
-
-  case class ModelPut(collection: String,
-                      data: Map[String, Any],
-                      overrideWorld: Option[Boolean],
-                      worldPermissions: Option[ModelPermissions],
-                      userPermissions: Option[Map[String, ModelPermissions]]
-                     )
-
-  case class ModelMetaDataResponse(id: String,
-                                   collection: String,
-                                   version: Long,
-                                   createdTime: Instant,
-                                   modifiedTime: Instant)
-
-  case class ModelData(id: String,
-                       collection: String,
-                       version: Long,
-                       createdTime: Instant,
-                       modifiedTime: Instant,
-                       data: JObject)
-
-  case class CreateModelResponse(id: String)
-
-  case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
-
-  case class GetPermissionsResponse(permissions: Option[ModelPermissions])
-
-  case class GetAllUserPermissionsResponse(userPermissions: List[ModelUserPermissions])
-
-  case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean)
-
-  case class SetOverrideWorldRequest(overrideWorld: Boolean)
-
-  case class ModelQueryPost(query: String, offset: Option[Int], limit: Option[Int])
-
-}
-
-class DomainModelService(private[this] val executionContext: ExecutionContext,
-                         private[this] val timeout: Timeout,
-                         private[this] val domainRestActor: ActorRef,
-                         private[this] val modelClusterRegion: ActorRef)
-  extends AbstractDomainRestService(executionContext, timeout) {
+class DomainModelService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
+                         private[this] val modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                         private[this] val system: ActorSystem[_],
+                         private[this] val executionContext: ExecutionContext,
+                         private[this] val timeout: Timeout)
+  extends AbstractDomainRestService(system, executionContext, timeout) {
 
   import DomainModelService._
 
@@ -163,21 +122,245 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
     }
   }
 
+  // FIXME need to use offset and limit
+
   private[this] def getModels(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelsRequest(None, None))
-    (domainRestActor ? message).mapTo[GetModelsResponse].map(_.models) map {
-      _.map(mapMetaData)
-    } map {
-      models => okResponse(models)
+    domainRestActor.ask[GetModelsResponse](r => DomainRestMessage(domain, GetModelsRequest(None, None, r)))
+      .map(_.models.fold(
+        (_ => InternalServerError),
+        (models => okResponse(models.map(mapMetaData)))
+      ))
+  }
+
+  private[this] def getModel(domain: DomainId, modelId: String, data: Boolean): Future[RestResponse] = {
+    domainRestActor.ask[RealtimeModelActor.GetRealtimeModelResponse](r =>
+      DomainRestMessage(domain, RealtimeModelActor.GetRealtimeModelRequest(domain, modelId, None, r)))
+      .map(_.model.fold(
+        {
+          case RealtimeModelActor.ModelNotFoundError() =>
+            notFound(modelId)
+          case RealtimeModelActor.UnauthorizedError(_) =>
+            ForbiddenError
+          case RealtimeModelActor.UnknownError() =>
+            InternalServerError
+        },
+        { model =>
+          val result = if (data) {
+            ModelData(
+              model.metaData.id,
+              model.metaData.collection,
+              model.metaData.version,
+              model.metaData.createdTime,
+              model.metaData.modifiedTime,
+              DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
+          } else {
+            ModelMetaDataResponse(
+              model.metaData.id,
+              model.metaData.collection,
+              model.metaData.version,
+              model.metaData.createdTime,
+              model.metaData.modifiedTime)
+          }
+          okResponse(result)
+        }
+      ))
+  }
+
+  private[this] def postModel(domain: DomainId, model: ModelPost): Future[RestResponse] = {
+    val ModelPost(collectionId, data, overrideWorld, worldPermissions, userPermissions) = model
+    val modelId = UUID.randomUUID().toString
+    val objectValue = ModelDataGenerator(data)
+    val userPerms = userPermissions.getOrElse(Map()).map { case (username, perms) =>
+      DomainUserId.normal(username) -> perms
+    }
+
+    domainRestActor.ask[RealtimeModelActor.CreateRealtimeModelResponse](r => DomainRestMessage(domain,
+      RealtimeModelActor.CreateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r)))
+      .map(_.response.fold(
+        {
+          case RealtimeModelActor.ModelAlreadyExistsError() =>
+            conflictsResponse("modelId", modelId)
+          case RealtimeModelActor.UnauthorizedError(_) =>
+            ForbiddenError
+          case RealtimeModelActor.UnknownError() =>
+            InternalServerError
+          case RealtimeModelActor.InvalidCreationDataError(message) =>
+            badRequest(message)
+        },
+        { modelId =>
+          createdResponse(CreateModelResponse(modelId))
+        }
+      ))
+  }
+
+  private[this] def putModel(domain: DomainId, modelId: String, modelPut: ModelPut): Future[RestResponse] = {
+    val ModelPut(collectionId, data, overrideWorld, worldPermissions, userPermissions) = modelPut
+    val objectValue = ModelDataGenerator(data)
+    val userPerms = userPermissions.getOrElse(Map()).map { case (username, perms) =>
+      DomainUserId.normal(username) -> perms
+    }
+
+    domainRestActor.ask[RealtimeModelActor.CreateOrUpdateRealtimeModelResponse](r => DomainRestMessage(domain,
+      RealtimeModelActor.CreateOrUpdateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r)))
+      .map(_.response.fold(
+        {
+          case RealtimeModelActor.UnauthorizedError(_) =>
+            ForbiddenError
+          case RealtimeModelActor.UnknownError() =>
+            InternalServerError
+          case RealtimeModelActor.ModelOpenError() =>
+            badRequest("The model is currently open and can therefore not be updated.")
+        },
+        { _ =>
+          OkResponse
+        }
+      ))
+  }
+
+  private[this] def queryModels(authProfile: AuthorizationProfile, domain: DomainId, queryPost: ModelQueryPost): Future[RestResponse] = {
+    // FIXME do we need this offset and limit?
+    val ModelQueryPost(query, offset, limit) = queryPost
+    val userId = DomainUserId.convergence(authProfile.username)
+    domainRestActor.ask[ModelStoreActor.QueryModelsResponse](r =>
+      DomainRestMessage(domain, ModelStoreActor.QueryModelsRequest(userId, query, r)))
+      .map(_.result.fold(
+        {
+          case ModelStoreActor.InvalidQueryError(message, query, index) =>
+            val details = if (index.isDefined) {
+              Map("query" -> query, "index" -> index.get)
+            } else {
+              Map("query" -> query)
+            }
+            badRequest(message, Some(details))
+
+          case ModelStoreActor.UnknownError() =>
+            InternalServerError
+        },
+        { results =>
+          val models = results.data.map(model => ModelData(
+            model.metaData.id,
+            model.metaData.collection,
+            model.metaData.version,
+            model.metaData.createdTime,
+            model.metaData.modifiedTime,
+            model.data))
+          val response = PagedRestResponse(models, results.offset, results.count)
+          okResponse(response)
+        }
+      ))
+  }
+
+  private[this] def deleteModel(domain: DomainId, modelId: String): Future[RestResponse] = {
+    modelClusterRegion.ask[RealtimeModelActor.DeleteRealtimeModelResponse](RealtimeModelActor.DeleteRealtimeModelRequest(domain, modelId, None, _))
+      .map(_.response.fold(
+        {
+          case RealtimeModelActor.ModelNotFoundError() =>
+            notFound(modelId)
+
+          case RealtimeModelActor.UnauthorizedError(_) =>
+            ForbiddenError
+
+          case RealtimeModelActor.UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          DeletedResponse
+        }
+      ))
+  }
+
+  // Model Permissions
+
+  private[this] def getModelOverridesPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.GetModelOverridesPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.GetModelOverridesPermissionsRequest(modelId, r))).flatMap {
+      case ModelPermissionsStoreActor.GetModelOverridesPermissionsSuccess(overrides) =>
+        Future.successful(okResponse(GetModelOverridesPermissionsResponse(overrides)))
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
-  private[this] def getModelsInCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelsInCollectionRequest(collectionId, None, None))
-    (domainRestActor ? message).mapTo[GetModelsInCollectionResponse].map(_.models) map {
-      _.map(mapMetaData)
-    } map {
-      models => okResponse(models)
+  private[this] def setModelOverridesPermissions(domain: DomainId, modelId: String, overridesPermissions: SetOverrideWorldRequest): Future[RestResponse] = {
+    val SetOverrideWorldRequest(overrideWorld) = overridesPermissions
+    domainRestActor.ask[ModelPermissionsStoreActor.SetModelOverridesPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.SetModelOverridesPermissionsRequest(modelId, overrideWorld, r))).flatMap {
+      case ModelPermissionsStoreActor.RequestSuccess() =>
+        Future.successful(OkResponse)
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+  }
+
+  private[this] def getModelPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.GetModelPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.GetModelPermissionsRequest(modelId, r))).flatMap {
+      case ModelPermissionsStoreActor.GetModelPermissionsSuccess(permissions) =>
+        val ModelPermissionsData(overridePermissions, world, users) = permissions
+        Future.successful(okResponse(ModelPermissionsSummary(overridePermissions, world, users)))
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+  }
+
+  private[this] def getModelWorldPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.GetModelWorldPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.GetModelWorldPermissionsRequest(modelId, r))).flatMap {
+      case ModelPermissionsStoreActor.GetModelWorldPermissionsSuccess(permissions) =>
+        Future.successful(okResponse(GetPermissionsResponseData(Some(permissions))))
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+  }
+
+  private[this] def setModelWorldPermissions(domain: DomainId, modelId: String, permissions: ModelPermissions): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.SetModelWorldPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.SetModelWorldPermissionsRequest(modelId, permissions, r))).flatMap {
+      case ModelPermissionsStoreActor.RequestSuccess() =>
+        Future.successful(OkResponse)
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+  }
+
+  private[this] def getAllModelUserPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.GetAllModelUserPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.GetAllModelUserPermissionsRequest(modelId, r))).flatMap {
+      case ModelPermissionsStoreActor.GetAllModelUserPermissionsSuccess(permissions) =>
+        Future.successful(okResponse(GetAllUserPermissionsResponseData(permissions)))
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+
+  }
+
+  private[this] def getModelUserPermissions(domain: DomainId, modelId: String, username: String): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.GetModelUserPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.GetModelUserPermissionsRequest(modelId, DomainUserId.normal(username), r))).flatMap {
+      case ModelPermissionsStoreActor.GetModelUserPermissionsSuccess(permissions) =>
+        Future.successful(okResponse(GetPermissionsResponseData(permissions)))
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+  }
+
+  private[this] def setModelUserPermissions(domain: DomainId, modelId: String, username: String, permissions: ModelPermissions): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.SetModelUserPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.SetModelUserPermissionsRequest(modelId, DomainUserId.normal(username), permissions, r))).flatMap {
+      case ModelPermissionsStoreActor.RequestSuccess() =>
+        Future.successful(OkResponse)
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
+    }
+  }
+
+  private[this] def removeModelUserPermissions(domain: DomainId, modelId: String, username: String): Future[RestResponse] = {
+    domainRestActor.ask[ModelPermissionsStoreActor.RemoveModelUserPermissionsResponse](r => DomainRestMessage(domain,
+      ModelPermissionsStoreActor.RemoveModelUserPermissionsRequest(modelId, DomainUserId.normal(username), r))).flatMap {
+      case ModelPermissionsStoreActor.RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case ModelPermissionsStoreActor.RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
@@ -190,161 +373,52 @@ class DomainModelService(private[this] val executionContext: ExecutionContext,
       metaData.modifiedTime)
   }
 
-  private[this] def getModel(domain: DomainId, modelId: String, data: Boolean): Future[RestResponse] = {
-    val message = GetRealtimeModelRequest(domain, modelId, None)
-    (modelClusterRegion ? message).mapTo[GetRealtimeModelResponse].map(_.model) map {
-      case Some(model) =>
-        val result = if (data) {
-          ModelData(
-            model.metaData.id,
-            model.metaData.collection,
-            model.metaData.version,
-            model.metaData.createdTime,
-            model.metaData.modifiedTime,
-            DataValueToJValue.toJson(model.data).asInstanceOf[JObject])
-        } else {
-          ModelMetaDataResponse(
-            model.metaData.id,
-            model.metaData.collection,
-            model.metaData.version,
-            model.metaData.createdTime,
-            model.metaData.modifiedTime)
-        }
-        okResponse(result)
-      case None =>
-        notFound(modelId)
-    }
-  }
-
-  private[this] def postModel(domain: DomainId, model: ModelPost): Future[RestResponse] = {
-    val ModelPost(collectionId, data, overrideWorld, worldPermissions, userPermissions) = model
-    val modelId = UUID.randomUUID().toString
-    val objectValue = ModelDataGenerator(data)
-    val userPerms = userPermissions.getOrElse(Map()).map { case (username, perms) =>
-      DomainUserId.normal(username) -> perms
-    }
-    val message = CreateRealtimeModel(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None)
-    (modelClusterRegion ? message).mapTo[String] map {
-      modelId: String => createdResponse(CreateModelResponse(modelId))
-    }
-  }
-
-  private[this] def putModel(domain: DomainId, modelId: String, modelPut: ModelPut): Future[RestResponse] = {
-    val ModelPut(collectionId, data, overrideWorld, worldPermissions, userPermissions) = modelPut
-    val objectValue = ModelDataGenerator(data)
-    val userPerms = userPermissions.getOrElse(Map()).map { case (username, perms) =>
-      DomainUserId.normal(username) -> perms
-    }
-    val message = CreateOrUpdateRealtimeModel(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None)
-    (modelClusterRegion ? message) map (_ => OkResponse)
-  }
-
-  private[this] def queryModels(authProfile: AuthorizationProfile, domain: DomainId, queryPost: ModelQueryPost): Future[RestResponse] = {
-    val ModelQueryPost(query, offset, limit) = queryPost
-    val userId = DomainUserId.convergence(authProfile.username)
-    val message = DomainRestMessage(domain, QueryModelsRequest(userId, query))
-    (domainRestActor ? message)
-      .mapTo[QueryModelsResponse]
-      .map(_.result)
-      .map { results =>
-        val models = results.data.map(model => ModelData(
-          model.metaData.id,
-          model.metaData.collection,
-          model.metaData.version,
-          model.metaData.createdTime,
-          model.metaData.modifiedTime,
-          model.data))
-        val response = PagedRestResponse(models, results.offset, results.count)
-        okResponse(response)
-      }
-  }
-
-  private[this] def deleteModel(domain: DomainId, modelId: String): Future[RestResponse] = {
-    val message = DeleteRealtimeModel(domain, modelId, None)
-    (modelClusterRegion ? message) map (_ => DeletedResponse) recover {
-      case _: ModelNotFoundException =>
-        notFound(modelId)
-    }
-  }
-
-  // Model Permissions
-
-  private[this] def getModelOverridesPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelOverridesPermissionsRequest(modelId))
-    (domainRestActor ? message)
-      .mapTo[GetModelOverridesPermissionsResponse]
-      .map(_.overrideWorld)
-      .map {
-        overridesPermissions =>
-          okResponse(GetModelOverridesPermissionsResponse(overridesPermissions))
-      }
-  }
-
-  private[this] def setModelOverridesPermissions(domain: DomainId, modelId: String, overridesPermissions: SetOverrideWorldRequest): Future[RestResponse] = {
-    val SetOverrideWorldRequest(overrideWorld) = overridesPermissions
-    val message = DomainRestMessage(domain, SetModelOverridesPermissionsRequest(modelId, overrideWorld))
-    (domainRestActor ? message) map (_ => OkResponse)
-  }
-
-  private[this] def getModelPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, MpsGetModelPermissionsRequest(modelId))
-    (domainRestActor ? message)
-      .mapTo[MpsGetModelPermissionsResponse]
-      .map(_.permissions)
-      .map {
-        response =>
-          val ModelPermissionsResponse(overridePermissions, world, users) = response
-          okResponse(ModelPermissionsSummary(overridePermissions, world, users))
-      }
-  }
-
-  private[this] def getModelWorldPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelWorldPermissionsRequest(modelId))
-    (domainRestActor ? message).mapTo[GetModelWorldPermissionsResponse]
-      .map(_.permissions)
-      .map {
-        permissions =>
-          okResponse(GetPermissionsResponse(Some(permissions)))
-      }
-  }
-
-  private[this] def setModelWorldPermissions(domain: DomainId, modelId: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetModelWorldPermissionsRequest(modelId, permissions))
-    (domainRestActor ? message) map (_ => OkResponse)
-  }
-
-  private[this] def getAllModelUserPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetAllModelUserPermissionsRequest(modelId))
-    (domainRestActor ? message).mapTo[GetAllModelUserPermissionsResponse]
-      .map(_.permissions)
-      .map {
-        permissions =>
-          okResponse(GetAllUserPermissionsResponse(permissions))
-      }
-  }
-
-  private[this] def getModelUserPermissions(domain: DomainId, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelUserPermissionsRequest(modelId, DomainUserId.normal(username)))
-    (domainRestActor ? message)
-      .mapTo[GetModelUserPermissionsResponse]
-      .map(_.permissions)
-      .map {
-        permissions =>
-          okResponse(GetPermissionsResponse(permissions))
-      }
-  }
-
-  private[this] def setModelUserPermissions(domain: DomainId, modelId: String, username: String, permissions: ModelPermissions): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetModelUserPermissionsRequest(modelId, DomainUserId.normal(username), permissions))
-    (domainRestActor ? message) map (_ => OkResponse)
-  }
-
-  private[this] def removeModelUserPermissions(domain: DomainId, modelId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, RemoveModelUserPermissionsRequest(modelId, DomainUserId.normal(username)))
-    (domainRestActor ? message) map (_ => OkResponse)
-  }
-
   private[this] def notFound(modelId: String): RestResponse = {
     notFoundResponse(Some(s"A model with id '$modelId' does not exist."))
   }
+}
+
+
+object DomainModelService {
+
+  case class ModelPost(collection: String,
+                       data: Map[String, Any],
+                       overrideWorld: Option[Boolean],
+                       worldPermissions: Option[ModelPermissions],
+                       userPermissions: Option[Map[String, ModelPermissions]])
+
+  case class ModelPut(collection: String,
+                      data: Map[String, Any],
+                      overrideWorld: Option[Boolean],
+                      worldPermissions: Option[ModelPermissions],
+                      userPermissions: Option[Map[String, ModelPermissions]]
+                     )
+
+  case class ModelMetaDataResponse(id: String,
+                                   collection: String,
+                                   version: Long,
+                                   createdTime: Instant,
+                                   modifiedTime: Instant)
+
+  case class ModelData(id: String,
+                       collection: String,
+                       version: Long,
+                       createdTime: Instant,
+                       modifiedTime: Instant,
+                       data: JObject)
+
+  case class CreateModelResponse(id: String)
+
+  case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
+
+  case class GetPermissionsResponseData(permissions: Option[ModelPermissions])
+
+  case class GetAllUserPermissionsResponseData(userPermissions: List[ModelUserPermissions])
+
+  case class GetModelOverridesPermissionsResponse(overrideWorld: Boolean)
+
+  case class SetOverrideWorldRequest(overrideWorld: Boolean)
+
+  case class ModelQueryPost(query: String, offset: Option[Int], limit: Option[Int])
+
 }

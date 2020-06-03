@@ -16,13 +16,12 @@ import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 
 package model {
 
-  case class ModelFqn(domainFqn: DomainId, modelId: String)
+  case class ModelId(domainId: DomainId, modelId: String)
   
-  case class ClientAutoCreateModelConfigResponse(collectionId: String, modelData: Option[ObjectValue], overridePermissions: Option[Boolean],
-    worldPermissions: Option[ModelPermissions], userPermissions: Map[DomainUserId, ModelPermissions], ephemeral: Option[Boolean])
+
 
   case class ModelNotFoundException(modelId: String) extends Exception(s"A model with id '$modelId' does not exist.")
-  case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '$modelId' already exists.")
+//  case class ModelAlreadyExistsException(modelId: String) extends Exception(s"A model with id '$modelId' already exists.")
 
   case class CreateCollectionRequest(collection: Collection)
   case class UpdateCollectionRequest(collection: Collection)
@@ -30,10 +29,7 @@ package model {
   case class GetCollectionRequest(collectionId: String)
   case object GetCollectionsRequest
 
-  case class ModelAlreadyOpenException() extends RuntimeException()
-  case class ModelAlreadyOpeningException() extends RuntimeException()
-  case class ModelNotOpenException() extends RuntimeException()
-  case class ModelDeletedWhileOpeningException() extends RuntimeException()
+
   case class ClientDataRequestFailure(message: String) extends RuntimeException(message)
   
   case class ModelShutdownRequest(modelId: String, ephemeral: Boolean)

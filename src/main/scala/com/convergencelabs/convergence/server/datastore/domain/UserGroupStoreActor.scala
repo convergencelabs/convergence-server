@@ -12,91 +12,235 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import grizzled.slf4j.Logging
 
-class UserGroupStoreActor private[datastore](private[this] val groupStore: UserGroupStore)
-  extends StoreActor with ActorLogging {
+import scala.util.{Failure, Success}
+
+class UserGroupStoreActor private[datastore](private[this] val context: ActorContext[UserGroupStoreActor.Message],
+                                             private[this] val groupStore: UserGroupStore)
+  extends AbstractBehavior[UserGroupStoreActor.Message](context) with Logging {
 
   import UserGroupStoreActor._
 
-  def receive: Receive = {
-    case message: UserGroupStoreRequest =>
-      onUserGroupStoreRequest(message)
-    case message: Any =>
-      unhandled(message)
-  }
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case CreateUserGroupRequest(group, replyTo) =>
+        groupStore.createUserGroup(group) match {
+          case Success(_) =>
+            replyTo ! RequestSuccess()
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
 
-  def onUserGroupStoreRequest(message: UserGroupStoreRequest): Unit = {
-    message match {
-      case CreateUserGroupRequest(group) =>
-        reply(groupStore.createUserGroup(group))
-      case DeleteUserGroupRequest(id) =>
-        reply(groupStore.deleteUserGroup(id))
+      case DeleteUserGroupRequest(id, replyTo) =>
+        groupStore.deleteUserGroup(id) match {
+          case Success(_) =>
+            replyTo ! RequestSuccess()
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
 
-      case GetUserGroupRequest(id) =>
-        reply(groupStore.getUserGroup(id).map(GetUserGroupResponse))
-      case GetUserGroupsRequest(filter, offset, limit) =>
-        reply(groupStore.getUserGroups(filter, offset, limit).map(GetUserGroupsResponse))
-      case GetUserGroupSummaryRequest(id) =>
-        reply(groupStore.getUserGroupSummary(id).map(GetUserGroupSummaryResponse))
-      case GetUserGroupSummariesRequest(filter, offset, limit) =>
-        reply(groupStore.getUserGroupSummaries(filter, offset, limit).map(GetUserGroupSummariesResponse))
-      case GetUserGroupInfoRequest(id) =>
-        reply(groupStore.getUserGroupInfo(id).map(GetUserGroupInfoResponse))
+      case GetUserGroupRequest(id, replyTo) =>
+        groupStore.getUserGroup(id) match {
+          case Success(group) =>
+            replyTo ! GetUserGroupSuccess(group)
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
 
-      case UpdateUserGroupRequest(id, group) =>
-        reply(groupStore.updateUserGroup(id, group))
-      case UpdateUserGroupInfoRequest(id, info) =>
-        reply(groupStore.updateUserGroupInfo(id, info))
+      case GetUserGroupsRequest(filter, offset, limit, replyTo) =>
+        groupStore.getUserGroups(filter, offset, limit) match {
+          case Success(groups) =>
+            replyTo ! GetUserGroupsSuccess(groups)
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
 
-      case AddUserToGroupRequest(id, userId) =>
-        reply(groupStore.addUserToGroup(id, userId))
-      case RemoveUserFromGroupRequest(id, userId) =>
-        reply(groupStore.removeUserFromGroup(id, userId))
+      case GetUserGroupSummaryRequest(id, replyTo) =>
+        groupStore.getUserGroupSummary(id) match {
+          case Success(summary) =>
+            replyTo ! GetUserGroupSummarySuccess(summary)
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
+
+      case GetUserGroupSummariesRequest(filter, offset, limit, replyTo) =>
+        groupStore.getUserGroupSummaries(filter, offset, limit) match {
+          case Success(summaries) =>
+            replyTo ! GetUserGroupSummariesSuccess(summaries)
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
+
+      case GetUserGroupInfoRequest(id, replyTo) =>
+        groupStore.getUserGroupInfo(id) match {
+          case Success(info) =>
+            replyTo ! GetUserGroupInfoSuccess(info)
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
+
+      case UpdateUserGroupRequest(id, group, replyTo) =>
+        groupStore.updateUserGroup(id, group) match {
+          case Success(_) =>
+            replyTo ! RequestSuccess()
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
+
+      case UpdateUserGroupInfoRequest(id, info, replyTo) =>
+        groupStore.updateUserGroupInfo(id, info) match {
+          case Success(_) =>
+            replyTo ! RequestSuccess()
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
+
+      case AddUserToGroupRequest(id, userId, replyTo) =>
+        groupStore.addUserToGroup(id, userId) match {
+          case Success(_) =>
+            replyTo ! RequestSuccess()
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
+
+      case RemoveUserFromGroupRequest(id, userId, replyTo) =>
+        groupStore.removeUserFromGroup(id, userId) match {
+          case Success(_) =>
+            replyTo ! RequestSuccess()
+          case Failure(cause) =>
+            replyTo ! RequestFailure(cause)
+        }
     }
+
+    Behaviors.same
   }
 }
 
 
 object UserGroupStoreActor {
-  def props(groupStore: UserGroupStore): Props = Props(new UserGroupStoreActor(groupStore))
+  def apply(groupStore: UserGroupStore): Behavior[Message] = Behaviors.setup { context =>
+    new UserGroupStoreActor(context, groupStore)
+  }
 
-  sealed trait UserGroupStoreRequest extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable with DomainRestMessageBody
 
-  case class AddUserToGroupRequest(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
+  //
+  // AddUserToGroup
+  //
+  case class AddUserToGroupRequest(groupId: String, userId: DomainUserId, replyTo: ActorRef[AddUserToGroupResponse]) extends Message
 
-  case class RemoveUserFromGroupRequest(groupId: String, userId: DomainUserId) extends UserGroupStoreRequest
+  sealed trait AddUserToGroupResponse extends CborSerializable
 
-  case class CreateUserGroupRequest(group: UserGroup) extends UserGroupStoreRequest
 
-  case class UpdateUserGroupRequest(id: String, group: UserGroup) extends UserGroupStoreRequest
+  //
+  // RemoveUserFromGroup
+  //
+  case class RemoveUserFromGroupRequest(groupId: String, userId: DomainUserId, replyTo: ActorRef[RemoveUserFromGroupResponse]) extends Message
 
-  case class UpdateUserGroupInfoRequest(id: String, group: UserGroupInfo) extends UserGroupStoreRequest
+  sealed trait RemoveUserFromGroupResponse extends CborSerializable
 
-  case class DeleteUserGroupRequest(id: String) extends UserGroupStoreRequest
+  //
+  // CreateUserGroup
+  //
+  case class CreateUserGroupRequest(group: UserGroup, replyTo: ActorRef[CreateUserGroupResponse]) extends Message
 
-  case class GetUserGroupRequest(id: String) extends UserGroupStoreRequest
+  sealed trait CreateUserGroupResponse extends CborSerializable
 
-  case class GetUserGroupResponse(userGroup: Option[UserGroup]) extends CborSerializable
 
-  case class GetUserGroupInfoRequest(id: String) extends UserGroupStoreRequest
+  //
+  // UpdateUserGroup
+  //
+  case class UpdateUserGroupRequest(id: String, group: UserGroup, replyTo: ActorRef[UpdateUserGroupResponse]) extends Message
 
-  case class GetUserGroupInfoResponse(groupInfo: Option[UserGroupInfo]) extends CborSerializable
+  sealed trait UpdateUserGroupResponse extends CborSerializable
 
-  case class GetUserGroupSummaryRequest(id: String) extends UserGroupStoreRequest
+  //
+  // UpdateUserGroupInfo
+  //
+  case class UpdateUserGroupInfoRequest(id: String, group: UserGroupInfo, replyTo: ActorRef[UpdateUserGroupInfoResponse]) extends Message
 
-  case class GetUserGroupSummaryResponse(summary: Option[UserGroupSummary]) extends CborSerializable
+  sealed trait UpdateUserGroupInfoResponse extends CborSerializable
 
-  case class GetUserGroupsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
+  //
+  // DeleteUserGroup
+  //
+  case class DeleteUserGroupRequest(id: String, replyTo: ActorRef[DeleteUserGroupResponse]) extends Message
 
-  case class GetUserGroupsResponse(userGroups: List[UserGroup]) extends CborSerializable
+  sealed trait DeleteUserGroupResponse extends CborSerializable
 
-  case class GetUserGroupSummariesRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends UserGroupStoreRequest
+  //
+  // GetUserGroup
+  //
+  case class GetUserGroupRequest(id: String, replyTo: ActorRef[GetUserGroupResponse]) extends Message
 
-  case class GetUserGroupSummariesResponse(summaries: List[UserGroupSummary]) extends CborSerializable
+  sealed trait GetUserGroupResponse extends CborSerializable
+
+  case class GetUserGroupSuccess(userGroup: Option[UserGroup]) extends GetUserGroupResponse
+
+  //
+  // GetUserGroupIng
+  //
+  case class GetUserGroupInfoRequest(id: String, replyTo: ActorRef[GetUserGroupInfoResponse]) extends Message
+
+  sealed trait GetUserGroupInfoResponse extends CborSerializable
+
+  case class GetUserGroupInfoSuccess(groupInfo: Option[UserGroupInfo]) extends GetUserGroupInfoResponse
+
+  //
+  // GetUserGroupSummary
+  //
+  case class GetUserGroupSummaryRequest(id: String, replyTo: ActorRef[GetUserGroupSummaryResponse]) extends Message
+
+  sealed trait GetUserGroupSummaryResponse extends CborSerializable
+
+  case class GetUserGroupSummarySuccess(summary: Option[UserGroupSummary]) extends GetUserGroupSummaryResponse
+
+  //
+  // GetUserGroups
+  //
+  case class GetUserGroupsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
+
+  sealed trait GetUserGroupsResponse extends CborSerializable
+
+  case class GetUserGroupsSuccess(userGroups: List[UserGroup]) extends GetUserGroupsResponse
+
+  //
+  // GetUserGroupSummaries
+  //
+  case class GetUserGroupSummariesRequest(filter: Option[String], offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetUserGroupSummariesResponse]) extends Message
+
+  sealed trait GetUserGroupSummariesResponse extends CborSerializable
+
+  case class GetUserGroupSummariesSuccess(summaries: List[UserGroupSummary]) extends GetUserGroupSummariesResponse
+
+  //
+  // Helpers
+  //
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with AddUserToGroupResponse
+    with RemoveUserFromGroupResponse
+    with CreateUserGroupResponse
+    with UpdateUserGroupResponse
+    with UpdateUserGroupInfoResponse
+    with DeleteUserGroupResponse
+    with GetUserGroupResponse
+    with GetUserGroupInfoResponse
+    with GetUserGroupSummaryResponse
+    with GetUserGroupsResponse
+    with GetUserGroupSummariesResponse
+
+  case class RequestSuccess() extends CborSerializable
+    with AddUserToGroupResponse
+    with RemoveUserFromGroupResponse
+    with CreateUserGroupResponse
+    with UpdateUserGroupResponse
+    with UpdateUserGroupInfoResponse
+    with DeleteUserGroupResponse
 
 }

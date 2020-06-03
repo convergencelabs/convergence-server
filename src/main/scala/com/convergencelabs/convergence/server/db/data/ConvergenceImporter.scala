@@ -11,15 +11,15 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import akka.actor.ActorRef
-import akka.pattern.ask
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.CreateDomainRequest
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore
+import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.{CreateDomainRequest, CreateDomainResponse, CreateDomainSuccess}
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.datastore.convergence.{DomainStoreActor, UserStore}
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
 import com.convergencelabs.convergence.server.db.{DatabaseProvider, SingleDatabaseProvider}
-import com.convergencelabs.convergence.server.domain.DomainDatabase
+import com.convergencelabs.convergence.server.domain.DomainId
 import grizzled.slf4j.Logging
 
 import scala.concurrent.ExecutionContext
@@ -27,12 +27,12 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
-class ConvergenceImporter(
-  private[this] val dbBaseUri: String,
-  private[this] val convergenceDbProvider: DatabaseProvider,
-  private[this] val domainStoreActor: ActorRef,
-  private[this] val data: ConvergenceScript,
-  private[this] implicit val ec: ExecutionContext) extends Logging {
+class ConvergenceImporter(private[this] val dbBaseUri: String,
+                          private[this] val convergenceDbProvider: DatabaseProvider,
+                          private[this] val domainStoreActor: ActorRef[DomainStoreActor.Message],
+                          private[this] val data: ConvergenceScript,
+                          private[this] implicit val ec: ExecutionContext,
+                          private[this] implicit val system: ActorSystem[_]) extends Logging {
 
   def importData(): Try[Unit] = {
     importUsers() flatMap (_ =>
@@ -69,47 +69,43 @@ class ConvergenceImporter(
       _.map { domainData =>
         logger.debug(s"Importing domain: ${domainData.namespace}/${domainData.id}")
 
-        // FIXME Anonymous Auth and OWNER
-        val domainCreateRequest = CreateDomainRequest(
-          domainData.namespace, domainData.id, domainData.displayName, anonymousAuth = false, "owner")
-
         // FIXME hardcoded timeout
         implicit val requestTimeout: Timeout = Timeout(4 minutes)
         logger.debug(s"Requesting domain provisioning for: ${domainData.namespace}/${domainData.id}")
-        val response = (domainStoreActor ? domainCreateRequest).mapTo[DomainDatabase]
+        // FIXME Anonymous Auth and OWNER
+        domainStoreActor.ask[CreateDomainResponse](CreateDomainRequest(
+          domainData.namespace, domainData.id, domainData.displayName, anonymousAuth = false, "owner", _))
+          .map {
+            case CreateDomainSuccess(dbInfo) =>
+              logger.debug(s"Domain database provisioned successfully: ${domainData.namespace}/${domainData.id}")
+              domainData.dataImport map { script =>
+                logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
 
-        response.foreach {
-          dbInfo =>
-            logger.debug(s"Domain database provisioned successfully: ${domainData.namespace}/${domainData.id}")
-            domainData.dataImport map { script =>
-              logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
-
-              val dbProvider = new SingleDatabaseProvider(dbBaseUri, dbInfo.database, dbInfo.username, dbInfo.password)
-              val provider = new DomainPersistenceProviderImpl(dbProvider)
-              val domainImporter = new DomainImporter(provider, script)
-              dbProvider
-                .connect()
-                .flatMap(_ => domainImporter.importDomain())
-                .map { _ =>
-                  logger.debug("Domain import successful.")
-                  dbProvider.shutdown()
-                }
-                .recoverWith {
-                  case cause: Exception =>
+                val dbProvider = new SingleDatabaseProvider(dbBaseUri, dbInfo.database, dbInfo.username, dbInfo.password)
+                val provider = new DomainPersistenceProviderImpl(DomainId(domainData.namespace, domainData.id), dbProvider)
+                val domainImporter = new DomainImporter(provider, script)
+                dbProvider
+                  .connect()
+                  .flatMap(_ => domainImporter.importDomain())
+                  .map { _ =>
+                    logger.debug("Domain import successful.")
                     dbProvider.shutdown()
-                    logger.error("Domain import failed", cause)
-                    Failure(cause)
-                }
-            } orElse {
-              logger.debug("No data to import, domain provisioing complete")
-              None
-            }
-        }
-
-        response.failed.foreach {
-          case cause: Exception =>
-            logger.error("Domain provisioing failed", cause)
-        }
+                  }
+                  .recoverWith {
+                    case cause: Exception =>
+                      dbProvider.shutdown()
+                      logger.error("Domain import failed", cause)
+                      Failure(cause)
+                  }
+              } orElse {
+                logger.debug("No data to import, domain provisioing complete")
+                None
+              }
+          }
+          .recover {
+            case cause: Exception =>
+              logger.error("Domain provisioing failed", cause)
+          }
       }
     }
   }

@@ -11,17 +11,18 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import akka.actor.ActorRef
+import akka.actor.typed.ActorRef
+import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
 
 private[chat] class ChatRoomSessionManager {
 
-  private[this] var clients = Set[ActorRef]()
-  private[this] var clientSessionMap = Map[ActorRef, DomainUserSessionId]()
-  private[this] var sessionClientMap = Map[DomainUserSessionId, ActorRef]()
+  private[this] var clients = Set[ActorRef[ChatClientActor.OutgoingMessage]]()
+  private[this] var clientSessionMap = Map[ActorRef[ChatClientActor.OutgoingMessage], DomainUserSessionId]()
+  private[this] var sessionClientMap = Map[DomainUserSessionId, ActorRef[ChatClientActor.OutgoingMessage]]()
   private[this] var userSessionMap = Map[DomainUserId, Set[DomainUserSessionId]]()
 
-  def join(domainSessionId: DomainUserSessionId, client: ActorRef): Boolean = {
+  def join(domainSessionId: DomainUserSessionId, client: ActorRef[ChatClientActor.OutgoingMessage]): Boolean = {
     val userId = domainSessionId.userId
     val userSessions = this.userSessionMap.getOrElse(userId, Set())
     val newSessions = userSessions + domainSessionId
@@ -59,11 +60,11 @@ private[chat] class ChatRoomSessionManager {
     this.sessionClientMap.contains(session)
   }
 
-  def connectedClients(): Set[ActorRef] = {
+  def connectedClients(): Set[ActorRef[ChatClientActor.OutgoingMessage]] = {
     clients
   }
 
-  def getSession(client: ActorRef): Option[DomainUserSessionId] = clientSessionMap.get(client)
+  def getSession(client: ActorRef[ChatClientActor.OutgoingMessage]): Option[DomainUserSessionId] = clientSessionMap.get(client)
 
-  def getClient(domainSessionId: DomainUserSessionId): Option[ActorRef] = sessionClientMap.get(domainSessionId)
+  def getClient(domainSessionId: DomainUserSessionId): Option[ActorRef[_]] = sessionClientMap.get(domainSessionId)
 }

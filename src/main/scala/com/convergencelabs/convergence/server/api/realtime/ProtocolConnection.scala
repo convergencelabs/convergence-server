@@ -13,13 +13,13 @@ package com.convergencelabs.convergence.server.api.realtime
 
 import java.util.concurrent.TimeoutException
 
-import akka.actor.{ActorRef, Cancellable, Scheduler, actorRef2Scala}
+import akka.actor.Cancellable
+import akka.actor.typed.{ActorRef, Scheduler}
 import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.api.realtime.ClientActor.SendUnprocessedMessage
 import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.OutgoingBinaryMessage
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
@@ -62,7 +62,7 @@ trait ReplyCallback {
    * @param code    The machine readable code indicting the well known error.
    * @param message A human readable message with additional details.
    */
-  def expectedError(code: String, message: String): Unit
+  def expectedError(code: ErrorCodes.ErrorCode, message: String): Unit
 
   /**
    * Replies with a well known error condition.
@@ -71,7 +71,7 @@ trait ReplyCallback {
    * @param message A human readable message with additional details.
    * @param details Additional machine readable data related to the error.
    */
-  def expectedError(code: String, message: String, details: Map[String, JValue]): Unit
+  def expectedError(code: ErrorCodes.ErrorCode, message: String, details: Map[String, JValue]): Unit
 }
 
 /**
@@ -113,8 +113,8 @@ case class RequestReceived(message: GeneratedMessage with RequestMessage, replyC
  *                        heartbeats.
  * @param ec              The execution context to use for asynchronous work.
  */
-class ProtocolConnection(private[this] val clientActor: ActorRef,
-                         private[this] val connectionActor: ActorRef,
+class ProtocolConnection(private[this] val clientActor: ActorRef[ClientActor.FromProtocolConnection],
+                         private[this] val connectionActor: ActorRef[OutgoingBinaryMessage],
                          private[this] val protocolConfig: ProtocolConfiguration,
                          private[this] val scheduler: Scheduler,
                          private[this] val ec: ExecutionContext)
@@ -165,7 +165,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
     val replyPromise = Promise[GeneratedMessage with ResponseMessage]
 
     val timeout = protocolConfig.defaultRequestTimeout
-    val timeoutFuture = scheduler.scheduleOnce(timeout) {
+    val timeoutFuture = scheduler.scheduleOnce(timeout, () => {
       requests.synchronized({
         requests.remove(requestId) match {
           case Some(record) =>
@@ -175,7 +175,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
           // no action required.
         }
       })
-    }
+    })
 
     val body = ConvergenceMessageBodyUtils.toBody(message)
     val convergenceMessage = ConvergenceMessage()
@@ -280,7 +280,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
   }
 
   private[this] def sendMessage(convergenceMessage: ConvergenceMessage): Unit = {
-    clientActor ! SendUnprocessedMessage(convergenceMessage)
+    clientActor ! ClientActor.SendUnprocessedMessage(convergenceMessage)
   }
 
   private[this] def onReply(message: GeneratedMessage with ResponseMessage, responseId: Int): Unit = {
@@ -311,7 +311,7 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
     case PingRequest =>
       this.serializeAndSend(ConvergenceMessage().withPing(PingMessage()))
     case PongTimeout =>
-      clientActor ! PongTimeout
+      clientActor ! ClientActor.PongTimeout
   }
 
   /**
@@ -330,16 +330,16 @@ class ProtocolConnection(private[this] val clientActor: ActorRef,
     }
 
     def unexpectedError(message: String): Unit = {
-      expectedError("unknown", message)
+      expectedError(ErrorCodes.Unknown, message)
     }
 
-    def expectedError(code: String, message: String): Unit = {
+    def expectedError(code: ErrorCodes.ErrorCode, message: String): Unit = {
       expectedError(code, message, Map[String, JValue]())
     }
 
-    def expectedError(code: String, message: String, details: Map[String, JValue]): Unit = {
+    def expectedError(code: ErrorCodes.ErrorCode, message: String, details: Map[String, JValue]): Unit = {
       val protoDetails = JsonProtoConverter.jValueMapToValueMap(details)
-      val errorMessage = ErrorMessage(code, message, protoDetails)
+      val errorMessage = ErrorMessage(code.toString, message, protoDetails)
 
       val envelope = ConvergenceMessage(
         None,

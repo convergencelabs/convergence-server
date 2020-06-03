@@ -16,7 +16,7 @@ import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSche
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.model.query.Ast._
 
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])

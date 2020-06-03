@@ -13,12 +13,12 @@ package com.convergencelabs.convergence.server.api.rest.domain
 
 import java.time.Duration
 
-import akka.actor.ActorRef
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
@@ -26,37 +26,18 @@ import com.convergencelabs.convergence.server.datastore.domain.CollectionPermiss
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor._
 import com.convergencelabs.convergence.server.domain.model.Collection
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainCollectionService {
-
-  case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
-
-  case class CollectionData(id: String,
-                            description: String,
-                            worldPermissions: CollectionPermissionsData,
-                            overrideSnapshotPolicy: Boolean,
-                            snapshotPolicy: ModelSnapshotPolicyData)
-
-  case class CollectionUpdateData(description: String,
-                                  worldPermissions: CollectionPermissionsData,
-                                  overrideSnapshotPolicy: Boolean,
-                                  snapshotPolicy: ModelSnapshotPolicyData)
-
-  case class CollectionSummaryData(id: String,
-                                   description: String,
-                                   modelCount: Int)
-
-}
-
-class DomainCollectionService(private[this] val executionContext: ExecutionContext,
-                              private[this] val timeout: Timeout,
-                              private[this] val domainRestActor: ActorRef)
-  extends AbstractDomainRestService(executionContext, timeout) {
+class DomainCollectionService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
+                              private[this] val system: ActorSystem[_],
+                              private[this] val executionContext: ExecutionContext,
+                              private[this] val timeout: Timeout)
+  extends AbstractDomainRestService(system, executionContext, timeout) {
 
   import DomainCollectionService._
 
@@ -97,49 +78,74 @@ class DomainCollectionService(private[this] val executionContext: ExecutionConte
   }
 
   private[this] def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollectionsRequest(filter, offset, limit))
-    (domainRestActor ? message).mapTo[GetCollectionsResponse] map { response =>
-      val collections = response.collections.data.map(collectionToCollectionData)
-      okResponse(PagedRestResponse(collections, response.collections.offset, response.collections.count))
+    domainRestActor.ask[GetCollectionsResponse](r =>
+      DomainRestMessage(domain, GetCollectionsRequest(filter, offset, limit, r))).flatMap {
+      case GetCollectionsSuccess(response) =>
+        val collections = response.data.map(collectionToCollectionData)
+        Future.successful(okResponse(PagedRestResponse(collections, response.offset, response.count)))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def getCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollectionRequest(collectionId))
-    (domainRestActor ? message).mapTo[GetCollectionResponse].map(_.collection).map {
-      case Some(collection) => okResponse(collectionToCollectionData(collection))
-      case None => notFoundResponse()
+    domainRestActor.ask[GetCollectionResponse](r =>
+      DomainRestMessage(domain, GetCollectionRequest(collectionId, r))).flatMap {
+      case GetCollectionSuccess(Some(collection)) =>
+        Future.successful(okResponse(collectionToCollectionData(collection)))
+      case GetCollectionSuccess(None) =>
+        Future.successful(notFoundResponse())
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def createCollection(domain: DomainId, collectionData: CollectionData): Future[RestResponse] = {
     val collection = this.collectionDataToCollection(collectionData)
-    val message = DomainRestMessage(domain, CreateCollection(collection))
-    (domainRestActor ? message) map { _ => CreatedResponse }
+    domainRestActor.ask[CreateCollectionResponse](r =>
+      DomainRestMessage(domain, CreateCollectionRequest(collection, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def updateCollection(domain: DomainId, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
     val CollectionUpdateData(description, worldPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData
     val collectionData = CollectionData(collectionId, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     val collection = this.collectionDataToCollection(collectionData)
-    val message = DomainRestMessage(domain, UpdateCollection(collectionId, collection))
-    (domainRestActor ? message) map ( _ => OkResponse )
+    domainRestActor.ask[UpdateCollectionResponse](r =>
+      DomainRestMessage(domain, UpdateCollectionRequest(collectionId, collection, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def deleteCollection(domain: DomainId, collectionId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, DeleteCollection(collectionId))
-    (domainRestActor ? message) map ( _ => DeletedResponse )
+    domainRestActor.ask[DeleteCollectionResponse](r =>
+      DomainRestMessage(domain, DeleteCollectionRequest(collectionId, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetCollectionSummariesRequest(filter, offset, limit))
-    (domainRestActor ? message).mapTo[GetCollectionSummariesResponse].map(_.collections) map { results =>
-      val collections = results.data.map { c =>
-        val CollectionSummary(id, desc, count) = c
-        CollectionSummaryData(id, desc, count)
-      }
-      val response = PagedRestResponse(collections, results.offset, results.count)
-      okResponse(response)
+    domainRestActor.ask[GetCollectionSummariesResponse](r =>
+      DomainRestMessage(domain, GetCollectionSummariesRequest(filter, offset, limit, r))).flatMap {
+      case GetCollectionSummariesSuccess(results) =>
+        val collections = results.data.map { c =>
+          val CollectionSummary(id, desc, count) = c
+          CollectionSummaryData(id, desc, count)
+        }
+        val response = PagedRestResponse(collections, results.offset, results.count)
+        Future.successful(okResponse(response))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
@@ -207,4 +213,25 @@ class DomainCollectionService(private[this] val executionContext: ExecutionConte
     val collectionData = CollectionData(id, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     collectionData
   }
+}
+
+object DomainCollectionService {
+
+  case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
+
+  case class CollectionData(id: String,
+                            description: String,
+                            worldPermissions: CollectionPermissionsData,
+                            overrideSnapshotPolicy: Boolean,
+                            snapshotPolicy: ModelSnapshotPolicyData)
+
+  case class CollectionUpdateData(description: String,
+                                  worldPermissions: CollectionPermissionsData,
+                                  overrideSnapshotPolicy: Boolean,
+                                  snapshotPolicy: ModelSnapshotPolicyData)
+
+  case class CollectionSummaryData(id: String,
+                                   description: String,
+                                   modelCount: Int)
+
 }

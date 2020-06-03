@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import akka.actor.ActorContext
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
+import akka.actor.typed.scaladsl.ActorContext
+import com.convergencelabs.convergence.server.domain.chat.ChatActor._
 
 import scala.util.{Failure, Try}
 
@@ -23,20 +23,20 @@ import scala.util.{Failure, Try}
  * @param context      The actor context that the ChatActors are deployed into.
  */
 private[chat] class DirectChatMessageProcessor(stateManager: ChatStateManager,
-                                               context: ActorContext)
+                                               context: ActorContext[_])
   extends MembershipChatMessageProcessor(stateManager, context) {
 
-  override def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
+  override def processChatMessage(message: RequestMessage): Try[ChatMessageProcessingResult[_]] = {
     message match {
-      case _: AddUserToChannelRequest =>
+      case _: AddUserToChatRequest =>
         Failure(InvalidChatMessageException("Can not add user to a direct channel"))
-      case _: RemoveUserFromChannelRequest =>
+      case _: RemoveUserFromChatRequest =>
         Failure(InvalidChatMessageException("Can not remove a user from a direct channel"))
-      case _: JoinChannelRequest =>
+      case _: JoinChatRequest =>
         Failure(InvalidChatMessageException("Can not join a direct channel"))
-      case _: LeaveChannelRequest =>
+      case _: LeaveChatRequest =>
         Failure(InvalidChatMessageException("Can not leave a direct channel"))
-      case _: ExistingChatMessage =>
+      case _: Message =>
         super.processChatMessage(message)
     }
   }

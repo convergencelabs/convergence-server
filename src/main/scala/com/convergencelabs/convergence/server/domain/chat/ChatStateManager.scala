@@ -16,7 +16,6 @@ import java.time.Instant
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.datastore.domain._
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatNotFoundException
 import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.{AllChatChannelPermissions, ChatPermissions, DefaultChatPermissions}
 import com.convergencelabs.convergence.server.domain.{DomainUserId, UnauthorizedException}
 import grizzled.slf4j.Logging
@@ -34,7 +33,7 @@ private[chat] object ChatStateManager extends Logging {
     chatChannelStore.getChatInfo(chatId) map { info =>
       val ChatInfo(id, channelType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members) = info
       val memberMap = members.map(member => (member.userId, member)).toMap
-      val state = ChatChannelState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, memberMap)
+      val state = ChatState(id, channelType, created, isPrivate, name, topic, lastEventTime, lastEventNo, memberMap)
       new ChatStateManager(chatId, state, chatChannelStore, permissionsStore)
     } recoverWith {
       case cause: EntityNotFoundException =>
@@ -67,13 +66,11 @@ private[chat] object ChatStateManager extends Logging {
 }
 
 private[chat] class ChatStateManager(private[this] val chatId: String,
-                                     private[this] var state: ChatChannelState,
+                                     private[this] var state: ChatState,
                                      private[this] val chatStore: ChatStore,
                                      private[this] val permissionsStore: PermissionsStore) extends Logging {
 
-  import ChatMessages._
-
-  def state(): ChatChannelState = {
+  def state(): ChatState = {
     state
   }
 
@@ -87,7 +84,7 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
     hasPermission(userId, ChatPermissions.JoinChannel).flatMap { _ =>
       val members = state.members
       if (members contains userId) {
-        Failure(ChatAlreadyJoinedException(chatId))
+        Failure(ChatActor.ChatAlreadyJoinedException(chatId))
       } else {
         val newMembers = members + (userId -> ChatMember(chatId, userId, 0))
 
@@ -127,7 +124,7 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
           event
         }
       } else {
-        Failure(ChatNotJoinedException(chatId))
+        Failure(ChatActor.ChatNotJoinedException(chatId))
       }
     }
   }
@@ -136,7 +133,7 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
     hasPermission(userId, ChatPermissions.AddUser).flatMap { _ =>
       val members = state.members
       if (members contains userToAdd) {
-        Failure(ChatAlreadyJoinedException(chatId))
+        Failure(ChatActor.ChatAlreadyJoinedException(chatId))
       } else {
         val newMembers = members + (userToAdd -> ChatMember(chatId, userToAdd, 0))
         val eventNo = state.lastEventNumber + 1
@@ -176,7 +173,7 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
           event
         }
       } else {
-        Failure(ChatNotJoinedException(chatId))
+        Failure(ChatActor.ChatNotJoinedException(chatId))
       }
     }
   }
@@ -251,7 +248,7 @@ private[chat] class ChatStateManager(private[this] val chatId: String,
         event
       }
     } else {
-      Failure(ChatNotJoinedException(this.chatId))
+      Failure(ChatActor.ChatNotJoinedException(this.chatId))
     }
   }
 

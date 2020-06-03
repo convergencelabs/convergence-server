@@ -13,43 +13,26 @@ package com.convergencelabs.convergence.server.api.rest.domain
 
 import java.time.Duration
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, authorize, complete, entity, get, path, pathPrefix, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{OkResponse, RestResponse, okResponse}
-import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor._
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.{GetModelSnapshotPolicyResponse, _}
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.{DomainRestMessage, Message}
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainConfigService {
-
-  case class AnonymousAuthPut(enabled: Boolean)
-
-  case class AnonymousAuthResponse(enabled: Boolean)
-
-  case class ModelSnapshotPolicyData(snapshotsEnabled: Boolean,
-                                     triggerByVersion: Boolean,
-                                     maximumVersionInterval: Long,
-                                     limitByVersion: Boolean,
-                                     minimumVersionInterval: Long,
-                                     triggerByTime: Boolean,
-                                     maximumTimeInterval: Long,
-                                     limitByTime: Boolean,
-                                     minimumTimeInterval: Long)
-
-}
-
-class DomainConfigService(private[this] val executionContext: ExecutionContext,
-                          private[this] val timeout: Timeout,
-                          private[this] val domainRestActor: ActorRef)
-  extends AbstractDomainRestService(executionContext, timeout) {
+class DomainConfigService(private[this] val domainRestActor: ActorRef[Message],
+                          private[this] val system: ActorSystem[_],
+                          private[this] val executionContext: ExecutionContext,
+                          private[this] val timeout: Timeout)
+  extends AbstractDomainRestService(system, executionContext, timeout) {
 
   import DomainConfigService._
 
@@ -81,39 +64,49 @@ class DomainConfigService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getAnonymousAuthEnabled(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetAnonymousAuthRequest)
-    (domainRestActor ? message).mapTo[GetAnonymousAuthResponse].map(_.enabled) map
-      (enabled => okResponse(AnonymousAuthResponse(enabled)))
+    domainRestActor.ask[GetAnonymousAuthResponse](r => DomainRestMessage(domain, GetAnonymousAuthRequest(r))).flatMap {
+      case GetAnonymousAuthSuccess(enabled) =>
+        Future.successful(okResponse(AnonymousAuthResponseData(enabled)))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def setAnonymousAuthEnabled(domain: DomainId, request: AnonymousAuthPut): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, SetAnonymousAuthRequest(request.enabled))
-    (domainRestActor ? message) map (_ => OkResponse)
+    domainRestActor.ask[SetAnonymousAuthResponse](r => DomainRestMessage(domain, SetAnonymousAuthRequest(request.enabled, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def getModelSnapshotPolicy(domain: DomainId): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetModelSnapshotPolicyRequest)
-    (domainRestActor ? message).mapTo[GetModelSnapshotPolicyResponse].map(_.policy) map { policy =>
-      val ModelSnapshotConfig(
-      snapshotsEnabled,
-      triggerByVersion,
-      limitByVersion,
-      minimumVersionInterval,
-      maximumVersionInterval,
-      triggerByTime,
-      limitByTime,
-      minimumTimeInterval,
-      maximumTimeInterval) = policy
-      okResponse(ModelSnapshotPolicyData(
+    domainRestActor.ask[GetModelSnapshotPolicyResponse](r => DomainRestMessage(domain, GetModelSnapshotPolicyRequest(r))).flatMap {
+      case GetModelSnapshotPolicySuccess(policy) =>
+        val ModelSnapshotConfig(
         snapshotsEnabled,
         triggerByVersion,
-        maximumVersionInterval,
         limitByVersion,
         minimumVersionInterval,
+        maximumVersionInterval,
         triggerByTime,
-        maximumTimeInterval.toMillis,
         limitByTime,
-        minimumTimeInterval.toMillis))
+        minimumTimeInterval,
+        maximumTimeInterval) = policy
+        val responseData = ModelSnapshotPolicyData(
+          snapshotsEnabled,
+          triggerByVersion,
+          maximumVersionInterval,
+          limitByVersion,
+          minimumVersionInterval,
+          triggerByTime,
+          maximumTimeInterval.toMillis,
+          limitByTime,
+          minimumTimeInterval.toMillis)
+        Future.successful(okResponse(responseData))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
@@ -142,7 +135,28 @@ class DomainConfigService(private[this] val executionContext: ExecutionContext,
         Duration.ofMillis(minimumTimeInterval),
         Duration.ofMillis(maximumTimeInterval))
 
-    val message = DomainRestMessage(domain, SetModelSnapshotPolicyRequest(policy))
-    (domainRestActor ? message) map (_ => OkResponse)
+    domainRestActor.ask[SetModelSnapshotPolicyResponse](r => DomainRestMessage(domain, SetModelSnapshotPolicyRequest(policy, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
+}
+
+object DomainConfigService {
+
+  case class AnonymousAuthPut(enabled: Boolean)
+
+  case class AnonymousAuthResponseData(enabled: Boolean)
+
+  case class ModelSnapshotPolicyData(snapshotsEnabled: Boolean,
+                                     triggerByVersion: Boolean,
+                                     maximumVersionInterval: Long,
+                                     limitByVersion: Boolean,
+                                     minimumVersionInterval: Long,
+                                     triggerByTime: Boolean,
+                                     maximumTimeInterval: Long,
+                                     limitByTime: Boolean,
+                                     minimumTimeInterval: Long)
 }

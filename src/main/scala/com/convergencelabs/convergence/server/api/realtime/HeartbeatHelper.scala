@@ -11,7 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.{Cancellable, Scheduler}
+import akka.actor.Cancellable
+import akka.actor.typed.Scheduler
 import grizzled.slf4j.Logging
 
 import scala.concurrent.ExecutionContext
@@ -114,7 +115,7 @@ private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDu
   private[this] def sendPing(): Unit = {
     handler lift PingRequest
     logger.trace("Requesting pint, scheduling the pong timeout.")
-    this.timeoutFuture = Some(scheduler.scheduleOnce(pongTimeout)(onTimeout())(ec))
+    this.timeoutFuture = Some(scheduler.scheduleOnce(pongTimeout, () => onTimeout())(ec))
   }
 
   private[this] def onTimeout(): Unit = {
@@ -140,6 +141,6 @@ private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDu
 
   private[this] def restartPingTimeout(): Unit = {
     stopPingTimer()
-    pingFuture = Some(scheduler.scheduleOnce(pingInterval)(sendPing())(ec))
+    pingFuture = Some(scheduler.scheduleOnce(pingInterval, () => sendPing())(ec))
   }
 }

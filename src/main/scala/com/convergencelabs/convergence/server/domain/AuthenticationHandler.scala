@@ -43,7 +43,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
                             private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
-  def authenticate(request: AuthenticationCredentials): Try[AuthenticationResponse] = {
+  def authenticate(request: AuthenticationCredentials): Try[DomainActor.AuthenticationResponse] = {
     request match {
       case message: PasswordAuthRequest =>
         authenticatePassword(message)
@@ -60,15 +60,15 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
   // Reconnect Auth
   //
 
-  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Try[AuthenticationResponse] = {
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Try[DomainActor.AuthenticationResponse] = {
     userStore.validateReconnectToken(reconnectRequest.token) flatMap {
       case Some(userId) =>
         authSuccess(userId, Some(reconnectRequest.token))
       case None =>
-        Success(AuthenticationFailure)
+        Success(DomainActor.AuthenticationFailure)
     } recoverWith {
       case cause =>
-        Failure(AuthenticationError(s"$domainFqn: Unable to authenticate a user via reconnect token.", cause))
+        Failure(DomainActor.AuthenticationError(s"$domainFqn: Unable to authenticate a user via reconnect token.", cause))
     }
   }
 
@@ -76,13 +76,13 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
   // Anonymous Auth
   //
 
-  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Try[AuthenticationResponse] = {
+  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Try[DomainActor.AuthenticationResponse] = {
     val AnonymousAuthRequest(displayName) = authRequest
     debug(s"$domainFqn: Processing anonymous authentication request with display name: $displayName")
     domainConfigStore.isAnonymousAuthEnabled() flatMap {
       case false =>
         debug(s"$domainFqn: Anonymous auth is disabled; returning AuthenticationFailure.")
-        Success(AuthenticationFailure)
+        Success(DomainActor.AuthenticationFailure)
       case true =>
         debug(s"$domainFqn: Anonymous auth is enabled; creating anonymous user.")
         userStore.createAnonymousDomainUser(displayName) flatMap { username =>
@@ -92,14 +92,14 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
         }
     } recoverWith {
       case cause: Throwable =>
-        Failure(AuthenticationError(s"$domainFqn: Anonymous authentication error", cause))
+        Failure(DomainActor.AuthenticationError(s"$domainFqn: Anonymous authentication error", cause))
     }
   }
 
   //
   // Password Auth
   //
-  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Try[AuthenticationResponse] = {
+  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Try[DomainActor.AuthenticationResponse] = {
     logger.debug(s"$domainFqn: Authenticating by username and password")
     userStore.validateCredentials(authRequest.username, authRequest.password) flatMap {
       case true =>
@@ -109,17 +109,17 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
           response
         }
       case false =>
-        Success(AuthenticationFailure)
+        Success(DomainActor.AuthenticationFailure)
     } recoverWith {
       case cause: Throwable =>
-        Failure(AuthenticationError(s"$domainFqn: Unable to authenticate a user", cause))
+        Failure(DomainActor.AuthenticationError(s"$domainFqn: Unable to authenticate a user", cause))
     }
   }
 
   //
   // JWT Auth
   //
-  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Try[AuthenticationResponse] = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Try[DomainActor.AuthenticationResponse] = {
     // This implements a two pass approach to be able to get the key id.
     val firstPassJwtConsumer = new JwtConsumerBuilder()
       .setSkipAllValidators()
@@ -136,7 +136,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
         authenticateJwtWithPublicKey(authRequest, publicKey, admin)
       case None =>
         logger.warn(s"$domainFqn: Request to authenticate via token, with an invalid keyId: $keyId")
-        Success(AuthenticationFailure)
+        Success(DomainActor.AuthenticationFailure)
     }
   }
 
@@ -168,7 +168,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
     }
   }
 
-  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): Try[AuthenticationResponse] = {
+  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): Try[DomainActor.AuthenticationResponse] = {
     val jwtConsumer = new JwtConsumerBuilder()
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
@@ -207,9 +207,9 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
     } recoverWith {
       case cause: InvalidJwtException =>
         logger.debug(s"Invalid JWT: ${cause.getMessage}")
-        Success(AuthenticationFailure)
+        Success(DomainActor.AuthenticationFailure)
       case cause: Exception =>
-        Failure(AuthenticationError(s"$domainFqn: Unable to authenticate a user via jwt.", cause))
+        Failure(DomainActor.AuthenticationError(s"$domainFqn: Unable to authenticate a user via jwt.", cause))
     }
   }
 
@@ -254,21 +254,21 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
   // Common Auth Success handling
   //
 
-  private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[AuthenticationSuccess] = {
+  private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[DomainActor.AuthenticationSuccess] = {
     logger.debug(s"$domainFqn: Creating session after authentication success.")
     sessionStore.nextSessionId flatMap { sessionId =>
       reconnectToken match {
         case Some(reconnectToken) =>
-          Success(AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(reconnectToken)))
+          Success(DomainActor.AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(reconnectToken)))
         case None =>
           logger.debug(s"$domainFqn: Creating reconnect token.")
           userStore.createReconnectToken(userId) map { token =>
             logger.debug(s"$domainFqn: Returning auth success.")
-            AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(token))
+            DomainActor.AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(token))
           } recover {
             case error: Throwable =>
               logger.error(s"$domainFqn: Unable to create reconnect token", error)
-              AuthenticationSuccess(DomainUserSessionId(sessionId, userId), None)
+              DomainActor.AuthenticationSuccess(DomainUserSessionId(sessionId, userId), None)
           }
       }
     }

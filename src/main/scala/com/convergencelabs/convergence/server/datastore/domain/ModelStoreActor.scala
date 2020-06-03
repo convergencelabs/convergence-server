@@ -11,56 +11,82 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelNotFoundException, ModelQueryResult}
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import grizzled.slf4j.Logging
 
-import scala.util.{Failure, Success}
+import scala.util.Success
 
-private[datastore] class ModelStoreActor(private[this] val persistenceProvider: DomainPersistenceProvider)
-  extends StoreActor with ActorLogging {
+class ModelStoreActor private[datastore](context: ActorContext[ModelStoreActor.Message],
+                                         private[this] val persistenceProvider: DomainPersistenceProvider)
+  extends AbstractBehavior[ModelStoreActor.Message](context) with Logging {
 
   import ModelStoreActor._
 
-  def receive: Receive = {
-    case GetModelsRequest(offset, limit) =>
-      handleGetModels(offset, limit)
-    case GetModelsInCollectionRequest(collectionId, offset, limit) =>
-      handleGetModelsInCollection(collectionId, offset, limit)
-    case message: QueryModelsRequest =>
-      onQueryModelsRequest(message)
-    case message: GetModelUpdateRequest =>
-      handleGetModelUpdate(message)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case msg: GetModelsRequest =>
+        onGetModels(msg)
+      case msg: GetModelsInCollectionRequest =>
+        onGetModelsInCollection(msg)
+      case message: QueryModelsRequest =>
+        onQueryModelsRequest(message)
+      case message: GetModelUpdateRequest =>
+        onGetModelUpdate(message)
+    }
+
+    Behaviors.same
   }
 
-  private[this] def handleGetModels(offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(persistenceProvider.modelStore.getAllModelMetaData(offset, limit).map(GetModelsResponse))
+  private[this] def onGetModels(msg: GetModelsRequest): Unit = {
+    val GetModelsRequest(offset, limit, replyTo) = msg
+    persistenceProvider.modelStore.getAllModelMetaData(offset, limit)
+      .map(models => GetModelsResponse(Right(models)))
+      .recover { cause =>
+        error("Unexpected error getting models", cause)
+        GetModelsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def handleGetModelsInCollection(collectionId: String, offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(persistenceProvider.modelStore.getAllModelMetaDataInCollection(collectionId, offset, limit).map(GetModelsInCollectionResponse))
+  private[this] def onGetModelsInCollection(msg: GetModelsInCollectionRequest): Unit = {
+    val GetModelsInCollectionRequest(collectionId, offset, limit, replyTo) = msg
+    persistenceProvider.modelStore.getAllModelMetaDataInCollection(collectionId, offset, limit)
+      .map(models => GetModelsInCollectionResponse(Right(models)))
+      .recover { cause =>
+        error("Unexpected error getting models in collection", cause)
+        GetModelsInCollectionResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
-    val QueryModelsRequest(userId, query) = request
+    val QueryModelsRequest(userId, query, replyTo) = request
     val uid: Option[DomainUserId] = if (userId.userType == DomainUserType.Convergence) {
       None
     } else {
       Some(userId)
     }
 
-    reply(persistenceProvider.modelStore.queryModels(query, uid).map(QueryModelsResponse))
+    persistenceProvider.modelStore.queryModels(query, uid)
+      .map(results => QueryModelsResponse(Right(results)))
+      .recover {
+        case QueryParsingException(message, query, index) =>
+          QueryModelsResponse(Left(InvalidQueryError(message, query, index)))
+        case cause =>
+          error("Unexpected error getting models in collection", cause)
+          QueryModelsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def handleGetModelUpdate(request: GetModelUpdateRequest): Unit = {
-    val GetModelUpdateRequest(modelId, currentVersion, currentPermissions, userId) = request
-    val result = persistenceProvider.modelPermissionsStore.getUsersCurrentModelPermissions(modelId, userId).flatMap {
+  private[this] def onGetModelUpdate(request: GetModelUpdateRequest): Unit = {
+    val GetModelUpdateRequest(modelId, currentVersion, currentPermissions, userId, replyTo) = request
+    persistenceProvider.modelPermissionsStore.getUsersCurrentModelPermissions(modelId, userId).flatMap {
       case Some(permissions) =>
         if (permissions.read) {
           // Model still exists and is still readable. Check to see if the
@@ -79,7 +105,8 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
                   OfflineModelInitial(model, permissions, prefix)
                 }
               case None =>
-                Failure(ModelNotFoundException(modelId))
+                warn("A model was deleted during an update request")
+                Success(OfflineModelDeleted())
             }
           } else {
             persistenceProvider.modelStore.getModelIfNewer(modelId, currentVersion) map { modelUpdate =>
@@ -103,47 +130,97 @@ private[datastore] class ModelStoreActor(private[this] val persistenceProvider: 
         // Model doesn't exist anymore
         Success(OfflineModelDeleted())
     }
-
-    reply(result)
+      .map(action => GetModelUpdateResponse(Right(action)))
+      .recover {
+        case cause: Throwable =>
+          error("Unexpected error processing model update request", cause)
+          GetModelUpdateResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
 object ModelStoreActor {
-  def RelativePath = "ModelStoreActor"
+  def apply(persistenceProvider: DomainPersistenceProvider): Behavior[Message] = Behaviors.setup { context =>
+    new ModelStoreActor(context, persistenceProvider)
+  }
 
-  def props(persistenceProvider: DomainPersistenceProvider): Props =
-    Props(new ModelStoreActor(persistenceProvider))
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait ModelStoreRequest extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
-  case class GetModelsRequest(offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
+  //
+  // GetModels
+  //
+  case class GetModelsRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsResponse]) extends Message
 
-  case class GetModelsResponse(models: List[ModelMetaData]) extends CborSerializable
+  sealed trait GetModelsError
 
-  case class GetModelsInCollectionRequest(collectionId: String, offset: Option[Int], limit: Option[Int]) extends ModelStoreRequest
+  case class GetModelsResponse(models: Either[GetModelsError, List[ModelMetaData]]) extends CborSerializable
 
-  case class GetModelsInCollectionResponse(models: List[ModelMetaData]) extends CborSerializable
+  //
+  // GetModelsInCollection
+  //
+  case class GetModelsInCollectionRequest(collectionId: String, offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
 
-  case class QueryModelsRequest(userId: DomainUserId, query: String) extends ModelStoreRequest
+  sealed trait GetModelsInCollectionError
 
-  case class QueryModelsResponse(result: PagedData[ModelQueryResult]) extends CborSerializable
+  case class GetModelsInCollectionResponse(models: Either[GetModelsInCollectionError, List[ModelMetaData]]) extends CborSerializable
 
+  //
+  // Query Models
+  //
+  case class QueryModelsRequest(userId: DomainUserId, query: String, replyTo: ActorRef[QueryModelsResponse]) extends Message
+
+  sealed trait QueryModelsError
+
+  case class InvalidQueryError(message: String, query: String, index: Option[Int]) extends QueryModelsError
+
+  case class QueryModelsResponse(result: Either[QueryModelsError, PagedData[ModelQueryResult]]) extends CborSerializable
+
+  //
+  // GetModelUpdate
+  //
   case class GetModelUpdateRequest(modelId: String,
                                    currentVersion: Long,
                                    currentPermissions: ModelPermissions,
-                                   userId: DomainUserId) extends ModelStoreRequest
+                                   userId: DomainUserId,
+                                   replyTo: ActorRef[GetModelUpdateResponse]) extends Message
 
 
-  sealed trait OfflineModelUpdateAction extends CborSerializable
+  sealed trait GetModelUpdateError
 
-  case class OfflineModelPermissionRevoked() extends OfflineModelUpdateAction
+  sealed trait ModelUpdateResult
 
-  case class OfflineModelNotUpdate() extends OfflineModelUpdateAction
+  case class OfflineModelPermissionRevoked() extends ModelUpdateResult
 
-  case class OfflineModelDeleted() extends OfflineModelUpdateAction
+  case class OfflineModelNotUpdate() extends ModelUpdateResult
 
-  case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends OfflineModelUpdateAction
+  case class OfflineModelDeleted() extends ModelUpdateResult
 
-  case class OfflineModelInitial(model: Model, permissions: ModelPermissions, valueIdPrefix: Long) extends OfflineModelUpdateAction
+  case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends ModelUpdateResult
+
+  case class OfflineModelInitial(model: Model, permissions: ModelPermissions, valueIdPrefix: Long) extends ModelUpdateResult
+
+
+  case class GetModelUpdateResponse(result: Either[GetModelUpdateError, ModelUpdateResult]) extends CborSerializable
+
+  //
+  // Common Errors
+  //
+
+  sealed trait RequestError
+
+  case class ModelNotFoundError() extends RequestError
+    with GetModelsInCollectionError
+    with GetModelsError
+
+  case class UnknownError() extends RequestError
+    with QueryModelsError
+    with GetModelsInCollectionError
+    with GetModelsError
+    with GetModelUpdateError
 
 }

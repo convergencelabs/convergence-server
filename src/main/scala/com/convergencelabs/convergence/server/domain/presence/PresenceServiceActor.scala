@@ -11,170 +11,257 @@
 
 package com.convergencelabs.convergence.server.domain.presence
 
-import org.json4s.JsonAST.JValue
-
-import com.convergencelabs.convergence.server.domain.DomainId
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.api.realtime.PresenceClientActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.util.SubscriptionMap
-
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.Terminated
-import akka.cluster.pubsub.DistributedPubSub
+import grizzled.slf4j.Logging
+import org.json4s.JsonAST.JValue
 
 // FIXME This entire actor needs to be re-designed. This does not scale at all
-// we probably need to store presence state / data in the database so that
-// this can become stateless. Then we can use distributed pub-sub as mechanism
-// for persistence subscriptions.
-object PresenceServiceActor {
-
-  val RelativePath = "presenceService"
-
-  def props(domainFqn: DomainId): Props = Props(
-    new PresenceServiceActor(domainFqn))
-  
-}
-
-class PresenceServiceActor private[domain] (domainFqn: DomainId) extends Actor with ActorLogging {
+//  we probably need to store presence state / data in the database so that
+//  this can become stateless. Then we can use distributed pub-sub as mechanism
+//  for persistence subscriptions.
+class PresenceServiceActor private[domain](context: ActorContext[PresenceServiceActor.Message])
+  extends AbstractBehavior[PresenceServiceActor.Message](context) with Logging {
 
   private var presences = Map[DomainUserId, UserPresence]()
-  
+
   // FIXME These are particularly problematic.  We are storing actor refs and userIds
-  // in memory.  there is not a good way to persist this.
-  private var subscriptions = SubscriptionMap[ActorRef, DomainUserId]()
-  private var clients = Map[ActorRef, DomainUserId]()
-  
-  val pubSubMediator = DistributedPubSub(context.system).mediator
+  //  in memory.  there is not a good way to persist this.
+  private val subscriptions = SubscriptionMap[ActorRef[PresenceClientActor.OutgoingMessage], DomainUserId]()
+  private var clients = Map[ActorRef[PresenceClientActor.OutgoingMessage], DomainUserId]()
 
-  
-  def receive: Receive = {
-    case GetPresenceRequest(userIds) =>
-      onGetPresence(userIds)
-    case UserConnected(userId, client) =>
-      userConnected(userId, client)
-    case UserPresenceSetState(userId, state) =>
-      setState(userId, state)
-    case UserPresenceRemoveState(userId, key) =>
-      removeState(userId, key)
-    case UserPresenceClearState(userId) =>
-      clearState(userId)
-    case SubscribePresence(userIds, client) =>
-      subscribe(userIds, client)
-    case UnsubscribePresence(userIds, client) =>
-      unsubscribe(userIds, client)
+  import PresenceServiceActor._
+
+  override def onMessage(msg: PresenceServiceActor.Message): Behavior[Message] = {
+    msg match {
+      case msg: GetPresenceRequest =>
+        onGetPresence(msg)
+      case msg: GetPresencesRequest =>
+        onGetPresences(msg)
+      case msg: UserConnected =>
+        onUserConnected(msg)
+      case msg: SetUserPresenceState =>
+        onSetState(msg)
+      case msg: RemoveUserPresenceState =>
+        onRemoveState(msg)
+      case msg: ClearUserPresenceState =>
+        onClearState(msg)
+      case msg: SubscribePresenceRequest =>
+        onSubscribe(msg)
+      case UnsubscribePresence(userIds, client) =>
+        onUnsubscribe(userIds, client)
+    }
+
+  }
+
+  override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
     case Terminated(client) =>
-      handleDeathwatch(client)
+      onUserDisconnected(client.asInstanceOf[ActorRef[PresenceClientActor.OutgoingMessage]])
   }
 
-  private[this] def onGetPresence(userIds: List[DomainUserId]): Unit = {
-    val presence = lookupPresence(userIds)
-    sender ! GetPresenceResponse(presence)
+  private[this] def onGetPresences(msg: GetPresencesRequest): Behavior[Message] = {
+    val GetPresencesRequest(userIds, replyTo) = msg
+    val presence = lookupPresences(userIds)
+    replyTo ! GetPresencesResponse(Right(presence))
+    Behaviors.same
   }
 
-  private[this] def userConnected(userId: DomainUserId, client: ActorRef): Unit = {
+  private[this] def onGetPresence(msg: GetPresenceRequest): Behavior[Message] = {
+    val GetPresenceRequest(userId, replyTo) = msg
+    val presence = lookupPresence(userId)
+    replyTo ! GetPresenceResponse(Right(presence))
+    Behaviors.same
+  }
+
+  private[this] def onUserConnected(msg: UserConnected): Behavior[Message] = {
+    val UserConnected(userId, client) = msg
+
     this.subscriptions.subscribe(client, userId)
-    
+
     clients += (client -> userId)
     val result = this.presences.get(userId) match {
       case Some(presence) =>
         presence.copy(clients = presence.clients + client)
-      case None => {
-        this.broadcastToSubscribed(userId, UserPresenceAvailability(userId, available = true))
+      case None =>
+        this.broadcastToSubscribed(userId, PresenceClientActor.UserPresenceAvailabilityChanged(userId, available = true))
         UserPresence(userId, available = true, Map(), Set(client))
-      }
     }
-    
+
     context.watch(client)
     this.presences += (userId -> result)
+    Behaviors.same
   }
 
-  private[this] def userDisconnected(client: ActorRef): Unit = {
+  private[this] def onUserDisconnected(client: ActorRef[PresenceClientActor.OutgoingMessage]): Behavior[Message] = {
+    this.subscriptions.unsubscribe(client)
     clients.get(client) match {
-      case Some(userId) => {
+      case Some(userId) =>
         clients -= client
         this.presences.get(userId) match {
           case Some(presence) =>
             val updated = presence.copy(clients = presence.clients - client)
             if (updated.clients.isEmpty) {
               this.presences -= userId
-              this.broadcastToSubscribed(userId, UserPresenceAvailability(userId, false))
+              this.broadcastToSubscribed(userId, PresenceClientActor.UserPresenceAvailabilityChanged(userId, available = false))
             } else {
               this.presences += (userId -> updated)
             }
           case None =>
         }
-      }
       case None =>
     }
+    Behaviors.same
   }
 
-  private[this] def setState(userId: DomainUserId, state: Map[String, JValue]): Unit = {
+  private[this] def onSetState(msg: SetUserPresenceState): Behavior[Message]  = {
+    val SetUserPresenceState(userId, state) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
         state foreach { case (k, v) =>
-          this.presences += (userId -> presence.copy(state = presence.state + (k -> v)))  
+          this.presences += (userId -> presence.copy(state = presence.state + (k -> v)))
         }
-        this.broadcastToSubscribed(userId, UserPresenceSetState(userId, state))
+        this.broadcastToSubscribed(userId, PresenceClientActor.UserPresenceStateSet(userId, state))
       case None =>
       // TODO Error
     }
+    Behaviors.same
   }
-  
-  private[this] def clearState(userId: DomainUserId): Unit = {
+
+  private[this] def onClearState(msg: ClearUserPresenceState): Behavior[Message] = {
+    val ClearUserPresenceState(userId) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
         this.presences += (userId -> presence.copy(state = Map()))
-        this.broadcastToSubscribed(userId, UserPresenceClearState(userId))
+        this.broadcastToSubscribed(userId, PresenceClientActor.UserPresenceStateCleared(userId))
       case None =>
       // TODO Error
     }
+    Behaviors.same
   }
 
-  private[this] def removeState(userId: DomainUserId, keys: List[String]): Unit = {
+  private[this] def onRemoveState(msg: RemoveUserPresenceState): Behavior[Message] = {
+    val RemoveUserPresenceState(userId, keys) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
         keys foreach { key =>
-          this.presences += (userId -> presence.copy(state = presence.state - key))  
+          this.presences += (userId -> presence.copy(state = presence.state - key))
         }
-        this.broadcastToSubscribed(userId, UserPresenceRemoveState(userId, keys))
+        this.broadcastToSubscribed(userId, PresenceClientActor.UserPresenceStateRemoved(userId, keys))
       case None =>
       // TODO Error
     }
+    Behaviors.same
   }
 
-  private[this] def subscribe(userIds: List[DomainUserId], client: ActorRef): Unit = {
+  private[this] def onSubscribe(msg: SubscribePresenceRequest): Behavior[Message] = {
+    val SubscribePresenceRequest(userIds, client, replyTo) = msg
     userIds.foreach { userId =>
       this.subscriptions.subscribe(client, userId)
     }
-    sender ! lookupPresence(userIds)
+    replyTo ! SubscribePresenceResponse(Right(lookupPresences(userIds)))
+    Behaviors.same
   }
 
-  private[this] def unsubscribe(userIds: List[DomainUserId], client: ActorRef): Unit = {
+  private[this] def onUnsubscribe(userIds: List[DomainUserId], client: ActorRef[PresenceClientActor.OutgoingMessage]): Behavior[Message] = {
     userIds.foreach(userId => this.subscriptions.unsubscribe(client, userId))
+    Behaviors.same
   }
 
-  private[this] def lookupPresence(userIds: List[DomainUserId]): List[UserPresence] = {
-    userIds.map { userId =>
-      this.presences.get(userId) match {
-        case Some(presence) =>
-          presence
-        case None =>
-          UserPresence(userId, available = false, Map(), Set())
-      }
-    }
+  private[this] def lookupPresences(userIds: List[DomainUserId]): List[UserPresence] = {
+    userIds.map(lookupPresence)
   }
 
-  private[this] def broadcastToSubscribed(userId: DomainUserId, message: Any): Unit = {
+  private[this] def lookupPresence(userId: DomainUserId): UserPresence = {
+    def defaultPresence: UserPresence = UserPresence(userId, available = false, Map(), Set())
+    this.presences.getOrElse(userId, default = defaultPresence)
+  }
+
+
+  private[this] def broadcastToSubscribed(userId: DomainUserId, message: PresenceClientActor.OutgoingMessage): Unit = {
     val subscribers = this.subscriptions.subscribers(userId)
     subscribers foreach { client =>
       client ! message
     }
   }
-  
-  private[this] def handleDeathwatch(client: ActorRef): Unit = {
-    this.subscriptions.unsubscribe(client)
-    userDisconnected(client)
+}
+
+object PresenceServiceActor {
+
+  def apply(): Behavior[Message] = Behaviors.setup { context =>
+    new PresenceServiceActor(context)
   }
+
+  sealed trait Message extends CborSerializable
+
+  //
+  // GetPresences
+  //
+  case class GetPresencesRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetPresencesResponse]) extends Message
+
+  sealed trait GetPresencesError
+
+  case class GetPresencesResponse(presence: Either[GetPresencesError, List[UserPresence]]) extends CborSerializable
+
+  //
+  // GetPresence
+  //
+  case class GetPresenceRequest(userId: DomainUserId, replyTo: ActorRef[GetPresenceResponse]) extends Message
+
+  sealed trait GetPresenceError
+
+  case class GetPresenceResponse(presence: Either[GetPresenceError, UserPresence]) extends CborSerializable
+
+  //
+  // SubscribePresence
+  //
+  case class SubscribePresenceRequest(userIds: List[DomainUserId],
+                                      client: ActorRef[PresenceClientActor.OutgoingMessage],
+                                      replyTo: ActorRef[SubscribePresenceResponse]) extends Message
+
+  sealed trait SubscribePresenceError
+
+  case class SubscribePresenceResponse(presences: Either[SubscribePresenceError, List[UserPresence]])
+
+  //
+  // Unsubscribe
+  //
+  case class UnsubscribePresence(userIds: List[DomainUserId], client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
+
+
+  //
+  // UserConnected
+  //
+  case class UserConnected(userId: DomainUserId, client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
+
+  //
+  // SetUserPresenceState
+  //
+  case class SetUserPresenceState(userId: DomainUserId, state: Map[String, JValue]) extends Message
+
+  //
+  // RemoveUserPresenceState
+  //
+  case class RemoveUserPresenceState(userId: DomainUserId, keys: List[String]) extends Message
+
+  //
+  // ClearUserPresenceState
+  //
+  case class ClearUserPresenceState(userId: DomainUserId) extends Message
+
+
+  //
+  // Common Errors
+  //
+  case class UserNotFound(userId: DomainUserId) extends GetPresenceError
+    with GetPresencesError
+    with SubscribePresenceError
+
+  case class UnknownError() extends GetPresenceError
+    with GetPresencesError
+    with SubscribePresenceError
+
 }

@@ -11,36 +11,63 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
+import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.domain.model.ModelOperation
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import grizzled.slf4j.Logging
 
-class ModelOperationStoreActor private[datastore] (
-  private[this] val operationStore: ModelOperationStore)
-    extends StoreActor with ActorLogging {
+class ModelOperationStoreActor private(context: ActorContext[ModelOperationStoreActor.Message],
+                                       operationStore: ModelOperationStore)
+  extends AbstractBehavior[ModelOperationStoreActor.Message](context) with Logging {
+
   import ModelOperationStoreActor._
-  def receive: Receive = {
-    case GetOperationsRequest(modelId, first, last) =>
-      handleGetOperations(modelId, first, last)
-    case message: Any =>
-      unhandled(message)
+
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case msg: GetOperationsRequest =>
+        handleGetOperations(msg)
+    }
+    Behaviors.same
   }
 
-  def handleGetOperations(modelId: String, first: Long, last: Long): Unit = {
-    reply(operationStore.getOperationsInVersionRange(modelId, first, last).map(GetOperationsResponse))
+  def handleGetOperations(msg: GetOperationsRequest): Unit = {
+    val GetOperationsRequest(modelId, first, last, replyTo) = msg
+    operationStore.getOperationsInVersionRange(modelId, first, last)
+      .map(ops => GetOperationsResponse(Right(ops)))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetOperationsResponse(Left(ModelNotFoundError()))
+        case _ =>
+          GetOperationsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
 object ModelOperationStoreActor {
-  val RelativePath = "ModelOperationStoreActor"
+  def apply(operationStore: ModelOperationStore): Behavior[Message] =
+    Behaviors.setup(context => new ModelOperationStoreActor(context, operationStore))
 
-  def props(operationStore: ModelOperationStore): Props = Props(new ModelOperationStoreActor(operationStore))
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait ModelOperationStoreRequest extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
-  case class GetOperationsRequest(modelId: String, first: Long, last: Long) extends ModelOperationStoreRequest
+  case class GetOperationsRequest(modelId: String, first: Long, last: Long, replyTo: ActorRef[GetOperationsResponse]) extends Message
 
-  case class GetOperationsResponse(operations: List[ModelOperation]) extends CborSerializable
+  sealed trait GetOperationsError
+
+  case class GetOperationsResponse(operations: Either[GetOperationsError, List[ModelOperation]]) extends CborSerializable
+
+  sealed trait RequestError
+
+  case class ModelNotFoundError() extends RequestError
+    with GetOperationsError
+
+  case class UnknownError() extends RequestError
+    with GetOperationsError
+
 }

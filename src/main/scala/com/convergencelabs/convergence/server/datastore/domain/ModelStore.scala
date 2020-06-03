@@ -35,7 +35,7 @@ import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JObject
 import org.parboiled2.ParseError
 
-import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
 object ModelStore {
@@ -284,6 +284,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   }
 
   // TODO implement orderBy and ascending / descending
+  // FIXME Paged Data
   def getAllModelMetaData(offset: Option[Int],
                           limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
 

@@ -11,68 +11,114 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import akka.actor.{ActorLogging, Props}
-import akka.util.Timeout
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{Domain, DomainId}
+import grizzled.slf4j.Logging
 
-import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 
-class UserFavoriteDomainStoreActor private[datastore](private[this] val dbProvider: DatabaseProvider) extends StoreActor
-  with ActorLogging {
+private class UserFavoriteDomainStoreActor private[datastore](private[this] val context: ActorContext[UserFavoriteDomainStoreActor.Message],
+                                                      private[this] val dbProvider: DatabaseProvider)
+  extends AbstractBehavior[UserFavoriteDomainStoreActor.Message](context) with Logging {
 
   import UserFavoriteDomainStoreActor._
 
-  // FIXME: Read this from configuration
-  private[this] implicit val requestTimeout: Timeout = Timeout(2 seconds)
-  private[this] implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
 
   private[this] val favoriteStore = new UserFavoriteDomainStore(dbProvider)
 
-  def receive: Receive = {
-    case message: AddFavoriteDomainRequest =>
-      onAddFavorite(message)
-    case message: RemoveFavoriteDomainRequest =>
-      onRemoveFavorite(message)
-    case message: GetFavoritesForUserRequest =>
-      onGetFavoritesForUser(message)
-    case message: Any => unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case message: AddFavoriteDomainRequest =>
+        onAddFavorite(message)
+      case message: RemoveFavoriteDomainRequest =>
+        onRemoveFavorite(message)
+      case message: GetFavoritesForUserRequest =>
+        onGetFavoritesForUser(message)
+    }
+    Behaviors.same
   }
 
+
   private[this] def onAddFavorite(message: AddFavoriteDomainRequest): Unit = {
-    val AddFavoriteDomainRequest(username, domain) = message
-    reply(favoriteStore.addFavorite(username, domain))
+    val AddFavoriteDomainRequest(username, domain, replyTo) = message
+    favoriteStore.addFavorite(username, domain) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
   private[this] def onRemoveFavorite(message: RemoveFavoriteDomainRequest): Unit = {
-    val RemoveFavoriteDomainRequest(username, domain) = message
-    reply(favoriteStore.removeFavorite(username, domain))
+    val RemoveFavoriteDomainRequest(username, domain, replyTo) = message
+    favoriteStore.removeFavorite(username, domain) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
   private[this] def onGetFavoritesForUser(message: GetFavoritesForUserRequest): Unit = {
-    val GetFavoritesForUserRequest(username) = message
-    reply(favoriteStore.getFavoritesForUser(username).map(GetFavoritesForUserResponse))
+    val GetFavoritesForUserRequest(username, replyTo) = message
+    favoriteStore.getFavoritesForUser(username) match {
+      case Success(favorites) =>
+        replyTo ! GetFavoritesForUserSuccess(favorites)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 }
 
 object UserFavoriteDomainStoreActor {
-  val RelativePath = "UserFavoriteDomainStoreActor"
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new UserFavoriteDomainStoreActor(dbProvider))
+  val Key: ServiceKey[Message] = ServiceKey[Message]("UserFavoriteDomainStore")
 
-  sealed trait UserFavoriteDomainStoreActorMessage extends CborSerializable
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
+    Behaviors.setup(context => new UserFavoriteDomainStoreActor(context, dbProvider))
 
-  case class AddFavoriteDomainRequest(username: String, domain: DomainId) extends UserFavoriteDomainStoreActorMessage
+  sealed trait Message extends CborSerializable
 
-  case class RemoveFavoriteDomainRequest(username: String, domain: DomainId) extends UserFavoriteDomainStoreActorMessage
+  //
+  // RemoveFavoriteDomain
+  //
+  case class AddFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
 
-  case class GetFavoritesForUserRequest(username: String) extends UserFavoriteDomainStoreActorMessage
+  sealed trait AddFavoriteDomainResponse extends CborSerializable
 
-  case class GetFavoritesForUserResponse(domains: Set[Domain]) extends UserFavoriteDomainStoreActorMessage
+  //
+  // RemoveFavoriteDomain
+  //
+  case class RemoveFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[RemoveFavoriteDomainResponse]) extends Message
 
+  sealed trait RemoveFavoriteDomainResponse extends CborSerializable
+
+  //
+  // GetFavoritesForUser
+  //
+  case class GetFavoritesForUserRequest(username: String, replyTo: ActorRef[GetFavoritesForUserResponse]) extends Message
+
+  sealed trait GetFavoritesForUserResponse extends CborSerializable
+
+  case class GetFavoritesForUserSuccess(domains: Set[Domain]) extends GetFavoritesForUserResponse
+
+  //
+  // Generic Responses
+  //
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with AddFavoriteDomainResponse
+    with RemoveFavoriteDomainResponse
+    with GetFavoritesForUserResponse
+
+
+  case class RequestSuccess() extends CborSerializable
+    with AddFavoriteDomainResponse
+    with RemoveFavoriteDomainResponse
 }

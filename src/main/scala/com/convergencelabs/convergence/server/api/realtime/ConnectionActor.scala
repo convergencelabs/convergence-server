@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated, actorRef2Scala}
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior, Terminated}
 
 /**
  * The [[ConnectionActor]] is a light weight actor that will receive
@@ -26,58 +26,56 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
  * web socket actor reference will be supplied through a message as
  * the connection is completed.
  *
- * @param clientActor The client actor this connection is owned by.
  */
-class ConnectionActor(clientActor: ActorRef) extends Actor with ActorLogging {
-  import ConnectionActor._
-
-  private[this] var socketActor: Option[ActorRef] = None
-
-  this.context.watch(clientActor)
-
-  def receive: Receive = {
-    case incoming: IncomingBinaryMessage =>
-      clientActor ! incoming
-
-    case outgoing: OutgoingBinaryMessage =>
-      socketActor.foreach(_ ! outgoing)
-
-    case WebSocketOpened(actor) =>
-      socketActor = Some(actor)
-      clientActor ! WebSocketOpened(self)
-
-    case WebSocketClosed =>
-      socketActor = None
-      clientActor ! WebSocketClosed
-      this.context.stop(this.self)
-
-    case akka.actor.Status.Failure(cause) =>
-      socketActor = None
-      clientActor ! WebSocketError(cause)
-      this.context.stop(self)
-
-    case CloseConnection =>
-      closeConnection()
-
-    case Terminated(actor) if actor == clientActor =>
-      closeConnection()
-  }
-  
-  private[this] def closeConnection(): Unit = {
-    socketActor.foreach(_ ! PoisonPill)
-      this.context.stop(self)
-  }
-}
-
 object ConnectionActor {
+
   /**
-   * Creates a new ConnectionActor for a specific ClientActor.
-   *
-   * @param clientActor The ClientActor this connection will be bound to.
-   *
-   * @return The new ConnectionActor.
+   * @param clientActor The client actor this connection is owned by.
    */
-  def props(clientActor: ActorRef): Props = Props(new ConnectionActor(clientActor))
+  def apply(clientActor: ActorRef[ClientActor.ConnectionMessage],
+            socketActor: Option[ActorRef[WebSocketService.WebSocketMessage]]): Behavior[Message] =
+      Behaviors.receive[Message] { (context, message: Message) =>
+        message match {
+          case IncomingBinaryMessage(data) =>
+            clientActor ! ClientActor.IncomingBinaryMessage(data)
+            Behaviors.same
+
+          case OutgoingBinaryMessage(data) =>
+            socketActor.foreach(_ ! WebSocketService.OutgoingBinaryMessage(data))
+            Behaviors.same
+
+          case WebSocketOpened(actor) =>
+            clientActor ! ClientActor.ConnectionOpened(context.self.narrow[ConnectionActor.ClientMessage])
+            ConnectionActor(clientActor, Some(actor))
+
+          case WebSocketClosed =>
+            clientActor !  ClientActor.ConnectionClosed
+            Behaviors.stopped
+
+          case WebSocketError(cause) =>
+            clientActor ! ClientActor.ConnectionError(cause)
+            Behaviors.stopped
+
+          case CloseConnection =>
+            disconnect(socketActor)
+        }
+      }.receiveSignal {
+        case (_, Terminated(actor)) if actor == clientActor =>
+          disconnect(socketActor)
+      }
+
+  private[this] def disconnect(socketActor: Option[ActorRef[WebSocketService.WebSocketMessage]]): Behavior[Message] = {
+    socketActor.foreach(_ ! WebSocketService.CloseSocket)
+    Behaviors.stopped
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
+  sealed trait Message
+
+  sealed trait WebSocketMessage extends Message
 
   /**
    * Indicates that the connection should now be open and use he supplied
@@ -86,12 +84,12 @@ object ConnectionActor {
    * @param outgoingMessageSink The ActorRef to use to send outgoing messages
    *                            to the Web Socket.
    */
-  private[realtime] case class WebSocketOpened(outgoingMessageSink: ActorRef) extends CborSerializable
+  private[realtime] case class WebSocketOpened(outgoingMessageSink: ActorRef[WebSocketService.WebSocketMessage]) extends WebSocketMessage
 
   /**
    * Indicates that the Web Socket for this connection has been closed.
    */
-  private[realtime] case object WebSocketClosed extends CborSerializable
+  private[realtime] case object WebSocketClosed extends WebSocketMessage
 
   /**
    * Indicates that the Web Socket associated with this connection emitted an
@@ -99,25 +97,29 @@ object ConnectionActor {
    *
    * @param cause The cause of the error.
    */
-  private[realtime] case class WebSocketError(cause: Throwable) extends CborSerializable
+  private[realtime] case class WebSocketError(cause: Throwable) extends WebSocketMessage
+
+
+  /**
+   * Represents an incoming binary message from the client.
+   *
+   * @param data The incoming binary web socket message data.
+   */
+  private[realtime] case class IncomingBinaryMessage(data: Array[Byte]) extends WebSocketMessage
+
+
+  private[realtime] sealed trait ClientMessage extends Message
 
   /**
    * Indicates that this connection should be closed. This message does not
    * come from the web socket, but rather from within Convergence.
    */
-  private[realtime] case object CloseConnection extends CborSerializable
-
-  /**
-   * Represents an incoming binary message from the client.
-   *
-   * @param message The incoming binary web socket message data.
-   */
-  private[realtime] case class IncomingBinaryMessage(message: Array[Byte]) extends CborSerializable
+  private[realtime] case object CloseConnection extends ClientMessage
 
   /**
    * Represents an outgoing binary message from the client.
    *
-   * @param message The outgoing binary web socket message data.
+   * @param data The outgoing binary web socket message data.
    */
-  private[realtime] case class OutgoingBinaryMessage(message: Array[Byte]) extends CborSerializable
+  private[realtime] case class OutgoingBinaryMessage(data: Array[Byte]) extends ClientMessage
 }

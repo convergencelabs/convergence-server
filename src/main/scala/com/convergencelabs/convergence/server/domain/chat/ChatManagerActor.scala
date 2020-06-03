@@ -13,88 +13,94 @@ package com.convergencelabs.convergence.server.domain.chat
 
 import java.time.Instant
 
-import akka.actor.{Actor, ActorLogging, Props, Status, actorRef2Scala}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ChatAlreadyExistsException
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.ChatAlreadyExistsException
 import com.convergencelabs.convergence.server.domain.chat.ChatStateManager.ChatPermissions
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import grizzled.slf4j.Logging
 
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-class ChatManagerActor private[domain](provider: DomainPersistenceProvider) extends Actor with ActorLogging {
+class ChatManagerActor private[domain](context: ActorContext[ChatManagerActor.Message],
+                                       private[this] val provider: DomainPersistenceProvider)
+  extends AbstractBehavior[ChatManagerActor.Message](context) with Logging {
 
   import ChatManagerActor._
 
   private[this] val chatStore: ChatStore = provider.chatStore
   private[this] val permissionsStore: PermissionsStore = provider.permissionsStore
 
-  def receive: Receive = {
-    case message: CreateChatRequest =>
-      onCreateChat(message)
-    case message: GetChatsRequest =>
-      onGetChats(message)
-    case message: GetJoinedChatsRequest =>
-      onGetJoinedChats(message)
-    case message: GetDirectChatsRequest =>
-      onGetDirect(message)
-    case message: ChatsExistsRequest =>
-      onExists(message)
-    case message: ChatsSearchRequest =>
-      onSearchChats(message)
-    case message: GetChatInfoRequest =>
-      onGetChat(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case message: CreateChatRequest =>
+        onCreateChat(message)
+      case message: GetChatsRequest =>
+        onGetChats(message)
+      case message: GetJoinedChatsRequest =>
+        onGetJoinedChats(message)
+      case message: GetDirectChatsRequest =>
+        onGetDirect(message)
+      case message: ChatsExistsRequest =>
+        onExists(message)
+      case message: ChatsSearchRequest =>
+        onSearchChats(message)
+      case message: GetChatInfoRequest =>
+        onGetChat(message)
+    }
+
+    Behaviors.same
   }
 
   private[this] def onCreateChat(message: CreateChatRequest): Unit = {
-    val CreateChatRequest(chatId, createdBy, chatType, membership, name, topic, members) = message
+    val CreateChatRequest(chatId, createdBy, chatType, membership, name, topic, members, replyTo) = message
     hasPermission(createdBy, ChatPermissions.CreateChannel).map { _ =>
       (for {
         id <- createChat(chatId, chatType, membership, name, topic, members, createdBy)
         forRecord <- chatStore.getChatRid(id)
         _ <- permissionsStore.addUserPermissions(ChatStateManager.AllChatPermissions, createdBy, Some(forRecord))
       } yield {
-        sender ! CreateChatResponse(id)
-      }) recover {
-        case _: DuplicateValueException =>
-          // FIXME how to deal with this? The chat id should only conflict if it was
-          //   defined by the user.
+        CreateChatSuccess(id)
+      }) match {
+        case Success(response) =>
+          replyTo ! response
+        case Failure(DuplicateValueException(_, _, _)) =>
           val cId = chatId.get
-          sender ! Status.Failure(ChatAlreadyExistsException(cId))
-        case NonFatal(cause) =>
-          sender ! Status.Failure(cause)
+          replyTo ! RequestFailure(ChatAlreadyExistsException(cId))
+        case Failure(cause) =>
+          replyTo ! RequestFailure(cause)
       }
     }
   }
 
   private[this] def onSearchChats(message: ChatsSearchRequest): Unit = {
-    val ChatsSearchRequest(searchTerm, searchFields, chatType, membership, offset, limit) = message
-
-    chatStore.searchChats(searchTerm, searchFields, chatType, membership, offset, limit).map { info =>
-      sender ! ChatsSearchResponse(info)
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
+    val ChatsSearchRequest(searchTerm, searchFields, chatType, membership, offset, limit, replyTo) = message
+    chatStore.searchChats(searchTerm, searchFields, chatType, membership, offset, limit) match {
+      case Success(info) =>
+        replyTo ! ChatsSearchSuccess(info)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
     }
   }
 
   private[this] def onGetChat(message: GetChatInfoRequest): Unit = {
-    val GetChatInfoRequest(chatId) = message
-    chatStore.getChatInfo(chatId).map { info =>
-      sender ! GetChatInfoResponse(info)
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
+    val GetChatInfoRequest(chatId, replyTo) = message
+    chatStore.getChatInfo(chatId) match {
+      case Success(info) =>
+        replyTo ! GetChatInfoSuccess(info)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
     }
   }
 
   private[this] def onGetChats(message: GetChatsRequest): Unit = {
-    val GetChatsRequest(sk, ids) = message
+    val GetChatsRequest(sk, ids, replyTo) = message
     Try(ids.map(chatStore.findChatInfo(_).get)).flatMap { chatInfos =>
       Try {
         chatInfos.collect {
@@ -104,14 +110,14 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
       }
     } match {
       case Success(chatInfos) =>
-        sender ! GetChatsResponse(chatInfos)
+        replyTo ! GetChatsSuccess(chatInfos)
       case Failure(cause) =>
-        sender ! Status.Failure(cause)
+        replyTo ! RequestFailure(cause)
     }
   }
 
   private[this] def onExists(message: ChatsExistsRequest): Unit = {
-    val ChatsExistsRequest(sk, ids) = message
+    val ChatsExistsRequest(sk, ids, replyTo) = message
     Try(ids.map(chatStore.findChatInfo(_).get)).flatMap { chatInfos =>
       Try {
         chatInfos.map {
@@ -123,23 +129,23 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
       }
     } match {
       case Success(chatInfos) =>
-        sender ! ChatsExistsResponse(chatInfos)
+        replyTo ! ChatsExistsSuccess(chatInfos)
       case Failure(cause) =>
-        sender ! Status.Failure(cause)
+        replyTo ! RequestFailure(cause)
     }
   }
 
   private[this] def onGetDirect(message: GetDirectChatsRequest): Unit = {
-    val GetDirectChatsRequest(userId, userIdList) = message
+    val GetDirectChatsRequest(userId, userIdList, replyTo) = message
     Try {
       // The channel must contain the user who is looking it up and any other users
       val members = userIdList.map(l => l + userId)
       members.map(members => getOrCreateDirectChat(userId, members).get)
-    } map { chats =>
-      sender ! GetDirectChatsResponse(chats)
-    } recover {
-      case cause: Throwable =>
-        sender ! Status.Failure(cause)
+    } match {
+      case Success(chats) =>
+        replyTo ! GetDirectChatsSuccess(chats)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
     }
   }
 
@@ -171,12 +177,12 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
   }
 
   private[this] def onGetJoinedChats(message: GetJoinedChatsRequest): Unit = {
-    val GetJoinedChatsRequest(userId) = message
-    this.chatStore.getJoinedChannels(userId) map { channels =>
-      sender ! GetJoinedChatsResponse(channels)
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
+    val GetJoinedChatsRequest(userId, replyTo) = message
+    this.chatStore.getJoinedChannels(userId)  match {
+      case Success(chats) =>
+        replyTo ! GetJoinedChatsSuccess(chats)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
     }
   }
 
@@ -221,24 +227,29 @@ class ChatManagerActor private[domain](provider: DomainPersistenceProvider) exte
 
 object ChatManagerActor {
 
-  val RelativePath = "chatManagerActor"
+  def apply(provider: DomainPersistenceProvider): Behavior[Message] = Behaviors.setup { context =>
+    new ChatManagerActor(context, provider)
+  }
 
-  def props(provider: DomainPersistenceProvider): Props = Props(new ChatManagerActor(provider))
-
-  trait ChatManagerActorRequest extends CborSerializable with DomainRestMessageBody
+  trait Message extends CborSerializable with DomainRestMessageBody
 
   case class ChatsSearchRequest(searchTerm: Option[String],
                                 searchFields: Option[Set[String]],
                                 chatType: Option[Set[ChatType.Value]],
                                 membership: Option[ChatMembership.Value],
                                 offset: Option[Long],
-                                limit: Option[Long]) extends ChatManagerActorRequest
+                                limit: Option[Long],
+                                replyTo: ActorRef[ChatsSearchResponse]) extends Message
 
-  case class ChatsSearchResponse(chats: PagedData[ChatInfo]) extends CborSerializable
+  sealed trait ChatsSearchResponse extends CborSerializable
 
-  case class GetChatInfoRequest(chatId: String) extends ChatManagerActorRequest
+  case class ChatsSearchSuccess(chats: PagedData[ChatInfo]) extends ChatsSearchResponse
 
-  case class GetChatInfoResponse(chat: ChatInfo) extends CborSerializable
+  case class GetChatInfoRequest(chatId: String, replyTo: ActorRef[GetChatInfoResponse]) extends Message
+
+  sealed trait GetChatInfoResponse extends CborSerializable
+
+  case class GetChatInfoSuccess(chat: ChatInfo) extends GetChatInfoResponse
 
   case class CreateChatRequest(chatId: Option[String],
                                createdBy: DomainUserId,
@@ -246,25 +257,46 @@ object ChatManagerActor {
                                membership: ChatMembership.Value,
                                name: Option[String],
                                topic: Option[String],
-                               members: Set[DomainUserId]) extends ChatManagerActorRequest
+                               members: Set[DomainUserId],
+                               replyTo: ActorRef[CreateChatResponse]) extends Message
 
-  case class CreateChatResponse(channelId: String) extends CborSerializable
+  sealed trait CreateChatResponse extends CborSerializable
 
-  case class GetChatsRequest(userId: DomainUserId, ids: Set[String]) extends ChatManagerActorRequest
+  case class CreateChatSuccess(channelId: String) extends CreateChatResponse
 
-  case class GetChatsResponse(channels: Set[ChatInfo]) extends CborSerializable
+  case class GetChatsRequest(userId: DomainUserId, ids: Set[String], replyTo: ActorRef[GetChatsResponse]) extends Message
 
-  case class ChatsExistsRequest(userId: DomainUserId, ids: List[String]) extends ChatManagerActorRequest
+  sealed trait GetChatsResponse extends CborSerializable
 
-  case class ChatsExistsResponse(chatIds: List[Boolean]) extends CborSerializable
+  case class GetChatsSuccess(channels: Set[ChatInfo]) extends GetChatsResponse
 
-  case class GetJoinedChatsRequest(userId: DomainUserId) extends ChatManagerActorRequest
+  case class ChatsExistsRequest(userId: DomainUserId, ids: List[String], replyTo: ActorRef[ChatsExistsResponse]) extends Message
 
-  case class GetJoinedChatsResponse(channels: Set[ChatInfo]) extends CborSerializable
+  sealed trait ChatsExistsResponse extends CborSerializable
 
-  case class GetDirectChatsRequest(userId: DomainUserId, userLists: Set[Set[DomainUserId]]) extends ChatManagerActorRequest
+  case class ChatsExistsSuccess(chatIds: List[Boolean]) extends ChatsExistsResponse
 
-  case class GetDirectChatsResponse(channels: Set[ChatInfo]) extends CborSerializable
+  case class GetJoinedChatsRequest(userId: DomainUserId, replyTo: ActorRef[GetJoinedChatsResponse]) extends Message
 
-  val DefaultPermissions = List()
+  sealed trait GetJoinedChatsResponse extends CborSerializable
+
+  case class GetJoinedChatsSuccess(channels: Set[ChatInfo]) extends GetJoinedChatsResponse
+
+
+  case class GetDirectChatsRequest(userId: DomainUserId,
+                                   userLists: Set[Set[DomainUserId]],
+                                   replyTo: ActorRef[GetDirectChatsResponse]) extends Message
+
+  sealed trait GetDirectChatsResponse extends CborSerializable
+
+  case class GetDirectChatsSuccess(channels: Set[ChatInfo]) extends GetDirectChatsResponse
+
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with CreateChatResponse
+    with ChatsSearchResponse
+    with GetChatInfoResponse
+    with GetChatsResponse
+    with ChatsExistsResponse
+    with GetJoinedChatsResponse
+    with GetDirectChatsResponse
 }

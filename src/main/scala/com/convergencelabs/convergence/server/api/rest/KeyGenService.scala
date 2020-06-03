@@ -21,13 +21,13 @@ import com.convergencelabs.convergence.server.domain.JwtUtil
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-object KeyGenService {
+private[rest] object KeyGenService {
 
   case class CreateTokenResponse(publicKey: String, privateKey: String)
 
 }
 
-class KeyGenService(private[this] val executionContext: ExecutionContext)
+private[rest] class KeyGenService(private[this] val executionContext: ExecutionContext)
   extends JsonSupport {
 
   private[this] implicit val ec: ExecutionContext = executionContext

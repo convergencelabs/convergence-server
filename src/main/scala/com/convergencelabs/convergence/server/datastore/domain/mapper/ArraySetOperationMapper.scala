@@ -13,8 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain.mapper
 
 import java.util.{ List => JavaList }
 
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
@@ -38,7 +37,7 @@ object ArraySetOperationMapper extends ODocumentMapper {
     val docValue = value map(_.asODocument);
     doc.field(Fields.Val, docValue.asJava)
     val oldValueDoc = oldValue map {_ map {_.asODocument}} map {_.asJava};
-    doc.field(Fields.OldValue, oldValueDoc.getOrElse(null))
+    doc.field(Fields.OldValue, oldValueDoc.orNull)
     doc
   }
 

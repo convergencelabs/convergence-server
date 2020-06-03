@@ -11,34 +11,37 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, pathEnd, pathPrefix}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ServerStatusActor.{GetStatusRequest, ServerStatusResponse}
+import com.convergencelabs.convergence.server.datastore.convergence.ServerStatusActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object ServerStatusService {
+private[rest] object ServerStatusService {
 
   case class ServerStatus(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
 
 }
 
-class ServerStatusService(private[this] val executionContext: ExecutionContext,
-                          private[this] val statusActor: ActorRef,
-                          private[this] val defaultTimeout: Timeout)
+private[rest] class ServerStatusService(private[this] val statusActor: ActorRef[Message],
+                                        private[this] val system: ActorSystem[_],
+                                        private[this] val executionContext: ExecutionContext,
+                                        private[this] val defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import ServerStatusService._
-  import akka.pattern.ask
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
+
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("status") {
@@ -51,10 +54,11 @@ class ServerStatusService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getServerStatus(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = GetStatusRequest
-    (statusActor ? message).mapTo[ServerStatusResponse].map { status =>
-      val ServerStatusResponse(version, distribution, serverStatus, namespaces, domains) = status
-      okResponse(ServerStatus(version, distribution, serverStatus, namespaces, domains))
+    statusActor.ask[GetStatusResponse](GetStatusRequest).map {
+      case GetStatusSuccess(ServerStatusResponse(version, distribution, serverStatus, namespaces, domains)) =>
+        okResponse(ServerStatus(version, distribution, serverStatus, namespaces, domains))
+      case _ =>
+        InternalServerError
     }
   }
 }

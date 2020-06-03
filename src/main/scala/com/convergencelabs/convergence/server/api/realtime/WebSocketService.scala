@@ -11,7 +11,10 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.{ActorSystem, Status}
+import akka.actor
+import akka.actor.typed.ActorRef
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.adapter._
 import akka.http.scaladsl.model.RemoteAddress
 import akka.http.scaladsl.model.ws.{BinaryMessage, Message}
 import akka.http.scaladsl.server.Directive._
@@ -20,10 +23,13 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.util.{ByteString, ByteStringBuilder}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
-import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.{IncomingBinaryMessage, OutgoingBinaryMessage, WebSocketClosed, WebSocketOpened}
 import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
 import com.convergencelabs.convergence.server.api.rest.{JsonSupport, OkResponse}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
+import com.convergencelabs.convergence.server.domain.{DomainActor, DomainId}
+import com.convergencelabs.convergence.server.domain.activity.ActivityActor
+import com.convergencelabs.convergence.server.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.Duration
@@ -37,15 +43,18 @@ import scala.language.postfixOps
  *
  * @param protocolConfig The configuration options for the Convergence Web
  *                       Socket protocol.
- * @param system         The actor system in which to create the actors.
+ * @param context        The actor context in which to create the actors.
  */
-private[realtime] class WebSocketService(private[this] val protocolConfig: ProtocolConfiguration,
-                                         private[this] implicit val system: ActorSystem)
-  extends Directives
-    with Logging
-    with JsonSupport {
+private[realtime] class WebSocketService(protocolConfig: ProtocolConfiguration,
+                                         context: ActorContext[_],
+                                         domainRegion: ActorRef[DomainActor.Message],
+                                         activityShardRegion: ActorRef[ActivityActor.Message],
+                                         modelShardRegion: ActorRef[RealtimeModelActor.Message],
+                                         chatShardRegion: ActorRef[ChatActor.Message],
+                                         domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+  extends Directives with Logging with JsonSupport {
 
-  private[this] val config = system.settings.config
+  private[this] val config = context.system.settings.config
   private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
   private[this] val maxStreamDuration = Duration.fromNanos(
     config.getDuration("convergence.realtime.websocket.max-stream-duration").toNanos)
@@ -53,7 +62,10 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
   private[this] val modelSyncInterval = Duration.fromNanos(
     config.getDuration("convergence.offline.model-sync-interval").toNanos)
 
-  private[this] implicit val ec: ExecutionContextExecutor = system.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = context.system.executionContext
+
+  // Needed by akka http that still uses Classic actors
+  private[this] implicit val system: actor.ActorSystem = context.system.toClassic
 
   val route: Route = {
     path("") {
@@ -79,36 +91,49 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
     Flow[Message]
       .collect {
         case BinaryMessage.Strict(msg) =>
-          Future.successful(IncomingBinaryMessage(msg.toArray))
+          Future.successful(ConnectionActor.IncomingBinaryMessage(msg.toArray))
         case BinaryMessage.Streamed(stream) =>
           stream
             .limit(maxFrames)
             .completionTimeout(maxStreamDuration)
             .runFold(new ByteStringBuilder())((b, e) => b.append(e))
             .map(b => b.result)
-            .flatMap(msg => Future.successful(IncomingBinaryMessage(msg.toArray)))
+            .flatMap(msg => Future.successful(ConnectionActor.IncomingBinaryMessage(msg.toArray)))
       }
       .mapAsync(parallelism = 3)(identity)
       .via(createFlowForConnection(namespace, domain, remoteAddress, ua))
       .map {
-        case OutgoingBinaryMessage(msg) => BinaryMessage.Strict(ByteString.fromArray(msg))
+        case ConnectionActor.OutgoingBinaryMessage(msg) => BinaryMessage.Strict(ByteString.fromArray(msg))
       }
   }
 
-  private[this] def createFlowForConnection(namespace: String, domain: String, remoteAddress: RemoteAddress, ua: String): Flow[IncomingBinaryMessage, OutgoingBinaryMessage, Any] = {
-    val clientActor = system.actorOf(ClientActor.props(
+  private[this] def createFlowForConnection(namespace: String,
+                                            domain: String,
+                                            remoteAddress: RemoteAddress,
+                                            ua: String): Flow[ConnectionActor.IncomingBinaryMessage, ConnectionActor.OutgoingBinaryMessage, Any] = {
+    val clientActor = context.spawnAnonymous(ClientActor(
       DomainId(namespace, domain),
       protocolConfig,
       remoteAddress,
       ua,
-      modelSyncInterval))
+      domainRegion,
+      activityShardRegion,
+      modelShardRegion,
+      chatShardRegion,
+      domainLifecycleTopic,
+      modelSyncInterval)
+    )
 
-    val connection = system.actorOf(ConnectionActor.props(clientActor))
+    val connection = context.spawnAnonymous(ConnectionActor(clientActor, None))
+
 
     // This is how we route messages that are coming in.  Basically we route them
     // to the connection actor and, when the flow is completed (e.g. the web socket is
     // closed) we send a WebSocketClosed case object, which the connection can listen for.
-    val in = Flow[IncomingBinaryMessage].to(Sink.actorRef[IncomingBinaryMessage](connection, WebSocketClosed, t => Status.Failure(t)))
+    val in = Flow[ConnectionActor.IncomingBinaryMessage].to(Sink.actorRef[ConnectionActor.IncomingBinaryMessage](
+      connection.toClassic, // note Akka HTTP is still using the cla
+      ConnectionActor.WebSocketClosed, // The message sent when the stream closes nicely
+      t => ConnectionActor.WebSocketError(t))) // The message sent on an error
 
     // This is where outgoing messages will go.  Basically we create an actor based
     // source for messages.  This creates an ActorRef that you can send messages to
@@ -117,18 +142,39 @@ private[realtime] class WebSocketService(private[this] val protocolConfig: Proto
     // actor.  We can send an actor ref (in a message) to the connection actor.  This is
     // how the connection actor will get a reference to the actor that it needs to sent
     // messages to.
-    val out = Source.actorRef[OutgoingBinaryMessage](
+    val out = Source.actorRef[ConnectionActor.OutgoingBinaryMessage](
       {
-        case akka.actor.Status.Success(s: CompletionStrategy) => s
-        case akka.actor.Status.Success(_) => CompletionStrategy.draining
-        case akka.actor.Status.Success => CompletionStrategy.draining
+        case WebSocketService.CloseSocket =>
+          CompletionStrategy.draining
+        //        case akka.actor.Status.Success(s: CompletionStrategy) => s
+        //        case akka.actor.Status.Success(_) => CompletionStrategy.draining
+        //        case akka.actor.Status.Success => CompletionStrategy.draining
       }: PartialFunction[Any, CompletionStrategy], {
         case akka.actor.Status.Failure(cause) => cause
       }: PartialFunction[Any, Throwable],
       500,
       OverflowStrategy.fail)
-      .mapMaterializedValue(ref => connection ! WebSocketOpened(ref))
+      .mapMaterializedValue(ref => connection ! ConnectionActor.WebSocketOpened(ref))
 
     Flow.fromSinkAndSource(in, out)
   }
+}
+
+object WebSocketService {
+
+  sealed trait WebSocketMessage
+
+  /**
+   * Indicates that this connection should be closed. This message does not
+   * come from the web socket, but rather from within Convergence.
+   */
+  private[realtime] case object CloseSocket extends WebSocketMessage
+
+  /**
+   * Represents an outgoing binary message from the client.
+   *
+   * @param data The outgoing binary web socket message data.
+   */
+  private[realtime] case class OutgoingBinaryMessage(data: Array[Byte]) extends WebSocketMessage
+
 }

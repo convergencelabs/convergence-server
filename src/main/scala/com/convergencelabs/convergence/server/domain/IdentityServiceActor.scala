@@ -11,113 +11,144 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import akka.actor.{Actor, ActorLogging, Props, Status}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceManagerActor, DomainPersistenceProvider, DomainUserField, UserGroup}
+import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
+import grizzled.slf4j.Logging
 
-import scala.util.{Failure, Success}
+import scala.util.Success
 
+/**
+ * The IdentityServiceActor provides information on users and groups in the system.
+ *
+ * @param context             The ActorContext for this actor.
+ * @param persistenceProvider The persistence provider to use.
+ */
+class IdentityServiceActor private[domain](context: ActorContext[IdentityServiceActor.Message],
+                                           persistenceProvider: DomainPersistenceProvider)
 
-class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor with ActorLogging {
-
-  var persistenceProvider: DomainPersistenceProvider = _
+  extends AbstractBehavior[IdentityServiceActor.Message](context)
+    with Logging {
 
   import IdentityServiceActor._
 
-  def receive: Receive = {
-    case s: UserSearch =>
-      searchUsers(s)
-    case GetUsersRequest(userIds) =>
-      onGetUsersByUsername(userIds)
-    case GetUserRequest(userId) =>
-      onGetUserByUsername(userId)
-    case message: UserGroupsRequest =>
-      onGetUserGroups(message)
-    case message: UserGroupsForUsersRequest =>
-      onGetUserGroupsForUser(message)
-    case message: IdentityResolutionRequest =>
-      resolveIdentities(message)
-    case x: Any => unhandled(x)
-  }
-
-  private[this] def onGetUsersByUsername(userIds: List[DomainUserId]): Unit = {
-    persistenceProvider.userStore.getDomainUsers(userIds) match {
-      case Success(users) => sender ! GetUsersResponse(users)
-      case Failure(e) => sender ! Status.Failure(e)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case s: SearchUsersRequest =>
+        onSearchUsersRequest(s)
+      case msg: GetUsersRequest =>
+        onGetUsersRequest(msg)
+      case msg: GetUserRequest =>
+        onGetUserRequest(msg)
+      case message: GetUserGroupsRequest =>
+        onGetUserGroups(message)
+      case message: GetUserGroupsForUsersRequest =>
+        onGetUserGroupsForUser(message)
+      case message: IdentityResolutionRequest =>
+        resolveIdentities(message)
     }
+
+    Behaviors.same
   }
 
-  private[this] def onGetUserByUsername(userId: DomainUserId): Unit = {
-    persistenceProvider.userStore.getDomainUser(userId).map {
-      case Some(user) =>
-        sender ! GetUserResponse(user)
-      case None =>
-        sender ! Status.Failure(EntityNotFoundException())
-    } recover {
-      case cause => sender ! Status.Failure(cause)
-    }
+  override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
+    case PostStop =>
+      debug(s"IdentityServiceActor(${persistenceProvider.domainId}) stopped.")
+      Behaviors.same
   }
 
-  private[this] def resolveIdentities(message: IdentityResolutionRequest): Unit = {
-    log.debug("Processing identity resolution: {}", message)
-    try {
-      (for {
-        sessions <- persistenceProvider.sessionStore.getSessions(message.sessionIds)
-        sessionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
-        users <- persistenceProvider.userStore.getDomainUsers(
-          (message.userIds ++ sessions.map(_.userId)).toList)
-      } yield {
-        log.debug("resolved")
-        IdentityResolutionResponse(sessionMap, users.toSet)
-      }) match {
-        case Success(response) => sender ! response
-        case Failure(e) =>
-          log.error(e, "failed")
-          sender ! Status.Failure(e)
+  private[this] def onGetUsersRequest(msg: GetUsersRequest): Unit = {
+    val GetUsersRequest(userIds, replyTo) = msg
+    persistenceProvider.userStore.getDomainUsers(userIds)
+      .map(users => GetUsersResponse(Right(users)))
+      .recover { cause =>
+        logRequestError(msg, cause)
+        GetUsersResponse(Left(UnknownError()))
       }
-    } catch {
-      case e: Throwable => log.error(e, "oops")
-    }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def searchUsers(criteria: UserSearch): Unit = {
-    val searchString = criteria.searchValue
-    val fields = criteria.fields.map { f => convertField(f) }
-    val order = criteria.order.map { x => convertField(x) }
-    val limit = criteria.limit
-    val offset = criteria.offset
-    val sortOrder = criteria.sort
-
-    persistenceProvider.userStore.searchUsersByFields(fields, searchString, order, sortOrder, limit, offset) match {
-      case Success(users) => sender ! GetUsersResponse(users)
-      case Failure(e) => sender ! Status.Failure(e)
-    }
+  private[this] def onGetUserRequest(msg: GetUserRequest): Unit = {
+    val GetUserRequest(userId, replyTo) = msg
+    persistenceProvider.userStore.getDomainUser(userId)
+      .map {
+        case Some(user) =>
+          GetUserResponse(Right(user))
+        case None =>
+          GetUserResponse(Left(UserNotFound(userId)))
+      }
+      .recover { cause =>
+        logRequestError(msg, cause)
+        GetUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def onGetUserGroups(request: UserGroupsRequest): Unit = {
-    val UserGroupsRequest(ids) = request
+  private[this] def resolveIdentities(msg: IdentityResolutionRequest): Unit = {
+    debug(() => s"Processing identity resolution: $msg")
+    val IdentityResolutionRequest(sessionIds, userIds, replyTo) = msg
+    (for {
+      sessions <- persistenceProvider.sessionStore.getSessions(sessionIds)
+      sessionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
+      users <- persistenceProvider.userStore.getDomainUsers(
+        (userIds ++ sessions.map(_.userId)).toList)
+    } yield IdentityResolution(sessionMap, users.toSet))
+      .map(r => IdentityResolutionResponse(Right(r)))
+      .recover { cause =>
+        logRequestError(msg, cause)
+        IdentityResolutionResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
+  }
+
+  private[this] def onSearchUsersRequest(msg: SearchUsersRequest): Unit = {
+    val SearchUsersRequest(fields, searchValue, offset, limit, order, sort, replyTo) = msg
+    val f = fields.map(convertField)
+    val o = order.map(convertField)
+    persistenceProvider.userStore.searchUsersByFields(f, searchValue, o, sort, limit, offset)
+      .map(users => SearchUsersResponse(Right(users)))
+      .recover { cause =>
+        logRequestError(msg, cause)
+        SearchUsersResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
+  }
+
+  private[this] def onGetUserGroups(msg: GetUserGroupsRequest): Unit = {
+    val GetUserGroupsRequest(ids, replyTo) = msg
     (ids match {
       case Some(idList) =>
         persistenceProvider.userGroupStore.getUserGroupsById(idList)
       case None =>
         persistenceProvider.userGroupStore.getUserGroups(None, None, None)
-    }) match {
-      case Success(groups) =>
-        sender ! GetUserGroupsResponse(groups)
-      case Failure(cause) =>
-        sender ! Status.Failure(cause)
-    }
+    })
+      .map(groups => GetUserGroupsResponse(Right(groups)))
+      .recover {
+        case EntityNotFoundException(_, Some(entityId)) =>
+          GetUserGroupsResponse(Left(GroupNotFound(entityId.toString)))
+        case cause =>
+          logRequestError(msg, cause)
+          GetUserGroupsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def onGetUserGroupsForUser(request: UserGroupsForUsersRequest): Unit = {
-    val UserGroupsForUsersRequest(userIds) = request
-    persistenceProvider.userGroupStore.getUserGroupIdsForUsers(userIds) match {
-      case Success(result) =>
-        sender ! GetUserGroupsForUsersResponse(result)
-      case Failure(cause) =>
-        sender ! Status.Failure(cause)
-    }
+  private[this] def onGetUserGroupsForUser(msg: GetUserGroupsForUsersRequest): Unit = {
+    val GetUserGroupsForUsersRequest(userIds, replyTo) = msg
+    persistenceProvider.userGroupStore.getUserGroupIdsForUsers(userIds)
+      .map(groups => GetUserGroupsForUsersResponse(Right(groups)))
+      .recover { cause =>
+        logRequestError(msg, cause)
+        GetUserGroupsForUsersResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
+  }
+
+  private[this] def logRequestError(request: Any, cause: Throwable): Unit = {
+    error(() => s"Unexpected error handling request: $request", cause)
   }
 
   private[this] def convertField(field: UserLookUpField.Value): DomainUserField.Field = {
@@ -129,56 +160,105 @@ class IdentityServiceActor private[domain](domainFqn: DomainId) extends Actor wi
       case UserLookUpField.Email => DomainUserField.Email
     }
   }
-
-  override def postStop(): Unit = {
-    log.debug(s"UserServiceActor($domainFqn) stopped.")
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainFqn)
-  }
-
-  override def preStart(): Unit = {
-    persistenceProvider = DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainFqn).get
-  }
 }
 
-
 object IdentityServiceActor {
-
-  val RelativePath = "userService"
-
-  def props(domainFqn: DomainId): Props = Props(
-    new IdentityServiceActor(domainFqn))
-
+  def apply(provider: DomainPersistenceProvider): Behavior[Message] = Behaviors.setup { context =>
+    new IdentityServiceActor(context, provider)
+  }
 
   object UserLookUpField extends Enumeration {
     val Username, FirstName, LastName, DisplayName, Email = Value
   }
 
-  case class UserSearch(fields: List[UserLookUpField.Value],
-                        searchValue: String,
-                        offset: Option[Int],
-                        limit: Option[Int],
-                        order: Option[UserLookUpField.Value],
-                        sort: Option[SortOrder.Value])
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+  sealed trait Message extends CborSerializable
 
-  trait IdentityServiceActorMessage extends CborSerializable
+  //
+  // SearchUsers
+  //
+  case class SearchUsersRequest(fields: List[UserLookUpField.Value],
+                                searchValue: String,
+                                offset: Option[Int],
+                                limit: Option[Int],
+                                order: Option[UserLookUpField.Value],
+                                sort: Option[SortOrder.Value],
+                                replyTo: ActorRef[SearchUsersResponse]) extends Message
 
-  case class GetUsersRequest(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
+  sealed trait SearchUsersError
 
-  case class GetUsersResponse(users: List[DomainUser]) extends CborSerializable
+  case class SearchUsersResponse(users: Either[SearchUsersError, PagedData[DomainUser]]) extends CborSerializable
 
-  case class GetUserRequest(userId: DomainUserId) extends IdentityServiceActorMessage
+  //
+  // GetUsersRequest
+  //
+  case class GetUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUsersResponse]) extends Message
 
-  case class GetUserResponse(user: DomainUser) extends CborSerializable
+  sealed trait GetUsersError
 
-  case class UserGroupsRequest(ids: Option[List[String]]) extends IdentityServiceActorMessage
+  case class GetUsersResponse(users: Either[GetUsersError, List[DomainUser]]) extends CborSerializable
 
-  case class GetUserGroupsResponse(groups: List[UserGroup]) extends CborSerializable
 
-  case class IdentityResolutionRequest(sessionIds: Set[String], userIds: Set[DomainUserId]) extends IdentityServiceActorMessage
+  //
+  // GetUserRequest
+  //
+  case class GetUserRequest(userId: DomainUserId, replyTo: ActorRef[GetUserResponse]) extends Message
 
-  case class IdentityResolutionResponse(sessionMap: Map[String, DomainUserId], users: Set[DomainUser]) extends CborSerializable
+  sealed trait GetUserError
 
-  case class UserGroupsForUsersRequest(userIds: List[DomainUserId]) extends IdentityServiceActorMessage
+  case class GetUserResponse(user: Either[GetUserError, DomainUser]) extends CborSerializable
 
-  case class GetUserGroupsForUsersResponse(groups: Map[DomainUserId, Set[String]]) extends CborSerializable
+
+  //
+  // GetUserGroups
+  //
+  case class GetUserGroupsRequest(ids: Option[List[String]], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
+
+  sealed trait GetUserGroupsError
+
+  case class GroupNotFound(groupId: String) extends GetUserGroupsError
+
+  case class GetUserGroupsResponse(groups: Either[GetUserGroupsError, List[UserGroup]]) extends CborSerializable
+
+
+  //
+  // IdentityResolution
+  //
+  case class IdentityResolutionRequest(sessionIds: Set[String],
+                                       userIds: Set[DomainUserId],
+                                       replyTo: ActorRef[IdentityResolutionResponse]) extends Message
+
+  sealed trait IdentityResolutionError
+
+  case class IdentityResolutionResponse(resolution: Either[IdentityResolutionError, IdentityResolution]) extends CborSerializable
+
+  case class IdentityResolution(sessionMap: Map[String, DomainUserId], users: Set[DomainUser])
+
+
+  //
+  // GetUserGroupsForUsers
+  //
+  case class GetUserGroupsForUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUserGroupsForUsersResponse]) extends Message
+
+  sealed trait GetUserGroupsForUsersError
+
+  case class GetUserGroupsForUsersResponse(groups: Either[GetUserGroupsForUsersError, Map[DomainUserId, Set[String]]]) extends CborSerializable
+
+  //
+  // Common Errors
+  //
+  case class UserNotFound(userId: DomainUserId)
+    extends GetUserError
+      with GetUserGroupsForUsersError
+
+  case class UnknownError()
+    extends GetUserError
+      with GetUsersError
+      with GetUserGroupsForUsersError
+      with SearchUsersError
+      with IdentityResolutionError
+      with GetUserGroupsError
+
 }

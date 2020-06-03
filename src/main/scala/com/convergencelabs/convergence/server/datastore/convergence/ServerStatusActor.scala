@@ -11,51 +11,75 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.BuildInfo
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import grizzled.slf4j.Logging
 
-import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-class ServerStatusActor private[datastore](
+class ServerStatusActor private[datastore](private[this] val context: ActorContext[ServerStatusActor.Message],
                                             private[this] val dbProvider: DatabaseProvider)
-  extends StoreActor with ActorLogging {
+  extends AbstractBehavior[ServerStatusActor.Message](context) with Logging {
 
   import ServerStatusActor._
+
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val namespaceStore = new NamespaceStore(dbProvider)
 
-  def receive: Receive = {
-    case GetStatusRequest =>
-      onGetStatus()
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+   msg match {
+     case msg: GetStatusRequest =>
+       onGetStatus(msg)
+   }
+    Behaviors.same
   }
 
-  private[this] def onGetStatus(): Unit = {
-    reply(for {
+  private[this] def onGetStatus(msg: GetStatusRequest): Unit = {
+    val GetStatusRequest(replyTo) = msg
+    (for {
       domains <- domainStore.domainCount()
       namespaces <- namespaceStore.namespaceCount()
       distribution <- Try(this.context.system.settings.config.getString("convergence.distribution"))
     } yield {
       ServerStatusResponse(BuildInfo.version, distribution, "healthy", namespaces, domains)
-    })
+    }) match {
+      case Success(status) =>
+        replyTo ! GetStatusSuccess(status)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
-
 }
 
 
 object ServerStatusActor {
-  val RelativePath = "ServerStatusActor"
+  val Key: ServiceKey[Message] = ServiceKey[Message]("ServerStatusActor")
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new ServerStatusActor(dbProvider))
-
-  case object GetStatusRequest extends CborSerializable
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
+    Behaviors.setup(context => new ServerStatusActor(context, dbProvider))
 
   case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
 
+  sealed trait Message extends CborSerializable
+
+  //
+  // GetStatus
+  //
+  case class GetStatusRequest(replyTo: ActorRef[GetStatusResponse]) extends Message
+
+  sealed trait GetStatusResponse extends CborSerializable
+
+  case class GetStatusSuccess(status: ServerStatusResponse) extends GetStatusResponse
+
+  //
+  // Generic Responses
+  //
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with GetStatusResponse
 }

@@ -20,7 +20,9 @@ import com.convergencelabs.convergence.server.BuildInfo
 import scala.concurrent.{ExecutionContext, Future}
 
 object InfoService {
+
   case class InfoResponse(version: String)
+
   val InfoRestResponse: (StatusCode, ResponseMessage) = okResponse(InfoResponse(BuildInfo.version))
 }
 

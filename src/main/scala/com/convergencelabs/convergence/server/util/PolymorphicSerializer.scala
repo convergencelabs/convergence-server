@@ -37,20 +37,20 @@ import org.json4s.TypeInfo
  * case class Employee(name: String, employeeId: String)
  *
  * val ser = new PolymorphicSerializer[Person](
- *   "type",
- *   Map("cust" -> classOf[Customer], "emp" -> classOf[Employee])
+ * "type",
+ * Map("cust" -> classOf[Customer], "emp" -> classOf[Employee])
  * )
  * implicit val formats = DefaultFormats + ser
  * </pre>
  *
  * @constructor Creates a new PolymorphicSerializer from the specified typeField and typeMap
  * @param typeField The string name of the field to add to the object to indicate type.
- * @param typeMap Mapping between subclasses and the string identifier the defines the type.
+ * @param typeMap   Mapping between subclasses and the string identifier the defines the type.
  */
 class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String, Class[_ <: T]]) extends Serializer[T] {
 
   // Ensure we don't have any duplicate mappings
-  val counts = typeMap.values groupBy (identity(_)) mapValues (_.size)
+  private[this] val counts = typeMap.values.groupBy(identity).view.mapValues(_.size).toMap
   counts.find(_._2 > 1) map { clazz =>
     throw new IllegalArgumentException(
       "Mappings need to be unique, but a class was mapped to more than one type id: " + clazz._1)
@@ -114,7 +114,7 @@ object PolymorphicSerializer {
  *
  * @constructor Creates a new PolymorphicSerializer from the specified typeField and class list.
  * @param typeField The string name of the field to add to the object to indicate type.
- * @param classes A list of valid sub classes to process.
+ * @param classes   A list of valid sub classes to process.
  */
 class SimpleNamePolymorphicSerializer[T: Manifest](typeField: String, classes: List[Class[_ <: T]]) extends PolymorphicSerializer[T](
   typeField, classes map (c => c.getSimpleName -> c) toMap) {

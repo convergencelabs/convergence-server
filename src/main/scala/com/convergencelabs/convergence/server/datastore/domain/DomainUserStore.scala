@@ -15,6 +15,7 @@ import java.lang.{Long => JavaLong}
 import java.time.{Duration, Instant}
 import java.util.Date
 
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore._
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.db.DatabaseProvider
@@ -300,28 +301,36 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
    * @param limit     maximum number of users to return.  Defaults to unlimited.
    * @param offset    The offset into the ordering to start returning entries.  Defaults to 0.
    */
-  def getAllDomainUsers(
-                         orderBy: Option[DomainUserField.Field],
-                         sortOrder: Option[SortOrder.Value],
-                         limit: Option[Int],
-                         offset: Option[Int]): Try[List[DomainUser]] = withDb { db =>
+  def getAllDomainUsers(orderBy: Option[DomainUserField.Field],
+                        sortOrder: Option[SortOrder.Value],
+                        limit: Option[Int],
+                        offset: Option[Int]): Try[PagedData[DomainUser]] = withDb { db =>
+    val countQuery = s"SELECT count(*) as count FROM User WHERE deleted != true AND userType = 'normal'"
 
     val order = orderBy.getOrElse(DomainUserField.Username)
     val sort = sortOrder.getOrElse(SortOrder.Descending)
+
     val baseQuery = s"SELECT * FROM User WHERE deleted != true AND userType = 'normal' ORDER BY $order $sort"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    OrientDBUtil
-      .query(db, query)
-      .map(_.map(DomainUserStore.docToDomainUser))
+
+    for {
+      count <- OrientDBUtil
+        .getDocument(db, countQuery)
+        .map(_.field("count").asInstanceOf[Long])
+      users <- OrientDBUtil
+        .query(db, query)
+        .map(_.map(DomainUserStore.docToDomainUser))
+    } yield {
+      PagedData(users, offset.getOrElse(0).longValue(), count)
+    }
   }
 
-  def searchUsersByFields(
-                           fields: List[DomainUserField.Field],
-                           searchString: String,
-                           orderBy: Option[DomainUserField.Field],
-                           sortOrder: Option[SortOrder.Value],
-                           offset: Option[Int],
-                           limit: Option[Int]): Try[List[DomainUser]] = withDb { db =>
+  def searchUsersByFields(fields: List[DomainUserField.Field],
+                          searchString: String,
+                          orderBy: Option[DomainUserField.Field],
+                          sortOrder: Option[SortOrder.Value],
+                          offset: Option[Int],
+                          limit: Option[Int]): Try[PagedData[DomainUser]] = withDb { db =>
 
     val baseQuery = "SELECT * FROM User"
     val whereTerms = ListBuffer[String]()
@@ -337,15 +346,24 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
     val orderByClause = s" ORDER BY $order $sort"
 
     val query = OrientDBUtil.buildPagedQuery(baseQuery + whereClause + orderByClause, limit, offset)
-    OrientDBUtil
-      .query(db, query, Map("searchString" -> s"%$searchString%"))
-      .map(_.map(DomainUserStore.docToDomainUser))
+    val countQuery = "SELECT count(*) as count FROM User" + whereClause
+
+    for {
+      count <- OrientDBUtil
+        .getDocument(db, countQuery)
+        .map(_.field("count").asInstanceOf[Long])
+      users <- OrientDBUtil
+        .query(db, query, Map("searchString" -> s"%$searchString%"))
+        .map(_.map(DomainUserStore.docToDomainUser))
+    } yield {
+      PagedData(users, offset.getOrElse(0).longValue(), count)
+    }
   }
 
   def findUser(search: String,
                exclude: List[DomainUserId],
                offset: Int,
-               limit: Int): Try[List[DomainUser]] = withDb { db =>
+               limit: Int): Try[PagedData[DomainUser]] = withDb { db =>
 
     // This is a bit hacky, there is a more idiomatic way to do this
     Try {
@@ -364,25 +382,42 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
         "search" -> ("%" + search + "%"),
         "exclude" -> exclude.asJava)
 
-      val baseQuery =
+      val whereClause =
         """
-          |SELECT *, username.length() as size
-          |FROM User
           |WHERE
           |  deleted != true AND
           |  userType = 'normal' AND
           |  username NOT IN :exclude AND
           |  (username LIKE :search OR
           |  email LIKE :search OR
-          |  displayName LIKE :search)
-          |ORDER BY size ASC, username ASC""".stripMargin
+          |  displayName LIKE :search)""".stripMargin
 
+      val baseQuery =
+        s"""
+          |SELECT *, username.length() as size
+          |FROM User
+          |$whereClause
+          |ORDER BY size ASC, username ASC""".stripMargin
       val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit - explicitResults.size), Some(offset))
-      OrientDBUtil
-        .query(db, query, params)
-        .map(_.map(DomainUserStore.docToDomainUser))
-        .map(users => users.filterNot(explicitResults.contains(_)))
-        .map(explicitResults ::: _)
+      val countQuery =
+        s"""
+           |SELECT count(*) as count
+           |FROM User
+           |$whereClause""".stripMargin
+
+
+      for {
+        count <- OrientDBUtil
+          .getDocument(db, countQuery)
+          .map(_.field("count").asInstanceOf[Long])
+        users <- OrientDBUtil
+          .query(db, query, params)
+          .map(_.map(DomainUserStore.docToDomainUser))
+          .map(users => users.filterNot(explicitResults.contains(_)))
+          .map(explicitResults ::: _)
+      } yield {
+        PagedData(users, offset.longValue(), count)
+      }
     }
   }
 

@@ -11,7 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.headers.{Authorization, GenericHttpCredentials}
@@ -21,8 +22,8 @@ import akka.http.scaladsl.server.directives.BasicDirectives.provide
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
-import akka.pattern.ask
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor
 import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
@@ -32,13 +33,12 @@ import scala.concurrent.{ExecutionContext, Future}
  * This class provides a helper directive to authenticate users and validate
  * tokens / API keys.
  */
-class Authenticator(private[this] val authActor: ActorRef,
-                    private[this] val timeout: Timeout,
-                    private[this] val executionContext: ExecutionContext)
+private[rest] class Authenticator(private[this] val authActor: ActorRef[AuthenticationActor.Message],
+                                  private[this] implicit val system: ActorSystem[_],
+                                  private[this] implicit val timeout: Timeout)
   extends JsonSupport {
 
-  private[this] implicit val ec: ExecutionContext = executionContext
-  private[this] implicit val t: Timeout = timeout
+  private[this] implicit val ec: ExecutionContext = system.executionContext
 
   private[this] val SessionTokenScheme = "SessionToken"
   private[this] val BearerTokenScheme = "BearerToken"
@@ -79,21 +79,23 @@ class Authenticator(private[this] val authActor: ActorRef,
   }
 
   private[this] def validateSessionToken(token: String): Future[Option[AuthorizationProfile]] = {
-    (authActor ? ValidateSessionTokenRequest(token))
-      .mapTo[ValidateSessionTokenResponse]
-      .map(_.profile.map(data => AuthorizationProfile(data)))
+    mapValidation(authActor.ask[ValidateResponse](ref => ValidateSessionTokenRequest(token, ref)))
   }
 
   private[this] def validateUserBearerToken(token: String): Future[Option[AuthorizationProfile]] = {
-    (authActor ? ValidateUserBearerTokenRequest(token))
-      .mapTo[ValidateUserBearerTokenResponse]
-      .map(_.profile.map(data => AuthorizationProfile(data)))
-
+    mapValidation(authActor.ask[ValidateResponse](ref => ValidateUserBearerTokenRequest(token, ref)))
   }
 
   private[this] def validateUserApiKey(apiKey: String): Future[Option[AuthorizationProfile]] = {
-    (authActor ? ValidateUserApiKeyRequest(apiKey))
-      .mapTo[ValidateUserApiKeyResponse]
-      .map(_.profile.map(data => AuthorizationProfile(data)))
+    mapValidation(authActor.ask[ValidateResponse](ref => ValidateUserApiKeyRequest(apiKey, ref)))
+  }
+
+  private def mapValidation(f: Future[ValidateResponse]): Future[Option[AuthorizationProfile]] = {
+    f.flatMap {
+      case ValidationSuccess(profile) =>
+        Future.successful(profile.map(data => AuthorizationProfile(data)))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 }

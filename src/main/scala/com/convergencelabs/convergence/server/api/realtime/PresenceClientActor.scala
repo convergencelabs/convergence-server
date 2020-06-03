@@ -11,49 +11,61 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, actorRef2Scala}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.presence._
+import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.userPresenceToMessage
-import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 import com.convergencelabs.convergence.server.domain.presence._
-import com.convergencelabs.convergence.server.util.concurrent.AskFuture
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import grizzled.slf4j.Logging
+import org.json4s.JsonAST.JValue
+import scalapb.GeneratedMessage
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 //  TODO: Add connect / disconnect logic
-class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSessionId) extends Actor with ActorLogging {
+class PresenceClientActor private(context: ActorContext[PresenceClientActor.Message],
+                                  domain: DomainId,
+                                  session: DomainUserSessionId,
+                                  clientActor: ActorRef[ClientActor.SendServerMessage],
+                                  presenceServiceActor: ActorRef[PresenceServiceActor.Message],
+                                  defaultTimeout: Timeout)
+  extends AbstractBehavior[PresenceClientActor.Message](context) with Logging with AskUtils {
 
-  import akka.pattern.ask
-  private[this] implicit val timeout: Timeout = Timeout(5 seconds)
-  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
+  import PresenceClientActor._
 
-  presenceServiceActor ! UserConnected(session.userId, self)
+  private[this] implicit val timeout: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
+  private[this] implicit val system: ActorSystem[_] = context.system
 
-  def receive: Receive = {
-    // Incoming messages from the client
-    case MessageReceived(message) if message.isInstanceOf[NormalMessage with PresenceMessage] =>
-      onMessageReceived(message.asInstanceOf[NormalMessage with PresenceMessage])
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with PresenceMessage] =>
-      onRequestReceived(message.asInstanceOf[RequestMessage with PresenceMessage], replyPromise)
+  presenceServiceActor ! PresenceServiceActor.UserConnected(session.userId, context.self)
 
-    // Outgoing messages from the presence subsystem
-    case UserPresenceSetState(userId, state) =>
-      context.parent ! PresenceStateSetMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), JsonProtoConverter.jValueMapToValueMap(state))
-    case UserPresenceRemoveState(userId, keys) =>
-      context.parent ! PresenceStateRemovedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), keys)
-    case UserPresenceClearState(userId) =>
-      context.parent ! PresenceStateClearedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)))
-    case UserPresenceAvailability(userId, available) =>
-      context.parent ! PresenceAvailabilityChangedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), available)
-
-    case msg: Any =>
-      log.warning(s"Invalid message received by the presence client: $msg")
+  override def onMessage(msg: PresenceClientActor.Message): Behavior[PresenceClientActor.Message] = {
+    msg match {
+      case msg: IncomingMessage =>
+        onIncomingMessage(msg)
+      case msg: OutgoingMessage =>
+        onOutgoingMessage(msg)
+    }
   }
+
+  private[this] def onIncomingMessage(msg: PresenceClientActor.IncomingMessage): Behavior[Message] = {
+    msg match {
+      case IncomingProtocolMessage(message) =>
+        onMessageReceived(message)
+      case IncomingProtocolRequest(message, replyPromise)  =>
+        onRequestReceived(message, replyPromise)
+    }
+
+    Behaviors.same
+  }
+
 
   //
   // Incoming Messages
@@ -64,29 +76,27 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
       case removeState: PresenceRemoveStateMessage => onPresenceStateRemoved(removeState)
       case _: PresenceClearStateMessage => onPresenceStateCleared()
       case unsubPresence: UnsubscribePresenceMessage => onUnsubscribePresence(unsubPresence)
-      case msg: Any =>
-        log.warning(s"Invalid incoming presence message: $msg")
     }
   }
 
   private[this] def onPresenceStateSet(message: PresenceSetStateMessage): Unit = {
     val PresenceSetStateMessage(state, _) = message
-    this.presenceServiceActor ! UserPresenceSetState(session.userId, JsonProtoConverter.valueMapToJValueMap(state))
+    this.presenceServiceActor ! PresenceServiceActor.SetUserPresenceState(session.userId, JsonProtoConverter.valueMapToJValueMap(state))
   }
 
   private[this] def onPresenceStateRemoved(message: PresenceRemoveStateMessage): Unit = {
     val PresenceRemoveStateMessage(keys, _) = message
-    this.presenceServiceActor ! UserPresenceRemoveState(session.userId, keys.toList)
+    this.presenceServiceActor ! PresenceServiceActor.RemoveUserPresenceState(session.userId, keys.toList)
   }
 
   private[this] def onPresenceStateCleared(): Unit = {
-    this.presenceServiceActor ! UserPresenceClearState(session.userId)
+    this.presenceServiceActor ! PresenceServiceActor.ClearUserPresenceState(session.userId)
   }
 
   private[this] def onUnsubscribePresence(message: UnsubscribePresenceMessage): Unit = {
     val UnsubscribePresenceMessage(userIdData, _) = message
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
-    this.presenceServiceActor ! UnsubscribePresence(userIds.toList, self)
+    this.presenceServiceActor ! PresenceServiceActor.UnsubscribePresence(userIds.toList, context.self)
   }
 
   private[this] def onRequestReceived(message: RequestMessage with PresenceMessage, replyCallback: ReplyCallback): Unit = {
@@ -99,31 +109,98 @@ class PresenceClientActor(presenceServiceActor: ActorRef, session: DomainUserSes
   private[this] def onPresenceRequest(request: PresenceRequestMessage, cb: ReplyCallback): Unit = {
     val PresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
-    val future = this.presenceServiceActor ? GetPresenceRequest(userIds.toList)
-
-    future.mapResponse[GetPresenceResponse] onComplete {
-      case Success(GetPresenceResponse(userPresences)) =>
-        cb.reply(PresenceResponseMessage(userPresences.map(userPresenceToMessage)))
-      case Failure(_) =>
-        cb.unexpectedError("Could not retrieve presence")
-    }
+    presenceServiceActor.ask[PresenceServiceActor.GetPresencesResponse](PresenceServiceActor.GetPresencesRequest(userIds.toList, _))
+        .map(_.presence.fold({
+          case PresenceServiceActor.UserNotFound(userId) =>
+            userNotFound(userId, cb)
+          case _ =>
+            cb.unexpectedError("An unexpected error occurred getting presence.")
+        }, { presences =>
+          cb.reply(PresenceResponseMessage(presences.map(userPresenceToMessage)))
+        }))
+      .recoverWith(handleAskFailure(_, cb))
   }
 
   private[this] def onSubscribeRequest(request: SubscribePresenceRequestMessage, cb: ReplyCallback): Unit = {
     val SubscribePresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
-    val future = this.presenceServiceActor ? SubscribePresence(userIds.toList, self)
+    presenceServiceActor.ask[PresenceServiceActor.SubscribePresenceResponse](PresenceServiceActor.SubscribePresenceRequest(userIds.toList, context.self.narrow[OutgoingMessage], _))
+      .map(_.presences.fold({
+        case PresenceServiceActor.UserNotFound(userId) =>
+          userNotFound(userId, cb)
+        case _ =>
+          cb.unexpectedError("An unexpected error occurred subscribing to presence.")
+      }, { presences =>
+        cb.reply(SubscribePresenceResponseMessage(presences.map(userPresenceToMessage)))
+      }))
+      .recoverWith(handleAskFailure(_, cb))
+  }
 
-    future.mapResponse[List[UserPresence]] onComplete {
-      case Success(userPresences) =>
-        cb.reply(SubscribePresenceResponseMessage(userPresences.map(userPresenceToMessage)))
-      case Failure(_) =>
-        cb.unexpectedError("Could not subscribe to presence")
+  private[this] def userNotFound(userId: DomainUserId, cb: ReplyCallback): Unit = {
+    cb.expectedError(ErrorCodes.UserNotFound, s"A user with id '${userId.username}' does not exist.")
+  }
+
+  //
+  // Outgoing Messages
+  //
+  private[this] def onOutgoingMessage(msg: PresenceClientActor.OutgoingMessage): Behavior[Message] = {
+    val serverMessage: GeneratedMessage with ServerMessage with NormalMessage = msg match {
+      case UserPresenceStateSet(userId, state) =>
+        PresenceStateSetMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), JsonProtoConverter.jValueMapToValueMap(state))
+      case UserPresenceStateRemoved(userId, keys) =>
+        PresenceStateRemovedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), keys)
+      case UserPresenceStateCleared(userId) =>
+        PresenceStateClearedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)))
+      case UserPresenceAvailabilityChanged(userId, available) =>
+        PresenceAvailabilityChangedMessage(Some(ImplicitMessageConversions.domainUserIdToData(userId)), available)
     }
+
+    clientActor ! ClientActor.SendServerMessage(serverMessage)
+
+    Behaviors.same
   }
 }
 
 object PresenceClientActor {
-  def props(presenceServiceActor: ActorRef, session: DomainUserSessionId): Props =
-    Props(new PresenceClientActor(presenceServiceActor, session))
+  def apply(domain: DomainId,
+            session: DomainUserSessionId,
+            clientActor: ActorRef[ClientActor.SendServerMessage],
+            presenceServiceActor: ActorRef[PresenceServiceActor.Message],
+            defaultTimeout: Timeout
+           ): Behavior[Message] =
+    Behaviors.setup(context => new PresenceClientActor(context, domain, session, clientActor, presenceServiceActor, defaultTimeout))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
+  sealed trait Message extends CborSerializable
+
+  //
+  // Messages from the client
+  //
+  sealed trait IncomingMessage extends Message
+
+  type IncomingNormalMessage = GeneratedMessage with NormalMessage with PresenceMessage with ClientMessage
+
+  case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
+
+  type IncomingRequestMessage = GeneratedMessage with RequestMessage with PresenceMessage with ClientMessage
+
+  case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
+
+
+  //
+  // Messages from within the server
+  //
+  sealed trait OutgoingMessage extends Message with CborSerializable
+
+  case class UserPresenceStateSet(userId: DomainUserId, state: Map[String, JValue]) extends OutgoingMessage
+
+  case class UserPresenceStateRemoved(userId: DomainUserId, keys: List[String]) extends OutgoingMessage
+
+  case class UserPresenceStateCleared(userId: DomainUserId) extends OutgoingMessage
+
+  case class UserPresenceAvailabilityChanged(userId: DomainUserId, available: Boolean) extends OutgoingMessage
+
 }

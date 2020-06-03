@@ -12,7 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-import com.convergencelabs.convergence.server.domain.model.{ClearReference, ModelReferenceEvent, RealTimeModel, RealTimeValue, ReferenceType, SetReference, ShareReference, UnshareReference}
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{SetReference, ShareReference}
+import com.convergencelabs.convergence.server.domain.model.{RealTimeModel, ReferenceType}
 
 import scala.util.Try
 

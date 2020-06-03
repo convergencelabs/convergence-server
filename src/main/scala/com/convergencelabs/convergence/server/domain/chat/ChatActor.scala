@@ -13,11 +13,15 @@ package com.convergencelabs.convergence.server.domain.chat
 
 import java.time.Instant
 
-import akka.actor.{ReceiveTimeout, Status}
-import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
-import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatMembership, ChatType, DomainPersistenceManagerActor}
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.{ChatNotFoundException, ExistingChatMessage}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.datastore.domain.{ChatEvent, ChatInfo, ChatMembership, ChatType, DomainPersistenceManagerActor}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.DurationInt
 import scala.util.control.NonFatal
@@ -29,42 +33,48 @@ import scala.util.{Failure, Success, Try}
  * chat room. The handling of messages is delegated to a ChatMessageProcessor
  * which implements the specific business logic of each type of chat.
  */
-class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessage]) {
+class ChatActor private[domain](context: ActorContext[ChatActor.Message],
+                                shardRegion: ActorRef[ChatActor.Message],
+                                shard: ActorRef[ClusterSharding.ShardCommand])
+  extends ShardedActor[ChatActor.Message](context, shardRegion, shard) with Logging {
+
+  import ChatActor._
+
 
   private[this] var domainId: DomainId = _
-  private[this] var channelId: String = _
+  private[this] var chatId: String = _
 
   // Here None signifies that the channel does not exist.
   private[this] var channelManager: Option[ChatStateManager] = None
   private[this] var messageProcessor: Option[ChatMessageProcessor] = None
 
-  protected def setIdentityData(message: ExistingChatMessage): Try[String] = {
+  protected def setIdentityData(message: Message): Try[String] = {
     this.domainId = message.domainId
-    this.channelId = message.chatId
-    Success(s"${domainId.namespace}/${domainId.domainId}/${this.channelId}")
+    this.chatId = message.chatId
+    Success(s"${domainId.namespace}/${domainId.domainId}/${this.chatId}")
   }
 
-  protected def initialize(message: ExistingChatMessage): Try[ShardedActorStatUpPlan] = {
-    DomainPersistenceManagerActor.acquirePersistenceProvider(self, context, domainId) flatMap { provider =>
-      log.debug(s"Chat Channel acquired persistence, creating channel manager: '$domainId/$channelId'")
-      ChatStateManager.create(channelId, provider.chatStore, provider.permissionsStore)
+  protected def initialize(message: Message): Try[ShardedActorStatUpPlan] = {
+    DomainPersistenceManagerActor.acquirePersistenceProvider(context.self, context.system, domainId) flatMap { provider =>
+      debug(s"Chat Channel acquired persistence, creating channel manager: '$domainId/$chatId'")
+      ChatStateManager.create(chatId, provider.chatStore, provider.permissionsStore)
     } map { manager =>
-      log.debug(s"Chat Channel Channel manager created: '$domainId/$channelId'")
+      debug(s"Chat Channel Channel manager created: '$domainId/$chatId'")
       this.channelManager = Some(manager)
       manager.state().chatType match {
         case ChatType.Room =>
           this.messageProcessor = Some(new ChatRoomMessageProcessor(
             domainId,
-            channelId,
+            chatId,
             manager,
             () => this.passivate(),
-            message => self ! message,
+            message => context.self ! message,
             context))
           // this would only need to happen if a previous instance of this room crashed without
           // cleaning up properly.
           manager.removeAllMembers()
         case ChatType.Channel =>
-          context.setReceiveTimeout(120.seconds)
+          context.setReceiveTimeout(120.seconds, ReceiveTimeout(this.domainId, this.chatId))
           manager.state().membership match {
             case ChatMembership.Private =>
               this.messageProcessor = Some(new PrivateChannelMessageProcessor(manager, context))
@@ -72,25 +82,25 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
               this.messageProcessor = Some(new PublicChannelMessageProcessor(manager, context))
           }
         case ChatType.Direct =>
-          context.setReceiveTimeout(120.seconds)
+          context.setReceiveTimeout(120.seconds, ReceiveTimeout(this.domainId, this.chatId))
           this.messageProcessor = Some(new DirectChatMessageProcessor(manager, context))
       }
       StartUpRequired
     } recoverWith {
       case NonFatal(cause) =>
-        log.error(cause, s"error initializing chat channel: '$domainId/$channelId'")
+        error(s"error initializing chat channel: '$domainId/$chatId'", cause)
         Failure(cause)
     }
   }
 
-  def receiveInitialized: Receive = {
-    case message: ExistingChatMessage =>
-      processChatMessage(message)
-        .recover { case cause: Exception => this.unexpectedError(cause) }
-    case ReceiveTimeout =>
-      this.onReceiveTimeout()
-    case unhandled: Any =>
-      this.unhandled(unhandled)
+  def receiveInitialized(msg: Message): Behavior[Message] = {
+    msg match {
+      case ReceiveTimeout(_, _) =>
+        this.onReceiveTimeout()
+      case message: RequestMessage =>
+        processChatMessage(message)
+    }
+    Behaviors.same
   }
 
   override def postStop(): Unit = {
@@ -100,10 +110,10 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
         cm.removeAllMembers()
       }
     }
-    DomainPersistenceManagerActor.releasePersistenceProvider(self, context, domainId)
+    DomainPersistenceManagerActor.releasePersistenceProvider(context.self, context.system, domainId)
   }
 
-  private[this] def processChatMessage(message: ExistingChatMessage): Try[Unit] = {
+  private[this] def processChatMessage(message: RequestMessage): Behavior[_ <: Message] = {
     (for {
       messageProcessor <- this.messageProcessor match {
         case Some(mp) => Success(mp)
@@ -111,48 +121,342 @@ class ChatActor private[domain]() extends ShardedActor(classOf[ExistingChatMessa
       }
       _ <- messageProcessor.processChatMessage(message) map { result =>
         // FIXME we have a message ordering issue here where the broadcast message will go first to the joining actor.
-        result.response foreach (response => sender ! response)
+        result.response foreach (response => response.replyTo ! response.response)
         result.broadcastMessages foreach messageProcessor.broadcast
         ()
       }
-    } yield ()).recover {
-      case cause: ChatNotFoundException =>
-        // It seems like there is no reason to stay up, at this point.
-        this.passivate()
-        sender ! Status.Failure(cause)
 
-      case cause: Exception =>
-        log.error(cause, "Error processing chat message")
-        sender ! Status.Failure(cause)
-    }
+    } yield Behaviors.same)
+      .recover {
+        case cause: ChatNotFoundException =>
+          // It seems like there is no reason to stay up, at this point.
+          message.replyTo ! RequestFailure(cause)
+          this.passivate()
+
+        case cause: Exception =>
+          error("Error processing chat message", cause)
+          message.replyTo ! RequestFailure(cause)
+          this.passivate()
+      }.get
   }
 
-  private[this] def onReceiveTimeout(): Unit = {
-    log.debug("Receive timeout reached, asking shard region to passivate")
+  private[this] def onReceiveTimeout(): Behavior[Message] = {
+    debug("Receive timeout reached, asking shard region to passivate")
     this.passivate()
-  }
-
-  private[this] def unexpectedError(cause: Exception): Unit = {
-    cause match {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
-        ()
-    }
   }
 }
 
 object ChatActor {
+  def apply(shardRegion: ActorRef[Message],
+            shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] = Behaviors.setup { context =>
+    new ChatActor(context, shardRegion, shard)
+  }
+
   def getChatUsernameTopicName(userId: DomainUserId): String = {
     s"chat-user-${userId.userType.toString.toLowerCase}-${userId.username}"
   }
+
+  sealed trait Message extends CborSerializable {
+    val domainId: DomainId
+    val chatId: String
+  }
+
+
+  private case class ReceiveTimeout(domainId: DomainId, chatId: String) extends Message
+
+  // Incoming Messages
+
+  sealed trait RequestMessage extends Message {
+    def replyTo: ActorRef[RequestFailure]
+  }
+
+  //
+  // RemoveChatRequest
+  //
+  case class RemoveChatRequest(domainId: DomainId,
+                               chatId: String,
+                               requester: DomainUserId,
+                               replyTo: ActorRef[RemoveChatResponse]) extends RequestMessage
+
+  sealed trait RemoveChatResponse extends CborSerializable
+
+
+  //
+  // JoinChannel
+  //
+  case class JoinChatRequest(domainId: DomainId,
+                             chatId: String,
+                             requester: DomainUserSessionId,
+                             client: ActorRef[ChatClientActor.OutgoingMessage],
+                             replyTo: ActorRef[JoinChatResponse]) extends RequestMessage
+
+  sealed trait JoinChatResponse extends CborSerializable
+
+  case class JoinChatSuccess(info: ChatInfo) extends JoinChatResponse
+
+  //
+  // LeaveChannel
+  //
+  case class LeaveChatRequest(domainId: DomainId,
+                              chatId: String,
+                              requester: DomainUserSessionId,
+                              client: ActorRef[ChatClientActor.OutgoingMessage],
+                              replyTo: ActorRef[LeaveChatResponse]) extends RequestMessage
+
+  sealed trait LeaveChatResponse extends CborSerializable
+
+  //
+  // AddUserToChannel
+  //
+  case class AddUserToChatRequest(domainId: DomainId,
+                                  chatId: String,
+                                  requester: DomainUserSessionId,
+                                  userToAdd: DomainUserId,
+                                  replyTo: ActorRef[AddUserToChatResponse]) extends RequestMessage
+
+  sealed trait AddUserToChatResponse extends CborSerializable
+
+  //
+  // RemoveUserFromChannel
+  //
+  case class RemoveUserFromChatRequest(domainId: DomainId,
+                                       chatId: String,
+                                       requester: DomainUserSessionId,
+                                       userToRemove: DomainUserId,
+                                       replyTo: ActorRef[RemoveUserFromChatResponse]) extends RequestMessage
+
+  sealed trait RemoveUserFromChatResponse extends CborSerializable
+
+  //
+  // SetChatName
+  //
+  case class SetChatNameRequest(domainId: DomainId,
+                                chatId: String,
+                                requester: DomainUserId,
+                                name: String,
+                                replyTo: ActorRef[SetChatNameResponse]) extends RequestMessage
+
+  sealed trait SetChatNameResponse extends CborSerializable
+
+  //
+  // SetChatTopic
+  //
+  case class SetChatTopicRequest(domainId: DomainId,
+                                 chatId: String,
+                                 requester: DomainUserId,
+                                 topic: String,
+                                 replyTo: ActorRef[SetChatTopicResponse]) extends RequestMessage
+
+  sealed trait SetChatTopicResponse extends CborSerializable
+
+  //
+  // MarkChatsEventsSeenRequest
+  //
+  case class MarkChatsEventsSeenRequest(domainId: DomainId,
+                                        chatId: String,
+                                        requester: DomainUserSessionId,
+                                        eventNumber: Long,
+                                        replyTo: ActorRef[MarkChatsEventsSeenResponse]) extends RequestMessage
+
+  sealed trait MarkChatsEventsSeenResponse extends CborSerializable
+
+  //
+  // PublishChatMessage
+  //
+  case class PublishChatMessageRequest(domainId: DomainId,
+                                       chatId: String,
+                                       requester: DomainUserSessionId,
+                                       message: String,
+                                       replyTo: ActorRef[PublishChatMessageResponse]) extends RequestMessage
+
+  sealed trait PublishChatMessageResponse extends CborSerializable
+
+  case class PublishChatMessageSuccess(eventNumber: Long, timestamp: Instant) extends PublishChatMessageResponse
+
+
+  //
+  // AddChatPermissions
+  //
+  case class AddChatPermissionsRequest(domainId: DomainId,
+                                       chatId: String,
+                                       requester: DomainUserSessionId,
+                                       world: Option[Set[String]],
+                                       user: Option[Set[UserPermissions]],
+                                       group: Option[Set[GroupPermissions]],
+                                       replyTo: ActorRef[AddChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait AddChatPermissionsResponse extends CborSerializable
+
+  //
+  // RemoveChatPermissions
+  //
+  case class RemoveChatPermissionsRequest(domainId: DomainId,
+                                          chatId: String,
+                                          requester: DomainUserSessionId,
+                                          world: Option[Set[String]],
+                                          user: Option[Set[UserPermissions]],
+                                          group: Option[Set[GroupPermissions]],
+                                          replyTo: ActorRef[RemoveChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait RemoveChatPermissionsResponse extends CborSerializable
+
+  //
+  // SetChatPermissions
+  //
+  case class SetChatPermissionsRequest(domainId: DomainId,
+                                       chatId: String,
+                                       requester: DomainUserSessionId,
+                                       world: Option[Set[String]],
+                                       user: Option[Set[UserPermissions]],
+                                       group: Option[Set[GroupPermissions]],
+                                       replyTo: ActorRef[SetChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait SetChatPermissionsResponse extends CborSerializable
+
+  //
+  // GetClientChatPermissions
+  //
+  case class GetClientChatPermissionsRequest(domainId: DomainId,
+                                             chatId: String,
+                                             requester: DomainUserSessionId,
+                                             replyTo: ActorRef[GetClientChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait GetClientChatPermissionsResponse extends CborSerializable
+
+  case class GetClientChatPermissionsSuccess(permissions: Set[String]) extends GetClientChatPermissionsResponse
+
+  //
+  // GetWorldChatPermissions
+  //
+  case class GetWorldChatPermissionsRequest(domainId: DomainId,
+                                            chatId: String,
+                                            requester: DomainUserSessionId,
+                                            replyTo: ActorRef[GetWorldChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait GetWorldChatPermissionsResponse extends CborSerializable
+
+  case class GetWorldChatPermissionsSuccess(permissions: Set[String]) extends GetWorldChatPermissionsResponse
+
+  //
+  // GetAllUserChatPermissions
+  //
+  case class GetAllUserChatPermissionsRequest(domainId: DomainId,
+                                              chatId: String,
+                                              requester: DomainUserSessionId,
+                                              replyTo: ActorRef[GetAllUserChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait GetAllUserChatPermissionsResponse extends CborSerializable
+
+  case class GetAllUserChatPermissionsSuccess(users: Map[DomainUserId, Set[String]]) extends GetAllUserChatPermissionsResponse
+
+  //
+  // GetAllGroupChatPermissions
+  //
+  case class GetAllGroupChatPermissionsRequest(domainId: DomainId,
+                                               chatId: String,
+                                               requester: DomainUserSessionId,
+                                               replyTo: ActorRef[GetAllGroupChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait GetAllGroupChatPermissionsResponse extends CborSerializable
+
+  case class GetAllGroupChatPermissionsSuccess(groups: Map[String, Set[String]]) extends GetAllGroupChatPermissionsResponse
+
+  //
+  // GetUserChatPermissions
+  //
+  case class GetUserChatPermissionsRequest(domainId: DomainId,
+                                           chatId: String,
+                                           requester: DomainUserSessionId,
+                                           userId: DomainUserId,
+                                           replyTo: ActorRef[GetUserChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait GetUserChatPermissionsResponse extends CborSerializable
+
+  case class GetUserChatPermissionsSuccess(permissions: Set[String]) extends GetUserChatPermissionsResponse
+
+  //
+  // GetGroupChatPermissions
+  //
+  case class GetGroupChatPermissionsRequest(domainId: DomainId,
+                                            chatId: String,
+                                            requester: DomainUserSessionId,
+                                            groupId: String,
+                                            replyTo: ActorRef[GetGroupChatPermissionsResponse]) extends RequestMessage
+
+  sealed trait GetGroupChatPermissionsResponse extends CborSerializable
+
+  case class GetGroupChatPermissionsSuccess(permissions: Set[String]) extends GetGroupChatPermissionsResponse
+
+  //
+  // GetChatHistory
+  //
+  case class GetChatHistoryRequest(domainId: DomainId,
+                                   chatId: String,
+                                   requester: Option[DomainUserSessionId],
+                                   offset: Option[Long],
+                                   limit: Option[Long],
+                                   startEvent: Option[Long],
+                                   forward: Option[Boolean],
+                                   eventTypes: Option[Set[String]],
+                                   messageFilter: Option[String] = None,
+                                   replyTo: ActorRef[GetChatHistoryResponse]) extends RequestMessage
+
+  sealed trait GetChatHistoryResponse extends CborSerializable
+
+  case class GetChatHistorySuccess(events: PagedData[ChatEvent]) extends GetChatHistoryResponse
+
+
+  //
+  // Generic Responses
+  //
+
+  case class RequestSuccess() extends CborSerializable
+    with RemoveChatResponse
+    with SetChatNameResponse
+    with SetChatTopicResponse
+    with LeaveChatResponse
+    with AddUserToChatResponse
+    with RemoveUserFromChatResponse
+    with MarkChatsEventsSeenResponse
+    with AddChatPermissionsResponse
+    with RemoveChatPermissionsResponse
+    with SetChatPermissionsResponse
+
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with RemoveChatResponse
+    with JoinChatResponse
+    with LeaveChatResponse
+    with AddUserToChatResponse
+    with RemoveUserFromChatResponse
+    with SetChatNameResponse
+    with SetChatTopicResponse
+    with MarkChatsEventsSeenResponse
+    with PublishChatMessageResponse
+    with AddChatPermissionsResponse
+    with RemoveChatPermissionsResponse
+    with SetChatPermissionsResponse
+    with GetClientChatPermissionsResponse
+    with GetWorldChatPermissionsResponse
+    with GetAllUserChatPermissionsResponse
+    with GetAllGroupChatPermissionsResponse
+    with GetUserChatPermissionsResponse
+    with GetGroupChatPermissionsResponse
+    with GetChatHistoryResponse
+
+
+  // Exceptions
+  sealed abstract class ChatException(message: String) extends Exception(message)
+
+  case class ChatNotJoinedException(chatId: String) extends ChatException(s"Can not perform this action on a chat that is not joined")
+
+  case class ChatAlreadyJoinedException(chatId: String) extends ChatException("")
+
+  case class ChatNotFoundException(chatId: String) extends ChatException("")
+
+  case class ChatAlreadyExistsException(chatId: String) extends ChatException("")
+
+  case class InvalidChatMessageException(message: String) extends ChatException(message)
+
 }
 
-case class ChatChannelState(id: String,
-                            chatType: ChatType.Value,
-                            created: Instant,
-                            membership: ChatMembership.Value,
-                            name: String,
-                            topic: String,
-                            lastEventTime: Instant,
-                            lastEventNumber: Long,
-                            members: Map[DomainUserId, ChatMember])
+

@@ -11,50 +11,45 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import akka.actor.{ActorRef, Props, ReceiveTimeout, Status, Terminated}
+import akka.actor.typed.scaladsl.adapter._
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
+import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.OutgoingMessage
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceManager, DomainPersistenceProvider, ModelPermissions}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelManager.EventHandler
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, UnauthorizedException}
+import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
+import com.convergencelabs.convergence.server.domain.model.ot.Operation
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 
-/**
- * Provides a factory method for creating the RealtimeModelActor
- */
-object RealtimeModelActor {
-  def props(modelPermissionResolver: ModelPermissionResolver,
-            modelCreator: ModelCreator,
-            persistenceManager: DomainPersistenceManager,
-            clientDataResponseTimeout: FiniteDuration,
-            receiveTimeout: FiniteDuration,
-            resyncTimeout: FiniteDuration): Props =
-    Props(new RealtimeModelActor(
-      modelPermissionResolver,
-      modelCreator,
-      persistenceManager,
-      clientDataResponseTimeout,
-      receiveTimeout,
-      resyncTimeout))
-}
 
 /**
  * An instance of the RealtimeModelActor manages the lifecycle of a single
  * realtime model.
  */
-class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermissionResolver,
+class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
+                         shardRegion: ActorRef[RealtimeModelActor.Message],
+                         shard: ActorRef[ClusterSharding.ShardCommand],
+                         private[this] val modelPermissionResolver: ModelPermissionResolver,
                          private[this] val modelCreator: ModelCreator,
                          private[this] val persistenceManager: DomainPersistenceManager,
                          private[this] val clientDataResponseTimeout: FiniteDuration,
                          private[this] val receiveTimeout: FiniteDuration,
                          private[this] val resyncTimeout: FiniteDuration)
-  extends ShardedActor(classOf[ModelMessage]) {
+  extends ShardedActor(context, shardRegion, shard) {
+
+  import RealtimeModelActor._
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
   private[this] var _domainFqn: Option[DomainId] = None
@@ -65,79 +60,90 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
   // Receive methods
   //
 
-  protected override def receiveInitialized: Receive = this.receiveClosed
-
-  private[this] def receiveClosed: Receive = {
-    case _: ReceiveTimeout =>
-      this.passivate()
-    case msg: StatelessModelMessage =>
-      handleStatelessMessage(msg)
-    case msg@(_: OpenRealtimeModelRequest | _: ModelResyncRequest) =>
-      this.becomeOpened()
-      this.receiveOpened(msg)
-    case unknown: Any =>
-      unhandled(unknown)
+  override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
+    case Terminated(actor) =>
+      modelManager.handleTerminated(actor.unsafeUpcast[ModelClientActor.OutgoingMessage])
+      Behaviors.same
   }
 
-  private[this] def receiveOpened: Receive = {
-    case msg: StatelessModelMessage =>
-      handleStatelessMessage(msg)
-    case msg: RealTimeModelMessage =>
-      handleRealtimeMessage(msg)
-    case TaskScheduled(task) =>
-      task()
-    case terminated: Terminated =>
-      modelManager.handleTerminated(terminated)
-    case unknown: Any =>
-      unhandled(unknown)
+  protected override def receiveInitialized(msg: Message): Behavior[Message] = this.receiveClosed(msg)
+
+  private[this] def receiveClosed(msg: Message): Behavior[Message] = {
+    msg match {
+      case _: ReceiveTimeout =>
+        this.passivate()
+      case msg: StatelessModelMessage =>
+        handleStatelessMessage(msg)
+      case msg@(_: OpenRealtimeModelRequest | _: ModelResyncRequest) =>
+        this.becomeOpened()
+        this.receiveOpened(msg)
+      case _ =>
+        Behaviors.unhandled
+    }
   }
 
-  private[this] def handleStatelessMessage(msg: StatelessModelMessage): Unit = {
+  private[this] def receiveOpened(msg: Message): Behavior[Message] = {
+    msg match {
+      case msg: StatelessModelMessage =>
+        handleStatelessMessage(msg)
+      case msg: RealTimeModelMessage =>
+        handleRealtimeMessage(msg)
+      case ExecuteTask(_, _, task) =>
+        task()
+        Behaviors.same
+      case _ =>
+        Behaviors.unhandled
+    }
+  }
+
+  private[this] def handleStatelessMessage(msg: StatelessModelMessage): Behavior[Message] = {
     msg match {
       case msg: GetRealtimeModelRequest =>
         this.retrieveModel(msg)
-      case msg: CreateRealtimeModel =>
+      case msg: CreateRealtimeModelRequest =>
         this.createModel(msg)
-      case msg: DeleteRealtimeModel =>
+      case msg: DeleteRealtimeModelRequest =>
         this.deleteModel(msg)
-      case msg: CreateOrUpdateRealtimeModel =>
+      case msg: CreateOrUpdateRealtimeModelRequest =>
         this.createOrUpdateModel(msg)
       case msg: GetModelPermissionsRequest =>
         this.retrieveModelPermissions(msg)
       case msg: SetModelPermissionsRequest =>
         this.setModelPermissions(msg)
     }
+
+    Behaviors.same
   }
 
   private[this] def retrieveModelPermissions(msg: GetModelPermissionsRequest): Unit = {
-    val GetModelPermissionsRequest(_, modelId, session) = msg
+    val GetModelPermissionsRequest(_, modelId, session, replyTo) = msg
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
         modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
             modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
               val ModelPermissionResult(overrideCollection, modelWorld, modelUsers) = p
-              GetModelPermissionsResponse(overrideCollection, modelWorld, modelUsers)
+              GetModelPermissionsResponse(Right(GetModelPermissionsSuccess(overrideCollection, modelWorld, modelUsers)))
             }
           } else {
             val message = "User must have 'read' permissions on the model to get permissions."
-            Failure(UnauthorizedException(message))
+            Success(GetModelPermissionsResponse(Left(UnauthorizedError(message))))
           }
         }
       } else {
-        Failure(ModelNotFoundException(modelId))
+        Success(GetModelPermissionsResponse(Left(ModelNotFoundError())))
       }
-    } map { response =>
-      sender ! response
-    } recover {
-      case cause: Throwable =>
-        sender ! Status.Failure(cause)
-        ()
+    } match {
+      case Success(response) =>
+        replyTo ! response
+      case Failure(cause) =>
+        error("unexpected error getting model permissions", cause)
+        replyTo ! GetModelPermissionsResponse(Left(UnknownError()))
     }
   }
 
   private[this] def setModelPermissions(msg: SetModelPermissionsRequest): Unit = {
-    val SetModelPermissionsRequest(_, modelId, session, overrideWorld, world, setAllUsers, addedUsers, removedUsers) = msg
+    val SetModelPermissionsRequest(_, modelId, session, overrideWorld, world, setAllUsers, addedUsers, removedUsers, replyTo) = msg
     val users = scala.collection.mutable.Map[DomainUserId, Option[ModelPermissions]]()
     users ++= addedUsers.transform((_, v) => Some(v))
     removedUsers.foreach(username => users += (username -> None))
@@ -162,39 +168,42 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
               _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users.toMap)
             } yield {
               this._modelManager.foreach { m => m.reloadModelPermissions() }
-              ()
+              SetModelPermissionsResponse(Right(()))
             }
           } else {
-            Failure(UnauthorizedException("User must have 'manage' permissions on the model to set permissions"))
+            val message = "User must have 'manage' permissions on the model to set permissions"
+            Success(SetModelPermissionsResponse(Left(UnauthorizedError(message))))
           }
         }
       } else {
-        Failure(ModelNotFoundException(modelId))
+        Success(SetModelPermissionsResponse(Left(ModelNotFoundError())))
       }
-    } map { _ =>
-      sender ! ((): Unit)
-    } recover {
-      case cause: Throwable =>
-        sender ! Status.Failure(cause)
-        ()
+    } match {
+      case Success(response) =>
+        replyTo ! response
+      case Failure(cause) =>
+        error("unexpected error setting model permissions", cause)
+        replyTo ! SetModelPermissionsResponse(Left(UnknownError()))
     }
   }
 
-  private def handleRealtimeMessage(msg: RealTimeModelMessage): Unit = {
+  private def handleRealtimeMessage(msg: RealTimeModelMessage): Behavior[Message] = {
     msg match {
       case openRequest: OpenRealtimeModelRequest =>
-        modelManager.onOpenRealtimeModelRequest(openRequest, sender)
+        modelManager.onOpenRealtimeModelRequest(openRequest)
       case resyncRequest: ModelResyncRequest =>
-        modelManager.onModelResyncRequest(resyncRequest, sender)
+        modelManager.onModelResyncRequest(resyncRequest)
       case resyncCompleteRequest: ModelResyncClientComplete =>
-        modelManager.onModelResyncClientComplete(resyncCompleteRequest, sender)
+        modelManager.onModelResyncClientComplete(resyncCompleteRequest)
       case closeRequest: CloseRealtimeModelRequest =>
-        modelManager.onCloseModelRequest(closeRequest, sender)
+        modelManager.onCloseModelRequest(closeRequest)
       case operationSubmission: OperationSubmission =>
-        modelManager.onOperationSubmission(operationSubmission, sender)
+        modelManager.onOperationSubmission(operationSubmission)
       case referenceEvent: ModelReferenceEvent =>
-        modelManager.onReferenceEvent(referenceEvent, sender)
+        modelManager.onReferenceEvent(referenceEvent)
     }
+
+    Behaviors.same
   }
 
   private[this] def modelManager: RealtimeModelManager = this._modelManager.getOrElse {
@@ -213,38 +222,40 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
     throw new IllegalStateException("Can not access persistenceProvider before the model is initialized.")
   }
 
-  override protected def setIdentityData(message: ModelMessage): Try[String] = {
+  override protected def setIdentityData(message: Message): Try[String] = {
     this._domainFqn = Some(message.domainId)
     this._modelId = Some(message.modelId)
     Success(s"${message.domainId.namespace}/${message.domainId.domainId}/${message.modelId}")
   }
 
-  override protected def initialize(msg: ModelMessage): Try[ShardedActorStatUpPlan] = {
-    persistenceManager.acquirePersistenceProvider(self, context, msg.domainId) map { provider =>
+  override protected def initialize(msg: Message): Try[ShardedActorStatUpPlan] = {
+    persistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId) map { provider =>
       this._persistenceProvider = Some(provider)
-      log.debug(s"$identityString: Acquired persistence")
+      debug(s"$identityString: Acquired persistence")
       this.becomeClosed()
       StartUpRequired
     } recoverWith {
       case cause: Throwable =>
-        log.debug(s"$identityString: Could not acquire persistence")
+        debug(s"$identityString: Could not acquire persistence")
         Failure(cause)
     }
   }
 
   private[this] def becomeOpened(): Unit = {
-    log.debug(s"$identityString: Becoming open.")
+    debug(s"$identityString: Becoming open.")
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
       domainFqn,
       modelId,
-      context.system,
+      context.system.toClassic,
       persistenceProvider.modelStore,
       persistenceProvider.modelSnapshotStore,
       persistenceProvider.modelOperationProcessor)
 
     val mm = new RealtimeModelManager(
       persistenceFactory,
-      new ActorBackedEventLoop(self),
+      new ActorBackedEventLoop(context.messageAdapter[TaskScheduled] {
+        case TaskScheduled(task) => ExecuteTask(domainFqn, modelId, task)
+      }),
       domainFqn,
       modelId,
       persistenceProvider,
@@ -252,17 +263,18 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
       modelCreator,
       Timeout(clientDataResponseTimeout),
       resyncTimeout,
-      context,
+      context.self,
+      context.system,
       new EventHandler() {
         def onInitializationError(): Unit = {
           becomeClosed()
         }
 
-        def onClientOpened(clientActor: ActorRef): Unit = {
+        def onClientOpened(clientActor: ActorRef[ModelClientActor.OutgoingMessage]): Unit = {
           context.watch(clientActor)
         }
 
-        def onClientClosed(clientActor: ActorRef): Unit = {
+        def onClientClosed(clientActor: ActorRef[ModelClientActor.OutgoingMessage]): Unit = {
           context.unwatch(clientActor)
         }
 
@@ -271,58 +283,62 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
         }
       })
     this._modelManager = Some(mm)
-    this.context.become(receiveOpened)
-    this.context.setReceiveTimeout(Duration.Undefined)
+    this.context.cancelReceiveTimeout()
   }
 
   private[this] def becomeClosed(): Unit = {
-    log.debug(s"$identityString: Becoming closed.")
+    debug(s"$identityString: Becoming closed.")
     this._modelManager = None
-    this.context.become(receiveClosed)
-    this.context.setReceiveTimeout(this.receiveTimeout)
+
+    this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(this.domainFqn, this.modelId))
   }
 
-  override def passivate(): Unit = {
-    this.context.setReceiveTimeout(Duration.Undefined)
+  override def passivate(): Behavior[Message] = {
+    this.context.cancelReceiveTimeout()
     super.passivate()
   }
 
   private[this] def retrieveModel(msg: GetRealtimeModelRequest): Unit = {
-    val GetRealtimeModelRequest(_, getModelId, session) = msg
-    (session match {
-      case Some(s) =>
-        modelPermissionResolver.getModelUserPermissions(getModelId, s.userId, persistenceProvider)
-          .map { p => p.read }
-      case None =>
-        Success(true)
-    }) flatMap { canRead =>
-      if (canRead) {
-        // TODO we could dump this into a future to get it of the actor thread.
-        persistenceProvider.modelStore.getModel(getModelId).map(GetRealtimeModelResponse)
-      } else {
-        val message = "User must have 'read' permissions on the model to get it."
-        Failure(UnauthorizedException(message))
+    Future {
+      val GetRealtimeModelRequest(_, getModelId, session, replyTo: ActorRef[GetRealtimeModelResponse]) = msg
+      (session match {
+        case Some(s) =>
+          modelPermissionResolver.getModelUserPermissions(getModelId, s.userId, persistenceProvider)
+            .map { p => p.read }
+        case None =>
+          Success(true)
+      }) flatMap { canRead =>
+        if (canRead) {
+          persistenceProvider.modelStore.getModel(getModelId)
+            .map(_
+              .map(m => GetRealtimeModelResponse(Right(m)))
+              .getOrElse(GetRealtimeModelResponse(Left(ModelNotFoundError()))))
+        } else {
+          val message = "User must have 'read' permissions on the model to get it."
+          Failure(UnauthorizedException(message))
+        }
+      } match {
+        case Success(response) =>
+          replyTo ! response
+        case Failure(cause) =>
+          error("Unexpected error getting model", cause)
+          replyTo ! GetRealtimeModelResponse(Left(UnknownError()))
       }
-    } map { model =>
-      sender ! model
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
-        ()
-    }
+    }(context.system.executionContext)
   }
 
-  private[this] def createOrUpdateModel(msg: CreateOrUpdateRealtimeModel): Unit = {
-    val CreateOrUpdateRealtimeModel(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, _) = msg
+  private[this] def createOrUpdateModel(msg: CreateOrUpdateRealtimeModelRequest): Unit = {
+    val CreateOrUpdateRealtimeModelRequest(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, _, replyTo) = msg
     persistenceProvider.modelStore.modelExists(modelId) flatMap { exists =>
       if (exists) {
         this._modelManager match {
           case Some(_) =>
-            Failure(new RuntimeException("Cannot update an open model"))
+            Success(CreateOrUpdateRealtimeModelResponse(Left(ModelOpenError())))
           case None =>
             // FIXME we really need to actually create a synthetic operation
             //   and use the model operation processor to apply it.
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
+              .map(_ => CreateOrUpdateRealtimeModelResponse(Right(())))
 
           // FIXME permissions
         }
@@ -336,48 +352,53 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
           overridePermissions,
           worldPermissions,
           userPermissions)
+          .map(_ => CreateOrUpdateRealtimeModelResponse(Right(())))
       }
-    } map { _ =>
-      sender ! (())
-    } recover {
-      case cause: Exception =>
-        sender ! Status.Failure(cause)
+    } match {
+      case Success(response) =>
+        replyTo ! response
+      case Failure(cause) =>
+        error("Unexpected error creating or updating model", cause)
+        replyTo ! CreateOrUpdateRealtimeModelResponse(Left(UnknownError()))
     }
   }
 
-  private[this] def createModel(msg: CreateRealtimeModel): Unit = {
-    val CreateRealtimeModel(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session) = msg
-    log.debug(s"$identityString: Creating model.")
+  private[this] def createModel(msg: CreateRealtimeModelRequest): Unit = {
+    val CreateRealtimeModelRequest(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session, replyTo) = msg
+    debug(s"$identityString: Creating model.")
     if (collectionId.length == 0) {
-      sender ! Status.Failure(new IllegalArgumentException("The collectionId can not be empty when creating a model"))
+      replyTo ! CreateRealtimeModelResponse(Left(InvalidCreationDataError("The collectionId can not be empty when creating a model")))
     } else {
-      modelCreator.createModel(
-        persistenceProvider,
-        session.map(_.userId),
-        collectionId,
-        modelId,
-        data,
-        overridePermissions,
-        worldPermissions,
-        userPermissions) map { model =>
-        log.debug(s"$identityString: Model created.")
-        sender ! model.metaData.id
-        ()
-      } recover {
-        case _: DuplicateValueException =>
-          sender ! Status.Failure(ModelAlreadyExistsException(modelId))
-        case e: UnauthorizedException =>
-          sender ! Status.Failure(e)
-        case e: Exception =>
-          log.error(e, s"Could not create model: $modelId")
-          sender ! Status.Failure(e)
-      }
+      modelCreator
+        .createModel(
+          persistenceProvider,
+          session.map(_.userId),
+          collectionId,
+          modelId,
+          data,
+          overridePermissions,
+          worldPermissions,
+          userPermissions)
+        .map { model =>
+          debug(s"$identityString: Model created.")
+          CreateRealtimeModelResponse(Right(model.metaData.id))
+        }
+        .recover {
+          case _: DuplicateValueException =>
+            CreateRealtimeModelResponse(Left(ModelAlreadyExistsError()))
+          case e: UnauthorizedException =>
+            CreateRealtimeModelResponse(Left(UnauthorizedError("Not allowed to create a model in this collection")))
+          case e: Exception =>
+            error(s"Could not create model: $modelId", e)
+            CreateRealtimeModelResponse(Left(UnknownError()))
+        }
+        .foreach(replyTo ! _)
     }
   }
 
-  private[this] def deleteModel(deleteRequest: DeleteRealtimeModel): Unit = {
+  private[this] def deleteModel(deleteRequest: DeleteRealtimeModelRequest): Unit = {
     // FIXME I don't think we need to check exists first.
-    val DeleteRealtimeModel(_, modelId, session) = deleteRequest
+    val DeleteRealtimeModelRequest(_, modelId, session, replyTo) = deleteRequest
     persistenceProvider.modelStore.modelExists(modelId).flatMap { exists =>
       if (exists) {
         (session match {
@@ -390,26 +411,321 @@ class RealtimeModelActor(private[this] val modelPermissionResolver: ModelPermiss
           if (canDelete) {
             this._modelManager.foreach(_.modelDeleted())
             persistenceProvider.modelStore.deleteModel(modelId)
+              .map(_ => DeleteRealtimeModelResponse(Right(())))
           } else {
             val message = "User must have 'remove' permissions on the model to remove it."
-            Failure(UnauthorizedException(message))
+            Success(DeleteRealtimeModelResponse(Left(UnauthorizedError(message))))
           }
         }
       } else {
-        Failure(ModelNotFoundException(modelId))
+        Success(DeleteRealtimeModelResponse(Left(ModelNotFoundError())))
       }
-    } map { _ =>
-      sender ! (())
     } recover {
       case cause: Exception =>
-        sender ! Status.Failure(cause)
-    }
+        error("Unexpected error deleting model", cause)
+        DeleteRealtimeModelResponse(Left(UnknownError()))
+    } foreach (replyTo ! _)
   }
 
   override def postStop(): Unit = {
-    super.postStop()
     this._domainFqn foreach { _ =>
-      persistenceManager.releasePersistenceProvider(self, context, domainFqn)
+      persistenceManager.releasePersistenceProvider(context.self, context.system, domainFqn)
     }
+
+    super.postStop()
   }
+}
+
+
+/**
+ * Provides a factory method for creating the RealtimeModelActor
+ */
+object RealtimeModelActor {
+  def apply(shardRegion: ActorRef[Message],
+            shard: ActorRef[ClusterSharding.ShardCommand],
+            modelPermissionResolver: ModelPermissionResolver,
+            modelCreator: ModelCreator,
+            persistenceManager: DomainPersistenceManager,
+            clientDataResponseTimeout: FiniteDuration,
+            receiveTimeout: FiniteDuration,
+            resyncTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
+    new RealtimeModelActor(
+      context,
+      shardRegion,
+      shard,
+      modelPermissionResolver,
+      modelCreator,
+      persistenceManager,
+      clientDataResponseTimeout,
+      receiveTimeout,
+      resyncTimeout)
+  }
+
+  sealed trait Message extends CborSerializable {
+    val domainId: DomainId
+    val modelId: String
+  }
+
+  case class ReceiveTimeout(domainId: DomainId, modelId: String) extends Message
+
+  private case class ExecuteTask(domainId: DomainId, modelId: String, task: () => Unit) extends Message
+
+  //
+  // Messages that apply when the model is open or closed.
+  //
+  sealed trait StatelessModelMessage extends Message
+
+  // Basic Model CRUD
+
+  //
+  // GetRealtimeModel
+  case class GetRealtimeModelRequest(domainId: DomainId,
+                                     modelId: String,
+                                     session: Option[DomainUserSessionId],
+                                     replyTo: ActorRef[GetRealtimeModelResponse]) extends StatelessModelMessage
+
+  sealed trait GetRealtimeModelError
+
+  case class GetRealtimeModelResponse(model: Either[GetRealtimeModelError, Model]) extends CborSerializable
+
+  //
+  // CreateOrUpdateRealtimeModel
+  //
+  case class CreateOrUpdateRealtimeModelRequest(domainId: DomainId,
+                                                modelId: String,
+                                                collectionId: String,
+                                                data: ObjectValue,
+                                                overridePermissions: Option[Boolean],
+                                                worldPermissions: Option[ModelPermissions],
+                                                userPermissions: Map[DomainUserId, ModelPermissions],
+                                                session: Option[DomainUserSessionId],
+                                                replyTo: ActorRef[CreateOrUpdateRealtimeModelResponse]) extends StatelessModelMessage
+
+  sealed trait CreateOrUpdateRealtimeModelError
+
+  case class ModelOpenError() extends CreateOrUpdateRealtimeModelError
+
+  case class CreateOrUpdateRealtimeModelResponse(response: Either[CreateOrUpdateRealtimeModelError, Unit]) extends CborSerializable
+
+  //
+  // CreateRealtimeModel
+  //
+  case class CreateRealtimeModelRequest(domainId: DomainId,
+                                        modelId: String,
+                                        collectionId: String,
+                                        data: ObjectValue,
+                                        overridePermissions: Option[Boolean],
+                                        worldPermissions: Option[ModelPermissions],
+                                        userPermissions: Map[DomainUserId, ModelPermissions],
+                                        session: Option[DomainUserSessionId],
+                                        replyTo: ActorRef[CreateRealtimeModelResponse]) extends StatelessModelMessage
+
+  sealed trait CreateRealtimeModelError
+
+  case class InvalidCreationDataError(message: String) extends CreateRealtimeModelError
+
+  case class CreateRealtimeModelResponse(response: Either[CreateRealtimeModelError, String]) extends CborSerializable
+
+
+  //
+  // DeleteRealtimeModel
+  //
+  case class DeleteRealtimeModelRequest(domainId: DomainId,
+                                        modelId: String,
+                                        session: Option[DomainUserSessionId],
+                                        replyTo: ActorRef[DeleteRealtimeModelResponse]) extends StatelessModelMessage
+
+  sealed trait DeleteRealtimeModelError
+
+  case class DeleteRealtimeModelResponse(response: Either[DeleteRealtimeModelError, Unit]) extends CborSerializable
+
+  //
+  // GetModelPermissions
+  //
+  case class GetModelPermissionsRequest(domainId: DomainId,
+                                        modelId: String,
+                                        session: DomainUserSessionId,
+                                        replyTo: ActorRef[GetModelPermissionsResponse]) extends StatelessModelMessage
+
+
+  sealed trait GetModelPermissionsError
+
+  case class GetModelPermissionsResponse(response: Either[GetModelPermissionsError, GetModelPermissionsSuccess]) extends CborSerializable
+
+  case class GetModelPermissionsSuccess(overridesCollection: Boolean,
+                                        worldPermissions: ModelPermissions,
+                                        userPermissions: Map[DomainUserId, ModelPermissions])
+
+
+  //
+  // SetModelPermissions
+  //
+  case class SetModelPermissionsRequest(domainId: DomainId,
+                                        modelId: String,
+                                        session: DomainUserSessionId,
+                                        overrideCollection: Option[Boolean],
+                                        worldPermissions: Option[ModelPermissions],
+                                        setAllUserPermissions: Boolean,
+                                        addedUserPermissions: Map[DomainUserId, ModelPermissions],
+                                        removedUserPermissions: List[DomainUserId],
+                                        replyTo: ActorRef[SetModelPermissionsResponse]) extends StatelessModelMessage
+
+  sealed trait SetModelPermissionsError
+
+  case class SetModelPermissionsResponse(response: Either[SetModelPermissionsError, Unit]) extends CborSerializable
+
+  //
+  // Messages targeted specifically at "open" models.
+  //
+  sealed trait RealTimeModelMessage extends Message
+
+  //
+  // OpenRealtimeModelRequest
+  //
+  case class OpenRealtimeModelRequest(domainId: DomainId,
+                                      modelId: String,
+                                      autoCreateId: Option[Int],
+                                      session: DomainUserSessionId,
+                                      clientActor: ActorRef[OutgoingMessage],
+                                      replyTo: ActorRef[OpenRealtimeModelResponse]) extends RealTimeModelMessage
+
+  sealed trait OpenRealtimeModelError
+
+  case class ClientErrorResponse(message: String) extends OpenRealtimeModelError
+
+  case class OpenRealtimeModelResponse(response: Either[OpenRealtimeModelError, OpenModelSuccess]) extends CborSerializable
+
+  case class OpenModelSuccess(valuePrefix: Long,
+                              metaData: OpenModelMetaData,
+                              connectedClients: Set[DomainUserSessionId],
+                              resyncingClients: Set[DomainUserSessionId],
+                              referencesBySession: Set[ReferenceState],
+                              modelData: ObjectValue,
+                              modelPermissions: ModelPermissions)
+
+  //
+  // CloseRealtimeModel
+  //
+  case class CloseRealtimeModelRequest(domainId: DomainId,
+                                       modelId: String, session: DomainUserSessionId,
+                                       replyTo: ActorRef[CloseRealtimeModelResponse]) extends RealTimeModelMessage
+
+  sealed trait CloseRealtimeModelError
+
+  case class CloseRealtimeModelResponse(response: Either[CloseRealtimeModelError, Unit]) extends CborSerializable
+
+
+  //
+  // ModelResync
+  //
+  case class ModelResyncRequest(domainId: DomainId,
+                                modelId: String,
+                                session: DomainUserSessionId,
+                                contextVersion: Long,
+                                clientActor: ActorRef[OutgoingMessage],
+                                replyTo: ActorRef[ModelResyncResponse]) extends RealTimeModelMessage
+
+  sealed trait ModelResyncError
+
+  case class ModelResyncResponseData(currentVersion: Long, modelPermissions: ModelPermissions)
+
+  case class ModelResyncResponse(response: Either[ModelResyncError, ModelResyncResponseData]) extends CborSerializable
+
+
+  //
+  // ModelResyncClientComplete
+  //
+  case class ModelResyncClientComplete(domainId: DomainId,
+                                       modelId: String,
+                                       session: DomainUserSessionId,
+                                       open: Boolean) extends RealTimeModelMessage
+
+
+  //
+  // One one messages
+  //
+
+  case class OperationSubmission(domainId: DomainId,
+                                 modelId: String,
+                                 session: DomainUserSessionId,
+                                 seqNo: Int,
+                                 contextVersion: Long,
+                                 operation: Operation) extends RealTimeModelMessage
+
+  //
+  // One Way Reference Events
+  //
+
+  sealed trait ModelReferenceEvent extends RealTimeModelMessage {
+    val valueId: Option[String]
+    val session: DomainUserSessionId
+  }
+
+  case class ShareReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+
+  case class SetReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+
+  case class ClearReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String) extends ModelReferenceEvent
+
+  case class UnshareReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String) extends ModelReferenceEvent
+
+
+  //
+  // Common Errors
+  //
+
+  sealed trait RequestError
+
+  case class ModelAlreadyOpenError() extends RequestError
+    with OpenRealtimeModelError
+    with ModelResyncError
+
+  case class ModelAlreadyOpeningError() extends RequestError
+    with OpenRealtimeModelError
+    with ModelResyncError
+
+  case class ModelNotOpenError() extends RequestError
+    with CloseRealtimeModelError
+
+  case class ModelDeletedWhileOpeningError() extends RequestError
+    with OpenRealtimeModelError
+
+  case class ModelAlreadyExistsError() extends RequestError
+    with CreateRealtimeModelError
+
+  case class ClientDataRequestError(message: String) extends RequestError
+    with OpenRealtimeModelError
+
+  case class ModelClosingAfterErrorError() extends RequestError
+    with OpenRealtimeModelError
+    with ModelResyncError
+
+  case class ModelNotFoundError() extends RequestError
+    with GetRealtimeModelError
+    with OpenRealtimeModelError
+    with ModelResyncError
+    with DeleteRealtimeModelError
+    with GetModelPermissionsError
+    with SetModelPermissionsError
+
+  case class UnauthorizedError(message: String) extends RequestError
+    with GetRealtimeModelError
+    with OpenRealtimeModelError
+    with CreateOrUpdateRealtimeModelError
+    with CreateRealtimeModelError
+    with ModelResyncError
+    with DeleteRealtimeModelError
+    with GetModelPermissionsError
+    with SetModelPermissionsError
+
+  case class UnknownError() extends RequestError
+    with GetRealtimeModelError
+    with OpenRealtimeModelError
+    with CreateOrUpdateRealtimeModelError
+    with CreateRealtimeModelError
+    with DeleteRealtimeModelError
+    with GetModelPermissionsError
+    with SetModelPermissionsError
+    with ModelResyncError
+
 }

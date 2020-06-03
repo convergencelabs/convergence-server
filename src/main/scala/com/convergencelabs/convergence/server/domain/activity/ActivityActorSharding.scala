@@ -11,24 +11,29 @@
 
 package com.convergencelabs.convergence.server.domain.activity
 
-import akka.cluster.sharding.ShardRegion
-import com.convergencelabs.convergence.server.actor.ActorSharding
-import com.convergencelabs.convergence.server.domain.activity.ActivityActor.ActivityActorMessage
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
+import com.convergencelabs.convergence.server.ServerClusterRoles
+import com.convergencelabs.convergence.server.actor.NoPropsActorSharding
 
+object ActivityActorSharding  {
+  private val EntityName = "Activities"
 
-object ActivityActorSharding extends ActorSharding(
-    "ActivityActorShardRegion",
-    "backend",
-    classOf[ActivityActor]){
-  
-  override def extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ActivityActorMessage =>
-      val id = s"${msg.domain.namespace}::${msg.domain.namespace}::${msg.activityId}"
-      (id, msg)
+  def apply(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int): ActorRef[ActivityActor.Message] = {
+    val activitySharding = new ActivityActorSharding(system, sharding, numberOfShards)
+    activitySharding.shardRegion
   }
- 
-  override def extractShardId(numberOfShards: Int): ShardRegion.ExtractShardId = {
-    case msg: ActivityActorMessage =>
-      Math.abs(msg.domain.hashCode + msg.activityId.hashCode % numberOfShards).toString
+}
+
+private class ActivityActorSharding(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)
+  extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, system, sharding, numberOfShards) {
+
+  override def extractEntityId(msg: ActivityActor.Message): String =
+    s"${msg.domain.namespace}::${msg.domain.namespace}::${msg.activityId}"
+
+  override def createBehavior(system: ActorSystem[_],
+                              shardRegion: ActorRef[ActivityActor.Message],
+                              entityContext: EntityContext[ActivityActor.Message]): Behavior[ActivityActor.Message] = {
+    ActivityActor(shardRegion, entityContext.shard)
   }
 }

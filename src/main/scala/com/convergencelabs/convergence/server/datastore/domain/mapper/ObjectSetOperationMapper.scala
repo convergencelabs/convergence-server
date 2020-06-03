@@ -11,18 +11,15 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import java.util.{ Map => JavaMap }
+import java.util.{Map => JavaMap}
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.JavaConverters.mapAsScalaMapConverter
-import scala.language.implicitConversions
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import DataValueMapper.DataValueToODocument
-import DataValueMapper.ODocumentToDataValue
+import scala.jdk.CollectionConverters._
+import scala.language.implicitConversions
 
 object ObjectSetOperationMapper extends ODocumentMapper {
 
@@ -38,7 +35,7 @@ object ObjectSetOperationMapper extends ODocumentMapper {
     val valueDoc = obj.value map {case (k, v) => (k, v.asODocument)}
     doc.field(Fields.Val, valueDoc.asJava)
     val oldValDoc = (oldValue map {_ map {case (k, v) => (k, v.asODocument)}}) map {_.asJava}
-    doc.field(Fields.OldValue, oldValDoc.getOrElse(null))
+    doc.field(Fields.OldValue, oldValDoc.orNull)
     doc
   }
 

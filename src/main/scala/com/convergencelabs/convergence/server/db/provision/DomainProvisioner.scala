@@ -16,9 +16,9 @@ import java.time.{Duration => JavaDuration}
 
 import com.convergencelabs.convergence.server.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.db.{DatabaseProvider, SingleDatabaseProvider}
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner._
 import com.convergencelabs.convergence.server.db.schema.DomainSchemaManager
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, SingleDatabaseProvider}
 import com.convergencelabs.convergence.server.domain.{DomainId, JwtKeyPair, JwtUtil, ModelSnapshotConfig}
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import com.orientechnologies.orient.core.metadata.security.{ORole, ORule}
@@ -29,6 +29,14 @@ import grizzled.slf4j.Logging
 import scala.util.{Failure, Try}
 
 object DomainProvisioner {
+  case class ProvisionRequest(domainId: DomainId,
+                              databaseName: String,
+                              dbUsername: String,
+                              dbPassword: String,
+                              dbAdminUsername: String,
+                              dbAdminPassword: String,
+                              anonymousAuth: Boolean)
+
   val DefaultSnapshotConfig: ModelSnapshotConfig = ModelSnapshotConfig(
     snapshotsEnabled = false,
     triggerByVersion = false,
@@ -55,14 +63,8 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
   private[this] val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
   private[this] val preRelease = config.getBoolean("convergence.persistence.domain-databases.pre-release")
 
-  def provisionDomain(
-    domainFqn:       DomainId,
-    dbName:          String,
-    dbUsername:      String,
-    dbPassword:      String,
-    dbAdminUsername: String,
-    dbAdminPassword: String,
-    anonymousAuth:   Boolean): Try[Unit] = {
+  def provisionDomain(data: ProvisionRequest): Try[Unit] = {
+    val ProvisionRequest(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = data
     logger.debug(s"Provisioning domain: $dbBaseUri/$dbName")
     createDatabase(dbName) flatMap { _ =>
       setAdminCredentials(dbName, dbAdminUsername, dbAdminPassword)
@@ -71,7 +73,7 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
       val result = provider
         .connect()
         .flatMap(_ => configureNonAdminUsers(provider, dbUsername, dbPassword))
-        .flatMap(_ => installSchema(domainFqn, provider, preRelease))
+        .flatMap(_ => installSchema(domainId, provider, preRelease))
 
       // We need to do this no matter what, so we grab the result above, shut down
       // and then return the result.
@@ -80,7 +82,7 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
 
       result
     } flatMap { _ =>
-      initDomain(dbName, dbUsername, dbPassword, anonymousAuth)
+      initDomain(domainId, dbName, dbUsername, dbPassword, anonymousAuth)
     }
   }
 
@@ -147,10 +149,10 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
     }
   }
 
-  private[this] def initDomain(dbName: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
+  private[this] def initDomain(domainId: DomainId, dbName: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
     logger.debug(s"Connecting as normal user to initialize domain: $dbBaseUri/$dbName")
     val provider = new SingleDatabaseProvider(dbBaseUri, dbName, username, password)
-    val persistenceProvider = new DomainPersistenceProviderImpl(provider)
+    val persistenceProvider = new DomainPersistenceProviderImpl(domainId, provider)
     provider
       .connect()
       .flatMap(_ => persistenceProvider.validateConnection())

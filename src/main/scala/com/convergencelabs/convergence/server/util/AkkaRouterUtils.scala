@@ -11,18 +11,13 @@
 
 package com.convergencelabs.convergence.server.util
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.cluster.routing.{ClusterRouterGroup, ClusterRouterGroupSettings}
-import akka.routing.RoundRobinGroup
+import akka.actor.typed.ActorRef
+import akka.actor.typed.receptionist.ServiceKey
+import akka.actor.typed.scaladsl.{ActorContext, Routers}
 
 object AkkaRouterUtils {
-  def createBackendRouter(system: ActorSystem, relativePath: String, localName: String): ActorRef = {
-    system.actorOf(
-      ClusterRouterGroup(
-        RoundRobinGroup(Nil),
-        ClusterRouterGroupSettings(
-          totalInstances = 100, routeesPaths = List("/user/" + relativePath),
-          allowLocalRoutees = true, useRoles = Set("backend"))).props(),
-      name = localName)
+  def createBackendRouter[T](context: ActorContext[_], serviceKey: ServiceKey[T], localName: String): ActorRef[T] = {
+    val group = Routers.group(serviceKey).withRoundRobinRouting()
+    context.spawn(group, localName)
   }
 }

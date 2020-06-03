@@ -13,13 +13,16 @@ package com.convergencelabs.convergence.server.api.rest
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.adapter._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, complete, concat, extractRequest, extractUri, handleExceptions}
-import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import akka.http.scaladsl.server._
+import akka.stream.Materializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -28,9 +31,9 @@ import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.convergence.server.domain.chat.ChatSharding
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActorSharding
+import com.convergencelabs.convergence.server.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.util.AkkaRouterUtils._
 import grizzled.slf4j.Logging
 
@@ -44,20 +47,22 @@ import scala.util.{Failure, Success}
  * The [[ConvergenceRestApi]] class is the main entry point to the Convergence
  * Server REST Subsystem.
  *
- * @param system    The Akka ActorSystem to deploy actors into.
  * @param interface The network interface to bind to.
  * @param port      The network port to bind to.
  */
-class ConvergenceRestApi(private[this] val system: ActorSystem,
-                         private[this] val interface: String,
-                         private[this] val port: Int)
+class ConvergenceRestApi(private[this] val interface: String,
+                         private[this] val port: Int,
+                         private[this] val context: ActorContext[_],
+                         domainRestRegion: ActorRef[DomainRestActor.Message],
+                         modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                         chatClusterRegion: ActorRef[ChatActor.Message])
   extends Logging with JsonSupport {
 
-  private[this] implicit val s: ActorSystem = system
-  private[this] implicit val ec: ExecutionContextExecutor = system.dispatcher
+  private[this] implicit val system: ActorSystem[_] = context.system
+  private[this] implicit val ec: ExecutionContextExecutor = system.executionContext
   private[this] implicit val defaultRequestTimeout: Timeout = Timeout(20 seconds)
 
-  private[this] val routers = ListBuffer[ActorRef]()
+  private[this] val routers = ListBuffer[ActorRef[_]]()
   private[this] var binding: Option[Http.ServerBinding] = None
 
   private[this] val exceptionHandler: ExceptionHandler = ExceptionHandler {
@@ -82,61 +87,59 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
    * to the specified interface and port.
    */
   def start(): Unit = {
-    // Shard regions we will use. This does not start the shard regions / proxies,
-    // it assumes that they are already running.
-    val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(system)
-    val restDomainActorRegion: ActorRef = DomainRestActorSharding.shardRegion(system)
-    val chatActorRegion: ActorRef = ChatSharding.shardRegion(system)
 
     // Routers to backend services. We add them to a list so we can shut them down.
-    val authenticationActor = createBackendRouter(system, AuthenticationActor.RelativePath, "authActor")
+    val authenticationActor = createBackendRouter(context, AuthenticationActor.Key, "authActor")
     routers += authenticationActor
-    val convergenceUserActor = createBackendRouter(system, ConvergenceUserManagerActor.RelativePath, "convergenceUserActor")
+    val convergenceUserActor = createBackendRouter(context, ConvergenceUserManagerActor.Key, "convergenceUserActor")
     routers += convergenceUserActor
-    val namespaceActor = createBackendRouter(system, NamespaceStoreActor.RelativePath, "namespaceActor")
+    val namespaceActor = createBackendRouter(context, NamespaceStoreActor.Key, "namespaceActor")
     routers += namespaceActor
-    val databaseManagerActor = createBackendRouter(system, DatabaseManagerActor.RelativePath, "databaseManagerActor")
+    val databaseManagerActor = createBackendRouter(context, DatabaseManagerActor.Key, "databaseManagerActor")
     routers += databaseManagerActor
-    val importerActor = createBackendRouter(system, ConvergenceImporterActor.RelativePath, "importerActor")
+    val importerActor = createBackendRouter(context, ConvergenceImporterActor.Key, "importerActor")
     routers += importerActor
-    val roleActor = createBackendRouter(system, RoleStoreActor.RelativePath, "roleActor")
+    val roleActor = createBackendRouter(context, RoleStoreActor.Key, "roleActor")
     routers += roleActor
-    val userApiKeyActor = createBackendRouter(system, UserApiKeyStoreActor.RelativePath, "userApiKeyActor")
+    val userApiKeyActor = createBackendRouter(context, UserApiKeyStoreActor.Key, "userApiKeyActor")
     routers += userApiKeyActor
-    val configActor = createBackendRouter(system, ConfigStoreActor.RelativePath, "configActor")
+    val configActor = createBackendRouter(context, ConfigStoreActor.Key, "configActor")
     routers += configActor
-    val favoriteDomainsActor = createBackendRouter(system, UserFavoriteDomainStoreActor.RelativePath, "favoriteDomainsActor")
+    val favoriteDomainsActor = createBackendRouter(context, UserFavoriteDomainStoreActor.Key, "favoriteDomainsActor")
     routers += favoriteDomainsActor
-    val domainStoreActor = createBackendRouter(system, DomainStoreActor.RelativePath, "domainStoreActor")
+    val domainStoreActor = createBackendRouter(context, DomainStoreActor.Key, "domainStoreActor")
     routers += domainStoreActor
-    val statusActor = createBackendRouter(system, ServerStatusActor.RelativePath, "serverStatusActor")
+    val statusActor = createBackendRouter(context, ServerStatusActor.Key, "serverStatusActor")
     routers += statusActor
 
     // The Rest Services
     val infoService = new InfoService(ec, defaultRequestTimeout)
-    val authService = new AuthService(ec, authenticationActor, defaultRequestTimeout)
-    val currentUserService = new CurrentUserService(ec, convergenceUserActor, favoriteDomainsActor, defaultRequestTimeout)
-    val namespaceService = new NamespaceService(ec, namespaceActor, defaultRequestTimeout)
-    val roleService = new UserRoleService(ec, roleActor, defaultRequestTimeout)
-    val userApiKeyService = new CurrentUserApiKeyService(ec, userApiKeyActor, defaultRequestTimeout)
-    val configService = new ConfigService(ec, configActor, defaultRequestTimeout)
-    val statusService = new ServerStatusService(ec, statusActor, defaultRequestTimeout)
+    val authService = new AuthService(authenticationActor, system, ec, defaultRequestTimeout)
+    val currentUserService = new CurrentUserService(convergenceUserActor, favoriteDomainsActor, ec, system, defaultRequestTimeout)
+    val namespaceService = new NamespaceService(namespaceActor, system, ec, defaultRequestTimeout)
+    val roleService = new UserRoleService(roleActor, system, ec , defaultRequestTimeout)
+    val userApiKeyService = new CurrentUserApiKeyService(userApiKeyActor, system, ec, defaultRequestTimeout)
+    val configService = new ConfigService(configActor, system, ec, defaultRequestTimeout)
+    val statusService = new ServerStatusService(statusActor, system, ec, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
-    val convergenceUserService = new UserService(ec, convergenceUserActor, defaultRequestTimeout)
-    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
-    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
+    val convergenceUserService = new UserService(convergenceUserActor, system, ec, defaultRequestTimeout)
+
+    // TODO re-enable these when permissions are handled properly.
+//    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
+//    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
     val domainService = new DomainService(
+      system,
       ec,
       domainStoreActor,
-      restDomainActorRegion,
+      domainRestRegion,
       roleActor,
       modelClusterRegion,
-      chatActorRegion,
+      chatClusterRegion,
       defaultRequestTimeout)
 
     // The authenticator that will be used to authenticate HTTP requests.
-    val authenticator = new Authenticator(authenticationActor, defaultRequestTimeout, ec)
+    val authenticator = new Authenticator(authenticationActor, system, defaultRequestTimeout)
 
     val corsSettings: CorsSettings = CorsSettings.defaultSettings.withAllowedMethods(
       List(
@@ -189,15 +192,17 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
                 roleService.route(authProfile),
                 configService.route(authProfile),
                 userApiKeyService.route(authProfile),
-                keyGenService.route(),
-                convergenceImportService.route(authProfile),
-                databaseManagerService.route(authProfile))
+                keyGenService.route())
+//                convergenceImportService.route(authProfile),
+//                databaseManagerService.route(authProfile))
             }
           }
       }
     }
 
     // Now we start up the server
+    implicit val s: actor.ActorSystem = system.toClassic
+    implicit val materializer: Materializer = akka.stream.Materializer.createMaterializer(s)
     Http().bindAndHandle(route, interface, port).onComplete {
       case Success(b) =>
         this.binding = Some(b)
@@ -216,7 +221,7 @@ class ConvergenceRestApi(private[this] val system: ActorSystem,
     logger.info("Convergence Rest API shutting down...")
 
     // Kill all the routers we started
-    this.routers.foreach(router => router ! PoisonPill)
+    this.routers.foreach(context.stop)
 
     // Unbind the HTTP Server
     this.binding foreach { b =>

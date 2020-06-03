@@ -11,25 +11,32 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import akka.cluster.sharding.ShardRegion
-import com.convergencelabs.convergence.server.actor.ActorSharding
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages.ExistingChatMessage
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
+import com.convergencelabs.convergence.server.ServerClusterRoles
+import com.convergencelabs.convergence.server.actor.NoPropsActorSharding
+
+object ChatSharding  {
+  private val EntityName = "Chat"
+
+  def apply(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int): ActorRef[ChatActor.Message] = {
+    val chatSharding = new ChatSharding(system, sharding, numberOfShards)
+    chatSharding.shardRegion
+  }
+}
 
 /**
  * Configures the sharding of the [[ChatActor]].
  */
-object ChatSharding extends ActorSharding(
-    "ChatChannelShardRegion",
-    "backend",
-    classOf[ChatActor]){
-  
-  override val extractEntityId: ShardRegion.ExtractEntityId = {
-    case msg: ExistingChatMessage =>
-      (s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.chatId}", msg)
-  }
- 
-  override def extractShardId(numberOfShards: Int): ShardRegion.ExtractShardId = {
-    case msg: ExistingChatMessage => 
-      Math.abs((msg.domainId.domainId.hashCode + msg.domainId.namespace.hashCode + msg.chatId.hashCode) % numberOfShards).toString
+private class ChatSharding(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)
+  extends NoPropsActorSharding[ChatActor.Message](ChatSharding.EntityName, ServerClusterRoles.Backend, system, sharding, numberOfShards) {
+
+  def extractEntityId(msg: ChatActor.Message): String =
+    s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.chatId}"
+
+  def createBehavior(system: ActorSystem[_],
+                     shardRegion: ActorRef[ChatActor.Message],
+                     entityContext: EntityContext[ChatActor.Message]): Behavior[ChatActor.Message] = {
+    ChatActor(shardRegion, entityContext.shard)
   }
 }

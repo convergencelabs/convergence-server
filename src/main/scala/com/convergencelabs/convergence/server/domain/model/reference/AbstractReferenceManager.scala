@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{ClearReference, ModelReferenceEvent, SetReference, ShareReference, UnshareReference}
 import com.convergencelabs.convergence.server.domain.model._
 
 import scala.util.{Failure, Try}

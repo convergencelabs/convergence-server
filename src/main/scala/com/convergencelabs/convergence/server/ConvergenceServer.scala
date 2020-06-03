@@ -14,29 +14,16 @@ package com.convergencelabs.convergence.server
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Address, PoisonPill, Props}
-import akka.cluster.Cluster
-import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
-import akka.pattern.ask
-import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.realtime.ConvergenceRealtimeApi
-import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
-import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
-import com.convergencelabs.convergence.server.db.{ConvergenceDatabaseInitializerActor, PooledDatabaseProvider}
-import com.convergencelabs.convergence.server.domain.DomainActorSharding
-import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.convergence.server.domain.chat.ChatSharding
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelSharding
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActorSharding
+import akka.actor.Address
+import akka.actor.typed.ActorSystem
+import com.convergencelabs.convergence.server.ConvergenceServerActor.Command
 import com.convergencelabs.convergence.server.util.SystemOutRedirector
-import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
-import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
 import scala.concurrent.Await
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -52,15 +39,6 @@ import scala.util.{Failure, Success, Try}
  * independently.
  */
 object ConvergenceServer extends Logging {
-
-  /**
-   * Defines the string constants for the Convergence Server roles.
-   */
-  object Roles {
-    val Backend = "backend"
-    val RestApi = "restApi"
-    val RealtimeApi = "realtimeApi"
-  }
 
   /**
    * String constants for the environment variables that the Convergence Server
@@ -89,7 +67,7 @@ object ConvergenceServer extends Logging {
   /**
    * The currently running instance of the ConvergenceServer.
    */
-  private var server: Option[ConvergenceServer] = None
+  private var system: Option[ActorSystem[Command]] = None
 
   /**
    * The main entry point of the ConvergenceServer.
@@ -114,7 +92,10 @@ object ConvergenceServer extends Logging {
       _ <- validateSeedNodes(config)
       _ <- validateRoles(config)
     } yield {
-      server = Some(new ConvergenceServer(config).start())
+      val system: ActorSystem[Command] = ActorSystem(ConvergenceServerActor(), ActorSystemName)
+      // TODO convert this to an ask.
+      system ! ConvergenceServerActor.Start
+      this.system = Some(system)
     }).recover {
       case cause: Throwable =>
         logger.error("Could not start Convergence Server", cause)
@@ -125,7 +106,14 @@ object ConvergenceServer extends Logging {
    * Helper method that will shut down the server, if it was started.
    */
   private[this] def stop(): Unit = {
-    server.foreach(_.stop())
+    // TODO convert this to an ask.
+    this.system.foreach(s => {
+      s ! ConvergenceServerActor.Stop
+      logger.info(s"Terminating ActorSystem...")
+      s.terminate()
+      Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
+      logger.info(s"ActorSystem terminated")
+    })
     LogManager.shutdown()
   }
 
@@ -295,201 +283,6 @@ object ConvergenceServer extends Logging {
           warn(s"Log4j baseConfig file '$path' does not exist. Ignoring.")
         }
       }
-    }
-  }
-}
-
-/**
- * This is the main ConvergenceServer class. It is responsible for starting
- * up all services including the Akka Actor System.
- *
- * @param config The configuration to use for the server.
- */
-class ConvergenceServer(private[this] val config: Config) extends Logging {
-
-  import ConvergenceServer.Roles._
-
-  private[this] var system: Option[ActorSystem] = None
-  private[this] var cluster: Option[Cluster] = None
-  private[this] var backend: Option[BackendServices] = None
-  private[this] var orientDb: Option[OrientDB] = None
-  private[this] var rest: Option[ConvergenceRestApi] = None
-  private[this] var realtime: Option[ConvergenceRealtimeApi] = None
-  private[this] var clusterListener: Option[ActorRef] = None
-
-  /**
-   * Starts the Convergence Server and returns itself, supporting
-   * a fluent API.
-   *
-   * @return This instance of the ConvergenceServer
-   */
-  def start(): ConvergenceServer = {
-    info(s"Convergence Server (${BuildInfo.version}) starting up...")
-
-    debug(s"Rendering configuration: \n ${config.root().render(ConfigRenderOptions.concise())}")
-
-    val system = ActorSystem(ConvergenceServer.ActorSystemName, config)
-    this.system = Some(system)
-
-    val cluster = Cluster(system)
-    this.cluster = Some(cluster)
-
-    clusterListener = Some(system.actorOf(Props(new AkkaClusterDebugListener(cluster)), name = "clusterListener"))
-
-    val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toSet
-    info(s"Convergence Server Roles: ${roles.mkString(", ")}")
-
-    this.processBackendRole(roles, system)
-    this.activateShardProxies(roles, system)
-    this.processRestApiRole(roles, system)
-    this.processRealtimeApiRole(roles, system)
-
-    this
-  }
-
-  /**
-   * Stops the Convergence Server.
-   */
-  def stop(): ConvergenceServer = {
-    logger.info(s"Stopping the Convergence Server...")
-
-    clusterListener.foreach(_ ! PoisonPill)
-
-    this.backend.foreach(backend => backend.stop())
-    this.rest.foreach(rest => rest.stop())
-    this.realtime.foreach(realtime => realtime.stop())
-    this.orientDb.foreach(db => db.close())
-
-    logger.info(s"Leaving the cluster")
-    cluster.foreach(c => c.leave(c.selfAddress))
-
-    system foreach { s =>
-      logger.info(s"Terminating actor system")
-      s.terminate()
-      Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
-      logger.info(s"ActorSystem terminated")
-    }
-
-    this
-  }
-
-  /**
-   * A helper method that will bootstrap the backend node.
-   *
-   * @param roles  The roles this server is configured with.
-   * @param system The Akka ActorSystem this server is using.
-   */
-  private[this] def processBackendRole(roles: Set[String], system: ActorSystem): Unit = {
-    if (roles.contains(Backend)) {
-      info("Role 'backend' detected, activating Backend Services...")
-
-      val persistenceConfig = config.getConfig("convergence.persistence")
-      val dbServerConfig = persistenceConfig.getConfig("server")
-      val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
-
-      system.actorOf(
-        ClusterSingletonManager.props(
-          singletonProps = ConvergenceDatabaseInitializerActor.props(),
-          terminationMessage = PoisonPill,
-          settings = ClusterSingletonManagerSettings(system).withRole("backend")),
-        name = "ConvergenceDatabaseInitializer")
-
-      val convergenceDatabaseInitializerActor = system.actorOf(
-        ClusterSingletonProxy.props(
-          singletonManagerPath = "/user/ConvergenceDatabaseInitializer",
-          settings = ClusterSingletonProxySettings(system).withRole("backend")),
-        name = "ConvergenceDatabaseInitializerProxy")
-
-      val initTimeout = convergenceDbConfig.getDuration("initialization-timeout")
-      val timeout = Timeout.durationToTimeout(Duration.fromNanos(initTimeout.toNanos))
-      val f = convergenceDatabaseInitializerActor
-        .ask(ConvergenceDatabaseInitializerActor.AssertInitialized())(timeout)
-        .mapTo[Unit]
-
-      info("Ensuring convergence database is initialized")
-      Try(Await.result(f, timeout.duration)) match {
-        case Success(_) =>
-
-          val baseUri = dbServerConfig.getString("uri")
-          orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
-
-          // TODO make the pool size configurable
-          val convergenceDatabase = convergenceDbConfig.getString("database")
-          val username = convergenceDbConfig.getString("username")
-          val password = convergenceDbConfig.getString("password")
-
-          val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
-          dbProvider.connect().get
-
-
-          val domainStore = new DomainStore(dbProvider)
-          system.actorOf(
-            DomainPersistenceManagerActor.props(baseUri, domainStore),
-            DomainPersistenceManagerActor.RelativePath)
-
-          val backend = new BackendServices(system, dbProvider)
-          backend.start()
-          this.backend = Some(backend)
-        case Failure(cause) =>
-          this.logger.error("Could not initialize the convergence database", cause)
-          System.exit(1)
-      }
-    }
-  }
-
-  /**
-   * A helper method that start the Akka Cluster Shard Proxies if needed.
-   *
-   * @param roles  The roles this server is configured with.
-   * @param system The Akka ActorSystem this server is using.
-   */
-  private[this] def activateShardProxies(roles: Set[String], system: ActorSystem): Unit = {
-    if (!roles.contains(Backend) && (roles.contains(RestApi) || roles.contains(RealtimeApi))) {
-      // We only need to set up these proxies if we are NOT already on a
-      // backend node, because the backend node creates the real shard
-      // regions.  We only need the proxies if we are on a rest or realtime
-      // node  that isn't also a backend node.
-
-      val shardCount = system.settings.config.getInt("convergence.shard-count")
-      DomainActorSharding.startProxy(system, shardCount)
-      RealtimeModelSharding.startProxy(system, shardCount)
-      ChatSharding.startProxy(system, shardCount)
-      DomainRestActorSharding.startProxy(system, shardCount)
-      ActivityActorSharding.startProxy(system, shardCount)
-    }
-  }
-
-  /**
-   * A helper method that will bootstrap the Rest API.
-   *
-   * @param roles  The roles this server is configured with.
-   * @param system The Akka ActorSystem this server is using.
-   */
-  private[this] def processRestApiRole(roles: Set[String], system: ActorSystem): Unit = {
-    if (roles.contains(RestApi)) {
-      info("Role 'restApi' detected, activating REST API...")
-      val host = config.getString("convergence.rest.host")
-      val port = config.getInt("convergence.rest.port")
-      val restFrontEnd = new ConvergenceRestApi(system, host, port)
-      restFrontEnd.start()
-      this.rest = Some(restFrontEnd)
-    }
-  }
-
-  /**
-   * A helper method that will bootstrap the Realtime Api.
-   *
-   * @param roles  The roles this server is configured with.
-   * @param system The Akka ActorSystem this server is using.
-   */
-  private[this] def processRealtimeApiRole(roles: Set[String], system: ActorSystem): Unit = {
-    if (roles.contains(RealtimeApi)) {
-      info("Role 'realtimeApi' detected, activating the Realtime API...")
-      val host = config.getString("convergence.realtime.host")
-      val port = config.getInt("convergence.realtime.port")
-      val realTimeFrontEnd = new ConvergenceRealtimeApi(system, host, port)
-      realTimeFrontEnd.start()
-      this.realtime = Some(realTimeFrontEnd)
     }
   }
 }

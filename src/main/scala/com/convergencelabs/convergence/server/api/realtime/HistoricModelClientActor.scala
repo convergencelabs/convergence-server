@@ -11,42 +11,47 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.ask
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
-import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, objectValueToMessage}
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor.{GetOperationsRequest, GetOperationsResponse}
-import com.convergencelabs.convergence.server.domain.model.{GetRealtimeModelRequest, GetRealtimeModelResponse, RealtimeModelSharding}
+import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
-import com.convergencelabs.convergence.server.util.concurrent.AskFuture
+import grizzled.slf4j.Logging
+import scalapb.GeneratedMessage
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
-class HistoricModelClientActor(
-  private[this] val session: DomainUserSessionId,
-  private[this] val domainFqn: DomainId,
-  private[this] val modelStoreActor: ActorRef,
-  private[this] val operationStoreActor: ActorRef)
-    extends Actor with ActorLogging {
+class HistoricModelClientActor private(context: ActorContext[HistoricModelClientActor.Message],
+                                       domain: DomainId,
+                                       session: DomainUserSessionId,
+                                       clientActor: ActorRef[ClientActor.SendServerMessage],
+                                       modelStoreActor: ActorRef[ModelStoreActor.Message],
+                                       operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                                       modelShardRegion: ActorRef[RealtimeModelActor.Message],
+                                       defaultTimeout: Timeout)
+  extends AbstractBehavior[HistoricModelClientActor.Message](context) with Logging with AskUtils {
 
-  private[this] implicit val timeout: Timeout = Timeout(5 seconds)
-  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
+  import HistoricModelClientActor._
 
-  private[this] val modelClusterRegion: ActorRef = RealtimeModelSharding.shardRegion(this.context.system)
+  private[this] implicit val timeout: Timeout = defaultTimeout
+  private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
+  private[this] implicit val system: ActorSystem[_] = context.system
 
-  def receive: Receive = {
-    case RequestReceived(message, replyPromise) if message.isInstanceOf[RequestMessage with HistoricalMessage] =>
-      onRequestReceived(message.asInstanceOf[RequestMessage with HistoricalMessage], replyPromise)
-    case x: Any =>
-      unhandled(x)
+  override def onMessage(msg: HistoricModelClientActor.Message): Behavior[HistoricModelClientActor.Message] = {
+    msg match {
+      case IncomingProtocolRequest(message, replyCallback) =>
+        onRequestReceived(message, replyCallback)
+    }
+    Behaviors.same
   }
 
-  private[this] def onRequestReceived(message: RequestMessage with HistoricalMessage, replyCallback: ReplyCallback): Unit = {
+  private[this] def onRequestReceived(message: IncomingRequest, replyCallback: ReplyCallback): Unit = {
     message match {
       case dataRequest: HistoricalDataRequestMessage =>
         onDataRequest(dataRequest, replyCallback)
@@ -56,40 +61,68 @@ class HistoricModelClientActor(
   }
 
   private[this] def onDataRequest(request: HistoricalDataRequestMessage, cb: ReplyCallback): Unit = {
-    (modelClusterRegion ? GetRealtimeModelRequest(domainFqn, request.modelId, None)).mapResponse[GetRealtimeModelResponse] onComplete {
-      case Success(GetRealtimeModelResponse(Some(model))) =>
-        cb.reply(
-          HistoricalDataResponseMessage(
+    modelShardRegion.ask[RealtimeModelActor.GetRealtimeModelResponse](RealtimeModelActor.GetRealtimeModelRequest(domain, request.modelId, None, _))
+      .map(_.model.fold(
+        {
+          case RealtimeModelActor.ModelNotFoundError() =>
+            cb.expectedError(ErrorCodes.ModelNotFound, s"A model with id '${request.modelId}' does not exist.")
+          case RealtimeModelActor.UnauthorizedError(message) =>
+            cb.expectedError(ErrorCodes.Unauthorized, message)
+          case RealtimeModelActor.UnknownError() =>
+            cb.unexpectedError("Unexpected error getting historical model data.")
+        },
+        { model =>
+          val response = HistoricalDataResponseMessage(
             model.metaData.collection,
-            Some(model.data),
+            Some(ImplicitMessageConversions.objectValueToMessage(model.data)),
             model.metaData.version,
-            Some(model.metaData.createdTime),
-            Some(model.metaData.modifiedTime)))
-      case Success(GetRealtimeModelResponse(None)) =>
-        cb.expectedError("model_not_found", "The model does not exist")
-      case Failure(cause) =>
-        log.error(cause, "Unexpected error getting model history.")
-        cb.unknownError()
-    }
+            Some(ImplicitMessageConversions.instanceToTimestamp(model.metaData.createdTime)),
+            Some(ImplicitMessageConversions.instanceToTimestamp(model.metaData.modifiedTime))
+          )
+          cb.reply(response)
+        }))
+      .recoverWith(handleAskFailure(_, cb))
   }
 
   private[this] def onOperationRequest(request: HistoricalOperationRequestMessage, cb: ReplyCallback): Unit = {
     val HistoricalOperationRequestMessage(modelId, first, last, _) = request
-    (operationStoreActor ? GetOperationsRequest(modelId, first, last)).mapResponse[GetOperationsResponse] onComplete {
-      case Success(GetOperationsResponse(operations)) =>
-        cb.reply(HistoricalOperationsResponseMessage(operations map ModelOperationMapper.mapOutgoing))
-      case Failure(cause) =>
-        log.error(cause, "Unexpected error getting model history.")
-        cb.unknownError()
-    }
+    operationStoreActor.ask[ModelOperationStoreActor.GetOperationsResponse](ModelOperationStoreActor.GetOperationsRequest(request.modelId, first, last, _))
+      .map(_.operations.fold(
+        {
+          case ModelOperationStoreActor.ModelNotFoundError() =>
+            cb.expectedError(ErrorCodes.ModelNotFound, s"A model with id '$modelId' does not exist.")
+          case ModelOperationStoreActor.UnknownError() =>
+            cb.unexpectedError("Unexpected error getting historical model operations.")
+        },
+        { operations =>
+          val response = HistoricalOperationsResponseMessage(operations map ModelOperationMapper.mapOutgoing)
+          cb.reply(response)
+        }))
+      .recoverWith(handleAskFailure(_, cb))
   }
 }
 
 object HistoricModelClientActor {
-  def props(
-             session: DomainUserSessionId,
-             domainFqn: DomainId,
-             modelStoreActor: ActorRef,
-             operationStoreActor: ActorRef): Props =
-    Props(new HistoricModelClientActor(session, domainFqn, modelStoreActor, operationStoreActor))
+  def apply(domain: DomainId,
+            session: DomainUserSessionId,
+            clientActor: ActorRef[ClientActor.SendServerMessage],
+            modelStoreActor: ActorRef[ModelStoreActor.Message],
+            operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+            modelShardRegion: ActorRef[RealtimeModelActor.Message],
+            defaultTimeout: Timeout): Behavior[Message] =
+    Behaviors.setup(context => new HistoricModelClientActor(
+      context, domain, session, clientActor, modelStoreActor, operationStoreActor, modelShardRegion, defaultTimeout))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
+  sealed trait Message extends CborSerializable
+
+  sealed trait IncomingMessage extends Message
+
+  type IncomingRequest = GeneratedMessage with RequestMessage with HistoricalModelMessage with ClientMessage
+
+  case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends IncomingMessage
+
 }

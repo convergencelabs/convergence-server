@@ -11,24 +11,13 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import java.time.Duration
-
-import scala.concurrent.ExecutionContext
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-
-import akka.actor.ActorRef
-import grizzled.slf4j.Logging
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.DomainDatabaseFactory
+import com.convergencelabs.convergence.server.datastore.convergence.{DomainStore, UserStore}
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, DomainDatabaseFactory}
+import grizzled.slf4j.Logging
+
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 class ConvergenceExporter(
     private[this] val dbBaseUri: String,
@@ -74,21 +63,21 @@ class ConvergenceExporter(
     logger.debug(s"Exporting domains for namespace: ${namespace}")
     val domainStore = new DomainStore(dbProvider)
     domainStore.getDomainsInNamespace(namespace) map {
-      _.map { case domain =>
+      _.map { domain =>
         // FIXME error handling
         val dbProvider = dbFactory.getDomainDatabasePool(domain.domainFqn).get
-        val provider = new DomainPersistenceProviderImpl(dbProvider)
+        val provider = new DomainPersistenceProviderImpl(domain.domainFqn, dbProvider)
         val exporter = new DomainExporter(provider)
         // FIXME error handling
         val domainScript = exporter.exportDomain().get
         val result = CreateDomain(
-            domain.domainFqn.namespace,
-            domain.domainFqn.domainId,
-            domain.displayName,
-            domain.status.toString().toLowerCase(),
-            domain.statusMessage,
-            Some(domainScript)
-            )
+          domain.domainFqn.namespace,
+          domain.domainFqn.domainId,
+          domain.displayName,
+          domain.status.toString.toLowerCase(),
+          domain.statusMessage,
+          Some(domainScript)
+        )
         result
       }
     }

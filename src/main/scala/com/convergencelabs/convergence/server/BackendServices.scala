@@ -11,23 +11,19 @@
 
 package com.convergencelabs.convergence.server
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
-import akka.cluster.sharding.ShardRegion
-import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, SupervisorStrategy}
+import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor
-import com.convergencelabs.convergence.server.db.provision.{DomainProvisioner, DomainProvisionerActor}
+import com.convergencelabs.convergence.server.db.provision.{DomainLifecycleTopic, DomainProvisioner, DomainProvisionerActor}
 import com.convergencelabs.convergence.server.db.schema.{DatabaseManager, DatabaseManagerActor}
-import com.convergencelabs.convergence.server.domain.DomainActorSharding
-import com.convergencelabs.convergence.server.domain.activity.ActivityActorSharding
-import com.convergencelabs.convergence.server.domain.chat.ChatSharding
-import com.convergencelabs.convergence.server.domain.model.{ModelCreator, ModelPermissionResolver, RealtimeModelSharding}
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActorSharding
+import com.convergencelabs.convergence.server.domain.DomainActor
+import com.convergencelabs.convergence.server.domain.activity.ActivityActor
+import com.convergencelabs.convergence.server.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
@@ -36,16 +32,18 @@ import scala.language.postfixOps
  * for start that various Akka Actors the comprise the major subsystems (
  * Chat, Presence, Models, etc.).
  *
- * @param system                The Akka ActorSystem to start Actors in.
+ * @param context               The Akka ActorContext to start Actors in.
  * @param convergenceDbProvider A [[com.convergencelabs.convergence.server.db.DatabaseProvider]] that is connected to the
  *                              main convergence database.
  */
-class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvider) extends Logging {
-
-  private[this] var activityShardRegion: Option[ActorRef] = None
-  private[this] var chatChannelRegion: Option[ActorRef] = None
-  private[this] var domainRegion: Option[ActorRef] = None
-  private[this] var realtimeModelRegion: Option[ActorRef] = None
+class BackendServices(context: ActorContext[_],
+                      convergenceDbProvider: DatabaseProvider,
+                      activityShardRegion: ActorRef[ActivityActor.Message],
+                      chatChannelRegion: ActorRef[ChatActor.Message],
+                      domainRegion: ActorRef[DomainActor.Message],
+                      realtimeModelRegion: ActorRef[RealtimeModelActor.Message],
+                      domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]
+                     ) extends Logging {
 
   /**
    * Starts the Backend Services. Largely this method will start up all
@@ -55,61 +53,17 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
   def start(): Unit = {
     logger.info("Convergence Backend Services starting up...")
 
-    val dbServerConfig = system.settings.config.getConfig("convergence.persistence.server")
-    val convergenceDbConfig = system.settings.config.getConfig("convergence.persistence.convergence-database")
-    val shardCount = system.settings.config.getInt("convergence.shard-count")
+    val dbServerConfig = context.system.settings.config.getConfig("convergence.persistence.server")
+    val convergenceDbConfig = context.system.settings.config.getConfig("convergence.persistence.convergence-database")
 
-    val protocolConfig = ProtocolConfigUtil.loadConfig(system.settings.config)
-
-    //
-    // Realtime Subsystem
-    //
+    val singletonManager = ClusterSingleton(context.system)
 
     // This is a cluster singleton that cleans up User Session Tokens after they have expired.
-    system.actorOf(
-      ClusterSingletonManager.props(
-        singletonProps = UserSessionTokenReaperActor.props(convergenceDbProvider),
-        terminationMessage = PoisonPill,
-        settings = ClusterSingletonManagerSettings(system).withRole("backend")),
-      name = "UserSessionTokenReaper")
-
-    // The below actors are sharded since they provide services to domains
-    // and could potentially have a large number of entities (e.g. activities,
-    // models, etc.
-
-    val clientDataResponseTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.model.client-data-timeout").toNanos)
-
-    val receiveTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.model.passivation-timeout").toNanos)
-
-    val resyncTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.model.resynchronization-timeout").toNanos)
-
-    realtimeModelRegion = Some(RealtimeModelSharding.start(system, shardCount, List(
-      new ModelPermissionResolver(),
-      new ModelCreator(),
-      DomainPersistenceManagerActor,
-      clientDataResponseTimeout,
-      receiveTimeout,
-      resyncTimeout)))
-
-    activityShardRegion =
-      Some(ActivityActorSharding.start(system, shardCount))
-
-    chatChannelRegion =
-      Some(ChatSharding.start(system, shardCount))
-
-    val domainPassivationTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.domain.passivation-timeout").toNanos)
-    domainRegion =
-      Some(DomainActorSharding.start(
-        system,
-        shardCount,
-        List(
-          protocolConfig,
-          DomainPersistenceManagerActor,
-          domainPassivationTimeout)))
+    singletonManager.init(
+      SingletonActor(Behaviors.supervise(UserSessionTokenReaperActor(convergenceDbProvider))
+        .onFailure[Exception](SupervisorStrategy.restart), "UserSessionTokenReaper")
+        .withSettings(ClusterSingletonSettings(context.system).withRole("backed"))
+    )
 
     //
     // REST Services
@@ -119,31 +73,27 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
     // CRUD for users, roles, authentication, etc. These actors are not sharded.
 
     // Import, export, and domain / database provisioning
-    val domainProvisioner = new DomainProvisioner(convergenceDbProvider, system.settings.config)
-    val provisionerActor = system.actorOf(DomainProvisionerActor.props(domainProvisioner), DomainProvisionerActor.RelativePath)
+    val domainProvisioner = new DomainProvisioner(convergenceDbProvider, context.system.settings.config)
+    val provisionerActor = context.spawn(DomainProvisionerActor(domainProvisioner, domainLifecycleTopic), "DomainProvisioner")
 
     val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
-    system.actorOf(DatabaseManagerActor.props(databaseManager), DatabaseManagerActor.RelativePath)
+    context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
 
-    val domainStoreActor = system.actorOf(DomainStoreActor.props(convergenceDbProvider, provisionerActor), DomainStoreActor.RelativePath)
-    system.actorOf(ConvergenceImporterActor.props(
-      dbServerConfig.getString("uri"),
-      convergenceDbProvider,
-      domainStoreActor), ConvergenceImporterActor.RelativePath)
+    val domainStoreActor = context.spawn(DomainStoreActor(convergenceDbProvider, provisionerActor), "DomainStore")
+    // FIXME enable importer
+    //    context.spawn(ConvergenceImporterActor.props(
+    //      dbServerConfig.getString("uri"),
+    //      convergenceDbProvider,
+    //      domainStoreActor),"ConvergenceImporter")
 
-    system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor))
-    system.actorOf(NamespaceStoreActor.props(convergenceDbProvider), NamespaceStoreActor.RelativePath)
-    system.actorOf(AuthenticationActor.props(convergenceDbProvider), AuthenticationActor.RelativePath)
-    system.actorOf(ConvergenceUserManagerActor.props(convergenceDbProvider, domainStoreActor), ConvergenceUserManagerActor.RelativePath)
-    system.actorOf(RoleStoreActor.props(convergenceDbProvider), RoleStoreActor.RelativePath)
-    system.actorOf(UserApiKeyStoreActor.props(convergenceDbProvider), UserApiKeyStoreActor.RelativePath)
-    system.actorOf(ConfigStoreActor.props(convergenceDbProvider), ConfigStoreActor.RelativePath)
-    system.actorOf(ServerStatusActor.props(convergenceDbProvider), ServerStatusActor.RelativePath)
-    system.actorOf(UserFavoriteDomainStoreActor.props(convergenceDbProvider), UserFavoriteDomainStoreActor.RelativePath)
-
-    // This bootstraps the subsystem that handles REST calls for domains.
-    // Since the number of domains is unbounded, these actors are sharded.
-    DomainRestActorSharding.start(system, shardCount, List(DomainPersistenceManagerActor, receiveTimeout))
+    context.spawn(ConvergenceUserManagerActor(convergenceDbProvider, domainStoreActor), "UserManager")
+    context.spawn(NamespaceStoreActor(convergenceDbProvider), "NamespaceStore")
+    context.spawn(AuthenticationActor(convergenceDbProvider), "Authentication")
+    context.spawn(RoleStoreActor(convergenceDbProvider), "RoleStore")
+    context.spawn(UserApiKeyStoreActor(convergenceDbProvider), "UserApiKeyStore")
+    context.spawn(ConfigStoreActor(convergenceDbProvider), "ConfigStore")
+    context.spawn(ServerStatusActor(convergenceDbProvider), "ServerStatus")
+    context.spawn(UserFavoriteDomainStoreActor(convergenceDbProvider), "FavoriteDomains")
 
     logger.info("Convergence Backend Services started up.")
   }
@@ -154,9 +104,5 @@ class BackendServices(system: ActorSystem, convergenceDbProvider: DatabaseProvid
    */
   def stop(): Unit = {
     logger.info("Convergence Backend Services shutting down.")
-    activityShardRegion.foreach(_ ! ShardRegion.GracefulShutdown)
-    chatChannelRegion.foreach(_ ! ShardRegion.GracefulShutdown)
-    domainRegion.foreach(_ ! ShardRegion.GracefulShutdown)
-    realtimeModelRegion.foreach(_ ! ShardRegion.GracefulShutdown)
   }
 }

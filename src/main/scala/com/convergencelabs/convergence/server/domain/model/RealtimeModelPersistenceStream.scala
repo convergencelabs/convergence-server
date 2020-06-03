@@ -143,8 +143,7 @@ class RealtimeModelPersistenceStream(private[this] val handler: PersistenceEvent
   }
 }
 
-class RealtimeModelPersistenceStreamFactory(
-                                             private[this] val domainFqn: DomainId,
+class RealtimeModelPersistenceStreamFactory(private[this] val domainFqn: DomainId,
                                              private[this] val modelId: String,
                                              private[this] implicit val system: ActorSystem,
                                              private[this] val modelStore: ModelStore,

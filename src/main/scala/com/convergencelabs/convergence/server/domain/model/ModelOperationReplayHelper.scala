@@ -11,7 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import akka.actor.ActorRef
+import akka.actor.typed.ActorRef
+import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStore
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 import com.convergencelabs.convergence.server.domain.model.ot._
@@ -20,8 +21,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class ModelOperationReplayHelper(private[this] val modelOperationStore: ModelOperationStore,
                                  private[this] val modelId: String,
-                                 private[this] val clientActor: ActorRef,
-                                 private[this] implicit val sender: ActorRef,
+                                 private[this] val clientActor: ActorRef[ModelClientActor.OutgoingMessage],
                                  private[this] implicit val ec: ExecutionContext
                                 ) {
 
@@ -37,7 +37,7 @@ class ModelOperationReplayHelper(private[this] val modelOperationStore: ModelOpe
 
   private[this] def sendOperation(modelOperation: ModelOperation): Unit = {
     val op = convertAppliedOperation(modelOperation.op)
-    val outgoingOp = OutgoingOperation(
+    val outgoingOp = ModelClientActor.OutgoingOperation(
       modelId,
       DomainUserSessionId(modelOperation.sessionId, modelOperation.userId),
       modelOperation.version - 1, // this needs to be the context version, which is one behind the version

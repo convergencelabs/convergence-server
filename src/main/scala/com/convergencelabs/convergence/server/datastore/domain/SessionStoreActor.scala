@@ -11,57 +11,61 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import grizzled.slf4j.Logging
 
-class SessionStoreActor private[datastore](private[this] val sessionStore: SessionStore)
-  extends StoreActor with ActorLogging {
+import scala.util.{Failure, Success}
+
+class SessionStoreActor private[datastore](private[this] val context: ActorContext[SessionStoreActor.Message],
+                                           private[this] val sessionStore: SessionStore)
+  extends AbstractBehavior[SessionStoreActor.Message](context) with Logging {
 
   import SessionStoreActor._
 
-  def receive: Receive = {
-    case message: GetSessionsRequest =>
-      onGetSessions(message)
-    case message: GetSessionRequest =>
-      onGetSession(message)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case message: GetSessionsRequest =>
+        onGetSessions(message)
+      case message: GetSessionRequest =>
+        onGetSession(message)
+    }
+
+    Behaviors.same
   }
 
   private[this] def onGetSessions(message: GetSessionsRequest): Unit = {
-    val GetSessionsRequest(
-    sessionId,
-    username,
-    remoteHost,
-    authMethod,
-    excludeDisconnected,
-    st,
-    limit,
-    offset) = message
-    reply(sessionStore.getSessions(sessionId,
-      username,
-      remoteHost,
-      authMethod,
-      excludeDisconnected,
-      st,
-      limit,
-      offset).map(GetSessionsResponse))
+    val GetSessionsRequest(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset, replyTo) = message
+    sessionStore.getSessions(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset) match {
+      case Success(sessions) =>
+        replyTo ! GetSessionsSuccess(sessions)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
   private[this] def onGetSession(message: GetSessionRequest): Unit = {
-    val GetSessionRequest(sessionId) = message
-    reply(sessionStore.getSession(sessionId).map(GetSessionResponse))
+    val GetSessionRequest(sessionId, replyTo) = message
+    sessionStore.getSession(sessionId) match {
+      case Success(session) =>
+        replyTo ! GetSessionSuccess(session)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 }
 
 
 object SessionStoreActor {
-  def props(sessionStore: SessionStore): Props = Props(new SessionStoreActor(sessionStore))
+  def apply(sessionStore: SessionStore): Behavior[Message] = Behaviors.setup { context =>
+    new SessionStoreActor(context, sessionStore)
+  }
 
-  trait SessionStoreRequest extends CborSerializable with DomainRestMessageBody
+  trait Message extends CborSerializable with DomainRestMessageBody
 
   case class GetSessionsRequest(sessionId: Option[String],
                                 username: Option[String],
@@ -70,12 +74,20 @@ object SessionStoreActor {
                                 excludeDisconnected: Boolean,
                                 sessionType: SessionQueryType.Value,
                                 limit: Option[Int],
-                                offset: Option[Int]) extends SessionStoreRequest
+                                offset: Option[Int],
+                                replyTo: ActorRef[GetSessionsResponse]) extends Message
 
-  case class GetSessionsResponse(sessions: List[DomainSession]) extends CborSerializable
+  sealed trait GetSessionsResponse extends CborSerializable
 
-  case class GetSessionRequest(id: String) extends SessionStoreRequest
+  case class GetSessionsSuccess(sessions: PagedData[DomainSession]) extends GetSessionsResponse
 
-  case class GetSessionResponse(session: Option[DomainSession]) extends CborSerializable
+  case class GetSessionRequest(id: String, replyTo: ActorRef[GetSessionResponse]) extends Message
 
+  sealed trait GetSessionResponse extends CborSerializable
+
+  case class GetSessionSuccess(session: Option[DomainSession]) extends GetSessionResponse
+
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with GetSessionsResponse
+    with GetSessionResponse
 }

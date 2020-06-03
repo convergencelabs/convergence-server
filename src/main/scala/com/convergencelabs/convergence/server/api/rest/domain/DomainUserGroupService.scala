@@ -11,18 +11,19 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor._
 import com.convergencelabs.convergence.server.datastore.domain.{UserGroup, UserGroupInfo, UserGroupSummary}
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
@@ -39,10 +40,11 @@ object DomainUserGroupService {
 
 }
 
-class DomainUserGroupService(private[this] val executionContext: ExecutionContext,
-                             private[this] val timeout: Timeout,
-                             private[this] val domainRestActor: ActorRef)
-  extends AbstractDomainRestService(executionContext, timeout) {
+class DomainUserGroupService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
+                             private[this] val system: ActorSystem[_],
+                             private[this] val executionContext: ExecutionContext,
+                             private[this] val timeout: Timeout)
+  extends AbstractDomainRestService(system, executionContext, timeout) {
 
   import DomainUserGroupService._
 
@@ -97,86 +99,117 @@ class DomainUserGroupService(private[this] val executionContext: ExecutionContex
   private[this] def getUserGroups(domain: DomainId, resultType: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     resultType.getOrElse("all") match {
       case "all" =>
-        val message = DomainRestMessage(domain, GetUserGroupsRequest(filter, offset, limit))
-        (domainRestActor ? message)
-          .mapTo[GetUserGroupsResponse]
-          .map(_.userGroups)
-          .map(groups => okResponse(groups.map(groupToUserGroupData)))
+        domainRestActor.ask[GetUserGroupsResponse](r => DomainRestMessage(domain, GetUserGroupsRequest(filter, offset, limit, r))).flatMap {
+          case GetUserGroupsSuccess(userGroups) =>
+            Future.successful(okResponse(userGroups.map(groupToUserGroupData)))
+          case RequestFailure(cause) =>
+            Future.failed(cause)
+        }
       case "summary" =>
-        val message = DomainRestMessage(domain, GetUserGroupSummariesRequest(None, limit, offset))
-        (domainRestActor ? message).mapTo[GetUserGroupSummariesResponse]
-          .map(_.summaries)
-          .map(groups =>
-            okResponse(groups.map { c =>
+        // FIXME what about the filter?
+        domainRestActor.ask[GetUserGroupSummariesResponse](r => DomainRestMessage(domain, GetUserGroupSummariesRequest(None, offset, limit, r))).flatMap {
+          case GetUserGroupSummariesSuccess(summaries) =>
+            Future.successful(okResponse(summaries.map{ c =>
               val UserGroupSummary(id, desc, count) = c
               UserGroupSummaryData(id, desc, count)
             }))
+          case RequestFailure(cause) =>
+            Future.failed(cause)
+        }
       case t =>
         Future.successful((StatusCodes.BadRequest, ErrorResponse("invalid_type", Some(s"Invalid type: $t"))))
     }
   }
 
   private[this] def getUserGroup(domain: DomainId, groupId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetUserGroupRequest(groupId))
-    (domainRestActor ? message)
-      .mapTo[GetUserGroupResponse]
-      .map(_.userGroup)
-      .map {
-        case Some(group) => okResponse(groupToUserGroupData(group))
-        case None => notFoundResponse()
-      }
+    domainRestActor.ask[GetUserGroupResponse](r => DomainRestMessage(domain, GetUserGroupRequest(groupId, r))).flatMap {
+      case GetUserGroupSuccess(Some(userGroup)) =>
+        Future.successful(okResponse(groupToUserGroupData(userGroup)))
+      case GetUserGroupSuccess(None) =>
+        Future.successful(notFoundResponse())
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def getUserGroupMembers(domain: DomainId, groupId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetUserGroupRequest(groupId))
-    (domainRestActor ? message).mapTo[GetUserGroupResponse].map(_.userGroup) map {
-      case Some(UserGroup(_, _, members)) => okResponse(members.map(_.username))
-      case None => notFoundResponse()
+    domainRestActor.ask[GetUserGroupResponse](r => DomainRestMessage(domain, GetUserGroupRequest(groupId, r))).flatMap {
+      case GetUserGroupSuccess(Some(userGroup)) =>
+        Future.successful(okResponse(userGroup.members.map(_.username)))
+      case GetUserGroupSuccess(None) =>
+        Future.successful(notFoundResponse())
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def getUserGroupInfo(domain: DomainId, groupId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, GetUserGroupInfoRequest(groupId))
-    (domainRestActor ? message).mapTo[GetUserGroupInfoResponse].map(_.groupInfo) map {
-      case Some(UserGroupInfo(id, description)) =>
-        okResponse(UserGroupInfoData(id, description))
-      case None =>
-        notFoundResponse()
+    domainRestActor.ask[GetUserGroupInfoResponse](r => DomainRestMessage(domain, GetUserGroupInfoRequest(groupId, r))).flatMap {
+      case GetUserGroupInfoSuccess(Some(UserGroupInfo(id, description))) =>
+        Future.successful(okResponse(UserGroupInfoData(id, description)))
+      case GetUserGroupInfoSuccess(None) =>
+        Future.successful(notFoundResponse())
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def updateUserGroupInfo(domain: DomainId, groupId: String, infoData: UserGroupInfoData): Future[RestResponse] = {
     val UserGroupInfoData(id, description) = infoData
     val info = UserGroupInfo(id, description)
-    val message = DomainRestMessage(domain, UpdateUserGroupInfoRequest(groupId, info))
-    (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
+    domainRestActor.ask[UpdateUserGroupInfoResponse](r => DomainRestMessage(domain, UpdateUserGroupInfoRequest(groupId, info, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def addUserToGroup(domain: DomainId, groupId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, AddUserToGroupRequest(groupId, DomainUserId.normal(username)))
-    (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
+    domainRestActor.ask[AddUserToGroupResponse](r => DomainRestMessage(domain,  AddUserToGroupRequest(groupId, DomainUserId.normal(username), r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def removeUserFromGroup(domain: DomainId, groupId: String, username: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, RemoveUserFromGroupRequest(groupId, DomainUserId.normal(username)))
-    (domainRestActor ? message).mapTo[Unit] map (_ => OkResponse)
+    domainRestActor.ask[RemoveUserFromGroupResponse](r => DomainRestMessage(domain,  RemoveUserFromGroupRequest(groupId, DomainUserId.normal(username), r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def createUserGroup(domain: DomainId, groupData: UserGroupData): Future[RestResponse] = {
     val group = this.groupDataToUserGroup(groupData)
-    val message = DomainRestMessage(domain, CreateUserGroupRequest(group))
-    (domainRestActor ? message) map { _ => CreatedResponse }
+    domainRestActor.ask[CreateUserGroupResponse](r => DomainRestMessage(domain,  CreateUserGroupRequest(group, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def updateUserGroup(domain: DomainId, groupId: String, groupData: UserGroupData): Future[RestResponse] = {
     val group = this.groupDataToUserGroup(groupData)
-    val message = DomainRestMessage(domain, UpdateUserGroupRequest(groupId, group))
-    (domainRestActor ? message) map (_ => OkResponse)
+    domainRestActor.ask[UpdateUserGroupResponse](r => DomainRestMessage(domain,  UpdateUserGroupRequest(groupId, group, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def deleteUserGroup(domain: DomainId, groupId: String): Future[RestResponse] = {
-    val message = DomainRestMessage(domain, DeleteUserGroupRequest(groupId))
-    (domainRestActor ? message) map (_ => DeletedResponse)
+    domainRestActor.ask[DeleteUserGroupResponse](r => DomainRestMessage(domain,  DeleteUserGroupRequest(groupId, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def groupDataToUserGroup(groupData: UserGroupData): UserGroup = {

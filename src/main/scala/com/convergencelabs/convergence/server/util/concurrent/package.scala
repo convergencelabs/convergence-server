@@ -11,12 +11,8 @@
 
 package com.convergencelabs.convergence.server.util
 
-import com.convergencelabs.convergence.server.UnknownErrorResponse
-
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
-import scala.reflect.ClassTag
-import scala.util.{Failure, Success}
 
 package object concurrent {
 
@@ -28,24 +24,14 @@ package object concurrent {
 
   private[this] implicit val ec: InternalCallbackExecutor.type = InternalCallbackExecutor
 
-  implicit class AskFuture[T](val future: Future[T]) extends AnyVal {
-    def mapResponse[S](implicit tag: ClassTag[S]): Future[S] = {
-      val c = tag.runtimeClass
-
-      val p = Promise[S]
-      future onComplete {
-        case Success(x) if c.isInstance(x) =>
-          p.success(c.cast(x).asInstanceOf[S])
-        case Success(UnknownErrorResponse(reason)) =>
-          p.failure(UnexpectedErrorException(reason))
-        case Success(x) =>
-          val message = s"Wanted ${tag.runtimeClass.getName} but got ${x.getClass.getName}"
-          p.failure(UnexpectedResponseException(message))
-        case Failure(cause) =>
-          p.failure(cause)
+  implicit class AskHandler[E,V](val future: Future[Either[E,V]]) extends AnyVal {
+    def handleError(errorMapper: E => Throwable): Future[V] = {
+      future.flatMap {
+        case Right(v) =>
+          Future.successful(v)
+        case Left(e) =>
+          Future.failed(errorMapper(e))
       }
-
-      p.future
     }
   }
 }

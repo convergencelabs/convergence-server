@@ -13,40 +13,31 @@ package com.convergencelabs.convergence.server.api.rest
 
 import java.time.Instant
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.UserApiKey
-import com.convergencelabs.convergence.server.datastore.convergence.UserApiKeyStoreActor._
+import com.convergencelabs.convergence.server.datastore.convergence.UserApiKeyStoreActor.{CreateUserApiKeyResponse, _}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object CurrentUserApiKeyService {
 
-  case class UpdateKeyData(name: String, enabled: Boolean)
-
-  case class CreateKeyData(name: String, enabled: Option[Boolean])
-
-  case class UserApiKeyData(name: String,
-                            key: String,
-                            enabled: Boolean,
-                            lastUsed: Option[Instant])
-
-}
-
-class CurrentUserApiKeyService(private[this] val executionContext: ExecutionContext,
-                               private[this] val userApiKeyStoreActor: ActorRef,
-                               private[this] val defaultTimeout: Timeout) extends JsonSupport {
+private[rest] class CurrentUserApiKeyService(private[this] val userApiKeyStoreActor: ActorRef[Message],
+                                             private[this] val system: ActorSystem[_],
+                                             private[this] val executionContext: ExecutionContext,
+                                             private[this] val defaultTimeout: Timeout)
+  extends JsonSupport {
 
   import CurrentUserApiKeyService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("user" / "apiKeys") {
@@ -79,44 +70,66 @@ class CurrentUserApiKeyService(private[this] val executionContext: ExecutionCont
   }
 
   private[this] def getApiKeysForUser(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val request = GetApiKeysForUserRequest(authProfile.username)
-    (userApiKeyStoreActor ? request)
-      .mapTo[GetApiKeysForUserResponse]
-      .map(_.keys)
-      .map { keys =>
+    userApiKeyStoreActor.ask[GetApiKeysForUserResponse](GetApiKeysForUserRequest(authProfile.username, _)).map {
+      case GetApiKeysForUserSuccess(keys) =>
         val keyData = keys.map(key => {
           val UserApiKey(_, name, keyId, enabled, lastUsed) = key
           UserApiKeyData(name, keyId, enabled, lastUsed)
         }).toList
         okResponse(keyData)
-      }
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def getApiKey(authProfile: AuthorizationProfile, key: String): Future[RestResponse] = {
-    val request = GetApiKeyRequest(authProfile.username, key)
-    (userApiKeyStoreActor ? request).mapTo[Option[UserApiKey]] map {
-      case Some(UserApiKey(_, name, keyId, enabled, lastUsed)) =>
+    userApiKeyStoreActor.ask[GetUserApiKeyResponse](GetUserApiKeyRequest(authProfile.username, key, _)).map {
+      case GetUserApiKeySuccess(Some(UserApiKey(_, name, keyId, enabled, lastUsed))) =>
         okResponse(UserApiKeyData(name, keyId, enabled, lastUsed))
-      case None =>
+      case GetUserApiKeySuccess(None) =>
         notFoundResponse(Some(s"A key with id '$key' could not be found"))
+      case _ =>
+        InternalServerError
     }
   }
 
   private[this] def createApiKey(authProfile: AuthorizationProfile, keyData: CreateKeyData): Future[RestResponse] = {
-    val request = CreateApiKeyRequest(authProfile.username, keyData.name, keyData.enabled)
-    (userApiKeyStoreActor ? request).mapTo[UserApiKey] map {
-      case UserApiKey(_, key, name, enabled, lastUsed) =>
-        okResponse(UserApiKeyData(key, name, enabled, lastUsed))
+    userApiKeyStoreActor.ask[CreateUserApiKeyResponse](CreateUserApiKeyRequest(authProfile.username, keyData.name, keyData.enabled, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def updateApiKey(authProfile: AuthorizationProfile, keyId: String, updateData: UpdateKeyData): Future[RestResponse] = {
-    val request = UpdateKeyRequest(authProfile.username, keyId, updateData.name, updateData.enabled)
-    (userApiKeyStoreActor ? request).mapTo[Unit] map (_ => OkResponse)
+    userApiKeyStoreActor.ask[UpdateUserApiKeyResponse](UpdateUserApiKeyRequest(authProfile.username, keyId, updateData.name, updateData.enabled, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def deleteApiKey(authProfile: AuthorizationProfile, keyId: String): Future[RestResponse] = {
-    val request = DeleteApiKeyRequest(authProfile.username, keyId)
-    (userApiKeyStoreActor ? request).mapTo[Unit] map (_ => OkResponse)
+    userApiKeyStoreActor.ask[DeleteUserApiKeyResponse](DeleteUserApiKeyRequest(authProfile.username, keyId, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
+}
+
+object CurrentUserApiKeyService {
+
+  case class UpdateKeyData(name: String, enabled: Boolean)
+
+  case class CreateKeyData(name: String, enabled: Option[Boolean])
+
+  case class UserApiKeyData(name: String,
+                            key: String,
+                            enabled: Boolean,
+                            lastUsed: Option[Instant])
+
 }

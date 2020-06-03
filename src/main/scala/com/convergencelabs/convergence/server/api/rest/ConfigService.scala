@@ -11,14 +11,14 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, complete, entity, get, parameters, path, pathEnd, pathPrefix, post}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor.{GetConfigsRequest, GetConfigsResponse, SetConfigsRequest}
+import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
@@ -27,14 +27,15 @@ import scala.concurrent.{ExecutionContext, Future}
 object ConfigService {
 }
 
-class ConfigService(private[this] val executionContext: ExecutionContext,
-                    private[this] val configActor: ActorRef,
-                    private[this] val defaultTimeout: Timeout)
-  extends JsonSupport
-    with Logging {
+private[rest] class ConfigService(private[this] val configActor: ActorRef[Message],
+                                  private[this] val system: ActorSystem[_],
+                                  private[this] val executionContext: ExecutionContext,
+                                  private[this] val defaultTimeout: Timeout)
+  extends JsonSupport with Logging {
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("config") {
@@ -59,18 +60,30 @@ class ConfigService(private[this] val executionContext: ExecutionContext,
       case Nil => None
       case k => Some(k)
     }
-    val message = GetConfigsRequest(keyFilter)
-    (configActor ? message).mapTo[GetConfigsResponse].map(_.configs).map(okResponse(_))
+    configActor.ask[GetConfigsResponse](GetConfigsRequest(keyFilter, _)).map {
+      case GetConfigsSuccess(configs) =>
+        okResponse(configs)
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def getAppConfigs(authProfile: AuthorizationProfile): Future[RestResponse] = {
     // FIXME request specific keys
-    val message = GetConfigsRequest(None)
-    (configActor ? message).mapTo[GetConfigsResponse].map(_.configs).map(okResponse(_))
+    configActor.ask[GetConfigsResponse](GetConfigsRequest(None, _)).map {
+      case GetConfigsSuccess(configs) =>
+        okResponse(configs)
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def setConfigs(authProfile: AuthorizationProfile, configs: Map[String, Any]): Future[RestResponse] = {
-    val message = SetConfigsRequest(configs)
-    (configActor ? message).mapTo[Unit].map(_ => OkResponse)
+    configActor.ask[SetConfigsResponse](SetConfigsRequest(configs, _)).map {
+      case RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
+    }
   }
 }

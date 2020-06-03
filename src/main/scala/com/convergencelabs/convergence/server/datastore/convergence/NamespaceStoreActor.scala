@@ -11,101 +11,108 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.{InvalidValueException, StoreActor}
+import com.convergencelabs.convergence.server.datastore.InvalidValueException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceAndDomains, NamespaceUpdates}
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
+import grizzled.slf4j.Logging
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object NamespaceStoreActor {
-  val RelativePath = "NamespaceStoreActor"
-
-  def props(dbProvider: DatabaseProvider): Props = Props(new NamespaceStoreActor(dbProvider))
-
-  sealed trait NamespaceStoreActorRequest extends CborSerializable
-
-  case class CreateNamespaceRequest(requester: String, namespaceId: String, displayName: String) extends NamespaceStoreActorRequest
-
-  case class UpdateNamespaceRequest(requester: String, namespaceId: String, displayName: String) extends NamespaceStoreActorRequest
-
-  case class DeleteNamespaceRequest(requester: String, namespaceId: String) extends NamespaceStoreActorRequest
-
-  case class GetAccessibleNamespacesRequest(requester: AuthorizationProfileData, filter: Option[String], offset: Option[Int], limit: Option[Int]) extends NamespaceStoreActorRequest
-
-  case class GetAccessibleNamespacesResponse(namespaces: Set[NamespaceAndDomains]) extends CborSerializable
-
-  case class GetNamespaceRequest(namespaceId: String) extends NamespaceStoreActorRequest
-
-  case class GetNamespaceResponse(namespace: Option[Namespace]) extends CborSerializable
-
-}
-
-class NamespaceStoreActor private[datastore](
-                                              private[this] val dbProvider: DatabaseProvider)
-  extends StoreActor with ActorLogging {
+private class NamespaceStoreActor (private[this] val context: ActorContext[NamespaceStoreActor.Message],
+                                             private[this] val dbProvider: DatabaseProvider)
+  extends AbstractBehavior[NamespaceStoreActor.Message](context) with Logging {
 
   import NamespaceStoreActor._
+
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
 
   private[this] val namespaceStore = new NamespaceStore(dbProvider)
   private[this] val roleStore = new RoleStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
 
-  def receive: Receive = {
-    case createRequest: CreateNamespaceRequest =>
-      createNamespace(createRequest)
-    case deleteRequest: DeleteNamespaceRequest =>
-      deleteNamespace(deleteRequest)
-    case updateRequest: UpdateNamespaceRequest =>
-      updateNamespace(updateRequest)
-    case getRequest: GetNamespaceRequest =>
-      handleGetNamespace(getRequest)
-    case accessibleRequest: GetAccessibleNamespacesRequest =>
-      handleGetAccessibleNamespaces(accessibleRequest)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+   msg match {
+     case msg: CreateNamespaceRequest =>
+       onCreateNamespace(msg)
+     case msg: DeleteNamespaceRequest =>
+       onDeleteNamespace(msg)
+     case msg: UpdateNamespaceRequest =>
+       onUpdateNamespace(msg)
+     case msg: GetNamespaceRequest =>
+       onGetNamespace(msg)
+     case msg: GetAccessibleNamespacesRequest =>
+      onGetAccessibleNamespaces(msg)
+   }
+
+   Behaviors.same
   }
 
-  private[this] def createNamespace(createRequest: CreateNamespaceRequest): Unit = {
-    val CreateNamespaceRequest(_, namespaceId, displayName) = createRequest
+  private[this] def onCreateNamespace(createRequest: CreateNamespaceRequest): Unit = {
+    val CreateNamespaceRequest(_, namespaceId, displayName, replyTo) = createRequest
 
-    reply(this.validate(namespaceId, displayName)
-      .flatMap(_ => namespaceStore.createNamespace(namespaceId, displayName, userNamespace = false)))
+    this.validate(namespaceId, displayName)
+      .flatMap(_ => namespaceStore.createNamespace(namespaceId, displayName, userNamespace = false)) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def handleGetNamespace(getRequest: GetNamespaceRequest): Unit = {
-    val GetNamespaceRequest(namespaceId) = getRequest
-    reply(namespaceStore.getNamespace(namespaceId).map(GetNamespaceResponse))
+  private[this] def onGetNamespace(getRequest: GetNamespaceRequest): Unit = {
+    val GetNamespaceRequest(namespaceId, replyTo) = getRequest
+    namespaceStore.getNamespace(namespaceId) match {
+      case Success(namespace) =>
+        replyTo ! GetNamespaceSuccess(namespace)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def updateNamespace(request: UpdateNamespaceRequest): Unit = {
-    val UpdateNamespaceRequest(_, namespaceId, displayName) = request
-    reply(namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName)))
+  private[this] def onUpdateNamespace(request: UpdateNamespaceRequest): Unit = {
+    val UpdateNamespaceRequest(_, namespaceId, displayName, replyTo) = request
+    namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName)) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def deleteNamespace(deleteRequest: DeleteNamespaceRequest): Unit = {
-    val DeleteNamespaceRequest(_, namespaceId) = deleteRequest
-    log.debug("Delete Namespace: " + namespaceId)
-    val result = for {
+  private[this] def onDeleteNamespace(deleteRequest: DeleteNamespaceRequest): Unit = {
+    val DeleteNamespaceRequest(_, namespaceId, replyTo) = deleteRequest
+    debug("Delete Namespace: " + namespaceId)
+    (for {
       _ <- roleStore.removeAllRolesFromTarget(NamespaceRoleTarget(namespaceId))
       _ <- namespaceStore.deleteNamespace(namespaceId)
-    } yield ()
-    reply(result)
+    } yield ()) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def handleGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
-    val GetAccessibleNamespacesRequest(authProfileData, _, _, _) = getRequest
+  private[this] def onGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
+    val GetAccessibleNamespacesRequest(authProfileData, _, _, _, replyTo) = getRequest
     val authProfile = AuthorizationProfile(authProfileData)
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
-      reply(namespaceStore.getAllNamespacesAndDomains().map(GetAccessibleNamespacesResponse))
+      namespaceStore.getAllNamespacesAndDomains()
     } else {
-      reply(namespaceStore
+      namespaceStore
         .getAccessibleNamespaces(authProfile.username)
         .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet))
-        .map(GetAccessibleNamespacesResponse))
+    } match {
+      case Success(namespaces) =>
+        replyTo ! GetAccessibleNamespacesSuccess(namespaces)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
     }
   }
 
@@ -127,4 +134,73 @@ class NamespaceStoreActor private[datastore](
       }
     }
   }
+}
+
+
+object NamespaceStoreActor {
+
+  val Key: ServiceKey[Message] = ServiceKey[Message]("NamespaceStore")
+
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
+    Behaviors.setup(context => new NamespaceStoreActor(context, dbProvider))
+
+  sealed trait Message extends CborSerializable
+
+  //
+  // CreateNamespace
+  //
+  case class CreateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[CreateNamespaceResponse]) extends Message
+
+  sealed trait CreateNamespaceResponse extends CborSerializable
+
+  //
+  // CreateNamespace
+  //
+  case class UpdateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
+
+  sealed trait UpdateNamespaceResponse extends CborSerializable
+
+  //
+  // CreateNamespace
+  //
+  case class DeleteNamespaceRequest(requester: String, namespaceId: String, replyTo: ActorRef[DeleteNamespaceResponse]) extends Message
+
+  sealed trait DeleteNamespaceResponse extends CborSerializable
+
+  //
+  // GetAccessibleNamespacesRequest
+  //
+  case class GetAccessibleNamespacesRequest(requester: AuthorizationProfileData,
+                                            filter: Option[String],
+                                            offset: Option[Int],
+                                            limit: Option[Int],
+                                            replyTo: ActorRef[GetAccessibleNamespacesResponse]) extends Message
+
+  sealed trait GetAccessibleNamespacesResponse extends CborSerializable
+
+  case class GetAccessibleNamespacesSuccess(namespaces: Set[NamespaceAndDomains]) extends GetAccessibleNamespacesResponse
+
+  //
+  // GetNamespace
+  //
+  case class GetNamespaceRequest(namespaceId: String, replyTo: ActorRef[GetNamespaceResponse]) extends Message
+
+  sealed trait GetNamespaceResponse extends CborSerializable
+
+  case class GetNamespaceSuccess(namespace: Option[Namespace]) extends GetNamespaceResponse
+
+  //
+  // Generic Responses
+  //
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with CreateNamespaceResponse
+    with UpdateNamespaceResponse
+    with DeleteNamespaceResponse
+    with GetAccessibleNamespacesResponse
+    with GetNamespaceResponse
+
+  case class RequestSuccess() extends CborSerializable
+    with CreateNamespaceResponse
+    with UpdateNamespaceResponse
+    with DeleteNamespaceResponse
 }

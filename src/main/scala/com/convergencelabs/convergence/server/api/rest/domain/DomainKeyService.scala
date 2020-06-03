@@ -11,32 +11,29 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import akka.actor.ActorRef
+
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor._
 import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainKeyService {
-
-  case class UpdateInfo(description: String, key: String, enabled: Boolean)
-
-}
-
-class DomainKeyService(private[this] val executionContext: ExecutionContext,
-                       private[this] val timeout: Timeout,
-                       private[this] val domainRestActor: ActorRef)
-  extends AbstractDomainRestService(executionContext, timeout) {
+class DomainKeyService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
+                       private[this] val system: ActorSystem[_],
+                       private[this] val executionContext: ExecutionContext,
+                       private[this] val timeout: Timeout)
+  extends AbstractDomainRestService(system, executionContext, timeout) {
 
   import DomainKeyService._
 
@@ -65,31 +62,58 @@ class DomainKeyService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getKeys(domain: DomainId): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetJwtAuthKeysRequest(None, None))).mapTo[GetJwtAuthKeysResponse] map {
-      response => okResponse(response.keys)
+    domainRestActor.ask[GetJwtAuthKeysResponse](r => DomainRestMessage(domain, GetJwtAuthKeysRequest(None, None, r))).flatMap {
+      case GetJwtAuthKeysSuccess(keys) =>
+        Future.successful(okResponse(keys))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def getKey(domain: DomainId, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetJwtAuthKeyRequest(keyId))).mapTo[GetJwtAuthKeyResponse] map { response =>
-      response.key match {
-        case Some(key) => okResponse(key)
-        case None => notFoundResponse()
-      }
+    domainRestActor.ask[GetJwtAuthKeyResponse](r => DomainRestMessage(domain, GetJwtAuthKeyRequest(keyId, r))).flatMap {
+      case GetJwtAuthKeySuccess(key) =>
+        Future.successful(okResponse(key))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def createKey(domain: DomainId, key: KeyInfo): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, CreateDomainJwtAuthKey(key))) map (_ => CreatedResponse)
+    domainRestActor.ask[CreateJwtAuthKeyResponse](r =>
+      DomainRestMessage(domain, CreateJwtAuthKeyRequest(key, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def updateKey(domain: DomainId, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
     val info = KeyInfo(keyId, description, key, enabled)
-    (domainRestActor ? DomainRestMessage(domain, UpdateDomainJwtAuthKey(info))) map (_ => OkResponse)
+    domainRestActor.ask[UpdateJwtAuthKeyResponse](r =>
+      DomainRestMessage(domain, UpdateJwtAuthKeyRequest(info, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def deleteKey(domain: DomainId, keyId: String): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, DeleteDomainJwtAuthKey(keyId))) map (_ => DeletedResponse)
+    domainRestActor.ask[DeleteJwtAuthKeyResponse](r =>
+      DomainRestMessage(domain, DeleteJwtAuthKeyRequest(keyId, r))).flatMap {
+      case RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
+}
+
+object DomainKeyService {
+
+  case class UpdateInfo(description: String, key: String, enabled: Boolean)
+
 }

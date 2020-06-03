@@ -70,10 +70,8 @@ object UserApiKeyStore {
  * @constructor Creates a new UserApiKeyStore using the provided database provider.
  * @param dbProvider The database provider to use for persistence
  */
-class UserApiKeyStore(
-                       val dbProvider: DatabaseProvider)
-  extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+class UserApiKeyStore(val dbProvider: DatabaseProvider)
+  extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import UserApiKeyStore._
 

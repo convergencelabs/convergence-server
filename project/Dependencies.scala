@@ -31,14 +31,17 @@ object Dependencies {
 
     // Akka
     val akkaActor          = "com.typesafe.akka"        %% "akka-actor"                   % Versions.akka               // Apache 2.0
+    val akkaActorTyped     = "com.typesafe.akka"        %% "akka-actor-typed"             % Versions.akka               // Apache 2.0
     val akkaCluster        = "com.typesafe.akka"        %% "akka-cluster"                 % Versions.akka               // Apache 2.0
+    val akkaClusterTyped   = "com.typesafe.akka"        %% "akka-cluster-typed"           % Versions.akka               // Apache 2.0
+    val akkaShardingTyped  = "com.typesafe.akka"        %% "akka-cluster-sharding-typed"  % Versions.akka               // Apache 2.0
     val akkaSlf4j          = "com.typesafe.akka"        %% "akka-slf4j"                   % Versions.akka               // Apache 2.0
     val akkaClusterTools   = "com.typesafe.akka"        %% "akka-cluster-tools"           % Versions.akka               // Apache 2.0
     val akkaPersistence    = "com.typesafe.akka"        %% "akka-persistence"             % Versions.akka               // Apache 2.0
     val akkaSharding       = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Versions.akka               // Apache 2.0
     val akkaJackson        = "com.typesafe.akka"        %% "akka-serialization-jackson"   % Versions.akka               // Apache 2.0
 
-    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaCluster, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding, akkaJackson)
+    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaActorTyped, akkaCluster, akkaClusterTyped, akkaShardingTyped, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding, akkaJackson)
 
     val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp           // Apache 2.0
     val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp           // Apache 2.0

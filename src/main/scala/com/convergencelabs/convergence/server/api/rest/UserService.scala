@@ -13,12 +13,12 @@ package com.convergencelabs.convergence.server.api.rest
 
 import java.time.Instant
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor._
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
@@ -26,29 +26,16 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Pe
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object UserService {
-
-  case class CreateUserRequest(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
-
-  case class UserPublicData(username: String, displayName: String)
-
-  case class UserData(username: String, firstName: String, lastName: String, displayName: String, email: Option[String], lastLogin: Option[Instant], serverRole: String)
-
-  case class PasswordData(password: String)
-
-  case class UpdateUserData(firstName: String, lastName: String, displayName: String, email: String, serverRole: String)
-
-}
-
-class UserService(
-                   private[this] val executionContext: ExecutionContext,
-                   private[this] val userManagerActor: ActorRef,
-                   private[this] val defaultTimeout: Timeout) extends JsonSupport {
+private[rest] class UserService(private[this] val userManagerActor: ActorRef[Message],
+                                private[this] val system: ActorSystem[_],
+                                private[this] val executionContext: ExecutionContext,
+                                private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
   import UserService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("users") {
@@ -59,7 +46,7 @@ class UserService(
           }
         } ~ post {
           authorize(canManageUsers(authProfile)) {
-            entity(as[CreateUserRequest]) { request =>
+            entity(as[CreateUserRequestData]) { request =>
               complete(createConvergenceUser(request))
             }
           }
@@ -93,37 +80,45 @@ class UserService(
   }
 
   private[this] def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int], authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUsersRequest(filter, limit, offset))
-      .mapTo[GetConvergenceUsersResponse]
-      .map(_.users)
-      .map { users =>
+    userManagerActor.ask[GetConvergenceUsersResponse](GetConvergenceUsersRequest(filter, limit, offset, _)).flatMap {
+      case GetConvergenceUsersSuccess(users) =>
         val publicData = users.map(mapUser(_, authorizationProfile))
-        okResponse(publicData)
-      }
+        Future.successful(okResponse(publicData))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def getUser(username: String, authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
-    (userManagerActor ? GetConvergenceUserRequest(username))
-      .mapTo[GetConvergenceUserResponse]
-      .map(_.user)
-      .map { user =>
+    userManagerActor.ask[GetConvergenceUserResponse](GetConvergenceUserRequest(username, _)).flatMap {
+      case GetConvergenceUserSuccess(user) =>
         val publicUser = user.map(mapUser(_, authorizationProfile))
-        okResponse(publicUser)
-      }
+        Future.successful(okResponse(publicUser))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
-  private[this] def createConvergenceUser(createRequest: CreateUserRequest): Future[RestResponse] = {
-    val CreateUserRequest(username, firstName, lastName, displayName, email, serverRole, password) = createRequest
-    val message = CreateConvergenceUserRequest(username, email, firstName.getOrElse(""), lastName.getOrElse(""), displayName, password, serverRole)
-    (userManagerActor ? message) map (_ => CreatedResponse)
+  private[this] def createConvergenceUser(createRequest: CreateUserRequestData): Future[RestResponse] = {
+    val CreateUserRequestData(username, firstName, lastName, displayName, email, serverRole, password) = createRequest
+    userManagerActor.ask[CreateConvergenceUserResponse](CreateConvergenceUserRequest(username, email, firstName.getOrElse(""), lastName.getOrElse(""), displayName, password, serverRole, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def deleteConvergenceUserRequest(username: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
     if (authProfile.username == username) {
       Future.successful(forbiddenResponse(Some("You can not delete your own user.")))
     } else {
-      val message = DeleteConvergenceUserRequest(username)
-      (userManagerActor ? message) map (_ => DeletedResponse)
+      userManagerActor.ask[DeleteConvergenceUserResponse](DeleteConvergenceUserRequest(username, _)).flatMap {
+        case RequestSuccess() =>
+          Future.successful(DeletedResponse)
+        case RequestFailure(cause) =>
+          Future.failed(cause)
+      }
     }
   }
 
@@ -132,16 +127,23 @@ class UserService(
       Future.successful(forbiddenResponse(Some("You can not change your own server role.")))
     } else {
       val UpdateUserData(firstName, lastName, displayName, email, serverRole) = updateData
-      val message = UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole)
-      (userManagerActor ? message).mapTo[Unit] map
-        (_ => OkResponse)
+      userManagerActor.ask[UpdateConvergenceUserResponse](UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole, _)).flatMap {
+        case RequestSuccess() =>
+          Future.successful(OkResponse)
+        case RequestFailure(cause) =>
+          Future.failed(cause)
+      }
     }
   }
 
   private[this] def setUserPassword(username: String, passwordData: PasswordData): Future[RestResponse] = {
     val PasswordData(password) = passwordData
-    (userManagerActor ? SetPasswordRequest(username, password)).mapTo[Unit] map
-      (_ => OkResponse)
+    userManagerActor.ask[SetPasswordResponse](SetPasswordRequest(username, password, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def mapUser(user: ConvergenceUserInfo, authProfile: AuthorizationProfile): UserData = {
@@ -156,4 +158,18 @@ class UserService(
   private[this] def canManageUsers(authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageUsers)
   }
+}
+
+private[rest] object UserService {
+
+  case class CreateUserRequestData(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
+
+  case class UserPublicData(username: String, displayName: String)
+
+  case class UserData(username: String, firstName: String, lastName: String, displayName: String, email: Option[String], lastLogin: Option[Instant], serverRole: String)
+
+  case class PasswordData(password: String)
+
+  case class UpdateUserData(firstName: String, lastName: String, displayName: String, email: String, serverRole: String)
+
 }

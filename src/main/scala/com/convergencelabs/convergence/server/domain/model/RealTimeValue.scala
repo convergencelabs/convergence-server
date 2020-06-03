@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.domain.model
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.ModelReferenceEvent
 import com.convergencelabs.convergence.server.domain.model.data.DataValue
 import com.convergencelabs.convergence.server.domain.model.ot.{AppliedDiscreteOperation, DiscreteOperation}
 import com.convergencelabs.convergence.server.domain.model.reference.{ModelReference, ReferenceManager}

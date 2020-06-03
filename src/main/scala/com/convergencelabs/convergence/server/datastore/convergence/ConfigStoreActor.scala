@@ -11,65 +11,121 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import grizzled.slf4j.Logging
 
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
-class ConfigStoreActor private[datastore](
-                                           private[this] val dbProvider: DatabaseProvider)
-  extends StoreActor with ActorLogging {
+private class ConfigStoreActor private[datastore](private[this] val context: ActorContext[ConfigStoreActor.Message],
+                                                  private[this] val dbProvider: DatabaseProvider)
+  extends AbstractBehavior[ConfigStoreActor.Message](context) with Logging {
 
   import ConfigStoreActor._
 
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
+
   private[this] val configStore = new ConfigStore(dbProvider)
 
-  def receive: Receive = {
-    case msg: SetConfigsRequest =>
-      onSetConfigs(msg)
-    case msg: GetConfigsRequest =>
-      onGetConfigs(msg)
-    case msg: GetConfigsByFilterRequest =>
-      onGetConfigsByFilter(msg)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case msg: SetConfigsRequest =>
+        onSetConfigs(msg)
+      case msg: GetConfigsRequest =>
+        onGetConfigs(msg)
+      case msg: GetConfigsByFilterRequest =>
+        onGetConfigsByFilter(msg)
+    }
+
+    Behaviors.same
   }
 
   private[this] def onSetConfigs(setConfigs: SetConfigsRequest): Unit = {
-    val SetConfigsRequest(configs) = setConfigs
-    reply(configStore.setConfigs(configs))
+    val SetConfigsRequest(configs, replyTo) = setConfigs
+    configStore.setConfigs(configs) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
   private[this] def onGetConfigs(getConfigs: GetConfigsRequest): Unit = {
-    val GetConfigsRequest(keys) = getConfigs
-    reply((keys match {
-      case Some(k) => configStore.getConfigs(k)
-      case None => configStore.getConfigs()
-    }).map(GetConfigsResponse))
+    val GetConfigsRequest(keys, replyTo) = getConfigs
+    (keys match {
+      case Some(k) =>
+        configStore.getConfigs(k)
+      case None =>
+        configStore.getConfigs()
+    }) match {
+      case Success(configs) =>
+        replyTo ! GetConfigsSuccess(configs)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
   private[this] def onGetConfigsByFilter(getConfigs: GetConfigsByFilterRequest): Unit = {
-    val GetConfigsByFilterRequest(filters) = getConfigs
-    reply(configStore.getConfigsByFilter(filters).map(GetConfigsByFilterResponse))
+    val GetConfigsByFilterRequest(filters, replyTo) = getConfigs
+    configStore.getConfigsByFilter(filters) match {
+      case Success(configs) =>
+        replyTo ! GetConfigsByFilterSuccess(configs)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 }
 
 
 object ConfigStoreActor {
-  val RelativePath = "ConfigStoreActor"
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new ConfigStoreActor(dbProvider))
+  val Key: ServiceKey[Message] = ServiceKey[Message]("ConfigStore")
 
-  sealed trait ConfigStoreActorRequest extends CborSerializable
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] = Behaviors.setup { context =>
+    new ConfigStoreActor(context, dbProvider)
+  }
 
-  case class SetConfigsRequest(configs: Map[String, Any]) extends ConfigStoreActorRequest
+  sealed trait Message extends CborSerializable
 
-  case class GetConfigsRequest(keys: Option[List[String]]) extends ConfigStoreActorRequest
-  case class GetConfigsResponse(configs: Map[String, Any]) extends CborSerializable
+  //
+  // SetConfigs
+  //
+  case class SetConfigsRequest(configs: Map[String, Any], actorRef: ActorRef[SetConfigsResponse]) extends Message
 
-  case class GetConfigsByFilterRequest(filters: List[String]) extends ConfigStoreActorRequest
-  case class GetConfigsByFilterResponse(configs: Map[String, Any]) extends CborSerializable
+  sealed trait SetConfigsResponse extends CborSerializable
+
+  //
+  // GetConfigs
+  //
+  case class GetConfigsRequest(keys: Option[List[String]], actorRef: ActorRef[GetConfigsResponse]) extends Message
+
+  sealed trait GetConfigsResponse extends CborSerializable
+
+  case class GetConfigsSuccess(configs: Map[String, Any]) extends GetConfigsResponse
+
+  //
+  // GetConfigsByFilter
+  //
+  case class GetConfigsByFilterRequest(filters: List[String], actorRef: ActorRef[GetConfigsByFilterResponse]) extends Message
+
+  sealed trait GetConfigsByFilterResponse extends CborSerializable
+
+  case class GetConfigsByFilterSuccess(configs: Map[String, Any]) extends GetConfigsByFilterResponse
+
+  //
+  // Generic Responses
+  //
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with SetConfigsResponse
+    with GetConfigsResponse
+    with GetConfigsByFilterResponse
+
+
+  case class RequestSuccess() extends CborSerializable
+    with SetConfigsResponse
 
 }

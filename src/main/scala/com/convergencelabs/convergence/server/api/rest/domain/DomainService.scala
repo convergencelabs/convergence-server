@@ -11,51 +11,47 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor._
-import com.convergencelabs.convergence.server.datastore.convergence.NamespaceNotFoundException
+import com.convergencelabs.convergence.server.datastore.convergence.{DomainStoreActor, NamespaceNotFoundException, RoleStoreActor}
 import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainService {
-
-  case class CreateDomainRestRequest(namespace: String, id: String, displayName: String)
-
-  case class UpdateDomainRestRequest(displayName: String)
-
-}
-
-class DomainService(private[this] val executionContext: ExecutionContext,
-                    private[this] val domainStoreActor: ActorRef,
-                    private[this] val domainManagerActor: ActorRef, // RestDomainActor
-                    private[this] val permissionStoreActor: ActorRef,
-                    private[this] val modelClusterRegion: ActorRef,
-                    private[this] val chatClusterRegion: ActorRef,
+class DomainService(private[this] val system: ActorSystem[_],
+                    private[this] val executionContext: ExecutionContext,
+                    private[this] val domainStoreActor: ActorRef[DomainStoreActor.Message],
+                    private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
+                    private[this] val roleStoreActor: ActorRef[RoleStoreActor.Message],
+                    private[this] val modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                    private[this] val chatClusterRegion: ActorRef[ChatActor.Message],
                     private[this] val defaultTimeout: Timeout)
-  extends AbstractDomainRestService(executionContext, defaultTimeout) {
+  extends AbstractDomainRestService(system, executionContext, defaultTimeout) {
 
   import DomainService._
 
-  val domainConfigService = new DomainConfigService(ec, t, domainManagerActor)
-  val domainUserService = new DomainUserService(ec, t, domainManagerActor)
-  val domainUserGroupService = new DomainUserGroupService(ec, t, domainManagerActor)
-  val domainStatsService = new DomainStatsService(ec, t, domainManagerActor)
-  val domainCollectionService = new DomainCollectionService(ec, t, domainManagerActor)
-  val domainSessionService = new DomainSessionService(ec, t, domainManagerActor)
-  val domainModelService = new DomainModelService(ec, t, domainManagerActor, modelClusterRegion)
-  val domainKeyService = new DomainKeyService(ec, t, domainManagerActor)
-  val domainAdminTokenService = new DomainAdminTokenService(ec, t, domainManagerActor)
-  val domainChatService = new DomainChatService(ec, t, domainManagerActor, chatClusterRegion)
-  val domainSecurityService = new DomainMembersService(ec, t, permissionStoreActor)
+  val domainConfigService = new DomainConfigService(domainRestActor, system, ec, t)
+  val domainUserService = new DomainUserService(domainRestActor, system, ec, t)
+  val domainUserGroupService = new DomainUserGroupService(domainRestActor, system, ec, t)
+  val domainStatsService = new DomainStatsService(domainRestActor, system, ec, t)
+  val domainCollectionService = new DomainCollectionService(domainRestActor, system, ec, t)
+  val domainSessionService = new DomainSessionService(domainRestActor, system, ec, t)
+  val domainModelService = new DomainModelService(domainRestActor, modelClusterRegion, system, ec, t)
+  val domainKeyService = new DomainKeyService(domainRestActor, system, ec, t)
+  val domainAdminTokenService = new DomainAdminTokenService(domainRestActor, system, ec, t)
+  val domainChatService = new DomainChatService(domainRestActor, chatClusterRegion, system, ec, t)
+  val domainSecurityService = new DomainMembersService(roleStoreActor, system, ec, t)
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("domains") {
@@ -65,8 +61,10 @@ class DomainService(private[this] val executionContext: ExecutionContext,
             complete(getDomains(authProfile, namespace, filter, offset, limit))
           }
         } ~ post {
-          entity(as[CreateDomainRestRequest]) { request =>
-            complete(createDomain(request, authProfile))
+          entity(as[CreateDomainRestRequestData]) { request =>
+            authorize(canManageDomains(request.namespace, authProfile)) {
+              complete(createDomain(request, authProfile))
+            }
           }
         }
       } ~ pathPrefix(Segment / Segment) { (namespace, domainId) =>
@@ -78,7 +76,7 @@ class DomainService(private[this] val executionContext: ExecutionContext,
             } ~ delete {
               complete(deleteDomain(namespace, domainId))
             } ~ put {
-              entity(as[UpdateDomainRestRequest]) { request =>
+              entity(as[UpdateDomainRestRequestData]) { request =>
                 complete(updateDomain(namespace, domainId, request))
               }
             }
@@ -99,55 +97,76 @@ class DomainService(private[this] val executionContext: ExecutionContext,
     }
   }
 
-  private[this] def createDomain(createRequest: CreateDomainRestRequest, authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val CreateDomainRestRequest(namespace, id, displayName) = createRequest
-    // FIXME check to make sure use has permissions to create domain in this namespace
-    val message = CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, authProfile.username)
-    (domainStoreActor ? message)
-      .map { _ => CreatedResponse }
-      .recover {
-        case NamespaceNotFoundException(namespace) =>
-          namespaceNotFoundResponse(namespace)
-      }
+  private[this] def createDomain(createRequest: CreateDomainRestRequestData, authProfile: AuthorizationProfile): Future[RestResponse] = {
+    val CreateDomainRestRequestData(namespace, id, displayName) = createRequest
+    domainStoreActor.ask[CreateDomainResponse](CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, authProfile.username, _)).flatMap {
+      case DomainStoreActor.CreateDomainSuccess(_) =>
+        Future.successful(CreatedResponse)
+      case RequestFailure(cause) =>
+        cause match {
+          case NamespaceNotFoundException(namespace) =>
+            Future.successful(namespaceNotFoundResponse(namespace))
+          case _ =>
+            Future.failed(cause)
+        }
+    }
   }
 
   private[this] def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val message = ListDomainsRequest(authProfile.data, namespace, filter, offset, limit)
-    (domainStoreActor ? message)
-      .mapTo[ListDomainsResponse]
-      .map(_.domains)
-      .map(domains =>
-        okResponse(
+    domainStoreActor.ask[ListDomainsResponse](ListDomainsRequest(authProfile.data, namespace, filter, offset, limit, _)).flatMap {
+      case ListDomainsSuccess(domains) =>
+        val response = okResponse(
           domains map (domain => DomainRestData(
             domain.displayName,
             domain.domainFqn.namespace,
             domain.domainFqn.domainId,
-            domain.status.toString.toLowerCase))))
+            domain.status.toString.toLowerCase)))
+        Future.successful(response)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainStoreActor ? GetDomainRequest(namespace, domainId))
-      .mapTo[GetDomainResponse]
-      .map(_.domain)
-      .map {
-      case Some(domain) =>
-        okResponse(DomainRestData(
-          domain.displayName,
-          domain.domainFqn.namespace,
-          domain.domainFqn.domainId,
-          domain.status.toString))
-      case None =>
-        notFoundResponse()
+    domainStoreActor.ask[GetDomainResponse](GetDomainRequest(namespace, domainId, _)).flatMap {
+      case GetDomainSuccess(Some(domain)) =>
+        val response = okResponse(DomainRestData(
+            domain.displayName,
+            domain.domainFqn.namespace,
+            domain.domainFqn.domainId,
+            domain.status.toString.toLowerCase()))
+        Future.successful(response)
+      case GetDomainSuccess(None) =>
+        Future.successful(notFoundResponse())
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def deleteDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    (domainStoreActor ? DeleteDomainRequest(namespace, domainId)) map { _ => DeletedResponse }
+    domainStoreActor.ask[DeleteDomainResponse](DeleteDomainRequest(namespace, domainId, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
-  private[this] def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequest): Future[RestResponse] = {
-    val UpdateDomainRestRequest(displayName) = request
-    val message = UpdateDomainRequest(namespace, domainId, displayName)
-    (domainStoreActor ? message) map { _ => OkResponse }
+  private[this] def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequestData): Future[RestResponse] = {
+    val UpdateDomainRestRequestData(displayName) = request
+    domainStoreActor.ask[UpdateDomainResponse](UpdateDomainRequest(namespace, domainId, displayName, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(DeletedResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
+}
+
+object DomainService {
+
+  case class CreateDomainRestRequestData(namespace: String, id: String, displayName: String)
+
+  case class UpdateDomainRestRequestData(displayName: String)
+
 }

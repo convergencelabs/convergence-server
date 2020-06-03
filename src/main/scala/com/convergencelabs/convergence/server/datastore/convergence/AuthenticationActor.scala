@@ -13,114 +13,151 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.time.{Duration, Instant}
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.security.AuthorizationProfileData
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
+import grizzled.slf4j.Logging
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 
-class AuthenticationActor private[datastore](private[this] val dbProvider: DatabaseProvider)
-  extends StoreActor with ActorLogging {
+private class AuthenticationActor private[datastore](private[this] val context: ActorContext[AuthenticationActor.Message],
+                                             private[this] val dbProvider: DatabaseProvider)
+  extends AbstractBehavior[AuthenticationActor.Message](context) with Logging {
 
   import AuthenticationActor._
+
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
 
   private[this] val userStore = new UserStore(dbProvider)
   private[this] val userApiKeyStore = new UserApiKeyStore(dbProvider)
   private[this] val roleStore = new RoleStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
   private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
-  private[this] val sessionTokenGenerator = new RandomStringGenerator(32)
+  private[this] val sessionTokenGenerator = new RandomStringGenerator(length = 32)
 
-  def receive: Receive = {
-    case authRequest: AuthRequest =>
-      authenticateUser(authRequest)
-    case loginRequest: LoginRequest =>
-      onLogin(loginRequest)
-    case validateRequest: ValidateSessionTokenRequest =>
-      onValidateSessionToken(validateRequest)
-    case validateUserBearerTokenRequest: ValidateUserBearerTokenRequest =>
-      onValidateBearerToken(validateUserBearerTokenRequest)
-    case validateUserApiKey: ValidateUserApiKeyRequest =>
-      onValidateApiKey(validateUserApiKey)
-    case tokenExpirationRequest: GetSessionTokenExpirationRequest =>
-      onGetSessionTokenExpiration(tokenExpirationRequest)
-    case invalidateTokenRequest: InvalidateTokenRequest =>
-      onInvalidateToken(invalidateTokenRequest)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case authRequest: AuthRequest =>
+        onAuthRequest(authRequest)
+      case loginRequest: LoginRequest =>
+        onLogin(loginRequest)
+      case validateRequest: ValidateSessionTokenRequest =>
+        onValidateSessionToken(validateRequest)
+      case validateUserBearerTokenRequest: ValidateUserBearerTokenRequest =>
+        onValidateBearerToken(validateUserBearerTokenRequest)
+      case validateUserApiKey: ValidateUserApiKeyRequest =>
+        onValidateApiKey(validateUserApiKey)
+      case tokenExpirationRequest: GetSessionTokenExpirationRequest =>
+        onGetSessionTokenExpiration(tokenExpirationRequest)
+      case invalidateTokenRequest: InvalidateSessionTokenRequest =>
+        onInvalidateToken(invalidateTokenRequest)
+    }
+    Behaviors.same
   }
 
-  private[this] def authenticateUser(authRequest: AuthRequest): Unit = {
-    val response = for {
+  private[this] def onAuthRequest(msg: AuthRequest): Unit = {
+    val AuthRequest(username, password, replyTo) = msg
+    (for {
       timeout <- configStore.getSessionTimeout()
-      valid <- userStore.validateCredentials(authRequest.username, authRequest.password)
+      valid <- userStore.validateCredentials(username, password)
       resp <- if (valid) {
         val expiresAt = Instant.now().plus(timeout)
         val token = sessionTokenGenerator.nextString()
         userSessionTokenStore
-          .createToken(authRequest.username, token, expiresAt)
+          .createToken(username, token, expiresAt)
           .map { _ =>
             AuthSuccess(token, timeout)
           }
-          .recover {
-            case cause: Throwable =>
-              log.error(cause, "Unable to create User Session Token")
-              AuthFailure
-          }
       } else {
-        Success(AuthFailure)
+        Success(AuthFailure())
       }
-    } yield resp
-
-    reply(response)
+    } yield resp) match {
+      case Success(resp) =>
+        replyTo ! resp
+      case Failure(cause) =>
+        error("Unable to authenticate user", cause)
+        replyTo ! AuthFailure()
+    }
   }
 
-  private[this] def onLogin(loginRequest: LoginRequest): Unit = {
-    reply(userStore.login(loginRequest.username, loginRequest.password).map(LoginResponse))
+  private[this] def onLogin(msg: LoginRequest): Unit = {
+    val LoginRequest(username, password, replyTo) = msg
+    userStore.login(username, password) match {
+      case Success(token) =>
+        replyTo ! LoginSuccess(token)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onValidateSessionToken(validateRequest: ValidateSessionTokenRequest): Unit = {
-    val result = for {
+  private[this] def onValidateSessionToken(msg: ValidateSessionTokenRequest): Unit = {
+    val ValidateSessionTokenRequest(token, replyTo) = msg
+    (for {
       timeout <- configStore.getSessionTimeout()
-      username <- userSessionTokenStore.validateUserSessionToken(validateRequest.token, () => Instant.now().plus(timeout))
+      username <- userSessionTokenStore.validateUserSessionToken(token, () => Instant.now().plus(timeout))
       authProfile <- getAuthorizationProfile(username)
-    } yield ValidateSessionTokenResponse(authProfile)
-    reply(result)
+    } yield authProfile) match {
+      case Success(authProfile) =>
+        replyTo ! ValidationSuccess(authProfile)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onValidateBearerToken(validateRequest: ValidateUserBearerTokenRequest): Unit = {
-    val result = for {
-      username <- userStore.validateBearerToken(validateRequest.bearerToken)
+  private[this] def onValidateBearerToken(msg: ValidateUserBearerTokenRequest): Unit = {
+    val ValidateUserBearerTokenRequest(bearerToken, replyTo) = msg
+    (for {
+      username <- userStore.validateBearerToken(bearerToken)
       authProfile <- getAuthorizationProfile(username)
-    } yield ValidateUserBearerTokenResponse(authProfile)
-
-    reply(result)
+    } yield authProfile) match {
+      case Success(authProfile) =>
+        replyTo ! ValidationSuccess(authProfile)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onValidateApiKey(validateRequest: ValidateUserApiKeyRequest): Unit = {
-    reply(for {
-      username <- userApiKeyStore.validateUserApiKey(validateRequest.apiKey)
-      _ <- userApiKeyStore.setLastUsedForKey(validateRequest.apiKey, Instant.now())
+  private[this] def onValidateApiKey(msg: ValidateUserApiKeyRequest): Unit = {
+    val ValidateUserApiKeyRequest(apiKey, replyTo) = msg
+    (for {
+      username <- userApiKeyStore.validateUserApiKey(apiKey)
+      _ <- userApiKeyStore.setLastUsedForKey(apiKey, Instant.now())
       authProfile <- getAuthorizationProfile(username)
-    } yield ValidateUserApiKeyResponse(authProfile))
+    } yield authProfile) match {
+      case Success(authProfile) =>
+        replyTo ! ValidationSuccess(authProfile)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onGetSessionTokenExpiration(tokenExpirationRequest: GetSessionTokenExpirationRequest): Unit = {
-    val result = userSessionTokenStore.expirationCheck(tokenExpirationRequest.token).map(_.map {
+  private[this] def onGetSessionTokenExpiration(msg: GetSessionTokenExpirationRequest): Unit = {
+    val GetSessionTokenExpirationRequest(token, replyTo) = msg
+    userSessionTokenStore.expirationCheck(token).map(_.map {
       case (username, expiration) =>
         val now = Instant.now()
         SessionTokenExpiration(username, Duration.between(now, expiration))
-    }).map(GetSessionTokenExpirationResponse)
-    reply(result)
+    }) match {
+      case Success(expiration) =>
+        replyTo ! GetSessionTokenExpirationSuccess(expiration)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onInvalidateToken(invalidateTokenRequest: InvalidateTokenRequest): Unit = {
-    reply(userSessionTokenStore.removeToken(invalidateTokenRequest.token))
+  private[this] def onInvalidateToken(msg: InvalidateSessionTokenRequest): Unit = {
+    val InvalidateSessionTokenRequest(token, replyTo) = msg
+    userSessionTokenStore.removeToken(token) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
   private[this] def getAuthorizationProfile(username: Option[String]): Try[Option[AuthorizationProfileData]] = {
@@ -136,40 +173,87 @@ class AuthenticationActor private[datastore](private[this] val dbProvider: Datab
 }
 
 object AuthenticationActor {
-  val RelativePath = "AuthActor"
+  val Key: ServiceKey[Message] = ServiceKey[Message]("AuthenticationActor")
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new AuthenticationActor(dbProvider))
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] = Behaviors.setup { context =>
+    new AuthenticationActor(context, dbProvider)
+  }
 
-  case class AuthRequest(username: String, password: String) extends CborSerializable
+  sealed trait Message extends CborSerializable
+
+  //
+  // Auth
+  //
+  case class AuthRequest(username: String, password: String, replyTo: ActorRef[AuthResponse]) extends Message
 
   sealed trait AuthResponse extends CborSerializable
 
   case class AuthSuccess(token: String, expiration: Duration) extends AuthResponse
 
-  case object AuthFailure extends AuthResponse
+  case class AuthFailure() extends AuthResponse
 
-  case class LoginRequest(username: String, password: String) extends CborSerializable
 
-  case class LoginResponse(bearerToken: Option[String]) extends CborSerializable
+  //
+  // Login
+  //
+  case class LoginRequest(username: String, password: String, replyTo: ActorRef[LoginResponse]) extends Message
 
-  case class ValidateSessionTokenRequest(token: String) extends CborSerializable
+  sealed trait LoginResponse extends CborSerializable
 
-  case class ValidateSessionTokenResponse(profile: Option[AuthorizationProfileData]) extends CborSerializable
+  case class LoginSuccess(bearerToken: Option[String]) extends LoginResponse
 
-  case class ValidateUserBearerTokenRequest(bearerToken: String) extends CborSerializable
+  //
+  // ValidateSessionToken
+  //
+  case class ValidateSessionTokenRequest(token: String, replyTo: ActorRef[ValidateResponse]) extends Message
 
-  case class ValidateUserBearerTokenResponse(profile: Option[AuthorizationProfileData]) extends CborSerializable
+  sealed trait ValidateResponse extends CborSerializable
 
-  case class ValidateUserApiKeyRequest(apiKey: String) extends CborSerializable
+  case class ValidationSuccess(profile: Option[AuthorizationProfileData]) extends ValidateResponse
 
-  case class ValidateUserApiKeyResponse(profile: Option[AuthorizationProfileData]) extends CborSerializable
+  //
+  // ValidateUserBearerToken
+  //
+  case class ValidateUserBearerTokenRequest(bearerToken: String, replyTo: ActorRef[ValidateResponse]) extends Message
 
-  case class GetSessionTokenExpirationRequest(token: String) extends CborSerializable
 
-  case class GetSessionTokenExpirationResponse(expiration: Option[SessionTokenExpiration]) extends CborSerializable
+  //
+  // ValidateUserApiKey
+  //
+  case class ValidateUserApiKeyRequest(apiKey: String, replyTo: ActorRef[ValidateResponse]) extends Message
 
-  case class InvalidateTokenRequest(token: String) extends CborSerializable
+  //
+  // GetSessionTokenExpiration
+  //
+  case class GetSessionTokenExpirationRequest(token: String, replyTo: ActorRef[GetSessionTokenExpirationResponse]) extends Message
 
+  sealed trait GetSessionTokenExpirationResponse extends CborSerializable
+
+  case class GetSessionTokenExpirationSuccess(expiration: Option[SessionTokenExpiration]) extends GetSessionTokenExpirationResponse
+
+  //
+  // InvalidateTokenRequest
+  //
+  case class InvalidateSessionTokenRequest(token: String, replyTo: ActorRef[InvalidateSessionTokenResponse]) extends Message
+
+  sealed trait InvalidateSessionTokenResponse extends CborSerializable
+
+
+
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with LoginResponse
+    with ValidateResponse
+    with GetSessionTokenExpirationResponse
+    with InvalidateSessionTokenResponse
+
+
+
+  case class RequestSuccess() extends CborSerializable
+    with InvalidateSessionTokenResponse
+
+  //
+  // Data Structures
+  //
   case class SessionTokenExpiration(username: String, expiration: Duration)
 
 }

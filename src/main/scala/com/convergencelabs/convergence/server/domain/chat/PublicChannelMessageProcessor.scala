@@ -11,7 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import akka.actor.ActorContext
+import akka.actor.typed.scaladsl.ActorContext
+
 
 /**
  * Processes messages for a Public Chats.
@@ -19,6 +20,6 @@ import akka.actor.ActorContext
  * @param stateManager The state manager that controls the persistence of chat state.
  * @param context      The actor context that the ChatActors are deployed into.
  */
-private[chat] class PublicChannelMessageProcessor(stateManager: ChatStateManager, context: ActorContext)
+private[chat] class PublicChannelMessageProcessor(stateManager: ChatStateManager, context: ActorContext[_])
   extends MembershipChatMessageProcessor(stateManager, context) {
 }

@@ -11,24 +11,26 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor._
+import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class AuthService(private[this] val executionContext: ExecutionContext,
-                  private[this] val authActor: ActorRef,
+class AuthService(private[this] val authActor: ActorRef[AuthenticationActor.Message],
+                  private[this] val system: ActorSystem[_],
+                  private[this] val executionContext: ExecutionContext,
                   private[this] val defaultTimeout: Timeout)
   extends JsonSupport {
 
-  import AuthService._
-
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
+
+  import AuthService._
 
   val route: Route = pathPrefix("auth") {
     (path("login") & post) {
@@ -44,9 +46,9 @@ class AuthService(private[this] val executionContext: ExecutionContext,
 
   private[this] def login(req: LoginRequestData): Future[RestResponse] = {
     val LoginRequestData(username, password) = req
-    val message = AuthRequest(username, password)
-    (authActor ? message).mapTo[AuthResponse].map {
-      case AuthSuccess(token, expiration) =>
+
+    authActor.ask[AuthenticationActor.AuthResponse](AuthenticationActor.AuthRequest(username, password, _)) map {
+      case AuthenticationActor.AuthSuccess(token, expiration) =>
         okResponse(SessionTokenResponse(token, expiration.toMillis))
       case _ =>
         AuthFailureError
@@ -55,35 +57,32 @@ class AuthService(private[this] val executionContext: ExecutionContext,
 
   private[this] def bearerToken(req: BearerTokenRequestData): Future[RestResponse] = {
     val BearerTokenRequestData(username, password) = req
-    val message = LoginRequest(username, password)
-    (authActor ? message).mapTo[LoginResponse]
-      .map(_.bearerToken)
-      .map {
-        case Some(token) =>
-          okResponse(BearerTokenResponse(token))
-        case None =>
-          AuthFailureError
-      }
+    authActor.ask[AuthenticationActor.LoginResponse](AuthenticationActor.LoginRequest(username, password, _)).map {
+      case AuthenticationActor.LoginSuccess(Some(token)) =>
+        okResponse(BearerTokenResponse(token))
+      case _ =>
+        AuthFailureError
+    }
   }
 
   private[this] def validate(req: ValidateRequestData): Future[RestResponse] = {
     val ValidateRequestData(token) = req
-    val message = GetSessionTokenExpirationRequest(token)
-    (authActor ? message)
-      .mapTo[GetSessionTokenExpirationResponse]
-      .map(_.expiration)
+    authActor.ask[AuthenticationActor.GetSessionTokenExpirationResponse](AuthenticationActor.GetSessionTokenExpirationRequest(token, _))
       .map {
-        case Some(SessionTokenExpiration(username, expireDelta)) =>
+        case AuthenticationActor.GetSessionTokenExpirationSuccess(Some(AuthenticationActor.SessionTokenExpiration(username, expireDelta))) =>
           okResponse(ExpirationResponse(valid = true, Some(username), Some(expireDelta.toMillis)))
-        case None =>
+        case _ =>
           okResponse(ExpirationResponse(valid = false, None, None))
       }
   }
 
   private[this] def logout(req: LogoutRequestData): Future[RestResponse] = {
     val LogoutRequestData(token) = req
-    val message = InvalidateTokenRequest(token)
-    (authActor ? message).map(_ => OkResponse)
+
+    authActor.ask[AuthenticationActor.InvalidateSessionTokenResponse](AuthenticationActor.InvalidateSessionTokenRequest(token, _)).map {
+      case AuthenticationActor.RequestSuccess() => OkResponse
+      case _ => InternalServerError
+    }
   }
 }
 

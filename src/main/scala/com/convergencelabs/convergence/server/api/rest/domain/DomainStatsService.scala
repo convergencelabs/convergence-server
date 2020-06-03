@@ -11,31 +11,28 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import akka.actor.ActorRef
+
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, path}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.{RestResponse, okResponse}
-import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor.{DomainStats, GetDomainStatsResponse, GetStatsRequest}
+import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor._
 import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainStatsService {
-
-  case class DomainStatsRestData(activeSessionCount: Long, userCount: Long, modelCount: Long, dbSize: Long)
-
-}
-
-class DomainStatsService(private[this] val executionContext: ExecutionContext,
-                         private[this] val timeout: Timeout,
-                         private[this] val domainRestActor: ActorRef)
-  extends AbstractDomainRestService(executionContext, timeout) {
+class DomainStatsService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
+                         private[this] val system: ActorSystem[_],
+                         private[this] val executionContext: ExecutionContext,
+                         private[this] val timeout: Timeout)
+  extends AbstractDomainRestService(system, executionContext, timeout) {
 
   import DomainStatsService._
 
@@ -45,13 +42,19 @@ class DomainStatsService(private[this] val executionContext: ExecutionContext,
     }
 
   private[this] def getStats(domain: DomainId): Future[RestResponse] = {
-    (domainRestActor ? DomainRestMessage(domain, GetStatsRequest))
-      .mapTo[GetDomainStatsResponse]
-      .map(_.stats)
-      .map { stats =>
+    domainRestActor.ask[GetStatsResponse](r => DomainRestMessage(domain,  GetStatsRequest(r))).flatMap {
+      case GetStatsSuccess(stats) =>
         val DomainStats(activeSessionCount, userCount, modelCount, dbSize) = stats
-        okResponse(DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize))
-
-      }
+        val response = DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize)
+        Future.successful(okResponse(response))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
+}
+
+object DomainStatsService {
+
+  case class DomainStatsRestData(activeSessionCount: Long, userCount: Long, modelCount: Long, dbSize: Long)
+
 }

@@ -11,47 +11,36 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{Behavior, PostStop}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import grizzled.slf4j.Logging
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.language.postfixOps
 
-object UserSessionTokenReaperActor {
-  def props(dbProvider: DatabaseProvider): Props = Props(new UserSessionTokenReaperActor(dbProvider))
+object UserSessionTokenReaperActor extends Logging {
 
-  case object CleanUpSessions extends CborSerializable
-}
+  trait Message
 
-class UserSessionTokenReaperActor(dbProvider: DatabaseProvider) extends Actor with ActorLogging {
+  private case object CleanUpSessions extends Message
 
-  log.debug("UserSessionTokenReaperActor initializing")
-  
-  import UserSessionTokenReaperActor._
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] = {
+    debug(msg = "UserSessionTokenReaperActor initializing")
 
-  private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
+    val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
 
-  implicit val ec: ExecutionContextExecutor = this.context.system.dispatcher
-  this.context.system.scheduler.scheduleWithFixedDelay(0 seconds, 5 minutes, self, CleanUpSessions)
-
-  def receive: Receive = {
-    case CleanUpSessions =>
-      this.cleanExpiredSessions()
-  }
-
-  private[this] def cleanExpiredSessions(): Unit = {
-    log.debug("Cleaning expired user session tokens")
-    userSessionTokenStore.cleanExpiredTokens() recover {
-      case cause: Throwable =>
-        log.error(cause, "Error cleaning up expired user session tokens")
+    Behaviors.receiveMessage[Message] {
+      case CleanUpSessions =>
+        debug(msg = "Cleaning expired user session tokens")
+        userSessionTokenStore.cleanExpiredTokens() recover {
+          case cause: Throwable =>
+            error(msg = "Error cleaning up expired user session tokens", cause)
+        }
+        Behaviors.same
+    }.receiveSignal {
+      case (_, PostStop) =>
+        debug(msg = "UserSessionTokenReaperActor stopping")
+        Behaviors.same
     }
-  }
-  
-  override def postStop(): Unit = {
-    log.debug("UserSessionTokenReaperActor stopping")
   }
 }

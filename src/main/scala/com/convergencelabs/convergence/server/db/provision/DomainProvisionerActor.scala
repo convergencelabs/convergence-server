@@ -11,78 +11,81 @@
 
 package com.convergencelabs.convergence.server.db.provision
 
-import akka.actor.{Actor, ActorLogging, Props, Status, actorRef2Scala}
-import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.Publish
+import akka.actor.typed.pubsub.Topic.Publish
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.domain.DomainId
+import grizzled.slf4j.Logging
 
-class DomainProvisionerActor(private[this] val provisioner: DomainProvisioner) 
-  extends Actor 
-  with ActorLogging {
-  
+import scala.concurrent.{ExecutionContext, Future}
+
+class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActor.Message],
+                                     provisioner: DomainProvisioner,
+                                     domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+  extends AbstractBehavior[DomainProvisionerActor.Message](context) with Logging {
+
+  private[this] implicit val ec: ExecutionContext = context.executionContext
+
   import DomainProvisionerActor._
-  
-  private[this] val mediator = DistributedPubSub(context.system).mediator
-  
-  def receive: Receive = {
-    case provision: ProvisionDomain => 
+
+  override def onMessage(msg: Message): Behavior[Message] = msg match {
+    case provision: ProvisionDomain =>
       provisionDomain(provision)
-    case destroy: DestroyDomain => 
+    case destroy: DestroyDomain =>
       destroyDomain(destroy)
-    case message: Any => 
-      unhandled(message)
   }
 
-  private[this] def provisionDomain(provision: ProvisionDomain): Unit = {
-    val ProvisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = provision
-    val currentSender = sender
-    // make this asynchronous in the future
-    provisioner.provisionDomain(fqn, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) map { _ =>
-      currentSender ! Status.Success(())
-    } recover {
-      case cause: Exception =>
-        log.error(cause, s"Error provisioning domain: $fqn")
-        currentSender ! akka.actor.Status.Failure(cause)
+  private[this] def provisionDomain(provision: ProvisionDomain): Behavior[Message] = {
+    val ProvisionDomain(data, replyTo) = provision
+    Future {
+      provisioner.provisionDomain(data) map { _ =>
+        replyTo ! ProvisionDomainResponse(Right(()))
+      } recover {
+        case cause: Exception =>
+          error(s"Error provisioning domain: ${data.domainId}", cause)
+          replyTo ! ProvisionDomainResponse(Left(()))
+      }
     }
+    Behaviors.same
   }
 
-  private[this] def destroyDomain(destroy: DestroyDomain) = {
-    val DestroyDomain(domainFqn, databaseUri) = destroy
-    val currentSender = sender
-    provisioner.destroyDomain(databaseUri) map { _ =>
-      val message = DomainDeleted(domainFqn)
-      currentSender ! message
-      mediator ! Publish(domainTopic(domainFqn), message)
-      mediator ! Publish(DomainLifecycleTopic, message)
-    } recover {
-      case cause: Exception =>
-        currentSender ! akka.actor.Status.Failure(cause)
+  private[this] def destroyDomain(destroy: DestroyDomain): Behavior[Message] = {
+    val DestroyDomain(domainId, databaseUri, replyTo) = destroy
+    Future {
+      provisioner.destroyDomain(databaseUri) map { _ =>
+        val message = DomainLifecycleTopic.DomainDeleted(domainId)
+        replyTo ! DestroyDomainResponse(Right(()))
+        domainLifecycleTopic ! Publish(message)
+      } recover { cause =>
+        error(s"Error destroying domain: $domainId", cause)
+        replyTo ! DestroyDomainResponse(Left(()))
+      }
     }
+
+    Behaviors.same
   }
 }
 
 object DomainProvisionerActor {
 
-  val RelativePath = "domainProvisioner"
+  def apply(provisioner: DomainProvisioner,
+            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
+    Behaviors.setup(context => new DomainProvisionerActor(context, provisioner, domainLifecycleTopic))
 
-  def props(provisioner: DomainProvisioner): Props = Props(new DomainProvisionerActor(provisioner))
 
-  case class ProvisionDomain(
-    domainFqn: DomainId,
-    databaseName: String,
-    dbUsername: String,
-    dbPassword: String,
-    dbAdminUsername: String,
-    dbAdminPassword: String,
-    anonymousAuth: Boolean)
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
-  case class DestroyDomain(domainFqn: DomainId, databaseUri: String)
+  sealed trait Message extends CborSerializable
 
-  case class DomainDeleted(domainFqn: DomainId)
-  
-  def domainTopic(domainFqn: DomainId): String = {
-     s"${domainFqn.namespace}/${domainFqn.domainId}"
-  }
-  
-  def DomainLifecycleTopic = "DomainLifecycle"
+  case class ProvisionDomain(data: ProvisionRequest, replyTo: ActorRef[ProvisionDomainResponse]) extends Message
+
+  case class ProvisionDomainResponse(response: Either[Unit, Unit]) extends CborSerializable
+
+  case class DestroyDomain(domainFqn: DomainId, databaseUri: String, replyTo: ActorRef[DestroyDomainResponse]) extends Message
+
+  case class DestroyDomainResponse(response: Either[Unit, Unit]) extends CborSerializable
 }

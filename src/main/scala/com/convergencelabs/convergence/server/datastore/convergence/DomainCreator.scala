@@ -15,10 +15,11 @@ import java.util.UUID
 
 import com.convergencelabs.convergence.server.datastore.InvalidValueException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.domain.{DomainDatabase, DomainId, DomainStatus}
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.ExceptionUtils
+import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
@@ -34,10 +35,9 @@ import scala.util.{Failure, Success, Try}
  * @param config           The Convergence Server config.
  * @param executionContext An execution context for asynchronous operations.
  */
-abstract class DomainCreator(
-                              dbProvider: DatabaseProvider,
-                              config: Config,
-                              implicit val executionContext: ExecutionContext) extends Logging {
+abstract class DomainCreator(dbProvider: DatabaseProvider,
+                             config: Config,
+                             implicit val executionContext: ExecutionContext) extends Logging {
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
@@ -46,43 +46,43 @@ abstract class DomainCreator(
 
   import ConfigKeys._
 
-  def createDomain(
-                    namespace: String,
-                    id: String,
-                    displayName: String,
-                    anonymousAuth: Boolean,
-                    owner: String): Try[Future[Unit]] = {
-    this.validate(namespace, id).flatMap { _ =>
-      val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
-      val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = if (randomizeCredentials) {
-        (UUID.randomUUID().toString, UUID.randomUUID().toString,
-          UUID.randomUUID().toString, UUID.randomUUID().toString)
-      } else {
-        ("writer", "writer", "admin", "admin")
-      }
+  def createDomain(namespace: String,
+                   id: String,
+                   displayName: String,
+                   anonymousAuth: Boolean,
+                   owner: String): Future[DomainDatabase] = {
 
-      val domainId = DomainId(namespace, id)
-      val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
-
-      val provisionRequest = ProvisionDomain(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
-      domainStore.createDomain(domainId, displayName, domainDbInfo)
-        .map { _ =>
-          provisionDomain(provisionRequest)
-            .map { _ =>
-              roleStore.setUserRolesForTarget(owner, DomainRoleTarget(domainId), Set(Roles.Domain.Owner))
-            }
-            .map { _ =>
-              debug(s"Domain created, setting status to online: $dbName")
-              this.updateStatusAfterProvisioning(domainId, DomainStatus.Online)
-            }.recover {
-            case cause: Throwable =>
-              error(s"Domain was not created successfully: $dbName", cause)
-              val statusMessage = ExceptionUtils.stackTraceToString(cause)
-              this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, statusMessage)
-              ()
-          }
-        }
+    val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
+    val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = if (randomizeCredentials) {
+      (UUID.randomUUID().toString, UUID.randomUUID().toString,
+        UUID.randomUUID().toString, UUID.randomUUID().toString)
+    } else {
+      ("writer", "writer", "admin", "admin")
     }
+
+    val domainId = DomainId(namespace, id)
+    val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+
+    val provisionRequest = ProvisionRequest(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
+    for {
+      _ <- FutureUtils.tryToFuture(validate(namespace, id))
+      _ <- FutureUtils.tryToFuture(domainStore.createDomain(domainId, displayName, domainDbInfo))
+      _ <- provisionDomain(provisionRequest)
+        .map { _ =>
+          roleStore.setUserRolesForTarget(owner, DomainRoleTarget(domainId), Set(Roles.Domain.Owner))
+        }
+        .map { _ =>
+          debug(s"Domain created, setting status to online: $dbName")
+          this.updateStatusAfterProvisioning(domainId, DomainStatus.Online)
+        }
+        .recover {
+          case cause: Throwable =>
+            error(s"Domain was not created successfully: $dbName", cause)
+            val statusMessage = ExceptionUtils.stackTraceToString(cause)
+            this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, statusMessage)
+            ()
+        }
+    } yield domainDbInfo
   }
 
   private[this] def validate(namespace: String, id: String): Try[Unit] = {
@@ -123,5 +123,5 @@ abstract class DomainCreator(
       }
   }
 
-  def provisionDomain(request: ProvisionDomain): Future[Unit]
+  def provisionDomain(request: ProvisionRequest): Future[Unit]
 }

@@ -11,120 +11,148 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import scala.util.Failure
-import scala.util.Success
-
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.DomainDatabaseFactory
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor.ConvergenceExport
-import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor.ConvergenceExportResponse
-import com.convergencelabs.convergence.server.domain.DomainId
-
-import ConvergenceImporterActor.ConvergenceImport
-import ConvergenceImporterActor.DomainExport
-import ConvergenceImporterActor.DomainExportResponse
-import ConvergenceImporterActor.DomainImport
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.typed.receptionist.ServiceKey
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor.{ConvergenceExportRequest, _}
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, DomainDatabaseFactory}
+import com.convergencelabs.convergence.server.domain.DomainId
+import grizzled.slf4j.Logging
 
-class ConvergenceImporterActor(
-    private[this] val dbBaseUri: String,
-    private[this] val dbProvider: DatabaseProvider,
-    private[this] val domainProvisioner: ActorRef) extends Actor with ActorLogging {
+class ConvergenceImporterActor(context: ActorContext[ConvergenceImporterActor.Message],
+                               dbBaseUri: String,
+                               dbProvider: DatabaseProvider,
+                               domainStoreActor: ActorRef[DomainStoreActor.Message])
+  extends AbstractBehavior[ConvergenceImporterActor.Message](context) with Logging {
 
   val domainDbProvider = new DomainDatabaseFactory(dbBaseUri, dbProvider)
 
-  def receive: Receive = {
-    case ConvergenceImport(script) =>
-      importConvergence(script)
-    case ConvergenceExport(Some(username)) =>
-      exportConvergenceUser(username)
-    case DomainImport(fqn, script) =>
-      importDomain(fqn, script)
-    case DomainExport(fqn) =>
-      exportDomain(fqn)
-    case message: Any => unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case msg: ConvergenceImportRequest =>
+        importConvergence(msg)
+      case msg: ConvergenceExportRequest =>
+        exportConvergenceUser(msg)
+      case msg: DomainImportRequest =>
+        importDomain(msg)
+      case msg: DomainExportRequest =>
+        exportDomain(msg)
+    }
+
+    Behaviors.same
   }
 
-  private[this] def importConvergence(script: ConvergenceScript): Unit = {
+
+  private[this] def importConvergence(msg: ConvergenceImportRequest): Unit = {
+    val ConvergenceImportRequest(script, replyTo) = msg
     val importer = new ConvergenceImporter(
       dbBaseUri,
       dbProvider,
-      domainProvisioner,
+      domainStoreActor,
       script,
-      context.system.dispatcher)
-    importer.importData() map { _ =>
-      log.debug("Import completed successfuly")
-    } recover {
-      case cause: Exception =>
-        log.error(cause, "Data import failed")
-    }
-
-    sender ! (())
+      context.executionContext,
+      context.system)
+    importer.importData()
+      .map { _ =>
+        debug("Import completed successfully")
+        ConvergenceImportResponse(Right(()))
+      }
+      .recover {
+        case cause: Exception =>
+          error("Data import failed", cause)
+          ConvergenceImportResponse(Left(()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def exportConvergenceUser(username: String): Unit = {
-    log.debug(s"Exporting convergence user: ${username}")
+  private[this] def exportConvergenceUser(msg: ConvergenceExportRequest): Unit = {
+    val ConvergenceExportRequest(username, replyTo) = msg
+    debug(s"Exporting convergence user: $username")
     val exporter = new ConvergenceExporter(dbBaseUri, dbProvider)
-    exporter.exportData(username) match {
-      case Success(script) =>
-        sender ! ConvergenceExportResponse(script)
-      case Failure(cause) =>
-        sender ! akka.actor.Status.Failure(cause)
-    }
+    exporter.exportData(username)
+      .map(export => ConvergenceExportResponse(Right(export)))
+      .recover { cause =>
+        error("error exporting domain", cause)
+        ConvergenceExportResponse(Left(()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def importDomain(fqn: DomainId, script: DomainScript): Unit = {
+  private[this] def importDomain(msg: DomainImportRequest): Unit = {
+    val DomainImportRequest(id, script, replyTo) = msg
     // FIXME should this be a flatMap or something?
-    domainDbProvider.getDomainDatabasePool(fqn) foreach {
+    domainDbProvider.getDomainDatabasePool(id) foreach {
       domainPool =>
-        val provider = new DomainPersistenceProviderImpl(domainPool)
+        val provider = new DomainPersistenceProviderImpl(id, domainPool)
         val domainImporter = new DomainImporter(provider, script)
         // FIXME handle error
         domainImporter.importDomain()
         domainPool.shutdown()
     }
+
+    // FIXME errors??
+    replyTo ! DomainImportResponse(Right(()))
   }
 
-  private[this] def exportDomain(fqn: DomainId): Unit = {
-    log.debug(s"Exporting domain: ${fqn.namespace}/${fqn.domainId}")
-    domainDbProvider.getDomainDatabasePool(fqn) foreach {
+  private[this] def exportDomain(msg: DomainExportRequest): Unit = {
+    val DomainExportRequest(domainId, replyTo) = msg
+    debug(s"Exporting domain: ${domainId.namespace}/${domainId.domainId}")
+    domainDbProvider.getDomainDatabasePool(domainId) foreach {
       domainPool =>
-        val provider = new DomainPersistenceProviderImpl(domainPool)
+        val provider = new DomainPersistenceProviderImpl(domainId, domainPool)
         val domainExporter = new DomainExporter(provider)
-        // FIXME handle error
-        domainExporter.exportDomain() match {
-          case Success(export) =>
-            sender ! DomainExportResponse(export)
-          case Failure(f) =>
-            sender ! akka.actor.Status.Failure(f)
-        }
+        domainExporter.exportDomain()
+          .map(export => DomainExportResponse(Right(export)))
+          .recover { cause =>
+            error("error exporting domain", cause)
+            DomainExportResponse(Left(()))
+          }
+          .foreach(replyTo ! _)
+
         domainPool.shutdown()
     }
   }
 }
 
 object ConvergenceImporterActor {
+  val Key: ServiceKey[Message] = ServiceKey[Message]("ConvergenceImporterActor")
 
-  val RelativePath = "convergenceImporter"
+  def apply(dbBaseUri: String,
+            dbProvider: DatabaseProvider,
+            domainStoreActor: ActorRef[DomainStoreActor.Message]): Behavior[Message] =
+    Behaviors.setup(context => new ConvergenceImporterActor(context, dbBaseUri, dbProvider, domainStoreActor))
 
-  def props(
-    dbBaseUri: String,
-    dbProvider: DatabaseProvider,
-    domainProvisioner: ActorRef): Props =
-    Props(new ConvergenceImporterActor(dbBaseUri, dbProvider, domainProvisioner))
+  sealed trait Message extends CborSerializable
 
-  case class ConvergenceImport(script: ConvergenceScript)
-  case class DomainImport(domainFqn: DomainId, script: DomainScript)
+  //
+  // ConvergenceImport
+  //
+  case class ConvergenceImportRequest(script: ConvergenceScript, replyTo: ActorRef[ConvergenceImportResponse]) extends Message
 
-  case class ConvergenceExport(username: Option[String])
-  case class ConvergenceExportResponse(script: ConvergenceScript)
+  case class ConvergenceImportResponse(response: Either[Unit, Unit]) extends CborSerializable
 
-  case class DomainExport(domainFqn: DomainId)
-  case class DomainExportResponse(script: DomainScript)
+  //
+  // DomainImport
+  //
+  case class DomainImportRequest(domainFqn: DomainId, script: DomainScript, replyTo: ActorRef[DomainImportResponse]) extends Message
+
+  case class DomainImportResponse(response: Either[Unit, Unit]) extends CborSerializable
+
+  //
+  // ConvergenceExport
+  //
+  case class ConvergenceExportRequest(username: String, replyTo: ActorRef[ConvergenceExportResponse]) extends Message
+
+  case class ConvergenceExportResponse(script: Either[Unit, ConvergenceScript]) extends CborSerializable
+
+  //
+  // DomainExport
+  //
+  case class DomainExportRequest(domainId: DomainId, replyTo: ActorRef[DomainExportResponse]) extends Message
+
+  case class DomainExportResponse(script: Either[Unit, DomainScript]) extends CborSerializable
+
 }

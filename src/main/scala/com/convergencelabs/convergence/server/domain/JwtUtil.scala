@@ -18,7 +18,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMWriter
 import org.jose4j.jwk.{RsaJsonWebKey, RsaJwkGenerator}
 import org.jose4j.jwt.JwtClaims
 
-import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.Try
 

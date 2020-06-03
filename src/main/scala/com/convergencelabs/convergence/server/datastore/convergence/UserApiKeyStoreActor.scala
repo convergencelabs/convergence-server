@@ -11,92 +11,162 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import akka.actor.{ActorLogging, Props}
-import akka.util.Timeout
+import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
+import grizzled.slf4j.Logging
 
-import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
+import scala.util.{Failure, Success}
 
 
-class UserApiKeyStoreActor private[datastore](private[this] val dbProvider: DatabaseProvider) extends StoreActor
-  with ActorLogging {
+private class UserApiKeyStoreActor private[datastore](private[this] val context: ActorContext[UserApiKeyStoreActor.Message],
+                                                      private[this] val dbProvider: DatabaseProvider)
+  extends AbstractBehavior[UserApiKeyStoreActor.Message](context) with Logging {
 
   import UserApiKeyStoreActor._
 
-  // FIXME: Read this from configuration
-  private[this] implicit val requestTimeout: Timeout = Timeout(2 seconds)
-  private[this] implicit val executionContext: ExecutionContextExecutor = context.dispatcher
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
 
   private[this] val userApiKeyStore: UserApiKeyStore = new UserApiKeyStore(dbProvider)
   private[this] val keyGen = new RandomStringGenerator(length = 64, RandomStringGenerator.AlphaNumeric)
 
-  def receive: Receive = {
-    case message: GetApiKeysForUserRequest =>
-      onGetKeys(message)
-    case message: GetApiKeyRequest =>
-      onGetKey(message)
-    case message: CreateApiKeyRequest =>
-      onCreateKey(message)
-    case message: DeleteApiKeyRequest =>
-      onDeleteKey(message)
-    case message: UpdateKeyRequest =>
-      onUpdateKey(message)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case message: GetApiKeysForUserRequest =>
+        onGetKeys(message)
+      case message: GetUserApiKeyRequest =>
+        onGetKey(message)
+      case message: CreateUserApiKeyRequest =>
+        onCreateKey(message)
+      case message: DeleteUserApiKeyRequest =>
+        onDeleteKey(message)
+      case message: UpdateUserApiKeyRequest =>
+        onUpdateKey(message)
+    }
+    Behaviors.same
   }
 
   private[this] def onGetKeys(message: GetApiKeysForUserRequest): Unit = {
-    val GetApiKeysForUserRequest(username) = message
-    reply(userApiKeyStore.getKeysForUser(username).map(GetApiKeysForUserResponse))
+    val GetApiKeysForUserRequest(username, replyTo) = message
+    userApiKeyStore.getKeysForUser(username) match {
+      case Success(keys) =>
+        replyTo ! GetApiKeysForUserSuccess(keys)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onGetKey(message: GetApiKeyRequest): Unit = {
-    val GetApiKeyRequest(username, key) = message
-    reply(userApiKeyStore.getKeyForUser(username, key).map(GetApiKeyResponse))
+  private[this] def onGetKey(message: GetUserApiKeyRequest): Unit = {
+    val GetUserApiKeyRequest(username, key, replyTo) = message
+    userApiKeyStore.getKeyForUser(username, key) match {
+      case Success(key) =>
+        replyTo ! GetUserApiKeySuccess(key)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onCreateKey(message: CreateApiKeyRequest): Unit = {
-    val CreateApiKeyRequest(username, keyName, enabled) = message
+  private[this] def onCreateKey(message: CreateUserApiKeyRequest): Unit = {
+    val CreateUserApiKeyRequest(username, keyName, enabled, replyTo) = message
     val key = UserApiKey(username, keyName, keyGen.nextString(), enabled.getOrElse(true), None)
-    reply(userApiKeyStore
+    userApiKeyStore
       .createKey(key)
-      .map(_ => key))
+      .map(_ => key) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onDeleteKey(message: DeleteApiKeyRequest): Unit = {
-    val DeleteApiKeyRequest(username, key) = message
-    reply(userApiKeyStore.deleteKey(key, username))
+  private[this] def onDeleteKey(message: DeleteUserApiKeyRequest): Unit = {
+    val DeleteUserApiKeyRequest(username, key, replyTo) = message
+    userApiKeyStore.deleteKey(key, username) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onUpdateKey(message: UpdateKeyRequest): Unit = {
-    val UpdateKeyRequest(username, key, name, enabled) = message
-    reply(userApiKeyStore.updateKeyKey(key, username, name, enabled))
+  private[this] def onUpdateKey(message: UpdateUserApiKeyRequest): Unit = {
+    val UpdateUserApiKeyRequest(username, key, name, enabled, replyTo) = message
+    userApiKeyStore.updateKeyKey(key, username, name, enabled) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 }
 
 
 object UserApiKeyStoreActor {
-  val RelativePath = "UserApiKeyStoreActor"
 
-  def props(dbProvider: DatabaseProvider): Props = Props(new UserApiKeyStoreActor(dbProvider))
+  val Key: ServiceKey[Message] = ServiceKey[Message]("UserApiKeyStore")
 
-  trait UserApiKeyStoreActorRequest extends CborSerializable
-  case class GetApiKeysForUserRequest(username: String) extends UserApiKeyStoreActorRequest
+  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
+    Behaviors.setup(context => new UserApiKeyStoreActor(context, dbProvider))
 
-  case class GetApiKeysForUserResponse(keys: Set[UserApiKey])
 
-  case class GetApiKeyRequest(username: String, key: String)  extends UserApiKeyStoreActorRequest
-  case class GetApiKeyResponse(key: Option[UserApiKey])
+  trait Message extends CborSerializable
 
-  case class CreateApiKeyRequest(username: String, name: String, enabled: Option[Boolean])  extends UserApiKeyStoreActorRequest
+  //
+  // Generic Responses
+  //
+  case class GetApiKeysForUserRequest(username: String, replyTo: ActorRef[GetApiKeysForUserResponse]) extends Message
 
-  case class DeleteApiKeyRequest(username: String, key: String)  extends UserApiKeyStoreActorRequest
+  trait GetApiKeysForUserResponse extends CborSerializable
 
-  case class UpdateKeyRequest(username: String, key: String, name: String, enabled: Boolean)  extends UserApiKeyStoreActorRequest
+  case class GetApiKeysForUserSuccess(keys: Set[UserApiKey]) extends GetApiKeysForUserResponse
+
+  //
+  // GetUserApiKey
+  //
+  case class GetUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[GetUserApiKeyResponse]) extends Message
+
+  trait GetUserApiKeyResponse extends CborSerializable
+
+  case class GetUserApiKeySuccess(key: Option[UserApiKey]) extends GetUserApiKeyResponse
+
+  //
+  // CreateUserApiKey
+  //
+  case class CreateUserApiKeyRequest(username: String, name: String, enabled: Option[Boolean], replyTo: ActorRef[CreateUserApiKeyResponse]) extends Message
+
+  trait CreateUserApiKeyResponse extends CborSerializable
+
+  //
+  // DeleteUserApiKey
+  //
+  case class DeleteUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[DeleteUserApiKeyResponse]) extends Message
+
+  trait DeleteUserApiKeyResponse extends CborSerializable
+
+  //
+  // UpdateUserApiKey
+  //
+  case class UpdateUserApiKeyRequest(username: String, key: String, name: String, enabled: Boolean, replyTo: ActorRef[UpdateUserApiKeyResponse]) extends Message
+
+  trait UpdateUserApiKeyResponse extends CborSerializable
+
+  //
+  // Generic Responses
+  //
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with GetApiKeysForUserResponse
+    with GetUserApiKeyResponse
+    with CreateUserApiKeyResponse
+    with DeleteUserApiKeyResponse
+    with UpdateUserApiKeyResponse
+
+
+  case class RequestSuccess() extends CborSerializable
+    with CreateUserApiKeyResponse
+    with DeleteUserApiKeyResponse
+    with UpdateUserApiKeyResponse
 
 }

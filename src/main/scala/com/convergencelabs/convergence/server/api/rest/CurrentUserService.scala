@@ -11,42 +11,28 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, complete, delete, entity, get, path, pathEnd, pathPrefix, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor._
-import com.convergencelabs.convergence.server.datastore.convergence.UserFavoriteDomainStoreActor._
+import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor.{RegenerateUserBearerTokenResponse, _}
+import com.convergencelabs.convergence.server.datastore.convergence.UserFavoriteDomainStoreActor.{GetFavoritesForUserResponse, _}
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.datastore.convergence.{ConvergenceUserManagerActor, UserFavoriteDomainStoreActor}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object CurrentUserService {
-
-  case class BearerTokenResponse(token: String)
-
-  case class ConvergenceUserProfile(username: String,
-                                    email: String,
-                                    firstName: String,
-                                    lastName: String,
-                                    displayName: String,
-                                    serverRole: String)
-
-  case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
-
-  case class PasswordSetRequest(password: String)
-
-}
-
-class CurrentUserService(private[this] val executionContext: ExecutionContext,
-                         private[this] val convergenceUserActor: ActorRef,
-                         private[this] val favoriteDomainsActor: ActorRef,
+private[rest] class CurrentUserService(private[this] val convergenceUserActor: ActorRef[ConvergenceUserManagerActor.Message],
+                         private[this] val favoriteDomainsActor: ActorRef[UserFavoriteDomainStoreActor.Message],
+                         private[this] val executionContext: ExecutionContext,
+                         private[this] val system: ActorSystem[_],
                          private[this] val defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
@@ -54,6 +40,7 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("user") {
@@ -91,63 +78,94 @@ class CurrentUserService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = GetUserBearerTokenRequest(authProfile.username)
-    (convergenceUserActor ? message).mapTo[Option[String]].map(okResponse(_))
+    convergenceUserActor.ask[GetUserBearerTokenResponse](GetUserBearerTokenRequest(authProfile.username, _)).map {
+      case GetUserBearerTokenSuccess(token) => okResponse(token)
+      case _ => InternalServerError
+    }
   }
 
   private[this] def regenerateBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = RegenerateUserBearerTokenRequest(authProfile.username)
-    (convergenceUserActor ? message).mapTo[String].map(okResponse(_))
+    convergenceUserActor.ask[RegenerateUserBearerTokenResponse](RegenerateUserBearerTokenRequest(authProfile.username, _)).map {
+      case RegenerateUserBearerTokenSuccess(token) => okResponse(token)
+      case _ => InternalServerError
+    }
   }
 
   private[this] def setPassword(authProfile: AuthorizationProfile, request: PasswordSetRequest): Future[RestResponse] = {
-    logger.debug(s"Received request to set the password for user: ${authProfile.username}")
     val PasswordSetRequest(password) = request
-    val message = SetPasswordRequest(authProfile.username, password)
-    (convergenceUserActor ? message) map { _ => OkResponse }
+    convergenceUserActor.ask[ConvergenceUserManagerActor.SetPasswordResponse](SetPasswordRequest(authProfile.username, password, _)) map {
+      case ConvergenceUserManagerActor.RequestSuccess() => OkResponse
+      case _ => InternalServerError
+    }
   }
 
   private[this] def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = GetConvergenceUserRequest(authProfile.username)
-    (convergenceUserActor ? message)
-      .mapTo[GetConvergenceUserResponse]
-      .map(_.user)
-      .map {
-        case Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole)) =>
-          okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName, globalRole))
-        case None =>
-          notFoundResponse()
-      }
+    convergenceUserActor.ask[GetConvergenceUserResponse](GetConvergenceUserRequest(authProfile.username, _)).map {
+      case GetConvergenceUserSuccess(Some(ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole))) =>
+        okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName, globalRole))
+      case GetConvergenceUserSuccess(None) =>
+        notFoundResponse()
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def updateProfile(authProfile: AuthorizationProfile, profile: UpdateProfileRequest): Future[RestResponse] = {
     val UpdateProfileRequest(email, firstName, lastName, displayName) = profile
-    val message = UpdateConvergenceUserProfileRequest(authProfile.username, email, firstName, lastName, displayName)
-    (convergenceUserActor ? message) map { _ => OkResponse }
+    convergenceUserActor.ask[UpdateConvergenceUserProfileResponse](
+      UpdateConvergenceUserProfileRequest(authProfile.username, email, firstName, lastName, displayName, _)).map {
+      case ConvergenceUserManagerActor.RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def getFavoriteDomains(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    val message = GetFavoritesForUserRequest(authProfile.username)
-    (favoriteDomainsActor ? message).mapTo[GetFavoritesForUserResponse].map(_.domains) map { domains =>
-      okResponse(domains.map(domain => DomainRestData(
-        domain.displayName,
-        domain.domainFqn.namespace,
-        domain.domainFqn.domainId,
-        domain.status.toString)))
+    favoriteDomainsActor.ask[GetFavoritesForUserResponse](GetFavoritesForUserRequest(authProfile.username, _)).map {
+      case GetFavoritesForUserSuccess(domains) =>
+        okResponse(domains.map(domain => DomainRestData(
+          domain.displayName,
+          domain.domainFqn.namespace,
+          domain.domainFqn.domainId,
+          domain.status.toString)))
+      case _ =>
+        InternalServerError
     }
   }
 
   private[this] def addFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
-    val message = AddFavoriteDomainRequest(authProfile.username, DomainId(namespace, domain))
-    (favoriteDomainsActor ? message).mapTo[Unit] map {
-      okResponse(_)
+    favoriteDomainsActor.ask[AddFavoriteDomainResponse](AddFavoriteDomainRequest(authProfile.username, DomainId(namespace, domain), _)).map {
+      case UserFavoriteDomainStoreActor.RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
     }
   }
 
   private[this] def removeFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
-    val message = RemoveFavoriteDomainRequest(authProfile.username, DomainId(namespace, domain))
-    (favoriteDomainsActor ? message).mapTo[Unit] map {
-      okResponse(_)
+    favoriteDomainsActor.ask[RemoveFavoriteDomainResponse](RemoveFavoriteDomainRequest(authProfile.username, DomainId(namespace, domain), _)).map {
+      case UserFavoriteDomainStoreActor.RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
     }
   }
+}
+
+object CurrentUserService {
+
+  case class BearerTokenResponse(token: String)
+
+  case class ConvergenceUserProfile(username: String,
+                                    email: String,
+                                    firstName: String,
+                                    lastName: String,
+                                    displayName: String,
+                                    serverRole: String)
+
+  case class UpdateProfileRequest(email: String, firstName: String, lastName: String, displayName: String)
+
+  case class PasswordSetRequest(password: String)
+
 }

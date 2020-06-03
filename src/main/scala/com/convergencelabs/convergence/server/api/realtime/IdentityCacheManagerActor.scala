@@ -11,17 +11,17 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.ask
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
-import com.convergencelabs.convergence.server.api.realtime.ClientActor.SendProcessedMessage
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.IdentityServiceActor.{IdentityResolutionRequest, IdentityResolutionResponse}
+import com.convergencelabs.convergence.server.api.realtime.ClientActor.IdentityResolutionError
+import com.convergencelabs.convergence.server.domain.{DomainUserId, IdentityServiceActor}
+import grizzled.slf4j.Logging
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContextExecutor
@@ -32,31 +32,41 @@ import scala.util.{Failure, Success}
  * and ensures that the client is made aware of a users identity before a message
  * about that user is sent over the wire.
  *
+ * @param context              The ActorContext for this actor.
  * @param clientActor          The client actor for the client this objects is supporting.
  * @param identityServiceActor The actor that is used to resolve identity.
  * @param timeout              The timeout to user for identity resolution requests.
  */
-private[realtime] class IdentityCacheManager(private[this] val clientActor: ActorRef,
-                                             private[this] val identityServiceActor: ActorRef,
-                                             private[this] implicit val timeout: Timeout) extends Actor with ActorLogging {
+class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManagerActor.Message],
+                                        private[this] val clientActor: ActorRef[ClientActor.FromIdentityResolver],
+                                        private[this] val identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
+                                        private[this] implicit val timeout: Timeout)
+  extends AbstractBehavior[IdentityCacheManagerActor.Message](context) with Logging {
 
+  import IdentityCacheManagerActor._
   import ImplicitMessageConversions._
-
 
   private[this] val sessions: Set[String] = Set()
   private[this] val users: Set[DomainUserId] = Set()
 
   private[this] val messages: mutable.Queue[MessageRecord] = mutable.Queue()
 
-  private[this] implicit val ec: ExecutionContextExecutor = context.dispatcher
+  private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
 
-  def receive: Receive = {
-    case message: ConvergenceMessage =>
-      onConvergenceMessage(message)
-    case message: IdentityResolved =>
-      onIdentityResolved(message)
-    case msg: Any =>
-      this.unhandled(msg)
+  override def onMessage(msg: Message): Behavior[Message] = {
+    msg match {
+      case OutgoingMessage(message) =>
+        onConvergenceMessage(message)
+        Behaviors.same
+
+      case message: IdentityResolved =>
+        onIdentityResolved(message)
+        Behaviors.same
+
+      case message: IdentityResolutionFailure =>
+        onIdentityResolutionFailure(message)
+        Behaviors.same
+    }
   }
 
   private[this] def onConvergenceMessage(message: ConvergenceMessage): Unit = {
@@ -163,6 +173,7 @@ private[realtime] class IdentityCacheManager(private[this] val clientActor: Acto
         case ChatEventData.Event.TopicChanged(topicChanged) =>
           usernames += topicChanged.user.get
         case ChatEventData.Event.Empty =>
+          // FIXME send an error back.
           ???
       }
     }
@@ -182,49 +193,73 @@ private[realtime] class IdentityCacheManager(private[this] val clientActor: Acto
     } else {
       val record = MessageRecord(message, ready = false)
       this.messages.enqueue(record)
-      val request = IdentityResolutionRequest(requiredSessions, requiredUsers)
-      (identityServiceActor ? request)
-        .mapTo[IdentityResolutionResponse]
-        .onComplete {
-          case Success(response) =>
-            self ! IdentityResolved(record, response)
-          case Failure(cause) =>
-            cause.printStackTrace()
-        }
+
+      context.ask(identityServiceActor, (r: ActorRef[IdentityServiceActor.IdentityResolutionResponse]) =>
+        IdentityServiceActor.IdentityResolutionRequest(requiredSessions, requiredUsers, r)) {
+        case Success(response) =>
+          IdentityResolved(record, response)
+        case Failure(cause) =>
+          IdentityResolutionFailure(record, cause)
+      }
     }
   }
 
   private[this] def onIdentityResolved(message: IdentityResolved): Unit = {
     val IdentityResolved(record, response) = message
-    val users = response.users.map(ImplicitMessageConversions.mapDomainUser)
-    val body = IdentityCacheUpdateMessage()
-      .withSessions(response.sessionMap.map { case (sessionId, userId) => (sessionId, ImplicitMessageConversions.domainUserIdToData(userId)) })
-      .withUsers(users.toSeq)
-    val updateMessage = ConvergenceMessage()
-      .withIdentityCacheUpdate(body)
-    this.clientActor ! SendProcessedMessage(updateMessage)
+    response.resolution.fold(
+      {
+        case IdentityServiceActor.UnknownError() =>
+          this.clientActor ! IdentityResolutionError()
+      },
+      { resolution =>
+        val users = resolution.users.map(ImplicitMessageConversions.mapDomainUser)
+        val body = IdentityCacheUpdateMessage()
+          .withSessions(resolution.sessionMap.map { case (sessionId, userId) => (sessionId, ImplicitMessageConversions.domainUserIdToData(userId)) })
+          .withUsers(users.toSeq)
+        val updateMessage = ConvergenceMessage()
+          .withIdentityCacheUpdate(body)
+        this.clientActor ! ClientActor.SendProcessedMessage(updateMessage)
 
-    record.ready = true
-    this.flushQueue()
+        record.ready = true
+        this.flushQueue()
+      })
+  }
+
+  private[this] def onIdentityResolutionFailure(message: IdentityResolutionFailure): Unit = {
+    val IdentityResolutionFailure(record, cause) = message
+
+    error(s"Failed to resolve identity for message: ${record.message}", cause)
+    this.clientActor ! ClientActor.IdentityResolutionError()
   }
 
   private[this] def flushQueue(): Unit = {
     while (this.messages.nonEmpty && this.messages.front.ready) {
       val message = this.messages.dequeue()
-      this.clientActor ! SendProcessedMessage(message.message)
+      this.clientActor ! ClientActor.SendProcessedMessage(message.message)
     }
   }
 }
 
-object IdentityCacheManager {
+object IdentityCacheManagerActor {
 
-  def props(clientActor: ActorRef,
-            identityServiceActor: ActorRef,
-            timeout: Timeout): Props = {
-    Props(new IdentityCacheManager(clientActor, identityServiceActor, timeout))
-  }
+  def apply(clientActor: ActorRef[ClientActor.FromIdentityResolver],
+            identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
+            timeout: Timeout): Behavior[Message] =
+    Behaviors.setup(context => new IdentityCacheManagerActor(context, clientActor, identityServiceActor, timeout))
+
+  case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
+  sealed trait Message
+
+
+  private case class IdentityResolved(record: MessageRecord, response: IdentityServiceActor.IdentityResolutionResponse) extends Message
+
+  private case class IdentityResolutionFailure(record: MessageRecord, cause: Throwable) extends Message
+
+  case class OutgoingMessage(message: ConvergenceMessage) extends Message
+
 }
-
-case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
-
-case class IdentityResolved(record: MessageRecord, response: IdentityResolutionResponse)

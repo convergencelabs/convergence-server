@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
+import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.Roles
@@ -26,9 +26,9 @@ import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBCo
 import com.typesafe.config.{Config, ConfigObject}
 import grizzled.slf4j.Logging
 
-import scala.collection.JavaConverters
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 
@@ -228,8 +228,8 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
 
     val owner = config.getString("convergence.default-server-admin.username")
 
-    val configs = JavaConverters
-      .asScalaSet(defaultConfigs.entrySet())
+    val configs =
+      defaultConfigs.entrySet().asScala
       .map(e => (e.getKey, e.getValue.unwrapped))
       .toMap
 
@@ -250,7 +250,7 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
     }
 
     val domains = bootstrapConfig.getList("domains")
-    JavaConverters.asScalaBuffer(domains).toList.foreach {
+    domains.asScala.toList.foreach {
       case obj: ConfigObject =>
         val c = obj.toConfig
         val namespace = c.getString("namespace")
@@ -268,7 +268,7 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
             Success(())
           }
         } yield {
-          val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth, owner).get.map { _ =>
+          val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth, owner).map { _ =>
             logger.info(s"bootstrapped domain '$namespace/$id'")
           }(ec)
 
@@ -316,8 +316,7 @@ private class InlineDomainCreator(provider: DatabaseProvider,
                                   ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
   private val provisioner = new DomainProvisioner(provider, config)
 
-  def provisionDomain(request: ProvisionDomain): Future[Unit] = {
-    val ProvisionDomain(domainId, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = request
-    FutureUtils.tryToFuture(provisioner.provisionDomain(domainId, databaseName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth))
+  def provisionDomain(request: ProvisionRequest): Future[Unit] = {
+    FutureUtils.tryToFuture(provisioner.provisionDomain(request))
   }
 }

@@ -11,76 +11,161 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.StoreActor
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.domain.model.Collection
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import grizzled.slf4j.Logging
 
-class CollectionStoreActor private[datastore] (
-  private[this] val collectionStore: CollectionStore)
-  extends StoreActor with ActorLogging {
+import scala.util.{Failure, Success}
+
+class CollectionStoreActor private[datastore](private[this] val context: ActorContext[CollectionStoreActor.Message],
+                                              private[this] val collectionStore: CollectionStore)
+  extends AbstractBehavior[CollectionStoreActor.Message](context) with Logging {
 
   import CollectionStoreActor._
 
-  def receive: Receive = {
-    case GetCollectionsRequest(filter, offset, limit) =>
-      onGetCollections(filter, offset, limit)
-    case GetCollectionSummariesRequest(filter, offset, limit) =>
-      onGetCollectionSummaries(filter, offset, limit)
-    case GetCollectionRequest(collectionId) =>
-      onGetCollectionConfig(collectionId)
-    case CreateCollection(collection) =>
-      onCreateCollection(collection)
-    case DeleteCollection(collectionId) =>
-      onDeleteCollection(collectionId)
-    case UpdateCollection(collectionId, collection) =>
-      onUpdateCollection(collectionId, collection)
-    case message: Any =>
-      unhandled(message)
+  override def onMessage(message: Message): Behavior[Message] = {
+    message match {
+      case msg: GetCollectionsRequest =>
+        onGetCollections(msg)
+      case msg: GetCollectionSummariesRequest =>
+        onGetCollectionSummaries(msg)
+      case msg: GetCollectionRequest =>
+        onGetCollection(msg)
+      case msg: CreateCollectionRequest =>
+        onCreateCollection(msg)
+      case msg: DeleteCollectionRequest =>
+        onDeleteCollection(msg)
+      case msg: UpdateCollectionRequest =>
+        onUpdateCollection(msg)
+    }
+
+    Behaviors.same
   }
 
-  private[this] def onGetCollections(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(collectionStore.getAllCollections(filter, offset, limit).map(GetCollectionsResponse))
+  private[this] def onGetCollections(msg: GetCollectionsRequest): Unit = {
+    val GetCollectionsRequest(filter, offset, limit, replyTo) = msg
+    collectionStore.getAllCollections(filter, offset, limit) match {
+      case Success(collections) =>
+        replyTo ! GetCollectionsSuccess(collections)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onGetCollectionSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Unit = {
-    reply(collectionStore.getCollectionSummaries(filter, offset, limit).map(GetCollectionSummariesResponse))
+  private[this] def onGetCollectionSummaries(msg: GetCollectionSummariesRequest): Unit = {
+    val GetCollectionSummariesRequest(filter, offset, limit, replyTo) = msg
+    collectionStore.getCollectionSummaries(filter, offset, limit) match {
+      case Success(collections) =>
+        replyTo ! GetCollectionSummariesSuccess(collections)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onGetCollectionConfig(id: String): Unit = {
-    reply(collectionStore.getCollection(id))
+  private[this] def onGetCollection(msg: GetCollectionRequest): Unit = {
+    val GetCollectionRequest(collectionId, replyTo) = msg
+    collectionStore.getCollection(collectionId) match {
+      case Success(collection) =>
+        replyTo ! GetCollectionSuccess(collection)
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onCreateCollection(collection: Collection): Unit = {
-    reply(collectionStore.createCollection(collection))
+  private[this] def onCreateCollection(msg: CreateCollectionRequest): Unit = {
+    val CreateCollectionRequest(collection, replyTo) = msg
+    collectionStore.createCollection(collection) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onUpdateCollection(collectionId: String, collection: Collection): Unit = {
-    reply(collectionStore.updateCollection(collectionId, collection))
+  private[this] def onUpdateCollection(msg: UpdateCollectionRequest): Unit = {
+    val UpdateCollectionRequest(collectionId, collection, replyTo) = msg
+    collectionStore.updateCollection(collectionId, collection) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 
-  private[this] def onDeleteCollection(collectionId: String): Unit = {
-    reply(collectionStore.deleteCollection(collectionId))
+  private[this] def onDeleteCollection(msg: DeleteCollectionRequest): Unit = {
+    val DeleteCollectionRequest(collectionId, replyTo) = msg
+    collectionStore.deleteCollection(collectionId) match {
+      case Success(_) =>
+        replyTo ! RequestSuccess()
+      case Failure(cause) =>
+        replyTo ! RequestFailure(cause)
+    }
   }
 }
 
 object CollectionStoreActor {
-  def props(collectionStore: CollectionStore): Props = Props(new CollectionStoreActor(collectionStore))
+  def apply(collectionStore: CollectionStore): Behavior[Message] = Behaviors.setup { context =>
+    new CollectionStoreActor(context, collectionStore)
+  }
 
-  trait CollectionStoreRequest extends CborSerializable with DomainRestMessageBody
-  case class GetCollectionsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
-  case class GetCollectionsResponse(collections: PagedData[Collection]) extends CborSerializable
+  trait Message extends CborSerializable with DomainRestMessageBody
 
-  case class GetCollectionSummariesRequest(filter: Option[String], offset: Option[Int], limit: Option[Int]) extends CollectionStoreRequest
-  case class GetCollectionSummariesResponse(collections: PagedData[CollectionSummary]) extends CborSerializable
+  case class GetCollectionsRequest(filter: Option[String],
+                                   offset: Option[Int],
+                                   limit: Option[Int],
+                                   replyTo: ActorRef[GetCollectionsResponse]) extends Message
 
-  case class GetCollectionRequest(id: String) extends CollectionStoreRequest
-  case class GetCollectionResponse(collection: Option[Collection]) extends CborSerializable
+  sealed trait GetCollectionsResponse extends CborSerializable
 
-  case class DeleteCollection(collectionId: String) extends CollectionStoreRequest
-  case class CreateCollection(collection: Collection) extends CollectionStoreRequest
-  case class UpdateCollection(collectionId: String, collection: Collection) extends CollectionStoreRequest
+  case class GetCollectionsSuccess(collections: PagedData[Collection]) extends GetCollectionsResponse
+
+
+  case class GetCollectionSummariesRequest(filter: Option[String],
+                                           offset: Option[Int],
+                                           limit: Option[Int],
+                                           replyTo: ActorRef[GetCollectionSummariesResponse]) extends Message
+
+  sealed trait GetCollectionSummariesResponse extends CborSerializable
+
+  case class GetCollectionSummariesSuccess(collections: PagedData[CollectionSummary]) extends GetCollectionSummariesResponse
+
+
+  case class GetCollectionRequest(id: String, replyTo: ActorRef[GetCollectionResponse]) extends Message
+
+  sealed trait GetCollectionResponse extends CborSerializable
+
+  case class GetCollectionSuccess(collection: Option[Collection]) extends GetCollectionResponse
+
+
+  case class DeleteCollectionRequest(collectionId: String, replyTo: ActorRef[DeleteCollectionResponse]) extends Message
+
+  sealed trait DeleteCollectionResponse extends CborSerializable
+
+  case class CreateCollectionRequest(collection: Collection, replyTo: ActorRef[CreateCollectionResponse]) extends Message
+
+  sealed trait CreateCollectionResponse extends CborSerializable
+
+  case class UpdateCollectionRequest(collectionId: String, collection: Collection, replyTo: ActorRef[UpdateCollectionResponse]) extends Message
+
+  sealed trait UpdateCollectionResponse extends CborSerializable
+
+
+  case class RequestFailure(cause: Throwable) extends CborSerializable
+    with GetCollectionsResponse
+    with GetCollectionSummariesResponse
+    with GetCollectionResponse
+    with DeleteCollectionResponse
+    with CreateCollectionResponse
+    with UpdateCollectionResponse
+
+  case class RequestSuccess() extends CborSerializable
+    with DeleteCollectionResponse
+    with CreateCollectionResponse
+    with UpdateCollectionResponse
+
 }

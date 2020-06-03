@@ -11,17 +11,21 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
+import akka.actor.typed.ActorSystem
 import akka.util.Timeout
+import com.convergencelabs.convergence.server.actor.AskUtils
 import com.convergencelabs.convergence.server.api.rest.JsonSupport
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 
 import scala.concurrent.ExecutionContext
 
-class AbstractDomainRestService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
+class AbstractDomainRestService(system: ActorSystem[_], executionContext: ExecutionContext, defaultTimeout: Timeout)
+  extends JsonSupport with AskUtils {
 
-  implicit val ec: ExecutionContext = executionContext
-  implicit val t: Timeout = defaultTimeout
+  protected implicit val ec: ExecutionContext = executionContext
+  protected implicit val t: Timeout = defaultTimeout
+  protected implicit val s: ActorSystem[_] = system
 
   // Permission Checks
 
@@ -41,5 +45,9 @@ class AbstractDomainRestService(executionContext: ExecutionContext, defaultTimeo
     authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, domainFqn.namespace) ||
       permission.forall(p => authProfile.hasDomainPermission(p, domainFqn))
+  }
+
+  def canManageDomains(namespace: String, authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, namespace)
   }
 }

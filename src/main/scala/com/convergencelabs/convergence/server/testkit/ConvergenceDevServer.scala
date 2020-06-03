@@ -13,13 +13,16 @@ package com.convergencelabs.convergence.server.testkit
 
 import java.io.{File, FileInputStream, InputStreamReader}
 
-import akka.actor.ActorSystem
-import com.convergencelabs.convergence.server.ConvergenceServer
+import akka.actor.typed.{ActorSystem, Behavior}
+import akka.actor.typed.scaladsl.Behaviors
+import com.convergencelabs.convergence.server.ConvergenceServer.ActorSystemName
+import com.convergencelabs.convergence.server.ConvergenceServerActor.Command
+import com.convergencelabs.convergence.server.{ConvergenceServer, ConvergenceServerActor, ServerClusterRoles}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.jdk.CollectionConverters._
 
 /**
  * Provides the main method to start up an instance of the [[ConvergenceDevServer]].
@@ -62,24 +65,31 @@ class ConvergenceDevServer() extends Logging {
   private[this] val ConfigFile = "src/dev-server/convergence-server.conf"
   private[this] val persistent = java.lang.Boolean.getBoolean("convergence.dev-server.persistent")
   private[this] val odbTarget = new File("target/orientdb/databases")
-
   /**
    * Creates an Akka Actor System that will act as the cluster seed node.
    */
-  private[this] val seed = ActorSystem(ConvergenceServer.ActorSystemName, createConfig(ConfigFile, 2551, List("seed")))
+  private[this] val seed: ActorSystem[Unit] = ActorSystem(
+    Behaviors.ignore[Unit],
+    ActorSystemName,
+    createConfig(ConfigFile, 2551, List("seed")))
+
 
   /**
    * This [[ConvergenceServer]] instance will run the Backend Services.
    */
-  private[this] val backend = new ConvergenceServer(
-    createConfig(ConfigFile, 2552, List(ConvergenceServer.Roles.Backend)))
+  private[this] val backend: ActorSystem[Command] = ActorSystem(
+    ConvergenceServerActor(),
+    ActorSystemName,
+    createConfig(ConfigFile, 2552, List(ServerClusterRoles.Backend)))
 
   /**
    * This [[ConvergenceServer]] instance  will run the Rest API and the
    * Realtime API.
    */
-  private[this] val frontend = new ConvergenceServer(
-    createConfig(ConfigFile, 2553, List(ConvergenceServer.Roles.RealtimeApi, ConvergenceServer.Roles.RestApi)))
+  private[this] val frontend: ActorSystem[Command] = ActorSystem(
+    ConvergenceServerActor(),
+    ActorSystemName,
+    createConfig(ConfigFile, 2553, List(ServerClusterRoles.RealtimeApi, ServerClusterRoles.RestApi)))
 
   /**
    * An embedded instance of OrientDB that will be run in process in this JVM
@@ -95,8 +105,8 @@ class ConvergenceDevServer() extends Logging {
 
     orientDb.start()
 
-    backend.start()
-    frontend.start()
+    backend ! ConvergenceServerActor.Start
+    frontend ! ConvergenceServerActor.Start
 
     logger.info("Convergence Development Server started")
 
@@ -120,8 +130,8 @@ class ConvergenceDevServer() extends Logging {
   def stop(): Unit = {
     logger.info("Convergence Development Server shutting down...")
     seed.terminate()
-    backend.stop()
-    frontend.stop()
+    backend ! ConvergenceServerActor.Stop
+    frontend ! ConvergenceServerActor.Stop
     orientDb.stop()
     LogManager.shutdown()
   }

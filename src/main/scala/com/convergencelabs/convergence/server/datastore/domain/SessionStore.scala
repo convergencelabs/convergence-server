@@ -15,8 +15,9 @@ import java.lang.{Long => JavaLong}
 import java.time.Instant
 import java.util.Date
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
+import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -26,19 +27,19 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
 case class DomainSession(
-  id: String,
-  userId: DomainUserId,
-  connected: Instant,
-  disconnected: Option[Instant],
-  authMethod: String,
-  client: String,
-  clientVersion: String,
-  clientMetaData: String,
-  remoteHost: String)
+                          id: String,
+                          userId: DomainUserId,
+                          connected: Instant,
+                          disconnected: Option[Instant],
+                          authMethod: String,
+                          client: String,
+                          clientVersion: String,
+                          clientMetaData: String,
+                          remoteHost: String)
 
 object SessionStore {
 
@@ -74,7 +75,9 @@ object SessionStore {
       doc.field(Fields.Id),
       DomainUserId(DomainUserType.withName(userType), username),
       connected.toInstant,
-      disconnected map { _.toInstant() },
+      disconnected map {
+        _.toInstant()
+      },
       doc.field(Fields.AuthMethod),
       doc.field(Fields.Client),
       doc.field(Fields.ClientVersion),
@@ -88,13 +91,15 @@ object SessionStore {
 
   object SessionQueryType extends Enumeration {
     val Normal, Anonymous, Convergence, All, ExcludeConvergence = Value
+
     def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
   }
+
 }
 
 class SessionStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import SessionStore._
   import schema.DomainSessionClass._
@@ -125,20 +130,21 @@ class SessionStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val GetSessionsQuery = "SELECT * FROM DomainSession WHERE id IN :ids"
+
   def getSessions(sessionIds: Set[String]): Try[List[DomainSession]] = withDb { db =>
     val params = Map("ids" -> sessionIds.toList.asJava)
     OrientDBUtil.queryAndMap(db, GetSessionsQuery, params)(SessionStore.docToSession)
   }
-  
+
   def getSessions(
-    sessionId: Option[String],
-    username: Option[String],
-    remoteHost: Option[String],
-    authMethod: Option[String],
-    excludeDisconnected: Boolean,
-    sessionType: SessionQueryType.Value,
-    limit: Option[Int],
-    offset: Option[Int]): Try[List[DomainSession]] = withDb { db =>
+                   sessionId: Option[String],
+                   username: Option[String],
+                   remoteHost: Option[String],
+                   authMethod: Option[String],
+                   excludeDisconnected: Boolean,
+                   sessionType: SessionQueryType.Value,
+                   limit: Option[Int],
+                   offset: Option[Int]): Try[PagedData[DomainSession]] = withDb { db =>
     var params = Map[String, Any]()
     var terms = List[String]()
 
@@ -180,7 +186,18 @@ class SessionStore(dbProvider: DatabaseProvider)
 
     val baseQuery = s"SELECT * FROM DomainSession $where ORDER BY connected DESC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    OrientDBUtil.queryAndMap(db, query, params)(SessionStore.docToSession)
+
+    val countQuery = s"SELECT count(*) as count FROM DomainSession $where"
+
+    for {
+      count <- OrientDBUtil
+        .getDocument(db, countQuery)
+        .map(_.field("count").asInstanceOf[Long])
+      sessions <- OrientDBUtil.queryAndMap(db, query, params)(SessionStore.docToSession)
+    } yield {
+      PagedData(sessions, offset.getOrElse(0).longValue(), count)
+    }
+
   }
 
   def getConnectedSessionsCount(sessionType: SessionQueryType.Value): Try[Long] = withDb { db =>
@@ -212,7 +229,7 @@ class SessionStore(dbProvider: DatabaseProvider)
     }
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case Indices.Id =>

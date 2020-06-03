@@ -11,12 +11,12 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.NamespaceStoreActor._
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
@@ -24,27 +24,18 @@ import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object NamespaceService {
 
-  case class CreateNamespacePost(id: String, displayName: String)
-
-  case class UpdateNamespacePut(displayName: String)
-
-  case class NamespaceRestData(id: String, displayName: String)
-
-  case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
-
-}
-
-class NamespaceService(private[this] val executionContext: ExecutionContext,
-                       private[this] val namespaceActor: ActorRef,
-                       private[this] val defaultTimeout: Timeout)
+private[rest] class NamespaceService(private[this] val namespaceActor: ActorRef[Message],
+                                     private[this] val system: ActorSystem[_],
+                                     private[this] val executionContext: ExecutionContext,
+                                     private[this] val defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import NamespaceService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("namespaces") {
@@ -81,49 +72,71 @@ class NamespaceService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    val request = GetAccessibleNamespacesRequest(authProfile.data, filter, offset, limit)
-    (namespaceActor ? request)
-      .mapTo[GetAccessibleNamespacesResponse]
-      .map(_.namespaces)
-      .map { namespaces =>
+    namespaceActor.ask[GetAccessibleNamespacesResponse](GetAccessibleNamespacesRequest(authProfile.data, filter, offset, limit, _)).map {
+      case GetAccessibleNamespacesSuccess(namespaces) =>
         val response = namespaces.map { n =>
           val domainData = n.domains.map(d => DomainRestData(d.displayName, d.domainFqn.namespace, d.domainFqn.domainId, d.status.toString))
           NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
         }
         okResponse(response)
-      }
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def getNamespace(namespaceId: String): Future[RestResponse] = {
-    val request = GetNamespaceRequest(namespaceId)
-    (namespaceActor ? request)
-      .mapTo[GetNamespaceResponse]
-      .map(_.namespace).
-      map {
-        case Some(namespace) => okResponse(namespace)
-        case None => notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
-      }
+    namespaceActor.ask[GetNamespaceResponse](GetNamespaceRequest(namespaceId, _)) map {
+      case GetNamespaceSuccess(Some(namespace)) =>
+        okResponse(namespace)
+      case GetNamespaceSuccess(None) =>
+        notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def createNamespace(authProfile: AuthorizationProfile, create: CreateNamespacePost): Future[RestResponse] = {
     val CreateNamespacePost(id, displayName) = create
-    val request = CreateNamespaceRequest(authProfile.username, id, displayName)
-    (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
+    namespaceActor.ask[CreateNamespaceResponse](CreateNamespaceRequest(authProfile.username, id, displayName, _)) map {
+      case RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
+    }
   }
 
-  private[this] def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, create: UpdateNamespacePut): Future[RestResponse] = {
-    val UpdateNamespacePut(displayName) = create
-    val request = UpdateNamespaceRequest(authProfile.username, namespaceId, displayName)
-    (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
+  private[this] def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, update: UpdateNamespacePut): Future[RestResponse] = {
+    val UpdateNamespacePut(displayName) = update
+    namespaceActor.ask[UpdateNamespaceResponse](UpdateNamespaceRequest(authProfile.username, namespaceId, displayName, _)) map {
+      case RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
-    debug(s"Got request to delete namespace $namespaceId")
-    val request = DeleteNamespaceRequest(authProfile.username, namespaceId)
-    (namespaceActor ? request).mapTo[Unit] map (_ => OkResponse)
+    namespaceActor.ask[DeleteNamespaceResponse](DeleteNamespaceRequest(authProfile.username, namespaceId, _)) map {
+      case RequestSuccess() =>
+        OkResponse
+      case _ =>
+        InternalServerError
+    }
   }
 
   private[this] def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)
   }
+}
+
+private[rest] object NamespaceService {
+
+  case class CreateNamespacePost(id: String, displayName: String)
+
+  case class UpdateNamespacePut(displayName: String)
+
+  case class NamespaceRestData(id: String, displayName: String)
+
+  case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
+
 }

@@ -11,8 +11,10 @@
 
 package com.convergencelabs.convergence.server.db
 
-import akka.actor.{Actor, ActorLogging, Props, Status}
-import com.convergencelabs.convergence.server.db.ConvergenceDatabaseInitializerActor._
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.server.actor.CborSerializable
+import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success}
 
@@ -21,33 +23,36 @@ import scala.util.{Failure, Success}
  * initialized.  This actor will be a singleton created by the
  * backend.
  */
-class ConvergenceDatabaseInitializerActor() extends Actor with ActorLogging {
-  log.debug("ConvergenceDatabaseInitializerActor starting up")
+object ConvergenceDatabaseInitializerActor extends Logging {
 
-  private[this] val initializer = new ConvergenceDatabaseInitializer(
-    this.context.system.settings.config,
-    this.context.dispatcher
-  )
+  sealed trait Command extends CborSerializable
 
-  def receive: Receive = {
-    case AssertInitialized() =>
-      initializer.assertInitialized() match {
-        case Failure(cause) =>
-          sender ! Status.Failure(cause)
-        case Success(_) =>
-          sender ! Status.Success(())
-      }
-    case msg: Any =>
-      unhandled(msg)
-  }
-}
-
-object ConvergenceDatabaseInitializerActor {
-  def props(): Props = Props(new ConvergenceDatabaseInitializerActor())
-
-  final case class AssertInitialized()
+  final case class AssertInitialized(replyTo: ActorRef[InitializationResponse]) extends Command
 
   sealed trait InitializationResponse
 
   final case class Initialized() extends InitializationResponse
+  final case class InitializationFailed(cause: Throwable) extends InitializationResponse
+
+  def apply(): Behavior[Command] = {
+    Behaviors.setup { context =>
+      debug("ConvergenceDatabaseInitializerActor starting up")
+
+      val initializer = new ConvergenceDatabaseInitializer(
+        context.system.settings.config,
+        context.executionContext
+      )
+
+      Behaviors.receiveMessage[Command] {
+        case AssertInitialized(replyTo) =>
+          initializer.assertInitialized() match {
+            case Failure(cause) =>
+              replyTo ! InitializationFailed(cause)
+            case Success(_) =>
+              replyTo ! Initialized()
+          }
+          Behaviors.same
+      }
+    }
+  }
 }

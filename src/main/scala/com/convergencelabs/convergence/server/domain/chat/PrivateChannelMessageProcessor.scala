@@ -11,9 +11,10 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import akka.actor.ActorContext
+
+import akka.actor.typed.scaladsl.ActorContext
 import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatMessages._
+import com.convergencelabs.convergence.server.domain.chat.ChatActor._
 
 import scala.util.{Failure, Try}
 
@@ -24,18 +25,18 @@ import scala.util.{Failure, Try}
  * @param context      The actor context that the ChatActors are deployed into.
  */
 private[chat] class PrivateChannelMessageProcessor(stateManager: ChatStateManager,
-                                                   context: ActorContext)
+                                                   context: ActorContext[_])
   extends MembershipChatMessageProcessor(stateManager, context) {
 
-  override def processChatMessage(message: ExistingChatMessage): Try[ChatMessageProcessingResult] = {
+  override def processChatMessage(message: RequestMessage): Try[ChatMessageProcessingResult[_]] = {
     message match {
-      case message: AddUserToChannelRequest =>
+      case message: AddUserToChatRequest =>
         notFoundOrDeliver(message, message.requester.userId)
-      case message: RemoveUserFromChannelRequest =>
+      case message: RemoveUserFromChatRequest =>
         notFoundOrDeliver(message, message.requester.userId)
-      case _: JoinChannelRequest =>
+      case _: JoinChatRequest =>
         Failure(InvalidChatMessageException("Can not join a private channel"))
-      case message: ExistingChatMessage =>
+      case message: Message =>
         super.processChatMessage(message)
     }
   }
@@ -48,7 +49,7 @@ private[chat] class PrivateChannelMessageProcessor(stateManager: ChatStateManage
    * @param userId  The user id of the user requesting the action.
    * @return the processing result.
    */
-  private[this] def notFoundOrDeliver(message: ExistingChatMessage, userId: DomainUserId): Try[ChatMessageProcessingResult] = {
+  private[this] def notFoundOrDeliver(message: RequestMessage, userId: DomainUserId): Try[ChatMessageProcessingResult[_]] = {
     val state = stateManager.state()
     if (state.members.contains(userId)) {
       super.processChatMessage(message)

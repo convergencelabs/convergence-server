@@ -11,13 +11,18 @@
 
 package com.convergencelabs.convergence.server.actor
 
-import akka.actor.{Actor, ActorLogging}
-import akka.cluster.sharding.ShardRegion.Passivate
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding.Passivate
+import grizzled.slf4j.Logging
 
 import scala.util.Try
 
 sealed trait ShardedActorStatUpPlan
+
 case object StartUpRequired extends ShardedActorStatUpPlan
+
 case object StartUpNotRequired extends ShardedActorStatUpPlan
 
 case object ShardedActorStop
@@ -29,14 +34,14 @@ object ShardedActor {
 /**
  * A helper class that standardizes how Sharded Actors behave within Convergence.
  *
- * @param messageClass The base class or trait of all messages sent to the
- *                     ShardedActor.
+ * @param context The ActorContext this actor is created in.
  * @tparam T The parameterized type of the message trait.
  */
-abstract class ShardedActor[T](
-  private[this] val messageClass: Class[T])
-  extends Actor
-  with ActorLogging {
+abstract class ShardedActor[T](context: ActorContext[T],
+                               shardRegion: ActorRef[T],
+                               shard: ActorRef[ClusterSharding.ShardCommand])
+  extends AbstractBehavior[T](context)
+    with Logging {
 
   import ShardedActor._
 
@@ -45,15 +50,15 @@ abstract class ShardedActor[T](
    */
   protected var identityString: String = this.calculateIdentityString(Uninitialized)
 
-  override def receive(): Receive = receiveUninitialized
+  override def onMessage(msg: T): Behavior[T] = receiveUninitialized
 
   /**
    * Explicitly requests that this Actor passivate itself within the cluster.
    */
-  protected def passivate(): Unit = {
-    log.debug(s"$identityString: Passivating")
-    this.context.parent ! Passivate(stopMessage = ShardedActorStop)
-    this.context.become(this.receivePassivating)
+  protected def passivate(): Behavior[T] = {
+    debug(s"$identityString: Passivating")
+    shard ! Passivate(context.self)
+    Behaviors.receiveMessage(receivePassivating)
   }
 
   /**
@@ -61,18 +66,13 @@ abstract class ShardedActor[T](
    * instantiated, it performs initialization logic and then
    * handles thee message.
    */
-  private[this] val receiveUninitialized: Receive = {
-    case msg if messageClass.isInstance(msg) =>
-      receiveInitialMessage(msg.asInstanceOf[T])
-    case x: Any =>
-      this.unhandled(x)
+  private[this] val receiveUninitialized: Behavior[T] = Behaviors.receiveMessage { msg =>
+    receiveInitialMessage(msg)
   }
 
-  private[this] val receivePassivating: Receive = {
-    case ShardedActorStop =>
-      this.onStop()
-    case msg if messageClass.isInstance(msg) =>
-      this.context.parent.forward(msg)
+  private[this] def receivePassivating(msg: T): Behavior[T] = {
+    shardRegion ! msg
+    Behaviors.same
   }
 
   /**
@@ -85,31 +85,32 @@ abstract class ShardedActor[T](
    *
    * @param message The first message sent to this actor.
    */
-  private[this] def receiveInitialMessage(message: T): Unit = {
+  private[this] def receiveInitialMessage(message: T): Behavior[T] = {
     this.setIdentityData(message)
       .flatMap { identity =>
         this.identityString = calculateIdentityString(identity)
-        log.debug(s"$identityString: Initializing.")
+        debug(s"$identityString: Initializing.")
         this.initialize(message)
       }
       .map {
         case StartUpRequired =>
-          log.debug(s"$identityString: Initialized, starting up.")
-          this.context.become(this.receiveInitialized)
+          debug(s"$identityString: Initialized, starting up.")
           this.receiveInitialized(message)
+          Behaviors.receiveMessage(receiveInitialized)
         case StartUpNotRequired =>
-          log.debug(s"$identityString: Initialized, but no start up required, passivating.")
+          debug(s"$identityString: Initialized, but no start up required, passivating.")
           this.passivate()
       }
       .recover {
         case cause: Throwable =>
-          log.error(cause, s"Error initializing ShardedActor on first message: $message")
+          error(s"Error initializing ShardedActor on first message: $message", cause)
           this.passivate()
-      }
+      }.get
   }
 
   /**
    * A helper method to calculate this actor's identity string.
+   *
    * @param identifier The unique portion of this actors identity.
    * @return A formatted identity string.
    */
@@ -120,13 +121,19 @@ abstract class ShardedActor[T](
   /**
    * A helper method to handle a request for this Sharded Actor to stop.
    */
-  private[this] def onStop(): Unit = {
-    log.debug(s"$identityString: Received ShardedActorStop message, stopping.")
-    this.context.stop(self)
+  protected def stop(): Behavior[T] = {
+    debug(s"$identityString: Received ShardedActorStop message, stopping.")
+    Behaviors.stopped
   }
 
-  override def postStop(): Unit = {
-    log.debug(s"$identityString: Stopped")
+  override def onSignal: PartialFunction[Signal, Behavior[T]] = {
+    case PostStop =>
+      postStop()
+      Behaviors.same
+  }
+
+  protected def postStop(): Unit = {
+    debug(s"$identityString: Stopped")
   }
 
   /**
@@ -153,7 +160,8 @@ abstract class ShardedActor[T](
   /**
    * A receive method with which to receive messages once the actor is
    * initialized.
+   *
    * @return The desired Receive behavior.
    */
-  protected def receiveInitialized: Receive
+  protected def receiveInitialized(msg: T): Behavior[T]
 }

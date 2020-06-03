@@ -11,41 +11,29 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.ActorRef
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, authorize, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
 import akka.http.scaladsl.server.Route
-import akka.pattern.ask
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor.{GetAllUserRolesRequest, RemoveUserFromTarget, UpdateRolesForTargetRequest}
+import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor._
 import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object UserRoleService {
 
-  case class CreateNamespacePost(id: String, displayName: String)
-
-  case class UpdateNamespacePut(displayName: String)
-
-  case class NamespaceRestData(id: String, displayName: String)
-
-  case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
-
-  case class UserRoleData(username: String, role: String)
-
-}
-
-class UserRoleService(private[this] val executionContext: ExecutionContext,
-                      private[this] val roleActor: ActorRef,
-                      private[this] val defaultTimeout: Timeout) extends JsonSupport {
+private[rest] class UserRoleService(private[this] val roleActor: ActorRef[Message],
+                                    private[this] val system: ActorSystem[_],
+                                    private[this] val executionContext: ExecutionContext,
+                                    private[this] val defaultTimeout: Timeout) extends JsonSupport {
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
+  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("roles") {
@@ -99,42 +87,62 @@ class UserRoleService(private[this] val executionContext: ExecutionContext,
   }
 
   private[this] def getUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget): Future[RestResponse] = {
-    val request = GetAllUserRolesRequest(target)
-    (roleActor ? request).mapTo[Set[UserRoles]] map { userRoles =>
-      val response = userRoles
-        .filter(_.roles.nonEmpty)
-        .map(userRole => (userRole.username, userRole.roles.head.role.name))
-        .toMap
-      okResponse(response)
+    roleActor.ask[GetAllUserRolesResponse](GetAllUserRolesRequest(target, _)).flatMap {
+      case GetAllUserRolesSuccess(userRoles) =>
+        val response = userRoles.filter(_.roles.nonEmpty)
+          .map(userRole => (userRole.username, userRole.roles.head.role.name))
+        Future.successful(okResponse(response))
+      case RequestFailure(cause) =>
+        Future.failed(cause)
     }
   }
 
   private[this] def updateUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
-    val request = UpdateRolesForTargetRequest(target, userRoles.map(entry => entry._1 -> Set(entry._2)))
-    (roleActor ? request).mapTo[Unit] map (_ => OkResponse)
+    val mappedRoles = userRoles.map(entry => entry._1 -> Set(entry._2))
+    roleActor.ask[UpdateRolesForTargetResponse](UpdateRolesForTargetRequest(target, mappedRoles, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def deleteUserRoleForTarget(authProfile: AuthorizationProfile, target: RoleTarget, username: String): Future[RestResponse] = {
-    val request = RemoveUserFromTarget(target, username)
-    (roleActor ? request).mapTo[Unit] map (_ => OkResponse)
+    roleActor.ask[RemoveUserFromResponse](RemoveUserFromRequest(target, username, _)).flatMap {
+      case RequestSuccess() =>
+        Future.successful(OkResponse)
+      case RequestFailure(cause) =>
+        Future.failed(cause)
+    }
   }
 
   private[this] def canManageUsers(authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageUsers)
   }
 
-  private[this] def canManageDomains(authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)
-  }
-
-  def canManageNamespaceUsers(namespace: String, authProfile: AuthorizationProfile): Boolean = {
+  private[this] def canManageNamespaceUsers(namespace: String, authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageUsers, namespace)
   }
 
-  def canManageDomainUsers(namespace: String, domain: String, authProfile: AuthorizationProfile): Boolean = {
+  private[this] def canManageDomainUsers(namespace: String, domain: String, authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageUsers, namespace) ||
       authProfile.hasDomainPermission(Permissions.Domain.ManageUsers, namespace, domain)
   }
+}
+
+
+private[rest] object UserRoleService {
+
+  case class CreateNamespacePost(id: String, displayName: String)
+
+  case class UpdateNamespacePut(displayName: String)
+
+  case class NamespaceRestData(id: String, displayName: String)
+
+  case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
+
+  case class UserRoleData(username: String, role: String)
+
 }
