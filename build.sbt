@@ -18,6 +18,8 @@ import com.jsuereth.sbtpgp.PgpKeys._
 // Global Settings
 //
 
+ThisBuild / resolvers + = Resolver.sonatypeRepo("snapshots")
+
 ThisBuild / organization := "com.convergencelabs"
 ThisBuild / organizationName := "Convergence Labs, Inc."
 ThisBuild / organizationHomepage := Some(url("http://convergencelabs.com"))
