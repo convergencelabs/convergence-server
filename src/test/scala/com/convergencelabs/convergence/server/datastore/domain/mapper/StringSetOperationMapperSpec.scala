@@ -11,15 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.StringSetOperationMapper.{ODocumentToStringSetOperation, StringSetOperationToODocument}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import StringSetOperationMapper.ODocumentToStringSetOperation
-import StringSetOperationMapper.StringSetOperationToODocument
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class StringSetOperationMapperSpec
     extends AnyWordSpec
@@ -28,7 +24,7 @@ class StringSetOperationMapperSpec
   "An StringSetOperationMapper" when {
     "when converting StringSetOperation operations" must {
       "correctly map and unmap a StringSetOperation" in {
-        val op = AppliedStringSetOperation("vid", true, "test", Some("oldValue"))
+        val op = AppliedStringSetOperation("vid", noOp = true, "test", Some("oldValue"))
         val opDoc = op.asODocument
         val reverted = opDoc.asStringSetOperation
         op shouldBe reverted

@@ -11,22 +11,15 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import org.scalatest.matchers.should.Matchers
+import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.convergence.server.db.ConnectedSingleDatabaseProvider
+import com.convergencelabs.convergence.server.db.schema.{DeltaCategory, TestingSchemaManager}
+import com.convergencelabs.convergence.server.domain.DomainId
+import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.orientechnologies.orient.core.db.OPartitionedDatabasePool
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.convergencelabs.convergence.server.db.schema.TestingSchemaManager
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
-import com.orientechnologies.orient.core.db.OrientDB
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.convergencelabs.convergence.server.db.ConnectedSingleDatabaseProvider
-import com.orientechnologies.orient.core.db.ODatabaseType
 
 class DomainImportExportSpec extends AnyWordSpecLike with Matchers {
 
@@ -34,8 +27,8 @@ class DomainImportExportSpec extends AnyWordSpecLike with Matchers {
     "import the correct data" in {
       val dbName = "DomainImporterSpec-" + System.nanoTime()
 
-      val orientDB = new OrientDB("memory:target/orientdb/DomainImportExportSpec", "root", "password", OrientDBConfig.defaultConfig());
-      orientDB.create(dbName, ODatabaseType.MEMORY);
+      val orientDB = new OrientDB("memory:target/orientdb/DomainImportExportSpec", "root", "password", OrientDBConfig.defaultConfig())
+      orientDB.create(dbName, ODatabaseType.MEMORY)
       val db = orientDB.open(dbName, "admin", "admin")
       db.activateOnCurrentThread()
 
@@ -44,7 +37,7 @@ class DomainImportExportSpec extends AnyWordSpecLike with Matchers {
       val upgrader = new TestingSchemaManager(db, DeltaCategory.Domain, true)
       upgrader.install()
 
-      val provider = new DomainPersistenceProviderImpl(dbPool)
+      val provider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbPool)
       provider.validateConnection().get
 
       val serializer = new DomainScriptSerializer()

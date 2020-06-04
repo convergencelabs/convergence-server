@@ -16,7 +16,7 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -26,19 +26,20 @@ class ChatStoreSpec
   with AnyWordSpecLike
   with Matchers {
 
-  private[this] val user1 = "user1"
-  private[this] val user1Id = DomainUserId(DomainUserType.Normal, user1)
+  private val domainId = DomainId("namespace", "domain")
+  private val user1 = "user1"
+  private val user1Id = DomainUserId(DomainUserType.Normal, user1)
 
-  private[this] val user2 = "user2"
-  private[this] val user2Id = DomainUserId(DomainUserType.Normal, user2)
+  private val user2 = "user2"
+  private val user2Id = DomainUserId(DomainUserType.Normal, user2)
 
-  private[this] val user3 = "user3"
-  private[this] val user3Id = DomainUserId(DomainUserType.Normal, user3)
+  private val user3 = "user3"
+  private val user3Id = DomainUserId(DomainUserType.Normal, user3)
 
-  private[this] val channel1Id = "channel1"
-  private[this] val firstId = "direct:1"
+  private val channel1Id = "channel1"
+  private val firstId = "direct:1"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(domainId, dbProvider)
 
   "A ChatChannelStore" when {
     "creating a chat channel" must {
@@ -144,7 +145,7 @@ class ChatStoreSpec
 
     "getting chat channel members" must {
       "return the correct users after a create" in withTestData { provider =>
-        val id = provider.chatStore.createChat(
+        provider.chatStore.createChat(
           Some(channel1Id), ChatType.Direct, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         val members = provider.chatStore.getChatMembers(channel1Id).get
         members shouldEqual Set(user1Id, user2Id)
@@ -172,7 +173,7 @@ class ChatStoreSpec
 
         val joined = provider.chatStore.getJoinedChannels(user1Id).get
 
-        joined.map(i => i.id).toSet shouldBe Set(id1, id2)
+        joined.map(i => i.id) shouldBe Set(id1, id2)
       }
     }
 

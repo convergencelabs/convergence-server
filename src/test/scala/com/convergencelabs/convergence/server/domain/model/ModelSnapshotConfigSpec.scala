@@ -23,36 +23,36 @@ class ModelSnapshotConfigSpec
   extends AnyWordSpec
     with Matchers {
 
-  val versionBasedConfig = ModelSnapshotConfig(
-    true,
-    true,
-    true,
+  private val versionBasedConfig = ModelSnapshotConfig(
+    snapshotsEnabled = true,
+    triggerByVersion = true,
+    limitedByVersion = true,
     250,
     500,
-    false,
-    false,
+    triggerByTime = false,
+    limitedByTime = false,
     Duration.of(0, ChronoUnit.MINUTES),
     Duration.of(0, ChronoUnit.MINUTES))
 
-  val disabledConfig = ModelSnapshotConfig(
-    false,
-    true,
-    true,
+  private val disabledConfig = ModelSnapshotConfig(
+    snapshotsEnabled = false,
+    triggerByVersion = true,
+    limitedByVersion = true,
     250,
     500,
-    false,
-    false,
+    triggerByTime = false,
+    limitedByTime = false,
     Duration.of(0, ChronoUnit.MINUTES),
     Duration.of(0, ChronoUnit.MINUTES))
 
-  val timeBasedConfig = ModelSnapshotConfig(
-    true,
-    false,
-    false,
+  private val timeBasedConfig = ModelSnapshotConfig(
+    snapshotsEnabled = true,
+    triggerByVersion = false,
+    limitedByVersion = false,
     0,
     0,
-    true,
-    true,
+    triggerByTime = true,
+    limitedByTime = true,
     Duration.of(10, ChronoUnit.MINUTES),
     Duration.of(20, ChronoUnit.MINUTES))
 

@@ -11,15 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.NumberAddOperationMapper.{NumberAddOperationToODocument, ODocumentToNumberAddOperation}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import NumberAddOperationMapper.NumberAddOperationToODocument
-import NumberAddOperationMapper.ODocumentToNumberAddOperation
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class NumberAddOperationMapperSpec
     extends AnyWordSpec
@@ -28,7 +24,7 @@ class NumberAddOperationMapperSpec
   "An NumberAddOperationMapper" when {
     "when converting NumberAddOperation operations" must {
       "correctly map and unmap a NumberAddOperation" in {
-        val op = AppliedNumberAddOperation("vid", true, 4) // scalastyle:ignore magic.number
+        val op = AppliedNumberAddOperation("vid", noOp = true, 4) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asNumberAddOperation
         op shouldBe reverted

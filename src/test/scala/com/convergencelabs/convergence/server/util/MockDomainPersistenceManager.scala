@@ -10,51 +10,31 @@
  */
 
 package com.convergencelabs.convergence.server.util
-import org.mockito.Mockito
-
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.domain.DomainId
-
-import akka.actor.ActorContext
-import akka.actor.ActorRef
-import com.convergencelabs.convergence.server.datastore.domain.CollectionStore
-import org.scalatestplus.mockito.MockitoSugar
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.datastore.domain.DomainConfigStore
-import com.convergencelabs.convergence.server.datastore.domain.ChatStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStore
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore
-import com.convergencelabs.convergence.server.datastore.domain.SessionStore
-import com.convergencelabs.convergence.server.datastore.domain.UserGroupStore
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStore
-import com.convergencelabs.convergence.server.datastore.domain.ModelSnapshotStore
-import com.convergencelabs.convergence.server.datastore.domain.ModelStore
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationProcessor
-import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import akka.actor.typed.{ActorRef, ActorSystem}
+import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.domain.DomainId
+import org.scalatestplus.mockito.MockitoSugar
+
+import scala.util.{Failure, Success, Try}
 
 class MockDomainPersistenceManager(val mockProviders: Map[DomainId, MockDomainPersistenceProvider]) extends DomainPersistenceManager {
 
-  def acquirePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Try[MockDomainPersistenceProvider] = {
-    mockProviders.get(domainFqn) match {
+  override def acquirePersistenceProvider(consumer: ActorRef[_], system: ActorSystem[_], domainId: DomainId): Try[MockDomainPersistenceProvider] = {
+    mockProviders.get(domainId) match {
       case Some(provider) => Success(provider)
-      case None => Failure(new IllegalArgumentException(s"Don't have provider for domain ${domainFqn}"))
+      case None => Failure(new IllegalArgumentException(s"Don't have provider for domain: $domainId"))
     }
   }
 
-  def releasePersistenceProvider(requestor: ActorRef, context: ActorContext, domainFqn: DomainId): Unit = {
+  override def releasePersistenceProvider(consumer: ActorRef[_], system: ActorSystem[_], domainId: DomainId): Unit = {
 
   }
 }
 
-class MockDomainPersistenceProvider extends DomainPersistenceProvider with MockitoSugar {
-  
+class MockDomainPersistenceProvider(override val domainId: DomainId)
+  extends DomainPersistenceProvider with MockitoSugar {
+
   val dbProvider: DatabaseProvider = mock[DatabaseProvider]
   
   val configStore: DomainConfigStore = mock[DomainConfigStore]
@@ -86,7 +66,7 @@ class MockDomainPersistenceProvider extends DomainPersistenceProvider with Mocki
   private[this] var validateConnectionResponse: Try[Unit] = Success(())
   
   def setValidateConnectionResponse(result: Try[Unit]): Unit = {
-    this.validateConnectionResponse = result;
+    this.validateConnectionResponse = result
   }
   
   def validateConnection(): Try[Unit] = {

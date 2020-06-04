@@ -11,16 +11,12 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ArrayInsertOperationMapper.{ArrayInsertOperationToODocument, ODocumentToArrayInsertOperation}
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayInsertOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import ArrayInsertOperationMapper.ArrayInsertOperationToODocument
-import ArrayInsertOperationMapper.ODocumentToArrayInsertOperation
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ArrayInsertOperationMapperSpec
     extends AnyWordSpec
@@ -29,7 +25,7 @@ class ArrayInsertOperationMapperSpec
   "An ArrayInsertOperationMapper" when {
     "when converting ArrayInsertOperation operations" must {
       "correctly map and unmap a ArrayInsertOperation" in {
-        val op = AppliedArrayInsertOperation("vid", true, 4, StringValue("aiom-test", "test")) // scalastyle:ignore magic.number
+        val op = AppliedArrayInsertOperation("vid", noOp = true, 4, StringValue("aiom-test", "test")) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayInsertOperation
         op shouldBe reverted

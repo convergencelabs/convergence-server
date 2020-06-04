@@ -11,9 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import org.scalatest.Finders
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.wordspec.AnyWordSpec
 
 class DomainStatusSpec
@@ -42,14 +40,14 @@ class DomainStatusSpec
         DomainStatus.withName("maintenance") shouldBe DomainStatus.Maintenance
       }
       
-      "return Terminiating when the string is 'terminating'" in {
+      "return Deleting when the string is 'terminating'" in {
         DomainStatus.withName("deleting") shouldBe DomainStatus.Deleting
       }
     }
     
     "calling toString" must {
-      "return terminiating when the string is 'Terminating'" in {
-        DomainStatus.Deleting.toString() shouldBe "deleting"
+      "return terminating when the string is 'Terminating'" in {
+        DomainStatus.Deleting.toString shouldBe "deleting"
       }
     }
   }

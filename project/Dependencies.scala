@@ -99,12 +99,14 @@ object Dependencies {
 
     // Testing Dependencies
     val akkaTestKit       = "com.typesafe.akka"           %% "akka-testkit"                % Versions.akka              // Apache 2.0
+    val akkaTestKitTyped  = "com.typesafe.akka"           %% "akka-actor-testkit-typed"    % Versions.akka              // Apache 2.0
+
     val akkaMockScheduler = "com.miguno.akka"             %% "akka-mock-scheduler"         % "0.5.5"                    // Apache 2.0
     val scalatest         = "org.scalatest"               %%  "scalatest"                  % "3.1.2"                    // Apache 2.0
     val scalatestMockito  = "org.scalatestplus"           %% "scalatestplus-mockito"       % "1.0.0-M2"                 // Apache 2.0
     val mockito           = "org.mockito"                 % "mockito-all"                  % "2.0.2-beta"               // MIT
     val junit             = "junit"                       % "junit"                        % "4.12"                     // EPL 1.0
     val testingCore: Seq[ModuleID] = Seq(scalatest, scalatestMockito, mockito, junit)
-    val testingAkka: Seq[ModuleID] = testingCore ++ Seq(akkaTestKit, akkaMockScheduler)
+    val testingAkka: Seq[ModuleID] = testingCore ++ Seq(akkaTestKit, akkaMockScheduler, akkaTestKitTyped)
   }
 }

@@ -89,7 +89,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
     if (namespace.isEmpty) {
       Failure(InvalidValueException("namespace", "The namespace can not be empty"))
     } else if (id.isEmpty) {
-      Failure(InvalidValueException("id", "The domain's namespace can not be empty"))
+      Failure(InvalidValueException("id", "The domain id can not be empty"))
     } else {
       val keys = List(Namespaces.Enabled, Namespaces.UserNamespacesEnabled, Namespaces.DefaultNamespace)
       configStore.getConfigs(keys).flatMap { configs =>

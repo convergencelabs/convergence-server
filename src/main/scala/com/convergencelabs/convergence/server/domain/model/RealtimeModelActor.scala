@@ -607,7 +607,8 @@ object RealtimeModelActor {
   // CloseRealtimeModel
   //
   case class CloseRealtimeModelRequest(domainId: DomainId,
-                                       modelId: String, session: DomainUserSessionId,
+                                       modelId: String,
+                                       session: DomainUserSessionId,
                                        replyTo: ActorRef[CloseRealtimeModelResponse]) extends RealTimeModelMessage
 
   sealed trait CloseRealtimeModelError

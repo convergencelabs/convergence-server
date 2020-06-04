@@ -11,20 +11,15 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
-
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.Role
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
+import com.convergencelabs.convergence.server.datastore.DuplicateValueException
+import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.{Role, UserRole, UserRoles}
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainDatabase
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.Namespace
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRole
+import com.convergencelabs.convergence.server.domain.{DomainDatabase, DomainId, Namespace}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 case class RoleStoreSpecStores(
   roleStore: RoleStore,
@@ -38,29 +33,29 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
     RoleStoreSpecStores(new RoleStore(dbProvider), new UserStore(dbProvider), new NamespaceStore(dbProvider), new DomainStore(dbProvider))
   }
 
-  val TestUser = User("username1", "test@convergence.com", "username1", "username1", "displayName", None)
-  val TestUser2 = User("username2", "test2@convergence.com", "username2", "username2", "displayName2", None)
+  private val TestUser = User("username1", "test@convergence.com", "username1", "username1", "displayName", None)
+  private val TestUser2 = User("username2", "test2@convergence.com", "username2", "username2", "displayName2", None)
 
-  val TestNamesapce = Namespace("namespace1", "Namespace 1", false)
-  val TestDomainFQN = DomainId(TestNamesapce.id, "domain1")
+  private val TestNamesapce = Namespace("namespace1", "Namespace 1", userNamespace = false)
+  private val TestDomainFQN = DomainId(TestNamesapce.id, "domain1")
 
-  val TestDomainTarget = DomainRoleTarget(TestDomainFQN)
+  private val TestDomainTarget = DomainRoleTarget(TestDomainFQN)
 
-  val TestPermission1 = "testId1"
-  val TestPermission2 = "testId2"
-  val TestPermission3 = "testId3"
+  private val TestPermission1 = "testId1"
+  private val TestPermission2 = "testId2"
+  private val TestPermission3 = "testId3"
 
-  val Role1Id = "role1"
-  val Role2Id = "role2"
-  val Role3Id = "role3"
-  val Role4Id = "role4"
-  val Role5Id = "role5"
+  private val Role1Id = "role1"
+  private val Role2Id = "role2"
+  private val Role3Id = "role3"
+  private val Role4Id = "role4"
+  private val Role5Id = "role5"
 
-  val Role1 = Role(Role1Id, Some(RoleTargetType.Domain),  Set(TestPermission1, TestPermission2))
-  val Role2 = Role(Role2Id, None, Set(TestPermission1))
-  val Role3 = Role(Role3Id, None, Set(TestPermission1))
-  val Role4 = Role(Role4Id, None, Set(TestPermission1, TestPermission2))
-  val Role5 = Role(Role5Id, Some(RoleTargetType.Domain), Set(TestPermission2, TestPermission3))
+  private val Role1 = Role(Role1Id, Some(RoleTargetType.Domain),  Set(TestPermission1, TestPermission2))
+  private val Role2 = Role(Role2Id, None, Set(TestPermission1))
+  private val Role3 = Role(Role3Id, None, Set(TestPermission1))
+  private val Role4 = Role(Role4Id, None, Set(TestPermission1, TestPermission2))
+  private val Role5 = Role(Role5Id, Some(RoleTargetType.Domain), Set(TestPermission2, TestPermission3))
 
   "A RoleStore" when {
     "saving a role" must {
@@ -82,7 +77,7 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
 
     "adding a role to a user" must {
       "return success" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role1).get
         roleStore.setUserRolesForTarget(TestUser.username, TestDomainTarget, Set(Role1Id)).get
       }
@@ -90,14 +85,14 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
 
     "looking up user permissions" must {
       "return correct permissions" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role1).get
         roleStore.setUserRolesForTarget(TestUser.username, TestDomainTarget, Set(Role1Id)).get
-        roleStore.getUserPermissionsForTarget(TestUser.username, TestDomainTarget).get.toSet shouldBe Set(TestPermission1, TestPermission2)
+        roleStore.getUserPermissionsForTarget(TestUser.username, TestDomainTarget).get shouldBe Set(TestPermission1, TestPermission2)
       }
 
       "return only the union of permissions" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role4).get
         roleStore.createRole(Role2).get
         roleStore.setUserRolesForTarget(TestUser.username, ServerRoleTarget(), Set(Role4Id, Role2Id)).get
@@ -107,21 +102,21 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
 
     "looking up user roles" must {
       "return correct roles" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role1).get
         roleStore.setUserRolesForTarget(TestUser.username, TestDomainTarget, Set(Role1Id)).get
         roleStore.getUserRolesForTarget(TestUser.username, TestDomainTarget).get shouldBe Set(Role1)
       }
 
       "return user with no roles if user doesn't exist" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role1).get
         roleStore.createRole(Role2).get
         roleStore.getUserRolesForTarget(TestUser.username, TestDomainTarget).get shouldBe  Set()
       }
 
       "return only roles for that user" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role1).get
         roleStore.createRole(Role2).get
         roleStore.createRole(Role3).get
@@ -135,7 +130,7 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
 
     "looking up user roles" must {
       "return all user roles for that domain" in withTestData { stores =>
-        val RoleStoreSpecStores(roleStore, userStore, namespaceStore, domainStore) = stores
+        val RoleStoreSpecStores(roleStore, _, _, _) = stores
         roleStore.createRole(Role1).get
         roleStore.createRole(Role5).get
 

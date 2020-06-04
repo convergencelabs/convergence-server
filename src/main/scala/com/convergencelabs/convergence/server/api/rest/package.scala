@@ -48,6 +48,7 @@ package object rest {
   type RestResponse = (StatusCode, ResponseMessage)
 
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
+  val NotFound: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", None))
   val CreatedResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
   val DeletedResponse: RestResponse = (StatusCodes.Gone, SuccessRestResponse())
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))

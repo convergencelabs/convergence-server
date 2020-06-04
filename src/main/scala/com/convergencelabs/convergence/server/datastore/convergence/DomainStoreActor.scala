@@ -17,7 +17,7 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor
@@ -33,8 +33,8 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 private class DomainStoreActor private[datastore](private[this] val context: ActorContext[DomainStoreActor.Message],
-                                          private[this] val dbProvider: DatabaseProvider,
-                                          private[this] val domainProvisioner: ActorRef[DomainProvisionerActor.Message])
+                                                  private[this] val dbProvider: DatabaseProvider,
+                                                  private[this] val domainProvisioner: ActorRef[DomainProvisionerActor.Message])
   extends AbstractBehavior[DomainStoreActor.Message](context) with Logging {
 
   import DomainStoreActor._
@@ -65,8 +65,8 @@ private class DomainStoreActor private[datastore](private[this] val context: Act
         updateDomain(updateRequest)
       case getRequest: GetDomainRequest =>
         handleGetDomain(getRequest)
-      case listRequest: ListDomainsRequest =>
-        listDomains(listRequest)
+      case listRequest: GetDomainsRequest =>
+        onGetDomains(listRequest)
       case deleteForUser: DeleteDomainsForUserRequest =>
         deleteDomainsForUser(deleteForUser)
     }
@@ -77,40 +77,58 @@ private class DomainStoreActor private[datastore](private[this] val context: Act
   private[this] def createDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth, owner, replyTo) = createRequest
     configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
-    domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth, owner) onComplete {
-      case Success(database) =>
-        replyTo ! CreateDomainSuccess(database)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth, owner)
+      .map(dbInfo => CreateDomainResponse(Right(dbInfo)))
+      .recover {
+        case InvalidValueException(_, message, _) =>
+          CreateDomainResponse(Left(InvalidDomainCreationRequest(message)))
+        case DuplicateValueException(field, _, _) =>
+          CreateDomainResponse(Left(DomainAlreadyExistsError(field)))
+        case _ =>
+          CreateDomainResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
+
   }
 
   private[this] def updateDomain(request: UpdateDomainRequest): Unit = {
     val UpdateDomainRequest(namespace, domainId, displayName, replyTo) = request
 
-    domainStore.getDomainByFqn(DomainId(namespace, domainId)).flatMap {
-      case Some(domain) =>
-        val updated = domain.copy(displayName = displayName)
-        domainStore.updateDomain(updated)
-      case None =>
-        Failure(EntityNotFoundException())
-    } match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
+    for {
+      domain <- domainStore.getDomainByFqn(DomainId(namespace, domainId))
+      response <- domain match {
+        case Some(domain) =>
+          val updated = domain.copy(displayName = displayName)
+          domainStore.updateDomain(updated)
+            .map(_ => UpdateDomainResponse(Right(())))
+            .recover {
+              case _: EntityNotFoundException =>
+                UpdateDomainResponse(Left(DomainNotFound()))
+              case DuplicateValueException(field, _, _) =>
+                UpdateDomainResponse(Left(DomainAlreadyExistsError(field)))
+              case _ =>
+                UpdateDomainResponse(Left(UnknownError()))
+            }
+        case None =>
+          Success(UpdateDomainResponse(Left(DomainNotFound())))
+      }
+    } yield {
+      replyTo ! response
     }
   }
 
   private[this] def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
     val DeleteDomainRequest(namespace, domainId, replyTo) = deleteRequest
     val domainFqn = DomainId(namespace, domainId)
-    deleteDomain(domainFqn) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    deleteDomain(domainFqn)
+      .map(_ => DeleteDomainResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          DeleteDomainResponse(Left(DomainNotFound()))
+        case _ =>
+          DeleteDomainResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def deleteDomain(domainId: DomainId): Try[Unit] = {
@@ -160,49 +178,61 @@ private class DomainStoreActor private[datastore](private[this] val context: Act
   private[this] def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
     val DeleteDomainsForUserRequest(username, replyTo) = request
     debug(s"Deleting domains for user: $username")
+    domainStore.getDomainsInNamespace("~" + username)
+      .map { domains =>
+        // FIXME we need to review what happens when something fails.
+        //  we will eventually delete the user and then we won't be
+        //  able to look up the domains again.
 
-    domainStore.getDomainsInNamespace("~" + username) map { domains =>
-      // FIXME we need to review what happens when something fails.
-      //  we will eventually delete the user and then we won't be
-      //  able to look up the domains again.
-      replyTo ! RequestSuccess()
 
-      domains.foreach { domain =>
-        deleteDomain(domain.domainFqn) recover {
-          case cause: Exception =>
-            error(s"Unable to delete domain '${domain.domainFqn}' while deleting user '$username'", cause)
+        domains.foreach { domain =>
+          deleteDomain(domain.domainFqn) recover {
+            case cause: Exception =>
+              error(s"Unable to delete domain '${domain.domainFqn}' while deleting user '$username'", cause)
+          }
         }
+        DeleteDomainsForUserResponse(Right(()))
       }
-    } recover {
-      case cause: Exception =>
-        error(s"Error deleting domains for user: $username", cause)
-        replyTo ! RequestFailure(cause)
-    }
+      .recover {
+        case cause: Exception =>
+          error(s"Error deleting domains for user: $username", cause)
+          DeleteDomainsForUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
+
   }
 
   private[this] def handleGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId, replyTo) = getRequest
-    domainStore.getDomainByFqn(DomainId(namespace, domainId)) match {
-      case Success(domains) =>
-        replyTo ! GetDomainSuccess(domains)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    domainStore.getDomainByFqn(DomainId(namespace, domainId))
+      .map {
+        case Some(domain) =>
+          GetDomainResponse(Right(domain))
+        case None =>
+          GetDomainResponse(Left(DomainNotFound()))
+      }
+      .recover {
+        case cause =>
+          error(s"An unexpected error occurred while getting a domain: $domainId", cause)
+          GetDomainResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def listDomains(listRequest: ListDomainsRequest): Unit = {
-    val ListDomainsRequest(authProfileData, namespace, filter, offset, limit, replyTo) = listRequest
+  private[this] def onGetDomains(listRequest: GetDomainsRequest): Unit = {
+    val GetDomainsRequest(authProfileData, namespace, filter, offset, limit, replyTo) = listRequest
     val authProfile = AuthorizationProfile(authProfileData)
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
       domainStore.getDomains(namespace, filter, offset, limit)
     } else {
       domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit)
-    } match {
-      case Success(domains) =>
-        replyTo ! ListDomainsSuccess(domains)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
     }
+      .map(domains => GetDomainsResponse(Right(domains)))
+      .recover { cause =>
+        error("unexpected error getting domains", cause)
+        GetDomainsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
@@ -218,7 +248,6 @@ class ActorBasedDomainCreator(databaseProvider: DatabaseProvider,
     domainProvisioner.ask[ProvisionDomainResponse](ref => ProvisionDomain(data, ref)).mapTo[Unit]
   }
 }
-
 
 object DomainStoreActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("DomainStoreActor")
@@ -239,70 +268,81 @@ object DomainStoreActor {
                                  owner: String,
                                  replyTo: ActorRef[CreateDomainResponse]) extends Message
 
-  sealed trait CreateDomainResponse extends CborSerializable
+  sealed trait CreateDomainError
 
-  case class CreateDomainSuccess(dbInfo: DomainDatabase) extends CreateDomainResponse
+  case class InvalidDomainCreationRequest(message: String) extends CreateDomainError
+
+  case class CreateDomainResponse(dbInfo: Either[CreateDomainError, DomainDatabase]) extends CborSerializable
 
   //
   // UpdateDomain
   //
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String, replyTo: ActorRef[UpdateDomainResponse]) extends Message
 
-  sealed trait UpdateDomainResponse extends CborSerializable
+  sealed trait UpdateDomainError
+
+  case class UpdateDomainResponse(response: Either[UpdateDomainError, Unit]) extends CborSerializable
 
   //
   // DeleteDomain
   //
   case class DeleteDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[DeleteDomainResponse]) extends Message
 
-  sealed trait DeleteDomainResponse extends CborSerializable
+  sealed trait DeleteDomainError
+
+  case class DeleteDomainResponse(response: Either[DeleteDomainError, Unit]) extends CborSerializable
 
   //
   // DeleteDomainsForUser
   //
   case class DeleteDomainsForUserRequest(username: String, replyTo: ActorRef[DeleteDomainsForUserResponse]) extends Message
 
-  sealed trait DeleteDomainsForUserResponse extends CborSerializable
+  sealed trait DeleteDomainsForUserError
+
+  case class DeleteDomainsForUserResponse(response: Either[DeleteDomainsForUserError, Unit]) extends CborSerializable
 
   //
   // GetDomain
   //
   case class GetDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainResponse]) extends Message
 
-  sealed trait GetDomainResponse extends CborSerializable
+  sealed trait GetDomainError
 
-  case class GetDomainSuccess(domain: Option[Domain]) extends GetDomainResponse
+  case class GetDomainResponse(domain: Either[GetDomainError, Domain]) extends CborSerializable
 
   //
   // ListDomains
   //
-  case class ListDomainsRequest(authProfile: AuthorizationProfileData,
-                                namespace: Option[String],
-                                filter: Option[String],
-                                offset: Option[Int],
-                                limit: Option[Int],
-                                replyTo: ActorRef[ListDomainsResponse]) extends Message
+  case class GetDomainsRequest(authProfile: AuthorizationProfileData,
+                               namespace: Option[String],
+                               filter: Option[String],
+                               offset: Option[Int],
+                               limit: Option[Int],
+                               replyTo: ActorRef[GetDomainsResponse]) extends Message
 
-  sealed trait ListDomainsResponse extends CborSerializable
+  sealed trait GetDomainsError extends CborSerializable
 
-  case class ListDomainsSuccess(domains: List[Domain]) extends ListDomainsResponse
-
+  case class GetDomainsResponse(domains: Either[GetDomainsError, List[Domain]])
 
   //
-  // Generic Responses
   //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with CreateDomainResponse
-    with UpdateDomainResponse
-    with DeleteDomainResponse
-    with DeleteDomainsForUserResponse
-    with GetDomainResponse
-    with ListDomainsResponse
+  //
+  sealed trait RequestError
 
+  case class DomainAlreadyExistsError(field: String) extends RequestError
+    with CreateDomainError
+    with UpdateDomainError
 
-  case class RequestSuccess() extends CborSerializable
-    with UpdateDomainResponse
-    with DeleteDomainResponse
-    with DeleteDomainsForUserResponse
+  case class UnknownError() extends RequestError
+    with CreateDomainError
+    with UpdateDomainError
+    with DeleteDomainError
+    with GetDomainError
+    with GetDomainsError
+    with DeleteDomainsForUserError
 
+  case class DomainNotFound() extends RequestError
+    with UpdateDomainError
+    with DeleteDomainError
+    with GetDomainError
 }

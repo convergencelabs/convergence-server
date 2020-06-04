@@ -11,52 +11,21 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import java.time.Duration
-import java.time.Instant
+import java.time.{Duration, Instant}
 
-import scala.language.postfixOps
-import scala.util.Try
-
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues
-import org.scalatest.wordspec.AnyWordSpecLike
-
+import com.convergencelabs.convergence.server.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.DomainUser
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.domain.model.Model
-import com.convergencelabs.convergence.server.domain.model.ModelMetaData
-import com.convergencelabs.convergence.server.domain.model.NewModelOperation
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayMoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayReplaceOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArraySetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedCompoundOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectAddPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectRemovePropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringSetOperation
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import scala.util.Success
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, NewModelOperation}
+import com.convergencelabs.convergence.server.domain.model.data._
+import com.convergencelabs.convergence.server.domain.model.ot._
+import org.scalatest.OptionValues
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.language.postfixOps
+import scala.util.{Success, Try}
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
@@ -65,19 +34,19 @@ class ModelOperationProcessorSpec
   with OptionValues
   with Matchers {
 
-  val username = "test"
-  val user = DomainUser(DomainUserType.Normal, username, None, None, None, None, None)
+  private val username = "test"
+  private val user = DomainUser(DomainUserType.Normal, username, None, None, None, None, None)
 
-  val sid = "u1-1"
-  val session = DomainSession(sid, DomainUserId.normal(username), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  private val sid = "u1-1"
+  private val session = DomainSession(sid, DomainUserId.normal(username), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
-  val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
+  private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
-  val startingVersion = 100
+  private val startingVersion = 100
 
-  val peopleCollectionId = "people"
-  val person1Id = "person1"
-  val person1MetaData = ModelMetaData(
+  private val peopleCollectionId = "people"
+  private val person1Id = "person1"
+  private val person1MetaData = ModelMetaData(
     person1Id,
     peopleCollectionId,
     startingVersion,
@@ -87,29 +56,29 @@ class ModelOperationProcessorSpec
     modelPermissions,
     1)
 
-  val person1VID = "pp1-data"
-  val fnameVID = "pp1-fname"
-  val lnameVID = "pp1-lname"
-  val emailsVID = "pp1-emails"
-  val ageVID = "pp1-age"
-  val bornVID = "pp1-born"
-  val marriedVID = "pp1-married"
-  val email1VID = "pp1-email1"
-  val email2VID = "pp1-email2"
-  val email3VID = "pp1-email3"
-  val spouseVID = "pp1-spouse"
+  private val person1VID = "pp1-data"
+  private val fnameVID = "pp1-fname"
+  private val lnameVID = "pp1-lname"
+  private val emailsVID = "pp1-emails"
+  private val ageVID = "pp1-age"
+  private val bornVID = "pp1-born"
+  private val marriedVID = "pp1-married"
+  private val email1VID = "pp1-email1"
+  private val email2VID = "pp1-email2"
+  private val email3VID = "pp1-email3"
+  private val spouseVID = "pp1-spouse"
 
-  val fnameField = "fname"
-  val lnameField = "lname"
-  val emailsField = "emails"
-  val ageField = "age"
-  val spouseField = "spouse"
-  val marriedField = "married"
-  val bornField = "born"
+  private val fnameField = "fname"
+  private val lnameField = "lname"
+  private val emailsField = "emails"
+  private val ageField = "age"
+  private val spouseField = "spouse"
+  private val marriedField = "married"
+  private val bornField = "born"
 
-  val bornDate: Instant = truncatedInstantNow().minus(Duration.ofDays(6000))
+  private val bornDate: Instant = truncatedInstantNow().minus(Duration.ofDays(6000))
 
-  val person1Data = ObjectValue(person1VID, Map(
+  private val person1Data = ObjectValue(person1VID, Map(
     fnameField -> StringValue(fnameVID, "john"),
     lnameField -> StringValue(lnameVID, "smith"),
     ageField -> DoubleValue(ageVID, 26),
@@ -120,9 +89,9 @@ class ModelOperationProcessorSpec
       StringValue(email1VID, "first@email.com"),
       StringValue(email2VID, "second@email.com"),
       StringValue(email3VID, "another@email.com")))))
-  val person1Model = Model(person1MetaData, person1Data)
+  private val person1Model = Model(person1MetaData, person1Data)
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("namespace", "domain"), dbProvider)
 
   "A ModelOperationProcessor" when {
 
@@ -212,7 +181,7 @@ class ModelOperationProcessorSpec
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) =>
+          case ArrayValue(_, children) =>
             children.head shouldBe insertVal
           case _ => fail
         }
@@ -225,7 +194,7 @@ class ModelOperationProcessorSpec
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) =>
+          case ArrayValue(_, children) =>
             children.size shouldBe 2
           case _ => fail
         }
@@ -239,7 +208,7 @@ class ModelOperationProcessorSpec
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) =>
+          case ArrayValue(_, children) =>
             children.head shouldBe replaceVal
             children.size shouldBe 3
           case _ => fail
@@ -266,7 +235,7 @@ class ModelOperationProcessorSpec
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(emailsField) match {
-          case ArrayValue(vid, children) =>
+          case ArrayValue(_, children) =>
             children shouldEqual setValue
           case _ => fail
         }
@@ -381,7 +350,6 @@ class ModelOperationProcessorSpec
     "handling non specialy object preoprty names" must {
 
       "correctly add property names that start with a period" in withTestData { provider =>
-        val property = "my-prop!"
         val addOp = AppliedObjectAddPropertyOperation(person1VID, noOp = false, ".value", StringValue("aoo-value", "value"))
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, addOp)
 
@@ -391,7 +359,6 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update property names that start with a period" in withTestData { provider =>
-        val property = "my-prop!"
         val addOp = AppliedObjectAddPropertyOperation(person1VID, noOp = false, ".value", StringValue("aoo-value", "initial"))
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, addOp)
 

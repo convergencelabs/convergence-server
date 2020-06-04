@@ -13,62 +13,65 @@ package com.convergencelabs.convergence.server.db.provision
 
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.duration.FiniteDuration
-import scala.language.postfixOps
-import scala.util.Failure
-import scala.util.Success
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
+import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{ProvisionDomain, ProvisionDomainResponse}
+import com.convergencelabs.convergence.server.domain.DomainId
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.convergence.server.domain.DomainId
-import akka.actor.{ActorRef, ActorSystem, Props, Status}
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
+import scala.concurrent.duration.FiniteDuration
+import scala.language.postfixOps
+import scala.util.{Failure, Success}
+
 class DomainProvisionerActorSpec
-    extends TestKit(ActorSystem("DomainProvisionerActor"))
+    extends ScalaTestWithActorTestKit
     with AnyWordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
 
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+  override def afterAll(): Unit = testKit.shutdownTestKit()
 
   "A DomainProvisionerActor" when {
     "receiving a ProvisionDomain" must {
-      "respond with DomainProvisioned if the provisioing is successful" in new TestFixture {
+      "respond with DomainProvisioned if the provisioning is successful" in new TestFixture {
         Mockito
-          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false))
+          .when(provisioner.provisionDomain(ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)))
           .thenReturn(Success(()))
 
-        val client = new TestProbe(system)
-        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)
-        domainProvisionerActor.tell(message, client.ref)
+        val client = testKit.createTestProbe[ProvisionDomainResponse]()
+        val message = ProvisionDomain(
+          ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false),
+          client.ref)
+        domainProvisionerActor ! message
 
-        client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Success])
+        val response: ProvisionDomainResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(response.response.isRight)
       }
       
-      "respond with a failure if the provisioing is not successful" in new TestFixture {
+      "respond with a failure if the provisioning is not successful" in new TestFixture {
         Mockito
-          .when(provisioner.provisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", false))
+          .when(provisioner.provisionDomain(ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)))
           .thenReturn(Failure(new IllegalStateException("Induced error for testing")))
 
-        val client = new TestProbe(system)
-        val message = ProvisionDomain(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)
-        domainProvisionerActor.tell(message, client.ref)
+        val client = testKit.createTestProbe[ProvisionDomainResponse]()
+        val message = ProvisionDomain(ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false), client.ref)
+        domainProvisionerActor ! message
 
-        client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
+        val response: ProvisionDomainResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+
+        assert(response.response.isLeft)
       }
     }
   }
 
   trait TestFixture {
-    val provisioner: DomainProvisioner = mock[DomainProvisioner]
-    val props: Props = DomainProvisionerActor.props(provisioner)
-    val domainProvisionerActor: ActorRef = system.actorOf(props)
     val domainFqn: DomainId = DomainId("some", "domain")
+    val provisioner: DomainProvisioner = mock[DomainProvisioner]
+    val domainLifecycleTopic: TestProbe[DomainLifecycleTopic.TopicMessage] = testKit.createTestProbe()
+    val behavior = DomainProvisionerActor(provisioner, domainLifecycleTopic.ref)
+    val domainProvisionerActor = testKit.spawn(behavior)
   }
 }

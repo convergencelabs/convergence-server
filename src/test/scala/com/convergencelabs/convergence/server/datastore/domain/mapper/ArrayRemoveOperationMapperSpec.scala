@@ -11,16 +11,12 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ArrayRemoveOperationMapper.{ArrayRemoveOperationToODocument, ODocumentToArrayRemoveOperation}
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import ArrayRemoveOperationMapper.ArrayRemoveOperationToODocument
-import ArrayRemoveOperationMapper.ODocumentToArrayRemoveOperation
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ArrayRemoveOperationMapperSpec
     extends AnyWordSpec
@@ -30,7 +26,7 @@ class ArrayRemoveOperationMapperSpec
   "An ArrayRemoveOperationMapper" when {
     "when converting ArrayRemoveOperation operations" must {
       "correctly map and unmap a ArrayRemoveOperation" in {
-        val op = AppliedArrayRemoveOperation("vid", true, 4, Some(StringValue("oldId", "oldValue"))) // scalastyle:ignore magic.number
+        val op = AppliedArrayRemoveOperation("vid", noOp = true, 4, Some(StringValue("oldId", "oldValue"))) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asArrayRemoveOperation
         op shouldBe reverted

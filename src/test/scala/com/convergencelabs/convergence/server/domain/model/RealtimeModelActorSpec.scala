@@ -14,14 +14,16 @@ package com.convergencelabs.convergence.server.domain.model
 import java.time.{Duration, Instant}
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Status}
-import akka.cluster.sharding.ShardRegion.Passivate
-import akka.testkit.{TestKit, TestProbe}
-import com.convergencelabs.convergence.server.UnknownErrorResponse
-import com.convergencelabs.convergence.server.actor.ShardedActorStop
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.typed.ActorRef
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding.Passivate
+import com.convergencelabs.convergence.server.api.realtime
+import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, ModelPermissions}
 import com.convergencelabs.convergence.server.domain._
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{ModelAlreadyExistsError, UnknownError}
 import com.convergencelabs.convergence.server.domain.model.data.{NullValue, ObjectValue, StringValue}
 import com.convergencelabs.convergence.server.domain.model.ot.{ObjectAddPropertyOperation, ObjectRemovePropertyOperation}
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
@@ -29,7 +31,6 @@ import org.mockito.Matchers.any
 import org.mockito.Mockito.{times, verify}
 import org.mockito.{Matchers, Mockito}
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.should.Matchers._
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -38,375 +39,485 @@ import scala.util.{Failure, Success}
 
 // scalastyle:off magic.number
 class RealtimeModelActorSpec
-  extends TestKit(ActorSystem("RealtimeModelActorSpec"))
+  extends ScalaTestWithActorTestKit
     with AnyWordSpecLike
     with BeforeAndAfterAll
     with MockitoSugar {
 
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+  override def afterAll(): Unit = testKit.shutdownTestKit()
 
   "A RealtimeModelActor" when {
     "opening a closed model" must {
       "load the model from the database if it is persisted" in new MockDatabaseWithModel {
-        val client = new TestProbe(system)
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client.ref), client.ref)
+        {
+          val replyTo = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
+          realtimeModelActor !
+            RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client.ref, replyTo.ref)
 
-        val message = client.expectMsgClass(FiniteDuration(20, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+          val response: RealtimeModelActor.OpenRealtimeModelResponse = client.expectMessageType(FiniteDuration(20, TimeUnit.SECONDS))
 
-        assert(message.modelData == modelData.data)
-        assert(message.metaData.version == modelData.metaData.version)
-        assert(message.metaData.createdTime == modelData.metaData.createdTime)
-        assert(message.metaData.modifiedTime == modelData.metaData.modifiedTime)
+          assert(response.response.isRight)
+          response.response.foreach { message =>
+            assert(message.modelData == modelData.data)
+            assert(message.metaData.version == modelData.metaData.version)
+            assert(message.metaData.createdTime == modelData.metaData.createdTime)
+            assert(message.metaData.modifiedTime == modelData.metaData.modifiedTime)
+          }
+        }
       }
 
       "notify openers of an initialization error" in new MockDatabaseWithModel {
-        val client = new TestProbe(system)
+        {
+          val replyTo = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        // Set the database up to bomb
-        Mockito.when(persistenceProvider.modelStore.getModel(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
+          // Set the database up to bomb
+          Mockito.when(persistenceProvider.modelStore.getModel(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client.ref), client.ref)
-        val message = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[UnknownErrorResponse])
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client.ref, replyTo.ref)
+          val message: RealtimeModelActor.OpenRealtimeModelResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(message.response.isLeft)
+          message.response.left.map { err =>
+            err shouldBe UnknownError()
+          }
+        }
       }
 
       "ask all connecting clients for state if it is not persisted" in new MockDatabaseWithoutModel {
-        val client1 = new TestProbe(system)
-        val client2 = new TestProbe(system)
+        {
+          val replyTo1 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client1 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        val dataRequest1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        assert(dataRequest1.autoConfigId == 1)
+          val replyTo2 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client2 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
-        val dataRequest2 = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        assert(dataRequest1.autoConfigId == 1)
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+          val dataRequest1: ModelClientActor.ClientAutoCreateModelConfigRequest = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(dataRequest1.autoConfigId == 1)
+
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref, replyTo2.ref)
+          val dataRequest2: ModelClientActor.ClientAutoCreateModelConfigRequest = client2.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(dataRequest2.autoConfigId == 1)
+        }
       }
 
       "reject a client that does not respond with data" in new MockDatabaseWithoutModel {
-        val client1 = new TestProbe(system)
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        val ClientDataRequestFailure(message) = client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[ClientDataRequestFailure])
-      }
+        {
+          val replyTo1 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client1 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-      "reject a client that responds with the wrong message in request to data" in new MockDatabaseWithoutModel {
-        val client1 = new TestProbe(system)
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
-        client1.reply("some object") // Any message that is not a ClientModelDataResponse will do here.
-        client1.expectMsgClass(FiniteDuration(200, TimeUnit.MILLISECONDS), classOf[UnknownErrorResponse])
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+          val _: ModelClientActor.ClientAutoCreateModelConfigRequest = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          val message: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(200, TimeUnit.MILLISECONDS))
+          assert(message.response.isLeft)
+          message.response.left.map { err =>
+            err shouldBe a[RealtimeModelActor.ClientErrorResponse]
+          }
+        }
       }
 
       "notify all queued clients when data is returned by the first client" in new MockDatabaseWithoutModel {
-        val client1 = new TestProbe(system)
-        val client2 = new TestProbe(system)
+        {
+          val replyTo1 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client1 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
+          val replyTo2 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client2 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
-        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ClientAutoCreateModelConfigRequest])
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+          val req1 = client1.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-        // Now mock that the data is there.
-        Mockito.when(persistenceProvider.modelStore.createModel(modelId, collectionId, modelJsonData, true, modelPermissions))
-          .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0, now, now, true, modelPermissions, 1), modelJsonData)))
-        Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
-        Mockito.when(persistenceProvider.modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
-        Mockito.when(persistenceProvider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref, replyTo2.ref)
+          val req2 = client2.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-        client1.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), Map(), None))
-        client2.reply(ClientAutoCreateModelConfigResponse(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), Map(), None))
+          // Now mock that the data is there.
+          Mockito.when(persistenceProvider.modelStore.createModel(modelId, collectionId, modelJsonData, overridePermissions = true, modelPermissions))
+            .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0, now, now, overridePermissions = true, modelPermissions, 1), modelJsonData)))
+          Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
+          Mockito.when(persistenceProvider.modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
+          Mockito.when(persistenceProvider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(modelId)).thenReturn(Success(Some(modelSnapshotMetaData)))
 
-        // Verify that both clients got the data.
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-        val openResponse = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+          val config = ModelClientActor.ClientAutoCreateModelConfig(collectionId, Some(modelJsonData), Some(true), Some(modelPermissions), Map(), None)
+          req1.replyTo ! ModelClientActor.ClientAutoCreateModelConfigResponse(Right(config))
+          req2.replyTo ! ModelClientActor.ClientAutoCreateModelConfigResponse(Right(config))
 
-        assert(openResponse.modelData == modelJsonData)
-        assert(openResponse.metaData.version == modelData.metaData.version)
-        assert(openResponse.metaData.createdTime == modelData.metaData.createdTime)
-        assert(openResponse.metaData.modifiedTime == modelData.metaData.modifiedTime)
+          // Verify that both clients got the data.
+          val openResponse1: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          val openResponse2: RealtimeModelActor.OpenRealtimeModelResponse = client2.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
 
-        // Verify that the model and snapshot were created.
-        // FIXME use ary capture to match it.
-        verify(modelCreator, times(1)).createModel(any(), any(), any(), any(), any(), any(), any(), any())
+          assert(openResponse1.response.isRight)
+          openResponse1.response.map { r =>
+            assert(r.modelData == modelJsonData)
+            assert(r.metaData.version == modelData.metaData.version)
+            assert(r.metaData.createdTime == modelData.metaData.createdTime)
+            assert(r.metaData.modifiedTime == modelData.metaData.modifiedTime)
+          }
+
+          assert(openResponse2.response.isRight)
+          openResponse2.response.map { r =>
+            assert(r.modelData == modelJsonData)
+            assert(r.metaData.version == modelData.metaData.version)
+            assert(r.metaData.createdTime == modelData.metaData.createdTime)
+            assert(r.metaData.modifiedTime == modelData.metaData.modifiedTime)
+          }
+
+          // Verify that the model and snapshot were created.
+          // FIXME use ary capture to match it.
+          verify(modelCreator, times(1)).createModel(any(), any(), any(), any(), any(), any(), any(), any())
+        }
       }
     }
 
     "opening an open model" must {
       "not allow the same session to open the same model twice" in new MockDatabaseWithModel {
-        val client1 = new TestProbe(system)
+        val client1: TestProbe[ModelClientActor.OutgoingMessage] = testKit.createTestProbe()
+        val replyTo1: TestProbe[RealtimeModelActor.OpenRealtimeModelResponse] = testKit.createTestProbe()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        val open1 = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+        realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+        val firstOpen: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(firstOpen.response.isRight)
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        val Status.Failure(cause) = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
-        cause shouldBe a[ModelAlreadyOpenException]
+        realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+        val secondOpen: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(secondOpen.response.isLeft)
+        secondOpen.response.map(err => err shouldBe ModelAlreadyExistsError())
       }
     }
 
     "closing a closed a model" must {
       "acknowledge the close" in new MockDatabaseWithModel with OneOpenClient {
-        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, skU1S1), client1.ref)
-        val closeAck = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+        val closeReply: TestProbe[RealtimeModelActor.CloseRealtimeModelResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.CloseRealtimeModelRequest(domainFqn, modelId, skU1S1, closeReply.ref)
+        val closeAck: RealtimeModelActor.CloseRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(closeAck.response.isRight)
       }
 
       "respond with an error for an invalid cId" in new MockDatabaseWithModel with OneOpenClient {
-        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, DomainUserSessionId("invalidCId", uid1)), client1.ref)
-        val Status.Failure(cause) = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
-        cause shouldBe a[ModelNotOpenException]
+        val closeReply: TestProbe[RealtimeModelActor.CloseRealtimeModelResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.CloseRealtimeModelRequest(domainFqn, modelId, DomainUserSessionId("invalidCId", uid1), closeReply.ref)
+        val response: RealtimeModelActor.CloseRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(response.response.isLeft)
+        response.response.left.map(err => err shouldBe RealtimeModelActor.ModelNotOpenError())
       }
 
       "notify other connected clients" in new MockDatabaseWithModel {
-        val client1 = new TestProbe(system)
-        val client2 = new TestProbe(system)
+        {
+          val replyTo1 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client1 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+          val replyTo2 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client2 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
-        var client2Response = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+          val client1Response: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(client1Response.response.isRight)
 
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
+          val s2 = DomainUserSessionId(session2, uid2)
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(
+            domainFqn, modelId, Some(1), s2, client2.ref, replyTo2.ref)
+          val client2Response: RealtimeModelActor.OpenRealtimeModelResponse = client2.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(client2Response.response.isRight)
 
-        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, DomainUserSessionId(session2, uid2)), client2.ref)
-        val closeAck = client2.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+          val clientOpenedMessage: realtime.ModelClientActor.RemoteClientOpened = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          clientOpenedMessage.session shouldBe session2
 
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
+          val closeReply = testKit.createTestProbe[RealtimeModelActor.CloseRealtimeModelResponse]()
+          realtimeModelActor ! RealtimeModelActor.CloseRealtimeModelRequest(domainFqn, modelId, s2, closeReply.ref)
+          val closeAck: RealtimeModelActor.CloseRealtimeModelResponse = client2.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(closeAck.response.isRight)
+
+          val clientCloseMessage: ModelClientActor.RemoteClientClosed = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          clientCloseMessage.session shouldBe session2
+        }
       }
 
       "notify domain when last client disconnects" in new MockDatabaseWithModel {
-        val client1 = new TestProbe(system)
+        {
+          val replyTo1 = testKit.createTestProbe[RealtimeModelActor.OpenRealtimeModelResponse]()
+          val client1 = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
-        realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-        var client1Response = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-        realtimeModelActor.tell(CloseRealtimeModelRequest(domainFqn, modelId, skU1S1), client1.ref)
-        val closeAck = client1.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
-        mockCluster.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Passivate(ShardedActorStop))
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+          val client1Response: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(client1Response.response.isRight)
+
+          val closeReply = testKit.createTestProbe[RealtimeModelActor.CloseRealtimeModelResponse]()
+          realtimeModelActor ! RealtimeModelActor.CloseRealtimeModelRequest(domainFqn, modelId, skU1S1, closeReply.ref)
+          val closeAck: RealtimeModelActor.CloseRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(closeAck.response.isRight)
+          val p: Passivate[RealtimeModelActor.Message] = shard.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          p shouldBe realtimeModelActor
+        }
       }
     }
 
     "receiving an operation" must {
       "send an ack back to the submitting client" in new OneOpenClient {
         Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 0, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
-        val opAck = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
+        realtimeModelActor ! RealtimeModelActor.OperationSubmission(
+          domainFqn, modelId, skU1S1, 0, modelData.metaData.version, ObjectAddPropertyOperation("", noOp = false, "foo", NullValue("")))
+        val opAck: ModelClientActor.OperationAcknowledgement = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        opAck.modelId shouldBe modelId
+        opAck.seqNo shouldBe 0
       }
 
       "send an operation to other connected clients" in new TwoOpenClients {
         Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 0, modelData.metaData.version, ObjectAddPropertyOperation("", false, "foo", NullValue(""))), client1.ref)
-        val opAck = client1.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OperationAcknowledgement])
-
-        client2.expectMsgClass(FiniteDuration(120, TimeUnit.SECONDS), classOf[OutgoingOperation])
+        realtimeModelActor ! RealtimeModelActor.OperationSubmission(
+          domainFqn, modelId, skU1S1, 0, modelData.metaData.version, ObjectAddPropertyOperation("", noOp = false, "foo", NullValue("")))
+        client1.expectMessageType[ModelClientActor.OperationAcknowledgement](FiniteDuration(120, TimeUnit.SECONDS))
+        client2.expectMessageType[ModelClientActor.OutgoingOperation](FiniteDuration(120, TimeUnit.SECONDS))
       }
 
       "close a client that submits an invalid operation" in new TwoOpenClients {
-        val badOp = ObjectRemovePropertyOperation(modelJsonData.id, false, "not real")
-        Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(
-          Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
+        {
+          val badOp = ObjectRemovePropertyOperation(modelJsonData.id, noOp = false, "not real")
+          Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(
+            Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
 
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId,
-          0,
-          modelData.metaData.version,
-          badOp), client1.ref)
+          realtimeModelActor ! RealtimeModelActor.OperationSubmission(domainFqn, modelId, skU1S1, 0, modelData.metaData.version, badOp)
 
-        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
+          client2.expectMessageType[ModelClientActor.RemoteClientClosed](FiniteDuration(1, TimeUnit.SECONDS))
+          client1.expectMessageType[ModelClientActor.ModelForceClose](FiniteDuration(1, TimeUnit.SECONDS))
+        }
       }
 
       "close a client that submits an invalid version" in new TwoOpenClients {
-        val badOp = ObjectRemovePropertyOperation(modelJsonData.id, false, "not real")
-        realtimeModelActor.tell(OperationSubmission(domainFqn, modelId, 100, modelData.metaData.version, badOp), client1.ref)
+        {
+          val badOp = ObjectRemovePropertyOperation(modelJsonData.id, noOp = false, "not real")
+          realtimeModelActor ! RealtimeModelActor.OperationSubmission(
+            domainFqn, modelId, skU1S1, 100, modelData.metaData.version, badOp)
 
-        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientClosed])
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
+          client2.expectMessageType[ModelClientActor.RemoteClientClosed](FiniteDuration(1, TimeUnit.SECONDS))
+          client1.expectMessageType[ModelClientActor.ModelForceClose](FiniteDuration(1, TimeUnit.SECONDS))
+        }
       }
     }
 
     "open and a model is deleted" must {
       "force close all clients" in new TwoOpenClients {
-        val message = DeleteRealtimeModelRequest(domainFqn, modelId, None)
-        realtimeModelActor.tell(message, ActorRef.noSender)
-        client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
-        client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[ModelForceClose])
+        {
+          val deleteReplyTo: TestProbe[RealtimeModelActor.DeleteRealtimeModelResponse] = testKit.createTestProbe()
+          val message = RealtimeModelActor.DeleteRealtimeModelRequest(domainFqn, modelId, None, deleteReplyTo.ref)
+          realtimeModelActor ! message
+          client1.expectMessageType[ModelClientActor.ModelForceClose](FiniteDuration(1, TimeUnit.SECONDS))
+          client2.expectMessageType[ModelClientActor.ModelForceClose](FiniteDuration(1, TimeUnit.SECONDS))
+        }
       }
     }
 
     "requested to create a model" must {
       "return ModelCreated if the model does not exist" in new TestFixture {
-        val client = new TestProbe(system)
-        val data = ObjectValue("", Map())
+        {
+          val client = testKit.createTestProbe()
+          val data = ObjectValue("", Map())
 
-        Mockito.when(modelCreator.createModel(
-          any(),
-          any(),
-          Matchers.eq(collectionId),
-          Matchers.eq(noModelId),
-          Matchers.eq(data),
-          any(),
-          any(),
-          any()))
-          .thenReturn(Success(Model(ModelMetaData(noModelId, collectionId, 0, now, now, true, modelPermissions, 1), data)))
+          Mockito.when(modelCreator.createModel(
+            any(),
+            any(),
+            Matchers.eq(collectionId),
+            Matchers.eq(noModelId),
+            Matchers.eq(data),
+            any(),
+            any(),
+            any()))
+            .thenReturn(Success(Model(ModelMetaData(noModelId, collectionId, 0, now, now, overridePermissions = true, modelPermissions, 1), data)))
 
-        Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
-        realtimeModelActor.tell(CreateRealtimeModelRequest(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), noModelId)
+          Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
+          val createReplyTo: TestProbe[RealtimeModelActor.CreateRealtimeModelResponse] = testKit.createTestProbe()
+          realtimeModelActor ! RealtimeModelActor.CreateRealtimeModelRequest(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1), createReplyTo.ref)
+          val resp: RealtimeModelActor.CreateRealtimeModelResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(resp.response.isRight)
+          resp.response.map(modelId => modelId shouldBe noModelId)
+        }
       }
 
       "return ModelAlreadyExistsException if the model exists" in new MockDatabaseWithModel {
-        val client = new TestProbe(system)
-        val data = ObjectValue("", Map())
+        {
+          val client: TestProbe[RealtimeModelActor.CreateRealtimeModelResponse] = testKit.createTestProbe()
+          val data = ObjectValue("", Map())
 
-        realtimeModelActor.tell(CreateRealtimeModelRequest(domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1)), client.ref)
-        client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelAlreadyExistsException(modelId)))
+          realtimeModelActor ! RealtimeModelActor.CreateRealtimeModelRequest(
+            domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1), client.ref)
+          val msg = client.expectMessageType[RealtimeModelActor.CreateRealtimeModelResponse](FiniteDuration(1, TimeUnit.SECONDS))
+          assert(msg.response.isLeft)
+          msg.response.left.map(err => err shouldBe ModelAlreadyExistsError())
+        }
       }
     }
 
     "requested to delete a model" must {
       "return Success if the model exists" in new MockDatabaseWithModel {
-        val client = new TestProbe(system)
-        realtimeModelActor.tell(DeleteRealtimeModelRequest(domainFqn, modelId, None), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+        val client: TestProbe[RealtimeModelActor.DeleteRealtimeModelResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.DeleteRealtimeModelRequest(domainFqn, modelId, None, client.ref)
+        val msg: RealtimeModelActor.DeleteRealtimeModelResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(msg.response.isRight)
       }
 
       "return ModelNotFoundException if the model does not exist" in new TestFixture {
-        val client = new TestProbe(system)
-        realtimeModelActor.tell(DeleteRealtimeModelRequest(domainFqn, noModelId, Some(skU1S1)), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+        val client: TestProbe[RealtimeModelActor.DeleteRealtimeModelResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.DeleteRealtimeModelRequest(domainFqn, noModelId, Some(skU1S1), client.ref)
+        val msg: RealtimeModelActor.DeleteRealtimeModelResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(msg.response.isLeft)
+        msg.response.left.map(err => err shouldBe RealtimeModelActor.ModelNotFoundError())
       }
     }
 
     "getting permissions" must {
       "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
-        val client = new TestProbe(system)
-        realtimeModelActor.tell(GetModelPermissionsRequest(domainFqn, noModelId, skU1S1), client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+        val client: TestProbe[RealtimeModelActor.GetModelPermissionsResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.GetModelPermissionsRequest(domainFqn, noModelId, skU1S1, client.ref)
+        val resp: RealtimeModelActor.GetModelPermissionsResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        resp.response.left.map { err =>
+          err shouldBe RealtimeModelActor.ModelNotFoundError()
+        }
       }
 
       "respond with a UnauthorizedException if the user doesn't have read permissions" in new MockDatabaseWithModel {
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
-          .thenReturn(Success(ModelPermissions(false, true, true, true)))
-        val client = new TestProbe(system)
-        realtimeModelActor.tell(GetModelPermissionsRequest(domainFqn, modelId, skU1S1), client.ref)
-        val Status.Failure(cause) = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
-        cause shouldBe a[UnauthorizedException]
+          .thenReturn(Success(ModelPermissions(read = false, write = true, remove = true, manage = true)))
+        val client: TestProbe[RealtimeModelActor.GetModelPermissionsResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.GetModelPermissionsRequest(domainFqn, modelId, skU1S1, client.ref)
+        val resp: RealtimeModelActor.GetModelPermissionsResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(resp.response.isLeft)
+        resp.response.left.map { err =>
+          err shouldBe a[RealtimeModelActor.UnauthorizedError]
+        }
       }
 
       "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new MockDatabaseWithModel {
         Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
-          Success(ModelPermissionResult(false, ModelPermissions(true, true, true, true), Map())))
+          Success(ModelPermissionResult(overrideCollection = false, ModelPermissions(read = true, write = true, remove = true, manage = true), Map())))
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
-          .thenReturn(Success(ModelPermissions(true, true, true, true)))
-        val client = new TestProbe(system)
-        realtimeModelActor.tell(GetModelPermissionsRequest(domainFqn, modelId, skU1S1), client.ref)
-        val response = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[GetModelPermissionsResponse])
+          .thenReturn(Success(ModelPermissions(read = true, write = true, remove = true, manage = true)))
+        val client: TestProbe[RealtimeModelActor.GetModelPermissionsResponse] = testKit.createTestProbe()
+        realtimeModelActor ! RealtimeModelActor.GetModelPermissionsRequest(domainFqn, modelId, skU1S1, client.ref)
+        val response: RealtimeModelActor.GetModelPermissionsResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        assert(response.response.isRight)
       }
     }
 
     "setting permissions" must {
       "respond with a ModelNotFoundException is the model does not exists" in new TestFixture {
-        val client = new TestProbe(system)
-        val message = SetModelPermissionsRequest(domainFqn, noModelId, skU1S1, None, None, false, Map(), List())
-        realtimeModelActor.tell(message, client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), Status.Failure(ModelNotFoundException(noModelId)))
+        {
+          val client: TestProbe[RealtimeModelActor.SetModelPermissionsResponse] = testKit.createTestProbe()
+          val message = RealtimeModelActor.SetModelPermissionsRequest(domainFqn, noModelId, skU1S1, None, None, setAllUserPermissions = false, Map(), List(), client.ref)
+          realtimeModelActor ! message
+          val resp: RealtimeModelActor.SetModelPermissionsResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(resp.response.isLeft)
+          resp.response.left.map { err =>
+            err shouldBe RealtimeModelActor.ModelNotFoundError()
+          }
+        }
       }
 
       "respond with a UnauthorizedException if the user doesn't have manage permissions" in new MockDatabaseWithModel {
-        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
-          .thenReturn(Success(ModelPermissions(true, true, true, false)))
-        val client = new TestProbe(system)
-        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map(), List())
-        realtimeModelActor.tell(message, client.ref)
-        val Status.Failure(cause) = client.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[Status.Failure])
-        cause shouldBe a[UnauthorizedException]
+        {
+          Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+            .thenReturn(Success(ModelPermissions(read = true, write = true, remove = true, manage = false)))
+          val client: TestProbe[RealtimeModelActor.SetModelPermissionsResponse] = testKit.createTestProbe()
+          val message = RealtimeModelActor.SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, setAllUserPermissions = false, Map(), List(), client.ref)
+          realtimeModelActor ! message
+          val resp: RealtimeModelActor.SetModelPermissionsResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(resp.response.isLeft)
+          resp.response.left.map { err =>
+            err shouldBe a[RealtimeModelActor.UnauthorizedError]
+          }
+        }
       }
 
       "respond with () if the model exists and the user has manage permissions" in new MockDatabaseWithModel {
-        val client = new TestProbe(system)
-        Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
-          .thenReturn(Success(ModelPermissions(true, true, true, true)))
-        val message = SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, false, Map(), List())
-        realtimeModelActor.tell(message, client.ref)
-        val response = client.expectMsg(FiniteDuration(1, TimeUnit.SECONDS), ())
+        {
+          val client: TestProbe[RealtimeModelActor.SetModelPermissionsResponse] = testKit.createTestProbe()
+          Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
+            .thenReturn(Success(ModelPermissions(read = true, write = true, remove = true, manage = true)))
+          val message = RealtimeModelActor.SetModelPermissionsRequest(domainFqn, modelId, skU1S1, None, None, setAllUserPermissions = false, Map(), List(), client.ref)
+          realtimeModelActor ! message
+          val response: RealtimeModelActor.SetModelPermissionsResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+          assert(response.response.isRight)
+        }
       }
     }
   }
 
   trait TestFixture {
-    val domainFqn = DomainId("convergence", "default")
+    val domainFqn: DomainId = DomainId("convergence", "default")
 
-    val uid1 = DomainUserId.normal("u1")
-    val uid2 = DomainUserId.normal("u2")
+    val uid1: DomainUserId = DomainUserId.normal("u1")
+    val uid2: DomainUserId = DomainUserId.normal("u2")
 
     val session1 = "s1"
     val session2 = "s2"
 
-    val now = Instant.now()
+    val now: Instant = Instant.now()
 
-    val skU1S1 = DomainUserSessionId(session1, uid1)
+    val skU1S1: DomainUserSessionId = DomainUserSessionId(session1, uid1)
 
-    val modelPermissions = ModelPermissions(true, true, true, true)
+    val modelPermissions: ModelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
     val collectionId = "collection"
-    val modelId = "model" + System.nanoTime()
-    val modelJsonData = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
-    val modelCreateTime = Instant.ofEpochMilli(2L)
-    val modelModifiedTime = Instant.ofEpochMilli(3L)
-    val modelData = Model(ModelMetaData(modelId, collectionId, 1, modelCreateTime, modelModifiedTime, true, modelPermissions, 1), modelJsonData)
-    val modelSnapshotTime = Instant.ofEpochMilli(2L)
-    val modelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
+    val modelId: String = "model" + System.nanoTime()
+    val modelJsonData: ObjectValue = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
+    val modelCreateTime: Instant = Instant.ofEpochMilli(2L)
+    val modelModifiedTime: Instant = Instant.ofEpochMilli(3L)
+    val modelData: Model = Model(ModelMetaData(
+      modelId, collectionId, 1, modelCreateTime, modelModifiedTime, overridePermissions = true, modelPermissions, 1), modelJsonData)
+    val modelSnapshotTime: Instant = Instant.ofEpochMilli(2L)
+    val modelSnapshotMetaData: ModelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
 
-    val persistenceProvider = new MockDomainPersistenceProvider()
+    val persistenceProvider = new MockDomainPersistenceProvider(domainFqn)
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> persistenceProvider))
 
     Mockito.when(persistenceProvider.collectionStore.getOrCreateCollection(collectionId)).thenReturn(Success(Collection(
       collectionId,
       collectionId,
-      true,
-      ModelSnapshotConfig(false, false, false, 0, 0, false, false, Duration.ofSeconds(0), Duration.ofSeconds(0)),
-      CollectionPermissions(true, true, true, true, true))))
+      overrideSnapshotConfig = true,
+      ModelSnapshotConfig(snapshotsEnabled = false, triggerByVersion = false, limitedByVersion = false, 0, 0, triggerByTime = false, limitedByTime = false, Duration.ofSeconds(0), Duration.ofSeconds(0)),
+      CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true))))
     Mockito.when(persistenceProvider.collectionStore.ensureCollectionExists(Matchers.any())).thenReturn(Success(()))
 
     Mockito.when(persistenceProvider.collectionStore.collectionExists(collectionId)).thenReturn(Success(true))
 
-    Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(true, true, true, true, true)))
+    Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)))
     Mockito.when(persistenceProvider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[DomainUserId, CollectionPermissions]()))
     Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(None))
     Mockito.when(persistenceProvider.modelPermissionsStore.updateModelUserPermissions(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(()))
     Mockito.when(persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
     Mockito.when(persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(false))
-    Mockito.when(persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(true, true, true, true)))
+    Mockito.when(persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)).thenReturn(Success(ModelPermissions(read = true, write = true, remove = true, manage = true)))
     Mockito.when(persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)).thenReturn(Success(Map[DomainUserId, ModelPermissions]()))
 
-    val modelPermissionsResolver = mock[ModelPermissionResolver]
+    val modelPermissionsResolver: ModelPermissionResolver = mock[ModelPermissionResolver]
     Mockito.when(modelPermissionsResolver.getModelAndCollectionPermissions(any(), any(), any()))
       .thenReturn(Success(RealTimeModelPermissions(
-        false,
-        CollectionPermissions(true, true, true, true, true),
+        overrideCollection = false,
+        CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true),
         Map(),
-        ModelPermissions(true, true, true, true),
+        ModelPermissions(read = true, write = true, remove = true, manage = true),
         Map())))
 
     val noModelId = "non existent model"
     Mockito.when(persistenceProvider.modelStore.modelExists(noModelId)).thenReturn(Success(false))
     Mockito.when(persistenceProvider.modelStore.getAndIncrementNextValuePrefix(any())).thenReturn(Success(1L))
 
+    val modelCreator: ModelCreator = mock[ModelCreator]
+    val shardRegion: TestProbe[RealtimeModelActor.Message] = testKit.createTestProbe[RealtimeModelActor.Message]()
+    val shard: TestProbe[ClusterSharding.ShardCommand] = testKit.createTestProbe[ClusterSharding.ShardCommand]()
+    val clientDataResponseTimeout: FiniteDuration = FiniteDuration(100, TimeUnit.MILLISECONDS)
+    val receiveTimeout: FiniteDuration = FiniteDuration(100, TimeUnit.MILLISECONDS)
+    val resyncTimeout: FiniteDuration = FiniteDuration(100, TimeUnit.MILLISECONDS)
 
-    val modelCreator = mock[ModelCreator]
-
-    val mockCluster = TestProbe()
-    val props = RealtimeModelActor.props(
+    private val behavior = RealtimeModelActor(
+      shardRegion.ref,
+      shard.ref,
       modelPermissionsResolver,
       modelCreator,
       persistenceManager,
-      FiniteDuration(100, TimeUnit.MILLISECONDS),
-      FiniteDuration(100, TimeUnit.MILLISECONDS),
-      FiniteDuration(100, TimeUnit.MILLISECONDS))
+      clientDataResponseTimeout,
+      receiveTimeout,
+      resyncTimeout)
 
-    val realtimeModelActor = mockCluster.childActorOf(props)
+    val realtimeModelActor: ActorRef[RealtimeModelActor.Message] = testKit.spawn(behavior)
   }
 
   trait MockDatabaseWithModel extends TestFixture {
@@ -421,16 +532,22 @@ class RealtimeModelActorSpec
   }
 
   trait OneOpenClient extends MockDatabaseWithModel {
-    val client1 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref), client1.ref)
-    val client1OpenResponse: OpenModelSuccess = client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
+    val replyTo1: TestProbe[RealtimeModelActor.OpenRealtimeModelResponse] = testKit.createTestProbe()
+    val client1: TestProbe[ModelClientActor.OutgoingMessage] = testKit.createTestProbe()
+
+    realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
+    val client1OpenResponse: RealtimeModelActor.OpenRealtimeModelResponse = client1.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+    assert(client1OpenResponse.response.isRight)
   }
 
   trait TwoOpenClients extends OneOpenClient {
-    val client2 = new TestProbe(system)
-    realtimeModelActor.tell(OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref), client2.ref)
-    val client2OpenResponse: OpenModelSuccess = client2.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[OpenModelSuccess])
-    client1.expectMsgClass(FiniteDuration(1, TimeUnit.SECONDS), classOf[RemoteClientOpened])
+    val replyTo2: TestProbe[RealtimeModelActor.OpenRealtimeModelResponse] = testKit.createTestProbe()
+    val client2: TestProbe[ModelClientActor.OutgoingMessage] = testKit.createTestProbe()
+
+    realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainUserSessionId(session2, uid2), client2.ref, replyTo2.ref)
+    val client2OpenResponse: RealtimeModelActor.OpenRealtimeModelResponse = client2.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+    assert(client2OpenResponse.response.isRight)
+    client1.expectMessageType[ModelClientActor.RemoteClientOpened](FiniteDuration(1, TimeUnit.SECONDS))
   }
 
   trait MockDatabaseWithoutModel extends TestFixture {
@@ -444,7 +561,7 @@ class RealtimeModelActorSpec
       any(),
       any(),
       any()))
-      .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0, now, now, true, modelPermissions, 1), modelJsonData)))
+      .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0, now, now, overridePermissions = true, modelPermissions, 1), modelJsonData)))
 
     Mockito.when(persistenceProvider.modelStore.modelExists(modelId)).thenReturn(Success(false))
   }

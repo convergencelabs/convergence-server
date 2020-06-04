@@ -27,15 +27,15 @@ class OrientDBUtilSpec
     with BeforeAndAfterAll {
 
   
-  val Field = "key"
-  val Value = "value"
-  val SampleDoc = new ODocument().field(Field, Value)
-  
-  val ClassName = "TestClass"
-  val Key1 = "key1"
-  val Key2 = "key2"
+  private val Field = "key"
+  private val Value = "value"
+  private val SampleDoc = new ODocument().field(Field, Value)
 
-  val orientDB: OrientDB = new OrientDB("memory:target/orientdb/OrientDBUtilSpec", OrientDBConfig.defaultConfig());
+  private val ClassName = "TestClass"
+  private val Key1 = "key1"
+  private val Key2 = "key2"
+
+  private val orientDB: OrientDB = new OrientDB("memory:target/orientdb/OrientDBUtilSpec", OrientDBConfig.defaultConfig());
   
   override def afterAll() = {
     orientDB.close()
@@ -57,7 +57,7 @@ class OrientDBUtilSpec
          val docs = OrientDBUtil.query(db, query).get
          
          docs.size shouldBe 1
-         val doc = docs(0)
+         val doc = docs.head
          doc.getIdentity shouldBe element1.getIdentity
       }
     }

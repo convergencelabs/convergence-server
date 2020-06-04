@@ -18,8 +18,8 @@ import com.convergencelabs.convergence.server.api.rest.DataValueToJValue
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.convergencelabs.convergence.server.domain.model.data.{ObjectValue, StringValue}
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -42,64 +42,64 @@ class ModelStoreSpec
     ModelStoreSpecStores(collectionStore, modelStore, permissionsStore)
   }
 
-  val modelPermissions = ModelPermissions(true, true, true, true)
+  private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
-  val peopleCollectionId = "people"
+  private val peopleCollectionId = "people"
 
-  val person1Id = "person1"
-  val person1MetaData = ModelMetaData(
+  private val person1Id = "person1"
+  private val person1MetaData = ModelMetaData(
     person1Id,
     peopleCollectionId,
     20,
     Instant.ofEpochMilli(df.parse("2015-10-20T01:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T12:00:00.000+0000").getTime),
-    true,
+    overridePermissions = true,
     modelPermissions,
     1)
-  val person1Data = ObjectValue("0:0", Map("name" -> StringValue("0:1", "person1")))
-  val person1Model = Model(person1MetaData, person1Data)
+  private val person1Data = ObjectValue("0:0", Map("name" -> StringValue("0:1", "person1")))
+  private val person1Model = Model(person1MetaData, person1Data)
 
-  val person2Id = "person2"
-  val person2MetaData = ModelMetaData(
+  private val person2Id = "person2"
+  private val person2MetaData = ModelMetaData(
     person2Id,
     peopleCollectionId,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T02:00:00.000+0000").getTime),
-    true,
+    overridePermissions = true,
     modelPermissions,
     1)
-  val person2Data = ObjectValue("1:0", Map("name" -> StringValue("1:1", "person2")))
-  val person2Model = Model(person2MetaData, person2Data)
+  private val person2Data = ObjectValue("1:0", Map("name" -> StringValue("1:1", "person2")))
+  private val person2Model = Model(person2MetaData, person2Data)
 
-  val person3Id = "person3"
-  val person3MetaData = ModelMetaData(
+  private val person3Id = "person3"
+  private val person3MetaData = ModelMetaData(
     person3Id,
     peopleCollectionId,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T03:00:00.000+0000").getTime),
-    true,
+    overridePermissions = true,
     modelPermissions,
     1)
-  val person3Data = ObjectValue("2:0", Map("name" -> StringValue("2:1", "person3")))
-  val person3Model = Model(person3MetaData, person3Data)
+  private val person3Data = ObjectValue("2:0", Map("name" -> StringValue("2:1", "person3")))
+  private val person3Model = Model(person3MetaData, person3Data)
 
-  val companyCollectionId = "company"
-  val company1Id = "company1"
-  val company1MetaData = ModelMetaData(
+  private val companyCollectionId = "company"
+  private val company1Id = "company1"
+  private val company1MetaData = ModelMetaData(
     company1Id,
     companyCollectionId,
     1,
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
     Instant.ofEpochMilli(df.parse("2015-10-20T04:00:00.000+0000").getTime),
-    true,
+    overridePermissions = true,
     modelPermissions,
     1)
-  val company1Data = ObjectValue("3:0", Map("name" -> StringValue("3:1", "company")))
-  val company1Model = Model(company1MetaData, company1Data)
+  private val company1Data = ObjectValue("3:0", Map("name" -> StringValue("3:1", "company")))
+  private val company1Model = Model(company1MetaData, company1Data)
 
-  val notRealId = "notRealModel"
+  private val notRealId = "notRealModel"
 
   "An ModelStore" when {
 
@@ -122,10 +122,10 @@ class ModelStoreSpec
 
         val data = ObjectValue(
           "t1-data",
-          Map(("foo" -> StringValue("t1-foo", "bar"))))
+          Map("foo" -> StringValue("t1-foo", "bar")))
 
         stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(modelId, peopleCollectionId, data, true, modelPermissions).get
+        stores.model.createModel(modelId, peopleCollectionId, data, overridePermissions = true, modelPermissions).get
         val model = stores.model.getModel(modelId).get.value
         model.metaData.id shouldBe modelId
         model.metaData.version shouldBe 1
@@ -136,9 +136,9 @@ class ModelStoreSpec
         stores.collection.ensureCollectionExists(peopleCollectionId)
         val data = ObjectValue(
           "t2-data",
-          Map(("foo" -> StringValue("t2-foo", "bar"))))
-        stores.model.createModel(person1Id, peopleCollectionId, data, true, modelPermissions).get
-        stores.model.createModel(person1Id, peopleCollectionId, data, true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
+          Map("foo" -> StringValue("t2-foo", "bar")))
+        stores.model.createModel(person1Id, peopleCollectionId, data, overridePermissions = true, modelPermissions).get
+        stores.model.createModel(person1Id, peopleCollectionId, data, overridePermissions = true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 
@@ -189,7 +189,7 @@ class ModelStoreSpec
 
         val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, Some(1), None).get
         list.length shouldBe 2
-        list(0) shouldBe person2MetaData
+        list.head shouldBe person2MetaData
         list(1) shouldBe person3MetaData
       }
 
@@ -254,7 +254,7 @@ class ModelStoreSpec
 
       "correctly set the timestamp" in withPersistenceStore { stores =>
         stores.collection.ensureCollectionExists(peopleCollectionId)
-        val modelBefore = stores.model.createModel(person1Model).get
+        stores.model.createModel(person1Model).get
         val timeStamp = Instant.now()
         stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, timeStamp)
 

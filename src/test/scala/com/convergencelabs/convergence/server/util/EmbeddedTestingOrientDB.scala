@@ -21,9 +21,9 @@ import com.orientechnologies.orient.server.config.OServerEntryConfiguration
 import grizzled.slf4j.Logging
 
 class EmbeddedTestingOrientDB(dataPath: String, persistent: Boolean) extends Logging {
-  OLogManager.instance().setWarnEnabled(false);
-  OLogManager.instance().setConsoleLevel("SEVERE");
-  OLogManager.instance().setFileLevel("SEVERE");
+  OLogManager.instance().setWarnEnabled(false)
+  OLogManager.instance().setConsoleLevel("SEVERE")
+  OLogManager.instance().setFileLevel("SEVERE")
 
   val server = new OServer(false)
 
@@ -41,8 +41,8 @@ class EmbeddedTestingOrientDB(dataPath: String, persistent: Boolean) extends Log
     }
 
     val configFile = getClass.getResourceAsStream("/orientdb-server-config.xml")
-    val serverCfg = new OServerConfigurationManager(configFile);
-    val config = serverCfg.getConfiguration()
+    val serverCfg = new OServerConfigurationManager(configFile)
+    val config = serverCfg.getConfiguration
     val properties = config.properties.toList filter { _.name != "server.database.path" }
     val withData = properties ++ List(new OServerEntryConfiguration("server.database.path", odbTarget.getAbsolutePath))
     config.properties = withData.toArray
@@ -69,7 +69,7 @@ class EmbeddedTestingOrientDB(dataPath: String, persistent: Boolean) extends Log
     if (path.exists()) {
       val files = path.listFiles().toList
       files.foreach { file =>
-        if (file.isDirectory()) {
+        if (file.isDirectory) {
           deleteDirectory(file)
         } else {
           file.delete()

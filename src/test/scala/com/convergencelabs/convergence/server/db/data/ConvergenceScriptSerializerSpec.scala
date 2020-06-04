@@ -39,7 +39,7 @@ class ConvergenceScriptSerializerSpec extends AnyWordSpecLike with Matchers {
           displayName,
           status,
           statusMessage,
-          dataImport) = domains.value(0)
+          dataImport) = domains.value.head
 
         namespace shouldBe "test"
         domainId shouldBe "example"
@@ -48,13 +48,13 @@ class ConvergenceScriptSerializerSpec extends AnyWordSpecLike with Matchers {
         statusMessage shouldBe ""
 
         val DomainScript(config, jwtAuthKeys, domainUsers, sessions, collections, models) = dataImport.value
-        config shouldBe SetDomainConfig(true, CreateJwtKeyPair("Public Key", "Private Key"))
+        config shouldBe SetDomainConfig(anonymousAuth = true, CreateJwtKeyPair("Public Key", "Private Key"))
 
-        jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", true))
+        jwtAuthKeys.value shouldBe List(CreateJwtAuthKey("test-key", Some("a test key"), Instant.parse("2016-11-16T17:49:15.233Z"), "Public Key", enabled = true))
 
         domainUsers.value shouldBe List(
-          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None, false, false, None, Some(SetPassword("plaintext", "somePassword"))),
-          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None, false, false, None, Some(SetPassword("hash", "someHash"))))
+          CreateDomainUser("normal", "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None, disabled = false, deleted = false, None, Some(SetPassword("plaintext", "somePassword"))),
+          CreateDomainUser("normal", "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None, disabled = false, deleted = false, None, Some(SetPassword("hash", "someHash"))))
 
         sessions.value shouldBe List(
           CreateDomainSession(
@@ -69,7 +69,7 @@ class ConvergenceScriptSerializerSpec extends AnyWordSpecLike with Matchers {
             "",
             "unknown"))
         
-        collections.value shouldBe List(CreateCollection("collection1", "Collection 1", false))
+        collections.value shouldBe List(CreateCollection("collection1", "Collection 1", overrideSnapshotConfig = false))
 
         models.value shouldBe List(
           CreateModel(
@@ -82,8 +82,8 @@ class ConvergenceScriptSerializerSpec extends AnyWordSpecLike with Matchers {
               "vid1",
               Map("myString" -> CreateStringValue("vid2", "my string"))),
             List(
-              CreateModelOperation(1L, Instant.parse("2016-11-16T17:49:15.233Z"), "84hf", CreateStringInsertOperation("vid2", false, 0, "!")),
-              CreateModelOperation(2L, Instant.parse("2016-11-16T17:49:15.233Z"), "84hf", CreateStringInsertOperation("vid2", false, 1, "@"))),
+              CreateModelOperation(1L, Instant.parse("2016-11-16T17:49:15.233Z"), "84hf", CreateStringInsertOperation("vid2", noOp = false, 0, "!")),
+              CreateModelOperation(2L, Instant.parse("2016-11-16T17:49:15.233Z"), "84hf", CreateStringInsertOperation("vid2", noOp = false, 1, "@"))),
             List(
               CreateModelSnapshot(
                 1L,

@@ -11,16 +11,12 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectAddPropertyOperationMapper.{ODocumentToObjectAddPropertyOperation, ObjectAddPropertyOperationToODocument}
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectAddPropertyOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import ObjectAddPropertyOperationMapper.ODocumentToObjectAddPropertyOperation
-import ObjectAddPropertyOperationMapper.ObjectAddPropertyOperationToODocument
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ObjectAddPropertyOperationMapperSpec
     extends AnyWordSpec
@@ -29,7 +25,7 @@ class ObjectAddPropertyOperationMapperSpec
   "An ObjectAddPropertyOperationMapper" when {
     "when converting ObjectAddPropertyOperation operations" must {
       "correctly map and unmap a ObjectAddPropertyOperation" in {
-        val op = AppliedObjectAddPropertyOperation("vid", true, "foo", StringValue("vid1", "bar"))
+        val op = AppliedObjectAddPropertyOperation("vid", noOp = true, "foo", StringValue("vid1", "bar"))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectAddPropertyOperation
         op shouldBe reverted

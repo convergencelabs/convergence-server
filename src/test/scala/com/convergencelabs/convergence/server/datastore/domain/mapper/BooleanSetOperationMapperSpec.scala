@@ -11,15 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.BooleanSetOperationMapper.{BooleanSetOperationToODocument, ODocumentToBooleanSetOperation}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import BooleanSetOperationMapper.BooleanSetOperationToODocument
-import BooleanSetOperationMapper.ODocumentToBooleanSetOperation
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class BooleanSetOperationMapperSpec
     extends AnyWordSpec
@@ -28,7 +24,7 @@ class BooleanSetOperationMapperSpec
   "An BooleanSetOperationMapper" when {
     "when converting BooleanSetOperation operations" must {
       "correctly map and unmap a BooleanSetOperation" in {
-        val op = AppliedBooleanSetOperation("vid", true, true, Some(false))
+        val op = AppliedBooleanSetOperation("vid", noOp = true, value = true, Some(false))
         val opDoc = op.asODocument
         val reverted = opDoc.asBooleanSetOperation
         op shouldBe reverted

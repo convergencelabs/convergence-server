@@ -27,7 +27,7 @@ class DateSetOperationMapperSpec
     "when converting DateSetOperation operations" must {
       "correctly map and unmap a DateSetOperation" in {
         val date = java.util.Date.from(Instant.now()).toInstant
-        val op = AppliedDateSetOperation("vid", true, date, Some(date))
+        val op = AppliedDateSetOperation("vid", noOp = true, date, Some(date))
         val opDoc = op.asODocument
         val reverted = opDoc.asDateSetOperation
         op shouldBe reverted

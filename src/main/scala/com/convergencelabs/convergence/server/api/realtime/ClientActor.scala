@@ -542,7 +542,7 @@ object ClientActor {
 
   type IncomingRequest = GeneratedMessage with RequestMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback)
+  case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends Message
 
   sealed trait ConnectionMessage extends Message
 

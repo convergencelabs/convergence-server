@@ -14,15 +14,11 @@ package com.convergencelabs.convergence.server.datastore.domain.mapper
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import ModelSnapshotConfigMapper.ModelSnapshotConfigToODocument
-import ModelSnapshotConfigMapper.ODocumentToModelSnapshotConfig
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ModelSnapshotConfigMapperSpec
     extends AnyWordSpec
@@ -32,13 +28,13 @@ class ModelSnapshotConfigMapperSpec
     "when converting a ModelSnpashotCofig" must {
       "correctly map and unmap a Model" in {
         val modelSnapshotConfig = ModelSnapshotConfig(
-          true,
-          true,
-          true,
+          snapshotsEnabled = true,
+          triggerByVersion = true,
+          limitedByVersion = true,
           1L,
           2L,
-          true,
-          true,
+          triggerByTime = true,
+          limitedByTime = true,
           Duration.of(1, ChronoUnit.SECONDS),
           Duration.of(2, ChronoUnit.SECONDS))
 

@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.db.data
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.{CreateDomainRequest, CreateDomainResponse, CreateDomainSuccess}
+import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor.{CreateDomainRequest, CreateDomainResponse}
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.convergence.{DomainStoreActor, UserStore}
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
@@ -75,8 +75,16 @@ class ConvergenceImporter(private[this] val dbBaseUri: String,
         // FIXME Anonymous Auth and OWNER
         domainStoreActor.ask[CreateDomainResponse](CreateDomainRequest(
           domainData.namespace, domainData.id, domainData.displayName, anonymousAuth = false, "owner", _))
-          .map {
-            case CreateDomainSuccess(dbInfo) =>
+          .map(_.dbInfo.fold(
+            {
+              case DomainStoreActor.DomainAlreadyExistsError(field) =>
+                logger.error(s"Domain provisioing failed because the domain a domain with the same value for '$field' already exists.")
+              case DomainStoreActor.InvalidDomainCreationRequest(message) =>
+                logger.error("Domain provisioing failed because the domain creation data was invalid: " + message)
+              case DomainStoreActor.UnknownError() =>
+              logger.error("Domain provisioing failed for an unknown reason")
+            },
+            { dbInfo =>
               logger.debug(s"Domain database provisioned successfully: ${domainData.namespace}/${domainData.id}")
               domainData.dataImport map { script =>
                 logger.debug(s"Importing data for domain: ${domainData.namespace}/${domainData.id}")
@@ -101,11 +109,9 @@ class ConvergenceImporter(private[this] val dbBaseUri: String,
                 logger.debug("No data to import, domain provisioing complete")
                 None
               }
-          }
-          .recover {
-            case cause: Exception =>
-              logger.error("Domain provisioing failed", cause)
-          }
+            })
+
+          )
       }
     }
   }

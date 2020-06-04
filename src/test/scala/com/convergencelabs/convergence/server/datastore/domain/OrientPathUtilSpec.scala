@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import org.scalatest.Finders
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 

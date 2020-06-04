@@ -13,8 +13,8 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
@@ -29,14 +29,14 @@ class DomainUserStoreSpec
     with Matchers {
 
   // Pre-loaded Users
-  val User0 = DomainUser(DomainUserType.Convergence, "admin", Some("Admin"), Some("User"), Some("Admin User"), Some("admin@example.com"), None)
-  val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
-  val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
+  private val User0 = DomainUser(DomainUserType.Convergence, "admin", Some("Admin"), Some("User"), Some("Admin User"), Some("admin@example.com"), None)
+  private val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
+  private val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
 
   // New Users
-  val User10 = CreateNormalDomainUser("user10", Some("first10"), Some("last10"), Some("first10 last10"), Some("user10@example.com"))
-  val User11 = CreateNormalDomainUser("user11", Some("first11"), Some("last11"), Some("first11 last11"), Some("user11@example.com"))
-  val User12 = CreateNormalDomainUser("user12", None, None, None, None)
+  private val User10 = CreateNormalDomainUser("user10", Some("first10"), Some("last10"), Some("first10 last10"), Some("user10@example.com"))
+  private val User11 = CreateNormalDomainUser("user11", Some("first11"), Some("last11"), Some("first11 last11"), Some("user11@example.com"))
+  private val User12 = CreateNormalDomainUser("user12", None, None, None, None)
 
   def createStore(dbProvider: DatabaseProvider): DomainUserStore = new DomainUserStore(dbProvider)
 
@@ -46,7 +46,7 @@ class DomainUserStoreSpec
         store.createNormalDomainUser(User10).success
 
         val queried = store.getNormalDomainUser(User10.username)
-        val DomainUser(userType, username, fname, lname, displayName, email, lastLogin, disabeld, deleted, deletedUsername) = queried.success.get.value
+        val DomainUser(_, username, fname, lname, displayName, email, _, _, _, _) = queried.success.get.value
         CreateNormalDomainUser(username, fname, lname, displayName, email) shouldBe User10
       }
 
@@ -60,7 +60,7 @@ class DomainUserStoreSpec
       "allow creation of users with only username" in withPersistenceStore { store =>
         store.createNormalDomainUser(User12).get
         val queried = store.getNormalDomainUser(User12.username)
-        val DomainUser(userType, username, fname, lname, displayName, email, lastLogin, disabled, deleted, deletedUsername) = queried.success.get.value
+        val DomainUser(_, username, fname, lname, displayName, email, _, _, _, _) = queried.success.get.value
         CreateNormalDomainUser(username, fname, lname, displayName, email) shouldBe User12
       }
     }
@@ -110,21 +110,22 @@ class DomainUserStoreSpec
       }
     }
 
-    "retreiving all users" must {
+    // FIXME check paged data values.
+    "retrieving all users" must {
       "order correctly by username" in withPersistenceStore { store =>
         initUsers(store)
         val allUsers = store.getAllDomainUsers(None, None, None, None).get
         val orderedDescending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None).success.get
         val orderedAscending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), None, None).success.get
 
-        orderedDescending shouldBe allUsers.sortWith(_.username > _.username)
-        orderedAscending shouldBe orderedDescending.reverse
+        orderedDescending shouldBe allUsers.data.sortWith(_.username > _.username)
+        orderedAscending shouldBe orderedDescending.data.reverse
       }
 
       "limit results to the correct number" in withPersistenceStore { store =>
         initUsers(store)
         val allUser = store.getAllDomainUsers(None, None, None, None).get
-        store.getAllDomainUsers(None, None, Some(2), None).success.get shouldBe allUser.slice(0, 2)
+        store.getAllDomainUsers(None, None, Some(2), None).success.get shouldBe allUser.data.slice(0, 2)
       }
     }
 
@@ -134,7 +135,7 @@ class DomainUserStoreSpec
         val fields = List(DomainUserField.Username)
         val searchString = "test"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).get
-        users.length shouldBe 2
+        users.data.length shouldBe 2
       }
 
       "return a single user if only one user matches" in withPersistenceStore { store =>
@@ -142,8 +143,8 @@ class DomainUserStoreSpec
         val fields = List(DomainUserField.Username)
         val searchString = "test1"
         val users = store.searchUsersByFields(fields, searchString, None, None, None, None).get
-        users.length shouldBe 1
-        users.head shouldBe User1
+        users.data.length shouldBe 1
+        users.data.head shouldBe User1
       }
     }
 

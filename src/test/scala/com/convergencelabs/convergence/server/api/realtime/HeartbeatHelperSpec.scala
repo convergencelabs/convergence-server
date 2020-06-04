@@ -13,16 +13,21 @@ package com.convergencelabs.convergence.server.api.realtime
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.testkit.typed.scaladsl.{ManualTime, ScalaTestWithActorTestKit}
 import com.miguno.akka.testing.VirtualTime
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.concurrent.{Await, ExecutionContext, Promise}
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, ExecutionContext, Promise}
 
 // scalastyle:off magic.number
-class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
+class HeartbeatHelperSpec
+  extends ScalaTestWithActorTestKit(ManualTime.config)
+    with AnyWordSpecLike
+    with Matchers
+    with ScalaFutures {
 
   private[this] implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
@@ -31,21 +36,21 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
   private[this] val resolutionTimeout = FiniteDuration(250, TimeUnit.MILLISECONDS)
 
+  private[this] val manualTime: ManualTime = ManualTime()
+
   "A HeartbeatHelper" when {
     "started" must {
       "emit a ping request event once the ping interval has been reached" in {
-        val time = new VirtualTime
-
         val p = Promise[Unit]
 
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest => p.success(())
           case PongTimeout =>
         })
 
         hbh.start()
 
-        time.advance(pingInterval)
+        manualTime.timePasses(pingInterval)
 
         Await.ready(p.future, resolutionTimeout)
 
@@ -57,7 +62,7 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
         val p = Promise[Unit]
 
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout => p.success(())
         })
@@ -77,7 +82,7 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
         val p = Promise[Unit]
 
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout => p.success(())
         })
@@ -97,10 +102,8 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
         hbh.stop()
       }
 
-      "inidcate that it is started" in {
-        val time = new VirtualTime
-
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+      "indicate that it is started" in {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout =>
         })
@@ -114,9 +117,7 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
       }
 
       "throw an exception if start is called" in {
-        val time = new VirtualTime
-
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout =>
         })
@@ -130,10 +131,8 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
     }
 
     "stopped" must {
-      "inidcate that it is stopped" in {
-        val time = new VirtualTime
-
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+      "indicate that it is stopped" in {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout =>
         })
@@ -153,9 +152,7 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
       }
 
       "throw an exception if stop is called" in {
-        val time = new VirtualTime
-
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout =>
         })
@@ -166,9 +163,7 @@ class HeartbeatHelperSpec extends AnyWordSpec with Matchers with ScalaFutures {
       }
 
       "throw an exception if message received is called" in {
-        val time = new VirtualTime
-
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, time.scheduler, ec, {
+        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
           case PongTimeout =>
         })

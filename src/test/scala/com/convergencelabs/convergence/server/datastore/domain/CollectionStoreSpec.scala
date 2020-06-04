@@ -37,12 +37,12 @@ class CollectionStoreSpec
       new ModelOperationStore(dbProvider),
       new ModelSnapshotStore(dbProvider)))
 
-  val companyCollectionId = "company"
-  val peopleCollectionId = "people"
-  val teamCollectionId = "team"
-  val carsCollectionId = "cars"
+  private val companyCollectionId = "company"
+  private val peopleCollectionId = "people"
+  private val teamCollectionId = "team"
+  private val carsCollectionId = "cars"
 
-  val snapshotConfig = ModelSnapshotConfig(
+  private val snapshotConfig = ModelSnapshotConfig(
     snapshotsEnabled = true,
     triggerByVersion = true,
     limitedByVersion = true,
@@ -53,11 +53,11 @@ class CollectionStoreSpec
     Duration.ofSeconds(0),
     Duration.ofSeconds(0))
 
-  val collectionPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
+  private val collectionPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
 
-  val peopleCollection = Collection(peopleCollectionId, "People", overrideSnapshotConfig = true, snapshotConfig, collectionPermissions)
-  val companyCollection = Collection(companyCollectionId, "Some Company", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
-  val teamCollection = Collection(teamCollectionId, "Team", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
+  private val peopleCollection = Collection(peopleCollectionId, "People", overrideSnapshotConfig = true, snapshotConfig, collectionPermissions)
+  private val companyCollection = Collection(companyCollectionId, "Some Company", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
+  private val teamCollection = Collection(teamCollectionId, "Team", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
 
   "An CollectionStore" when {
 

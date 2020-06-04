@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId}
 import org.scalatest.OptionValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -37,7 +37,7 @@ class SessionStoreSpec
   private val clientVersion = "1.0"
   private val remoteHost = "127.0.0.1"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A SessionStore" when {
     "creating a session" must {
@@ -102,7 +102,7 @@ class SessionStoreSpec
           None,
           None).get
 
-        connected.toSet shouldBe Set(session1, session3)
+        connected.data.toSet shouldBe Set(session1, session3)
       }
     }
     

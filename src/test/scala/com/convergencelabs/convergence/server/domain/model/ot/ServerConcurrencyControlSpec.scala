@@ -11,14 +11,10 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import org.mockito.Mockito.inOrder
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
+import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformer
+import org.mockito.Mockito.{inOrder, spy, times, verify}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
-
-import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformer
 
 // scalastyle:off magic.number multiple.string.literals
 class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {

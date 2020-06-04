@@ -11,15 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.StringRemoveOperationMapper.{ODocumentToStringRemoveOperation, StringRemoveOperationToODocument}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import StringRemoveOperationMapper.ODocumentToStringRemoveOperation
-import StringRemoveOperationMapper.StringRemoveOperationToODocument
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class StringRemoveOperationMapperSpec
     extends AnyWordSpec
@@ -28,7 +24,7 @@ class StringRemoveOperationMapperSpec
   "An StringRemoveOperationMapper" when {
     "when converting StringRemoveOperation operations" must {
       "correctly map and unmap a StringRemoveOperation" in {
-        val op = AppliedStringRemoveOperation("vid", true, 4, 4, Some("test")) // scalastyle:ignore magic.number
+        val op = AppliedStringRemoveOperation("vid", noOp = true, 4, 4, Some("test")) // scalastyle:ignore magic.number
         val opDoc = op.asODocument
         val reverted = opDoc.asStringRemoveOperation
         op shouldBe reverted

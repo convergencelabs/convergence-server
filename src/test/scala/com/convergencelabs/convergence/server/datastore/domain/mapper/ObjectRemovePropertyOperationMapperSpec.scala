@@ -11,16 +11,12 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectRemovePropertyOperationMapper.{ODocumentToObjectRemovePropertyOperation, ObjectRemovePropertyOperationToODocument}
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectRemovePropertyOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import ObjectRemovePropertyOperationMapper.ODocumentToObjectRemovePropertyOperation
-import ObjectRemovePropertyOperationMapper.ObjectRemovePropertyOperationToODocument
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ObjectRemovePropertyOperationMapperSpec
     extends AnyWordSpec
@@ -29,7 +25,7 @@ class ObjectRemovePropertyOperationMapperSpec
   "An ObjectRemovePropertyOperationMapper" when {
     "when converting ObjectRemovePropertyOperation operations" must {
       "correctly map and unmap a ObjectRemovePropertyOperation" in {
-        val op = AppliedObjectRemovePropertyOperation("vid", true, "foo", Some(StringValue("oldId", "oldValue")))
+        val op = AppliedObjectRemovePropertyOperation("vid", noOp = true, "foo", Some(StringValue("oldId", "oldValue")))
         val opDoc = op.asODocument
         val reverted = opDoc.asObjectRemovePropertyOperation
         op shouldBe reverted

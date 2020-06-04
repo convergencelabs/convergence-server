@@ -19,100 +19,100 @@ import org.scalatest.matchers.should.Matchers
 
 class OperationsSpec extends AnyFunSuite with Matchers {
 
-  val valueId = "vid"
+  private val valueId = "vid"
 
-  val nv = NullValue(valueId)
+  private val nv = NullValue(valueId)
 
   // String Operations
 
   test("StringInsertOperation must preserve other fields when setting noOp and path") {
-    val original = StringInsertOperation(valueId, false, 1, "insert")
-    original.clone(true) shouldBe StringInsertOperation(valueId, true, 1, "insert")
+    val original = StringInsertOperation(valueId, noOp = false, 1, "insert")
+    original.clone(true) shouldBe StringInsertOperation(valueId, noOp = true, 1, "insert")
   }
 
   test("StringRemoveOperation must preserve other fields when setting noOp and path") {
-    val original = StringRemoveOperation(valueId, false, 1, "remove")
-    original.clone(true) shouldBe StringRemoveOperation(valueId, true, 1, "remove")
+    val original = StringRemoveOperation(valueId, noOp = false, 1, "remove")
+    original.clone(true) shouldBe StringRemoveOperation(valueId, noOp = true, 1, "remove")
   }
 
   test("StringSetOperation must preserve other fields when setting noOp and path") {
-    val original = StringSetOperation(valueId, false, "set")
-    original.clone(true) shouldBe StringSetOperation(valueId, true, "set")
+    val original = StringSetOperation(valueId, noOp = false, "set")
+    original.clone(true) shouldBe StringSetOperation(valueId, noOp = true, "set")
   }
 
   // Array Operations
 
   test("ArrayInsertOperation must preserve other fields when setting noOp and path") {
-    val original = ArrayInsertOperation(valueId, false, 1, nv)
-    original.clone(true) shouldBe ArrayInsertOperation(valueId, true, 1, nv)
+    val original = ArrayInsertOperation(valueId, noOp = false, 1, nv)
+    original.clone(true) shouldBe ArrayInsertOperation(valueId, noOp = true, 1, nv)
   }
 
   test("ArrayRemoveOperation must preserve other fields when setting noOp and path") {
-    val original = ArrayRemoveOperation(valueId, false, 1)
-    original.clone(true) shouldBe ArrayRemoveOperation(valueId, true, 1)
+    val original = ArrayRemoveOperation(valueId, noOp = false, 1)
+    original.clone(true) shouldBe ArrayRemoveOperation(valueId, noOp = true, 1)
   }
 
   test("ArrayReplaceOperation must preserve other fields when setting noOp and path") {
-    val original = ArrayReplaceOperation(valueId, false, 1, nv)
-    original.clone(true) shouldBe ArrayReplaceOperation(valueId, true, 1, nv)
+    val original = ArrayReplaceOperation(valueId, noOp = false, 1, nv)
+    original.clone(true) shouldBe ArrayReplaceOperation(valueId, noOp = true, 1, nv)
   }
 
   test("ArraySetOperation must preserve other fields when setting noOp and path") {
-    val original = ArraySetOperation(valueId, false, List(nv))
-    original.clone(true) shouldBe ArraySetOperation(valueId, true, List(nv))
+    val original = ArraySetOperation(valueId, noOp = false, List(nv))
+    original.clone(true) shouldBe ArraySetOperation(valueId, noOp = true, List(nv))
   }
 
   test("ArrayMoveOperation must preserve other fields when setting noOp and path") {
-    val original = ArrayMoveOperation(valueId, false, 1, 2)
-    original.clone(true) shouldBe ArrayMoveOperation(valueId, true, 1, 2)
+    val original = ArrayMoveOperation(valueId, noOp = false, 1, 2)
+    original.clone(true) shouldBe ArrayMoveOperation(valueId, noOp = true, 1, 2)
   }
 
   // Object Operations
 
   test("ObjectSetPropertyOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectSetPropertyOperation(valueId, false, "setProp", nv)
-    original.clone(true) shouldBe ObjectSetPropertyOperation(valueId, true, "setProp", nv)
+    val original = ObjectSetPropertyOperation(valueId, noOp = false, "setProp", nv)
+    original.clone(true) shouldBe ObjectSetPropertyOperation(valueId, noOp = true, "setProp", nv)
   }
 
   test("ObjectAddPropertyOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectAddPropertyOperation(valueId, false, "addProp", nv)
-    original.clone(true) shouldBe ObjectAddPropertyOperation(valueId, true, "addProp", nv)
+    val original = ObjectAddPropertyOperation(valueId, noOp = false, "addProp", nv)
+    original.clone(true) shouldBe ObjectAddPropertyOperation(valueId, noOp = true, "addProp", nv)
   }
 
   test("ObjectRemovePropertyOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectRemovePropertyOperation(valueId, false, "removeProp")
-    original.clone(true) shouldBe ObjectRemovePropertyOperation(valueId, true, "removeProp")
+    val original = ObjectRemovePropertyOperation(valueId, noOp = false, "removeProp")
+    original.clone(true) shouldBe ObjectRemovePropertyOperation(valueId, noOp = true, "removeProp")
   }
 
   test("ObjectSetOperation must preserve other fields when setting noOp and path") {
-    val original = ObjectSetOperation(valueId, false, Map())
-    original.clone(true) shouldBe ObjectSetOperation(valueId, true, Map())
+    val original = ObjectSetOperation(valueId, noOp = false, Map())
+    original.clone(true) shouldBe ObjectSetOperation(valueId, noOp = true, Map())
   }
 
   // Number Operations
 
   test("NumberSetOperation must preserve other fields when setting noOp and path") {
-    val original = NumberSetOperation(valueId, false, 1)
-    original.clone(true) shouldBe NumberSetOperation(valueId, true, 1)
+    val original = NumberSetOperation(valueId, noOp = false, 1)
+    original.clone(true) shouldBe NumberSetOperation(valueId, noOp = true, 1)
   }
 
   test("NumberAddOperation must preserve other fields when setting noOp and path") {
-    val original = NumberAddOperation(valueId, false, 1)
-    original.clone(true) shouldBe NumberAddOperation(valueId, true, 1)
+    val original = NumberAddOperation(valueId, noOp = false, 1)
+    original.clone(true) shouldBe NumberAddOperation(valueId, noOp = true, 1)
   }
 
   // Boolean Operations
 
   test("BooleanSetOperation must preserve other fields when setting noOp and path") {
-    val original = BooleanSetOperation(valueId, false, true)
-    original.clone(true) shouldBe BooleanSetOperation(valueId, true, true)
+    val original = BooleanSetOperation(valueId, noOp = false, value = true)
+    original.clone(true) shouldBe BooleanSetOperation(valueId, noOp = true, value = true)
   }
   
   // Date Operations
 
   test("DateSetOperation must preserve other fields when setting noOp and path") {
     val now = Instant.now()
-    val original = DateSetOperation(valueId, false, now)
-    original.clone(true) shouldBe DateSetOperation(valueId, true, now)
+    val original = DateSetOperation(valueId, noOp = false, now)
+    original.clone(true) shouldBe DateSetOperation(valueId, noOp = true, now)
   }
 }

@@ -20,7 +20,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor._
-import com.convergencelabs.convergence.server.datastore.convergence.{DomainStoreActor, NamespaceNotFoundException, RoleStoreActor}
+import com.convergencelabs.convergence.server.datastore.convergence.{DomainStoreActor, RoleStoreActor}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
@@ -99,67 +99,93 @@ class DomainService(private[this] val system: ActorSystem[_],
 
   private[this] def createDomain(createRequest: CreateDomainRestRequestData, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequestData(namespace, id, displayName) = createRequest
-    domainStoreActor.ask[CreateDomainResponse](CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, authProfile.username, _)).flatMap {
-      case DomainStoreActor.CreateDomainSuccess(_) =>
-        Future.successful(CreatedResponse)
-      case RequestFailure(cause) =>
-        cause match {
-          case NamespaceNotFoundException(namespace) =>
-            Future.successful(namespaceNotFoundResponse(namespace))
-          case _ =>
-            Future.failed(cause)
-        }
-    }
+    domainStoreActor.ask[CreateDomainResponse](
+      CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, authProfile.username, _))
+      .map(_.dbInfo.fold(
+        {
+          case DomainAlreadyExistsError(field) =>
+            conflictsResponse(field, "A domain with this value already exists")
+          case InvalidDomainCreationRequest(message) =>
+            badRequest(message)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ => CreatedResponse}
+      ))
   }
 
-  private[this] def getDomains(authProfile: AuthorizationProfile, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    domainStoreActor.ask[ListDomainsResponse](ListDomainsRequest(authProfile.data, namespace, filter, offset, limit, _)).flatMap {
-      case ListDomainsSuccess(domains) =>
-        val response = okResponse(
-          domains map (domain => DomainRestData(
-            domain.displayName,
-            domain.domainFqn.namespace,
-            domain.domainFqn.domainId,
-            domain.status.toString.toLowerCase)))
-        Future.successful(response)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+  private[this] def getDomains(authProfile: AuthorizationProfile,
+                               namespace: Option[String],
+                               filter: Option[String],
+                               offset: Option[Int],
+                               limit: Option[Int]): Future[RestResponse] = {
+    domainStoreActor.ask[GetDomainsResponse](GetDomainsRequest(authProfile.data, namespace, filter, offset, limit, _))
+      .map(_.domains.fold(
+        { _ =>
+          InternalServerError
+        },
+        { domains =>
+          val response = okResponse(
+            domains map (domain => DomainRestData(
+              domain.displayName,
+              domain.domainFqn.namespace,
+              domain.domainFqn.domainId,
+              domain.status.toString.toLowerCase)))
+          response
+        }
+      ))
   }
 
   private[this] def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    domainStoreActor.ask[GetDomainResponse](GetDomainRequest(namespace, domainId, _)).flatMap {
-      case GetDomainSuccess(Some(domain)) =>
-        val response = okResponse(DomainRestData(
+    domainStoreActor.ask[GetDomainResponse](GetDomainRequest(namespace, domainId, _))
+      .map(_.domain.fold(
+        {
+          case DomainNotFound() =>
+            NotFound
+          case UnknownError() =>
+            InternalServerError
+        },
+        { domain =>
+          okResponse(DomainRestData(
             domain.displayName,
             domain.domainFqn.namespace,
             domain.domainFqn.domainId,
             domain.status.toString.toLowerCase()))
-        Future.successful(response)
-      case GetDomainSuccess(None) =>
-        Future.successful(notFoundResponse())
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+        }
+      ))
   }
 
   private[this] def deleteDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    domainStoreActor.ask[DeleteDomainResponse](DeleteDomainRequest(namespace, domainId, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(DeletedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainStoreActor.ask[DeleteDomainResponse](DeleteDomainRequest(namespace, domainId, _))
+      .map(_.response.fold(
+        {
+          case DomainNotFound() =>
+            NotFound
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          DeletedResponse
+        }
+      ))
   }
 
   private[this] def updateDomain(namespace: String, domainId: String, request: UpdateDomainRestRequestData): Future[RestResponse] = {
     val UpdateDomainRestRequestData(displayName) = request
-    domainStoreActor.ask[UpdateDomainResponse](UpdateDomainRequest(namespace, domainId, displayName, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(DeletedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainStoreActor.ask[UpdateDomainResponse](UpdateDomainRequest(namespace, domainId, displayName, _))
+      .map(_.response.fold(
+        {
+          case DomainNotFound() =>
+            NotFound
+          case DomainAlreadyExistsError(field) =>
+            conflictsResponse(field, s"Can't update the domain because a domain with this value for '$field' already exists.")
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        }
+      ))
   }
 }
 

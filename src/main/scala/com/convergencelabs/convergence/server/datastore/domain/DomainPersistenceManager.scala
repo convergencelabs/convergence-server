@@ -30,13 +30,13 @@ trait DomainPersistenceManager {
    * [[DomainPersistenceManager]] will ensure the DomainPersistenceProvider
    * remains valid until it is released.
    *
-   * @param requester The actor that will use the persistence provider.
+   * @param consumer The actor that will use the persistence provider.
    * @param system The actor system the actor that is requesting the persistence provider.
    * @param domainId The id of th domain to get th persistence provider for.
    *
    * @return The [[DomainPersistenceProvider]] for the specified domain.
    */
-  def acquirePersistenceProvider(requester: ActorRef[_], system: ActorSystem[_], domainId: DomainId): Try[DomainPersistenceProvider]
+  def acquirePersistenceProvider(consumer: ActorRef[_], system: ActorSystem[_], domainId: DomainId): Try[DomainPersistenceProvider]
 
   /**
    * Indicates that the actor is no longer using the persistence provider and

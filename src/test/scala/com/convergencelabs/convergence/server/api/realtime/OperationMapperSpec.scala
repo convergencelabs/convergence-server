@@ -61,7 +61,7 @@ class OperationMapperSpec extends AnyWordSpec with Matchers {
     NumberSetOperation(Id, NoOp, 3),
     NumberAddOperation(Id, NoOp, 4),
 
-    BooleanSetOperation(Id, NoOp, true),
+    BooleanSetOperation(Id, NoOp, value = true),
 
     CompoundOperation(List(NumberSetOperation(Id, NoOp, 3))))
 

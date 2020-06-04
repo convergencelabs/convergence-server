@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.datastore.domain
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -25,17 +25,17 @@ class ModelPermissionsStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
-  val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
+  private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
-  val collection1 = "collection1"
-  val model1 = "model1"
-  val model2 = "model2"
-  val user1 = DomainUserId.normal("user1")
-  val user2 = DomainUserId.normal("user2")
-  val nonExistentCollectionId = "not_real"
-  val nonRealId = "not_real"
+  private val collection1 = "collection1"
+  private val model1 = "model1"
+  private val model2 = "model2"
+  private val user1 = DomainUserId.normal("user1")
+  private val user2 = DomainUserId.normal("user2")
+  private val nonExistentCollectionId = "not_real"
+  private val nonRealId = "not_real"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A ModelPermissionsStore" when {
     "retrieving the model world permissions" must {

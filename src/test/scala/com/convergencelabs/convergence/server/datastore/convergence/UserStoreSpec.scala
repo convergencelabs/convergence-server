@@ -11,34 +11,29 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import java.time.Duration
-
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.wordspec.AnyWordSpecLike
-
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.convergence.schema.UserClass
 import com.convergencelabs.convergence.server.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class UserStoreSpec
     extends PersistenceStoreSpec[UserStore](DeltaCategory.Convergence)
     with AnyWordSpecLike
     with Matchers {
 
-  val username = "test1"
-  val DisplayName = "test one"
-  val Password = "password"
-  val BearerToken = "bearerToken"
+  private val username = "test1"
+  private val DisplayName = "test one"
+  private val Password = "password"
+  private val BearerToken = "bearerToken"
 
-  val TestUser = User(username, "test1@example.com", username, username, DisplayName, None)
-  val TestUser2 = User("testUser2", "test2@example.com", "test", "two", "test two", None)
+  private val TestUser = User(username, "test1@example.com", username, username, DisplayName, None)
+  private val TestUser2 = User("testUser2", "test2@example.com", "test", "two", "test two", None)
 
   def createStore(dbProvider: DatabaseProvider): UserStore = new UserStore(dbProvider)
 

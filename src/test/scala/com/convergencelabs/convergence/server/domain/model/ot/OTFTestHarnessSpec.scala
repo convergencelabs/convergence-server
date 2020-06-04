@@ -34,10 +34,10 @@ object OTFTestHarnessSpec {
 
 class OTFTestHarnessSpec extends AnyFunSpec {
 
-  val valueId = "vid"
+  private val valueId = "vid"
 
-  val registry = new TransformationFunctionRegistry()
-  implicit val format: DefaultFormats.type = DefaultFormats
+  private val registry = new TransformationFunctionRegistry()
+  private implicit val format: DefaultFormats.type = DefaultFormats
 
   for {
     file <- new File("src/test/otfspec").listFiles.filter { x => x.getName.endsWith("-spec.json") }

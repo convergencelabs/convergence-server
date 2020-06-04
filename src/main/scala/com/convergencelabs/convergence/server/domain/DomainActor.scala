@@ -41,7 +41,7 @@ import scala.util.{Failure, Success, Try}
 class DomainActor private(context: ActorContext[DomainActor.Message],
                           shardRegion: ActorRef[DomainActor.Message],
                           shard: ActorRef[ClusterSharding.ShardCommand],
-                          protocolConfig: ProtocolConfiguration,
+                          protocolConfig: ProtocolConfiguration, // FIXME is this needed?
                           domainPersistenceManager: DomainPersistenceManager,
                           receiveTimeout: FiniteDuration,
                           domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])

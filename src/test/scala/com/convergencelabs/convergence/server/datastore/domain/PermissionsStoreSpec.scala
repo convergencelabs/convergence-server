@@ -15,7 +15,7 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -24,30 +24,29 @@ class PermissionsStoreSpec
   with AnyWordSpecLike
   with Matchers {
 
-  val channel1 = "channel1"
-  val channel2 = "channel2"
+  private val channel1 = "channel1"
+  private val channel2 = "channel2"
 
-  val user1 = DomainUserId.normal("user1")
-  val user2 = DomainUserId.normal("user2")
-  val user3 = DomainUserId.normal("user3")
+  private val user1 = DomainUserId.normal("user1")
+  private val user2 = DomainUserId.normal("user2")
+  private val user3 = DomainUserId.normal("user3")
 
-  val domainUser1 = DomainUser(user1, None, None, None, None, None)
-  val domainUser2 = DomainUser(user2, None, None, None, None, None)
-  val domainUser3 = DomainUser(user3, None, None, None, None, None)
+  private val domainUser1 = DomainUser(user1, None, None, None, None, None)
+  private val domainUser2 = DomainUser(user2, None, None, None, None, None)
+  private val domainUser3 = DomainUser(user3, None, None, None, None, None)
 
-  val group1 = "group1"
-  val group2 = "group2"
+  private val group1 = "group1"
+  private val group2 = "group2"
 
-  val userGroup1 = UserGroup(group1, group1, Set(user1, user2))
-  val userGroup2 = UserGroup(group2, group2, Set(user2, user3))
+  private val userGroup1 = UserGroup(group1, group1, Set(user1, user2))
+  private val userGroup2 = UserGroup(group2, group2, Set(user2, user3))
 
-  val nonRealId = "not_real"
+  private val permission1 = "permission1"
+  private val permission2 = "permission2"
+  private val permission3 = "permission3"
 
-  val permission1 = "permission1"
-  val permission2 = "permission2"
-  val permission3 = "permission3"
-
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
+    new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A PermissionsStore" when {
     "creating a permission" must {
@@ -131,7 +130,7 @@ class PermissionsStoreSpec
     }
     "retrieving permissions" must {
       "return correct global permissions" in withTestData { provider =>
-        val channel = provider.chatStore.getChatRid(channel1).get
+        provider.chatStore.getChatRid(channel1).get
         provider.permissionsStore.addWorldPermissions(Set(permission1, permission2), None).get
         val globalPermissions = provider.permissionsStore.getWorldPermissions(None).get
         globalPermissions shouldBe Set(WorldPermission(permission1), WorldPermission(permission2))
@@ -147,7 +146,7 @@ class PermissionsStoreSpec
       }
 
       "return correct user permissions" in withTestData { provider =>
-        val channel = provider.chatStore.getChatRid(channel1).get
+        provider.chatStore.getChatRid(channel1).get
         provider.permissionsStore.addUserPermissions(Set(permission1, permission2), user1, None).get
         provider.permissionsStore.addUserPermissions(Set(permission3), user2, None).get
         val globalPermissions = provider.permissionsStore.getAllUserPermissions(None).get
@@ -166,7 +165,7 @@ class PermissionsStoreSpec
       }
 
       "return correct group permissions" in withTestData { provider =>
-        val channel = provider.chatStore.getChatRid(channel1).get
+        provider.chatStore.getChatRid(channel1).get
         provider.permissionsStore.addGroupPermissions(Set(permission1, permission2), group1, None).get
         provider.permissionsStore.addGroupPermissions(Set(permission3), group2, None).get
         val globalPermissions = provider.permissionsStore.getAllGroupPermissions(None).get

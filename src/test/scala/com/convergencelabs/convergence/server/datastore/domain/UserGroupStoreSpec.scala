@@ -25,16 +25,16 @@ class UserGroupStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
-  val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
-  val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
-  val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"), None)
+  private val User1 = DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
+  private val User2 = DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
+  private val User3 = DomainUser(DomainUserType.Normal, "test3", Some("Test"), Some("Three"), Some("Test Two"), Some("test3@example.com"), None)
 
-  val group1 = UserGroup("id1", "group 1", Set(User1.toUserId, User2.toUserId))
-  val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.toUserId, User2.toUserId))
-  val group2 = UserGroup("id2", "group 2", Set(User2.toUserId))
-  val group3 = UserGroup("id3", "group 3", Set())
-  
-  val noUserId = DomainUserId.normal("no-user")
+  private val group1 = UserGroup("id1", "group 1", Set(User1.toUserId, User2.toUserId))
+  private val duplicateGroup = UserGroup(group1.id, "duplicate id", Set(User1.toUserId, User2.toUserId))
+  private val group2 = UserGroup("id2", "group 2", Set(User2.toUserId))
+  private val group3 = UserGroup("id3", "group 3", Set())
+
+  private val noUserId = DomainUserId.normal("no-user")
 
   def createStore(dbProvider: DatabaseProvider): (UserGroupStore, DomainUserStore) = (new UserGroupStore(dbProvider), new DomainUserStore(dbProvider))
 
@@ -113,7 +113,7 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        val expected = group1.copy(members = (group1.members + User3.toUserId) )
+        val expected = group1.copy(members = group1.members + User3.toUserId )
         store.addUserToGroup(group1.id, User3.toUserId).get
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe expected
@@ -145,7 +145,7 @@ class UserGroupStoreSpec
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         
-        val expected = group1.copy(members = (group1.members - User2.toUserId) )
+        val expected = group1.copy(members = group1.members - User2.toUserId )
         store.removeUserFromGroup(group1.id, User2.toUserId)
         val updatedRead = store.getUserGroup(group1.id).get.value
         updatedRead shouldBe expected
@@ -180,7 +180,7 @@ class UserGroupStoreSpec
         store.getUserGroupsById(List(group1.id, group2.id)).get shouldBe List(group1, group2)
       }
       
-      "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>
+      "fail with EntityNotFound if a non-existent group id is in the list" in withUsers { store =>
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
         store.getUserGroupsById(List(group1.id, "no group", group2.id)).failure.exception shouldBe a[EntityNotFoundException]
@@ -209,9 +209,9 @@ class UserGroupStoreSpec
         
         val map = store.getUserGroupIdsForUsers(List(User1.toUserId, User2.toUserId, User3.toUserId)).get
         map.size shouldBe 3
-        map.get(User1.toUserId).get shouldBe Set(group1.id)
-        map.get(User2.toUserId).get shouldBe Set(group1.id, group2.id)
-        map.get(User3.toUserId).get shouldBe Set()
+        map(User1.toUserId) shouldBe Set(group1.id)
+        map(User2.toUserId) shouldBe Set(group1.id, group2.id)
+        map(User3.toUserId) shouldBe Set()
       }
       
       "fail with EntityNotFound if a non-existant group id is in the list" in withUsers { store =>

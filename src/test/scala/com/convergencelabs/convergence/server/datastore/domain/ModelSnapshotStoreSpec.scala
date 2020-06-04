@@ -12,23 +12,17 @@
 package com.convergencelabs.convergence.server.datastore.domain
 
 import java.time.Instant
-
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.wordspec.AnyWordSpecLike
+import java.util.Date
 
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.Model
-import com.convergencelabs.convergence.server.domain.model.ModelMetaData
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshot
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshotMetaData
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-
-import java.util.Date
+import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.model.data.{DoubleValue, ObjectValue, StringValue}
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelSnapshot, ModelSnapshotMetaData}
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number
 class ModelSnapshotStoreSpec
@@ -37,49 +31,45 @@ class ModelSnapshotStoreSpec
     with Matchers {
 
   override def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
-    new DomainPersistenceProviderImpl(dbProvider)
+    new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
-  val modelPermissions = ModelPermissions(true, true, true, true)
-  
-  val CollectionId = "people"
+  private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
-  val person1Id = "person1"
-  val person1ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val person1ModelMetaData = ModelMetaData(person1Id, CollectionId, 10, Instant.now(), Instant.now(), true, modelPermissions, 1)
-  val person1Model = Model(person1ModelMetaData, person1ModelData)
+  private val CollectionId = "people"
 
-  val p1Snapshot1Version = 1L
-  val p1Snapshot1Date = Instant.parse("2016-01-01T00:00:00Z")
-  val p1Snapshot1MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot1Version, p1Snapshot1Date)
-  val p1Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val p1Snapshot1 = ModelSnapshot(p1Snapshot1MetaData, p1Snapshot1Data)
+  private val person1Id = "person1"
+  private val person1ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
+  private val person1ModelMetaData = ModelMetaData(person1Id, CollectionId, 10, Instant.now(), Instant.now(), overridePermissions = true, modelPermissions, 1)
+  private val person1Model = Model(person1ModelMetaData, person1ModelData)
 
-  val inbetweenVersion = 5L
+  private val p1Snapshot1Version = 1L
+  private val p1Snapshot1Date = Instant.parse("2016-01-01T00:00:00Z")
+  private val p1Snapshot1MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot1Version, p1Snapshot1Date)
+  private val p1Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
+  private val p1Snapshot1 = ModelSnapshot(p1Snapshot1MetaData, p1Snapshot1Data)
 
-  val p1Snapshot10Version = 10L
-  val p1Snapshot10Date = Instant.parse("2016-01-10T00:00:00Z")
-  val p1Snapshot10MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot10Version, p1Snapshot10Date)
-  val p1Snapshot10Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 10)))
-  val p1Snapshot10 = ModelSnapshot(p1Snapshot10MetaData, p1Snapshot10Data)
+  private val p1Snapshot10Version = 10L
+  private val p1Snapshot10Date = Instant.parse("2016-01-10T00:00:00Z")
+  private val p1Snapshot10MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot10Version, p1Snapshot10Date)
+  private val p1Snapshot10Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 10)))
+  private val p1Snapshot10 = ModelSnapshot(p1Snapshot10MetaData, p1Snapshot10Data)
 
-  val p1Snapshot20Version = 20L
-  val p1Snapshot20Date = Instant.parse("2016-01-20T00:00:00Z")
-  val p1Snapshot20MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot20Version, p1Snapshot20Date)
-  val p1Snapshot20Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 20)))
-  val p1Snapshot20 = ModelSnapshot(p1Snapshot20MetaData, p1Snapshot20Data)
-  
-  val person2Id = "person2"
-  val person2ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val person2ModelMetaData = ModelMetaData(person2Id, CollectionId, 10, Instant.now(), Instant.now(), true, modelPermissions, 1)
-  val person2Model = Model(person2ModelMetaData, person2ModelData)
-  
-  val p2Snapshot1Version = 20L
-  val p2Snapshot1Date = Instant.parse("2016-01-20T00:00:00Z")
-  val p2Snapshot1MetaData = ModelSnapshotMetaData(person2Id, 1L, Instant.now())
-  val p2Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  val p2Snapshot1 = ModelSnapshot(p2Snapshot1MetaData, p2Snapshot1Data)
-  
-  val noPersonId = "noPerson"
+  private val p1Snapshot20Version = 20L
+  private val p1Snapshot20Date = Instant.parse("2016-01-20T00:00:00Z")
+  private val p1Snapshot20MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot20Version, p1Snapshot20Date)
+  private val p1Snapshot20Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 20)))
+  private val p1Snapshot20 = ModelSnapshot(p1Snapshot20MetaData, p1Snapshot20Data)
+
+  private val person2Id = "person2"
+  private val person2ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
+  private val person2ModelMetaData = ModelMetaData(person2Id, CollectionId, 10, Instant.now(), Instant.now(), overridePermissions = true, modelPermissions, 1)
+  private val person2Model = Model(person2ModelMetaData, person2ModelData)
+
+  private val p2Snapshot1MetaData = ModelSnapshotMetaData(person2Id, 1L, Instant.now())
+  private val p2Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
+  private val p2Snapshot1 = ModelSnapshot(p2Snapshot1MetaData, p2Snapshot1Data)
+
+  private val noPersonId = "noPerson"
 
   "A ModelSnapshotStore" when {
     "creating a snapshot" must {
@@ -125,7 +115,7 @@ class ModelSnapshotStoreSpec
         createSnapshots(provider)
         val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get
         metaData.length shouldBe 3
-        metaData(0).version shouldBe p1Snapshot1Version
+        metaData.head.version shouldBe p1Snapshot1Version
         metaData(1).version shouldBe p1Snapshot10Version
         metaData(2).version shouldBe p1Snapshot20Version
       }
@@ -134,7 +124,7 @@ class ModelSnapshotStoreSpec
         createSnapshots(provider)
         val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), None).get
         metaData.length shouldBe 2
-        metaData(0).version shouldBe p1Snapshot1Version
+        metaData.head.version shouldBe p1Snapshot1Version
         metaData(1).version shouldBe p1Snapshot10Version
       }
 
@@ -142,7 +132,7 @@ class ModelSnapshotStoreSpec
         createSnapshots(provider)
         val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), Some(1)).get
         metaData.length shouldBe 2
-        metaData(0).version shouldBe p1Snapshot10Version
+        metaData.head.version shouldBe p1Snapshot10Version
         metaData(1).version shouldBe p1Snapshot20Version
       }
 
@@ -150,7 +140,7 @@ class ModelSnapshotStoreSpec
         createSnapshots(provider)
         val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, Some(1)).get
         metaData.length shouldBe 2
-        metaData(0).version shouldBe p1Snapshot10Version
+        metaData.head.version shouldBe p1Snapshot10Version
         metaData(1).version shouldBe p1Snapshot20Version
       }
 
@@ -166,7 +156,7 @@ class ModelSnapshotStoreSpec
         createSnapshots(provider)
         val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(person1Id, None, None, None, None).get
         metaDataList.length shouldBe 3
-        metaDataList(0).version shouldBe p1Snapshot1Version
+        metaDataList.head.version shouldBe p1Snapshot1Version
         metaDataList(1).version shouldBe p1Snapshot10Version
         metaDataList(2).version shouldBe p1Snapshot20Version
       }
@@ -176,7 +166,7 @@ class ModelSnapshotStoreSpec
         val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(
           person1Id, Some(p1Snapshot1Date.toEpochMilli), Some(p1Snapshot20Date.toEpochMilli), None, None).get
         metaDataList.length shouldBe 3
-        metaDataList(0).version shouldBe p1Snapshot1Version
+        metaDataList.head.version shouldBe p1Snapshot1Version
         metaDataList(1).version shouldBe p1Snapshot10Version
         metaDataList(2).version shouldBe p1Snapshot20Version
       }
@@ -227,7 +217,7 @@ class ModelSnapshotStoreSpec
         val person1MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get
         person1MetaData.length shouldBe 2
 
-        person1MetaData(0).version shouldBe p1Snapshot10Version
+        person1MetaData.head.version shouldBe p1Snapshot10Version
         person1MetaData(1).version shouldBe p1Snapshot20Version
 
         // Ensure no others were deleted from the other model

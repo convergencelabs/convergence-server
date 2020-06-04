@@ -11,9 +11,8 @@
 
 package com.convergencelabs.convergence.server.util
 
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 class BiMapSpec

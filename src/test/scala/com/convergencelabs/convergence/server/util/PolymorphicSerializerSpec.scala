@@ -41,7 +41,7 @@ class PolymorphicSerializerSpec extends AnyWordSpecLike with Matchers {
     "Serializing" must {
       "Respect the type map" in {
         val ser = new PolymorphicSerializer[Person]("tpe", Map("c" -> classOf[Customer], "e" -> classOf[Employee]))
-        implicit val formats = DefaultFormats + ser
+        implicit val formats: Formats = DefaultFormats + ser
         val jValue = Extraction.decompose(Employee("test", "id1"))
         jValue shouldBe JObject(("tpe" -> "e"), ("name" -> "test"), ("employeeId" -> "id1"))
       }

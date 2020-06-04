@@ -11,26 +11,14 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import java.time.Duration
-
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
-import org.scalatest.wordspec.AnyWordSpecLike
-
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.datastore.domain.PersistenceStoreSpec
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.Domain
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.DomainStatus
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.domain.DomainDatabase
-import com.convergencelabs.convergence.server.domain.Namespace
-import com.sun.jna.platform.unix.X11.Display
-import com.convergencelabs.convergence.server.domain.NamespaceUpdates
+import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceUpdates}
+import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 object NamespaceStoreSpec {
   case class SpecStores(namespace: NamespaceStore)
@@ -45,8 +33,8 @@ class NamespaceStoreSpec
     NamespaceStoreSpec.SpecStores(new NamespaceStore(dbProvider))
   }
 
-  val Namespace1 = Namespace("namespace1", "Namespace 1", false)
-  val Namespace2 = Namespace("namespace2", "Namespace 2", false)
+  private val Namespace1 = Namespace("namespace1", "Namespace 1", userNamespace = false)
+  private val Namespace2 = Namespace("namespace2", "Namespace 2", userNamespace = false)
 
   "A NamespaceStore" when {
 
@@ -88,12 +76,12 @@ class NamespaceStoreSpec
 
       "return a DuplicateValueExcpetion if a namesspace exists with the same id" in withPersistenceStore { stores =>
         stores.namespace.createNamespace(Namespace1).get
-        stores.namespace.createNamespace(Namespace(Namespace1.id, "other display name", false)).failure.exception shouldBe a[DuplicateValueException]
+        stores.namespace.createNamespace(Namespace(Namespace1.id, "other display name", userNamespace = false)).failure.exception shouldBe a[DuplicateValueException]
       }
 
       "return a DuplicateValueExcpetion if a namesspace exists with the same display name" in withPersistenceStore { stores =>
         stores.namespace.createNamespace(Namespace1).get
-        stores.namespace.createNamespace(Namespace("Other Id", Namespace1.displayName, false)).failure.exception shouldBe a[DuplicateValueException]
+        stores.namespace.createNamespace(Namespace("Other Id", Namespace1.displayName, userNamespace = false)).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 
@@ -112,7 +100,7 @@ class NamespaceStoreSpec
     }
 
     "updating a namespace" must {
-      "sucessfully update an existing namespace" in withPersistenceStore { stores =>
+      "successfully update an existing namespace" in withPersistenceStore { stores =>
         stores.namespace.createNamespace(Namespace1).get
         stores.namespace.createNamespace(Namespace2).get
 

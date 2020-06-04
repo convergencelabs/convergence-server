@@ -18,7 +18,7 @@ import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelOperation, NewModelOperation}
-import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserType}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -26,20 +26,20 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
     with AnyWordSpecLike
     with Matchers {
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(dbProvider)
+  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
-  val testUsername = "test"
-  val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None, None)
+  private val testUsername = "test"
+  private val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None, None)
 
-  val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
-  
-  val peopleCollection = "people"
-  val modelId1 = "person1"
-  val model = Model(
+  private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
+
+  private val peopleCollection = "people"
+  private val modelId1 = "person1"
+  private val model = Model(
     ModelMetaData(modelId1,
       peopleCollection,
       version = 10,
@@ -50,18 +50,17 @@ class ModelOperationStoreSpec
       valuePrefix = 1),
     ObjectValue("vid", Map()))
 
-  val sessionId = "test:1"
-  val session = DomainSession(sessionId, user.toUserId, truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  private val sessionId = "test:1"
+  private val session = DomainSession(sessionId, user.toUserId, truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
-  val notFoundId = "Exist"
+  private val notFoundId = "Exist"
 
-  val op1 = AppliedStringInsertOperation("0:0", noOp = false, 1, "1")
-  val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
-  val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), user.toUserId, sessionId, op1)
+  private val op1 = AppliedStringInsertOperation("0:0", noOp = false, 1, "1")
+  private val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
+  private val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), user.toUserId, sessionId, op1)
 
-  val op15 = AppliedStringInsertOperation("0:0", noOp = false, 2, "2")
-  val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
-  val modelOp15Expected = ModelOperation(modelId1, 15, Instant.ofEpochMilli(10), user.toUserId, sessionId, op15)
+  private val op15 = AppliedStringInsertOperation("0:0", noOp = false, 2, "2")
+  private val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
 
   "A ModelOperationStore" when {
     "creating a ModelOperation" must {
@@ -122,7 +121,7 @@ class ModelOperationStoreSpec
           list = list :+ ModelOperation(modelId1, version, timestamp, user.toUserId, sessionId, op)
           provider.modelOperationStore.createModelOperation(modelOp).get
         }
-        
+
         list = list.slice(5, 10)
 
         provider.modelOperationStore.getOperationsAfterVersion(modelId1, 6, Some(5)).success.get shouldBe list

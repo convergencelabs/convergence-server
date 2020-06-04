@@ -48,7 +48,7 @@ class DomainImporterSpec extends AnyWordSpecLike with Matchers {
         val upgrader = new TestingSchemaManager(db, DeltaCategory.Domain, true)
         upgrader.install()
 
-        val provider = new DomainPersistenceProviderImpl(dbPool)
+        val provider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbPool)
         provider.validateConnection().success
 
         val serializer = new DomainScriptSerializer()
@@ -75,10 +75,10 @@ class DomainImporterSpec extends AnyWordSpecLike with Matchers {
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
           None, None).get
-        users.size shouldBe 2
+        users.data.size shouldBe 2
 
-        users.head shouldBe DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
-        users(1) shouldBe DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
+        users.data.head shouldBe DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
+        users.data(1) shouldBe DomainUser(DomainUserType.Normal, "test2", Some("Test"), Some("Two"), Some("Test Two"), Some("test2@example.com"), None)
 
         provider.userStore.validateCredentials("test1", "somePassword").get shouldBe true
         provider.userStore.getDomainUserPasswordHash("test2").get.value shouldBe "someHash"

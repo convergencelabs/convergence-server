@@ -18,19 +18,18 @@ class PathComparatorSpec
     extends AnyWordSpec
     with Matchers {
 
-  val parent = List("level1")
+  private val parent = List("level1")
 
-  val child = parent :+ "level2"
-  val grandChild = child :+ "level3"
-  val greatGrandChild = grandChild :+ "level4"
+  private val child = parent :+ "level2"
+  private val grandChild = child :+ "level3"
 
-  val childSibling = parent :+ "level2a"
-  val grandChildSibling = childSibling :+ "level3a"
-  val deeperCousin = grandChildSibling :+ "level4a"
+  private val childSibling = parent :+ "level2a"
+  private val grandChildSibling = childSibling :+ "level3a"
+  private val deeperCousin = grandChildSibling :+ "level4a"
 
   "A PathComparator" when {
 
-    "evalauting a decendant path relationship" must {
+    "evaluating a descendant path relationship" must {
       "return true for a grand child being a descendant of its grand parent" in {
         val foo = PathComparator.isDescendantOf(grandChild, parent)
         foo shouldBe true

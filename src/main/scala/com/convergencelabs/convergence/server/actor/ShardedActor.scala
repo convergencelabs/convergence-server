@@ -25,8 +25,6 @@ case object StartUpRequired extends ShardedActorStatUpPlan
 
 case object StartUpNotRequired extends ShardedActorStatUpPlan
 
-case object ShardedActorStop
-
 object ShardedActor {
   val Uninitialized = "<uninitialized>"
 }
