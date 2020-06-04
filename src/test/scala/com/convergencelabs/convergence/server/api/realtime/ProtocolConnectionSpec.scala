@@ -232,7 +232,7 @@ class ProtocolConnectionSpec
           val sentError = ConvergenceMessage.parseFrom(sentBytes)
 
           sentError.body.error shouldBe defined
-          sentError.getError.code shouldBe code
+          sentError.getError.code shouldBe code.toString
           sentError.getError.message shouldBe errorMessage
         }
       }

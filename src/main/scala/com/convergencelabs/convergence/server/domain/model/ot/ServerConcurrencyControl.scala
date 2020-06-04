@@ -29,7 +29,7 @@ import scala.collection.mutable
  */
 private[model] class ServerConcurrencyControl(private[this] val operationTransformer: OperationTransformer,
                                               private[this] val referenceTransformer: ReferenceTransformer,
-                                              private[this] var initialContextVersion: Long) extends Logging {
+                                              initialContextVersion: Long) extends Logging {
 
   Validate.isTrue(initialContextVersion >= 0, "initialContextVersion must be >= 0: ", initialContextVersion)
 

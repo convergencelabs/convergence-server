@@ -56,6 +56,8 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
   private[this] var _modelId: Option[String] = None
   private[this] var _modelManager: Option[RealtimeModelManager] = None
 
+  private[this] var _open: Boolean = false
+
   //
   // Receive methods
   //
@@ -66,7 +68,13 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
       Behaviors.same
   }
 
-  protected override def receiveInitialized(msg: Message): Behavior[Message] = this.receiveClosed(msg)
+  protected override def receiveInitialized(msg: Message): Behavior[Message] = {
+    if (_open) {
+      receiveOpened(msg)
+    } else {
+      receiveClosed(msg)
+    }
+  }
 
   private[this] def receiveClosed(msg: Message): Behavior[Message] = {
     msg match {
@@ -284,12 +292,13 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
       })
     this._modelManager = Some(mm)
     this.context.cancelReceiveTimeout()
+    this._open = true
   }
 
   private[this] def becomeClosed(): Unit = {
     debug(s"$identityString: Becoming closed.")
     this._modelManager = None
-
+    this._open = false
     this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(this.domainFqn, this.modelId))
   }
 

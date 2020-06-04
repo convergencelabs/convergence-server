@@ -47,7 +47,7 @@ class DomainProvisionerActorSpec
           client.ref)
         domainProvisionerActor ! message
 
-        val response: ProvisionDomainResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        val response: ProvisionDomainResponse = client.expectMessageType[ProvisionDomainResponse](FiniteDuration(1, TimeUnit.SECONDS))
         assert(response.response.isRight)
       }
       
@@ -60,7 +60,7 @@ class DomainProvisionerActorSpec
         val message = ProvisionDomain(ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false), client.ref)
         domainProvisionerActor ! message
 
-        val response: ProvisionDomainResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        val response: ProvisionDomainResponse = client.expectMessageType[ProvisionDomainResponse](FiniteDuration(1, TimeUnit.SECONDS))
 
         assert(response.response.isLeft)
       }

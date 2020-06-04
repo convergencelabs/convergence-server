@@ -13,13 +13,13 @@ package com.convergencelabs.convergence.server.domain.model
 
 import java.time.Instant
 
+import akka.actor.Cancellable
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem}
-import akka.actor.{Cancellable, Status}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.UnknownErrorResponse
+import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.ForceModelCloseReasonCode
-import com.convergencelabs.convergence.server.api.realtime.{ExpectedError, ModelClientActor}
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, ModelDataGenerator}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{ModelResyncResponse, OpenRealtimeModelResponse}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
@@ -27,9 +27,7 @@ import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTra
 import com.convergencelabs.convergence.server.domain.model.ot.{OperationTransformer, ServerConcurrencyControl, TransformationFunctionRegistry, UnprocessedOperationEvent}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.util.EventLoop
-import com.convergencelabs.convergence.server.util.concurrent.UnexpectedErrorException
 import grizzled.slf4j.Logging
-import org.json4s.JsonAST.JString
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._

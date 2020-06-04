@@ -43,12 +43,20 @@ abstract class ShardedActor[T](context: ActorContext[T],
 
   import ShardedActor._
 
+  private[this] var initialized = false
+
   /**
    * A string that represents the identity of this actor. Used in logging.
    */
   protected var identityString: String = this.calculateIdentityString(Uninitialized)
 
-  override def onMessage(msg: T): Behavior[T] = receiveUninitialized
+  override def onMessage(msg: T): Behavior[T] = {
+    if (!initialized) {
+      receiveInitialMessage(msg)
+    } else {
+      receiveInitialized(msg)
+    }
+  }
 
   /**
    * Explicitly requests that this Actor passivate itself within the cluster.
@@ -57,15 +65,6 @@ abstract class ShardedActor[T](context: ActorContext[T],
     debug(s"$identityString: Passivating")
     shard ! Passivate(context.self)
     Behaviors.receiveMessage(receivePassivating)
-  }
-
-  /**
-   * Receives the first message to this Actor when it is first
-   * instantiated, it performs initialization logic and then
-   * handles thee message.
-   */
-  private[this] val receiveUninitialized: Behavior[T] = Behaviors.receiveMessage { msg =>
-    receiveInitialMessage(msg)
   }
 
   private[this] def receivePassivating(msg: T): Behavior[T] = {
@@ -81,27 +80,27 @@ abstract class ShardedActor[T](context: ActorContext[T],
    * actually exist, it may be determined that the actor should
    * immediately passivate.
    *
-   * @param message The first message sent to this actor.
+   * @param msg The first message sent to this actor.
    */
-  private[this] def receiveInitialMessage(message: T): Behavior[T] = {
-    this.setIdentityData(message)
+  private[this] def receiveInitialMessage(msg: T): Behavior[T] = {
+    initialized = true
+    this.setIdentityData(msg)
       .flatMap { identity =>
         this.identityString = calculateIdentityString(identity)
         debug(s"$identityString: Initializing.")
-        this.initialize(message)
+        this.initialize(msg)
       }
       .map {
         case StartUpRequired =>
           debug(s"$identityString: Initialized, starting up.")
-          this.receiveInitialized(message)
-          Behaviors.receiveMessage(receiveInitialized)
+          this.receiveInitialized(msg)
         case StartUpNotRequired =>
           debug(s"$identityString: Initialized, but no start up required, passivating.")
           this.passivate()
       }
       .recover {
         case cause: Throwable =>
-          error(s"Error initializing ShardedActor on first message: $message", cause)
+          error(s"Error initializing ShardedActor on first message: $msg", cause)
           this.passivate()
       }.get
   }

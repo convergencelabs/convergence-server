@@ -58,8 +58,6 @@ class HeartbeatHelperSpec
       }
 
       "emit a pong timeout event once the ping interval plus pong timeout has been reached" in {
-        val time = new VirtualTime
-
         val p = Promise[Unit]
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
@@ -69,8 +67,8 @@ class HeartbeatHelperSpec
 
         hbh.start()
 
-        time.advance(pingInterval)
-        time.advance(pongTimeout)
+        manualTime.timePasses(pingInterval)
+        manualTime.timePasses(pongTimeout)
 
         Await.ready(p.future, resolutionTimeout)
 
@@ -78,8 +76,6 @@ class HeartbeatHelperSpec
       }
 
       "not emit a pong timeout event if a message is received in time" in {
-        val time = new VirtualTime
-
         val p = Promise[Unit]
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
@@ -89,11 +85,11 @@ class HeartbeatHelperSpec
 
         hbh.start()
 
-        time.advance(pingInterval)
+        manualTime.timePasses(pingInterval)
 
         hbh.messageReceived()
 
-        time.advance(pongTimeout)
+        manualTime.timePasses(pongTimeout)
 
         // Not sure how else to do this.
         Thread.sleep(250)

@@ -118,14 +118,14 @@ class DomainUserStoreSpec
         val orderedDescending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None).success.get
         val orderedAscending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), None, None).success.get
 
-        orderedDescending shouldBe allUsers.data.sortWith(_.username > _.username)
-        orderedAscending shouldBe orderedDescending.data.reverse
+        orderedDescending.data shouldBe allUsers.data.sortWith(_.username > _.username)
+        orderedAscending.data shouldBe orderedDescending.data.reverse
       }
 
       "limit results to the correct number" in withPersistenceStore { store =>
         initUsers(store)
         val allUser = store.getAllDomainUsers(None, None, None, None).get
-        store.getAllDomainUsers(None, None, Some(2), None).success.get shouldBe allUser.data.slice(0, 2)
+        store.getAllDomainUsers(None, None, Some(2), None).success.get.data shouldBe allUser.data.slice(0, 2)
       }
     }
 

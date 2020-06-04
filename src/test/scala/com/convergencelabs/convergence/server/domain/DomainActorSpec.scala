@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.domain
 import java.util.concurrent.TimeUnit
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.actor.typed.Behavior
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
@@ -43,7 +43,8 @@ class DomainActorSpec
         val client = testKit.createTestProbe[ClientActor.Disconnect]()
         val replyTo = testKit.createTestProbe[DomainActor.HandshakeResponse]()
         domainActor ! DomainActor.HandshakeRequest(domainId, client.ref, reconnect = false, None, replyTo.ref)
-        val response: DomainActor.HandshakeResponse = client.expectMessageType(FiniteDuration(1, TimeUnit.SECONDS))
+        val response: DomainActor.HandshakeResponse =
+          replyTo.expectMessageType[DomainActor.HandshakeResponse](FiniteDuration(1, TimeUnit.SECONDS))
         assert(response.handshake.isRight)
       }
     }
@@ -77,6 +78,6 @@ class DomainActorSpec
       FiniteDuration(10, TimeUnit.SECONDS),
       domainLifecycleTopic.ref)
 
-    val domainActor = testKit.spawn(behavior)
+    val domainActor: ActorRef[Message] = testKit.spawn(behavior)
   }
 }
