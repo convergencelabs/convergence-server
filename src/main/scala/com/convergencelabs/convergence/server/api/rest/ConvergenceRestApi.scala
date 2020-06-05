@@ -26,6 +26,7 @@ import akka.stream.Materializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import com.convergencelabs.convergence.server.api.realtime.ErrorCodes
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
@@ -47,12 +48,19 @@ import scala.util.{Failure, Success}
  * The [[ConvergenceRestApi]] class is the main entry point to the Convergence
  * Server REST Subsystem.
  *
- * @param interface The network interface to bind to.
- * @param port      The network port to bind to.
+ * @param interface          The network interface to bind to.
+ * @param port               The network port to bind to.
+ * @param context            The ActorContext to use to spawn actors.
+ * @param domainRestRegion   The shard region that hosts the
+ *                           DomainRestActors.
+ * @param modelClusterRegion The shard region that hosts the
+ *                           RealtimeModelActors
+ * @param chatClusterRegion  The shard region that hosts the
+ *                           ChatActors.
  */
-class ConvergenceRestApi(private[this] val interface: String,
-                         private[this] val port: Int,
-                         private[this] val context: ActorContext[_],
+class ConvergenceRestApi(interface: String,
+                         port: Int,
+                         context: ActorContext[_],
                          domainRestRegion: ActorRef[DomainRestActor.Message],
                          modelClusterRegion: ActorRef[RealtimeModelActor.Message],
                          chatClusterRegion: ActorRef[ChatActor.Message])
@@ -66,15 +74,6 @@ class ConvergenceRestApi(private[this] val interface: String,
   private[this] var binding: Option[Http.ServerBinding] = None
 
   private[this] val exceptionHandler: ExceptionHandler = ExceptionHandler {
-    case e: DuplicateValueException =>
-      complete(duplicateResponse(e.field))
-
-    case e: InvalidValueException =>
-      complete(invalidValueResponse(e.message, Some(e.field)))
-
-    case _: EntityNotFoundException =>
-      complete(notFoundResponse())
-
     case e: Exception =>
       extractUri { uri =>
         logger.error(s"Error handling REST call: $uri", e)
@@ -114,10 +113,10 @@ class ConvergenceRestApi(private[this] val interface: String,
 
     // The Rest Services
     val infoService = new InfoService(ec, defaultRequestTimeout)
-    val authService = new AuthService(authenticationActor, system, ec, defaultRequestTimeout)
+    val authService = new AuthService(authenticationActor, system.scheduler, ec, defaultRequestTimeout)
     val currentUserService = new CurrentUserService(convergenceUserActor, favoriteDomainsActor, ec, system, defaultRequestTimeout)
     val namespaceService = new NamespaceService(namespaceActor, system, ec, defaultRequestTimeout)
-    val roleService = new UserRoleService(roleActor, system, ec , defaultRequestTimeout)
+    val roleService = new UserRoleService(roleActor, system, ec, defaultRequestTimeout)
     val userApiKeyService = new CurrentUserApiKeyService(userApiKeyActor, system, ec, defaultRequestTimeout)
     val configService = new ConfigService(configActor, system, ec, defaultRequestTimeout)
     val statusService = new ServerStatusService(statusActor, system, ec, defaultRequestTimeout)
@@ -125,8 +124,8 @@ class ConvergenceRestApi(private[this] val interface: String,
     val convergenceUserService = new UserService(convergenceUserActor, system, ec, defaultRequestTimeout)
 
     // TODO re-enable these when permissions are handled properly.
-//    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
-//    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
+    //    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
+    //    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
     val domainService = new DomainService(
       system,
@@ -139,7 +138,8 @@ class ConvergenceRestApi(private[this] val interface: String,
       defaultRequestTimeout)
 
     // The authenticator that will be used to authenticate HTTP requests.
-    val authenticator = new Authenticator(authenticationActor, system, defaultRequestTimeout)
+    val authenticator = new Authenticator(
+      authenticationActor, system.scheduler, system.executionContext, defaultRequestTimeout)
 
     val corsSettings: CorsSettings = CorsSettings.defaultSettings.withAllowedMethods(
       List(
@@ -155,7 +155,7 @@ class ConvergenceRestApi(private[this] val interface: String,
       .handle {
         case MalformedRequestContentRejection(message, _) =>
           cors(corsSettings) {
-            complete(ErrorResponse("malformed_request_content", Some(message)))
+            complete(ErrorResponse(ErrorCodes.MalformedRequestContent.toString, Some(message)))
           }
         case AuthorizationFailedRejection =>
           cors(corsSettings) {
@@ -178,8 +178,8 @@ class ConvergenceRestApi(private[this] val interface: String,
     val route = cors(corsSettings) {
       handleExceptions(exceptionHandler) {
         infoService.route ~
-        // Authentication services can be called without being authenticated
-        authService.route ~
+          // Authentication services can be called without being authenticated
+          authService.route ~
           // Everything else must be authenticated as a convergence user.
           extractRequest { request =>
             authenticator.requireAuthenticatedUser(request) { authProfile =>
@@ -193,8 +193,8 @@ class ConvergenceRestApi(private[this] val interface: String,
                 configService.route(authProfile),
                 userApiKeyService.route(authProfile),
                 keyGenService.route())
-//                convergenceImportService.route(authProfile),
-//                databaseManagerService.route(authProfile))
+              //                convergenceImportService.route(authProfile),
+              //                databaseManagerService.route(authProfile))
             }
           }
       }

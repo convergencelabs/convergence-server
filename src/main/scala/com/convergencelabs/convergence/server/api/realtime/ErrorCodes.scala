@@ -11,16 +11,36 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+/**
+ * The ErrorCodes enumeration defines the set of error strings that
+ * can be sent back to the client.
+ */
 object ErrorCodes extends Enumeration {
   type ErrorCode  = Value
 
+  //
+  // Common Error Codes
+  //
+  val Unknown: ErrorCode = Value("unknown")
+
   val Unauthorized: ErrorCode = Value("unauthorized")
 
+  val MalformedRequestContent: ErrorCode = Value("malformed_request_content")
+
+  //
+  // Identity Related Errors
+  //
   val GroupNotFound: ErrorCode = Value("group_not_found")
   val UserNotFound: ErrorCode = Value("user_not_found")
 
+  //
+  // Activity Errors
+  //
   val ActivityAlreadyJoined: ErrorCode = Value("activity_already_joined")
 
+  //
+  // Model Errors
+  //
   val ModelUnknownResourceId: ErrorCode = Value("unknown_resource_id")
 
   val ModelNotFound: ErrorCode = Value("model_not_found")
@@ -41,7 +61,9 @@ object ErrorCodes extends Enumeration {
 
   val ModelDeleted: ErrorCode = Value("model_deleted")
 
-
+  //
+  // Chat Related Errors
+  //
   val ChatNotFound: ErrorCode = Value("chat_not_found")
 
   val ChatNotJoined: ErrorCode = Value("chat_not_joined")
@@ -51,9 +73,4 @@ object ErrorCodes extends Enumeration {
   val ChatAlreadyExists: ErrorCode = Value("chat_already_exists")
 
   val InvalidChatMessage: ErrorCode = Value("invalid_chat_message")
-
-
-
-
-  val Unknown: ErrorCode = Value("unknown")
 }

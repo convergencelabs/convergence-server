@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
@@ -20,17 +20,30 @@ import com.convergencelabs.convergence.server.datastore.convergence.Authenticati
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class AuthService(private[this] val authActor: ActorRef[AuthenticationActor.Message],
-                  private[this] val system: ActorSystem[_],
-                  private[this] val executionContext: ExecutionContext,
-                  private[this] val defaultTimeout: Timeout)
+/**
+ * The [[AuthService]] Handles authentication related service requests from the
+ * Convergence HTTP API. This includes username / password authentication as
+ * well as the authentication via tokens.
+ *
+ * @param authActor        The back end [[AuthenticationActor]] that will process the
+ *                         authentication requests.
+ * @param scheduler        The Scheduler to user for for async communication with the
+ *                         backend actors.
+ * @param executionContext The execution context to use for Future processing.
+ * @param defaultTimeout   The default timeout the service will use for async requests
+ *                         to the backend.
+ */
+class AuthService(authActor: ActorRef[AuthenticationActor.Message],
+                  scheduler: Scheduler,
+                  executionContext: ExecutionContext,
+                  defaultTimeout: Timeout)
   extends JsonSupport {
+
+  import AuthService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
-  private[this] implicit val s: ActorSystem[_] = system
-
-  import AuthService._
+  private[this] implicit val s: Scheduler = scheduler
 
   val route: Route = pathPrefix("auth") {
     (path("login") & post) {
@@ -46,43 +59,54 @@ class AuthService(private[this] val authActor: ActorRef[AuthenticationActor.Mess
 
   private[this] def login(req: LoginRequestData): Future[RestResponse] = {
     val LoginRequestData(username, password) = req
-
-    authActor.ask[AuthenticationActor.AuthResponse](AuthenticationActor.AuthRequest(username, password, _)) map {
-      case AuthenticationActor.AuthSuccess(token, expiration) =>
-        okResponse(SessionTokenResponse(token, expiration.toMillis))
-      case _ =>
-        AuthFailureError
-    }
+    authActor.ask[AuthenticationActor.AuthResponse](AuthenticationActor.AuthRequest(username, password, _))
+      .map(_.data.fold({
+        case AuthenticationActor.AuthenticationFailed() =>
+          AuthFailureError
+        case AuthenticationActor.UnknownError() =>
+          InternalServerError
+      }, {
+        case AuthenticationActor.AuthData(token, expiration) =>
+          okResponse(SessionTokenResponse(token, expiration.toMillis))
+      }))
   }
 
   private[this] def bearerToken(req: BearerTokenRequestData): Future[RestResponse] = {
     val BearerTokenRequestData(username, password) = req
-    authActor.ask[AuthenticationActor.LoginResponse](AuthenticationActor.LoginRequest(username, password, _)).map {
-      case AuthenticationActor.LoginSuccess(Some(token)) =>
-        okResponse(BearerTokenResponse(token))
-      case _ =>
-        AuthFailureError
-    }
+    authActor.ask[AuthenticationActor.LoginResponse](AuthenticationActor.LoginRequest(username, password, _))
+      .map(_.bearerToken.fold({
+        case AuthenticationActor.LoginFailed() =>
+          AuthFailureError
+        case AuthenticationActor.UnknownError() =>
+          InternalServerError
+      }, { bearerToken =>
+        okResponse(BearerTokenResponse(bearerToken))
+      }))
   }
 
   private[this] def validate(req: ValidateRequestData): Future[RestResponse] = {
     val ValidateRequestData(token) = req
     authActor.ask[AuthenticationActor.GetSessionTokenExpirationResponse](AuthenticationActor.GetSessionTokenExpirationRequest(token, _))
-      .map {
-        case AuthenticationActor.GetSessionTokenExpirationSuccess(Some(AuthenticationActor.SessionTokenExpiration(username, expireDelta))) =>
-          okResponse(ExpirationResponse(valid = true, Some(username), Some(expireDelta.toMillis)))
-        case _ =>
+      .map(_.expiration.fold({
+        case AuthenticationActor.TokenNotFoundError() =>
           okResponse(ExpirationResponse(valid = false, None, None))
-      }
+        case AuthenticationActor.UnknownError() =>
+          InternalServerError
+      }, {
+        case AuthenticationActor.SessionTokenExpiration(username, expireDelta) =>
+          okResponse(ExpirationResponse(valid = true, Some(username), Some(expireDelta.toMillis)))
+      }))
   }
 
   private[this] def logout(req: LogoutRequestData): Future[RestResponse] = {
     val LogoutRequestData(token) = req
-
-    authActor.ask[AuthenticationActor.InvalidateSessionTokenResponse](AuthenticationActor.InvalidateSessionTokenRequest(token, _)).map {
-      case AuthenticationActor.RequestSuccess() => OkResponse
-      case _ => InternalServerError
-    }
+    authActor.ask[AuthenticationActor.InvalidateSessionTokenResponse](AuthenticationActor.InvalidateSessionTokenRequest(token, _))
+      .map(_.response.fold({
+        case AuthenticationActor.UnknownError() =>
+          InternalServerError
+      }, { _ =>
+        OkResponse
+      }))
   }
 }
 
