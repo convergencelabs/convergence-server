@@ -62,12 +62,10 @@ object ModelOperationStoreActor {
 
   case class GetOperationsResponse(operations: Either[GetOperationsError, List[ModelOperation]]) extends CborSerializable
 
-  sealed trait RequestError
-
-  case class ModelNotFoundError() extends RequestError
+  case class ModelNotFoundError() extends AnyRef
     with GetOperationsError
 
-  case class UnknownError() extends RequestError
+  case class UnknownError() extends AnyRef
     with GetOperationsError
 
 }

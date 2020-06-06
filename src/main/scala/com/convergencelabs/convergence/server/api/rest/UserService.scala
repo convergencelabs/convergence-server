@@ -80,45 +80,75 @@ private[rest] class UserService(private[this] val userManagerActor: ActorRef[Mes
   }
 
   private[this] def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int], authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
-    userManagerActor.ask[GetConvergenceUsersResponse](GetConvergenceUsersRequest(filter, limit, offset, _)).flatMap {
-      case GetConvergenceUsersSuccess(users) =>
-        val publicData = users.map(mapUser(_, authorizationProfile))
-        Future.successful(okResponse(publicData))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    userManagerActor
+      .ask[GetConvergenceUsersResponse](GetConvergenceUsersRequest(filter, limit, offset, _))
+      .map(_.users.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { users =>
+          val publicUsers = users.map(mapUser(_, authorizationProfile))
+          okResponse(publicUsers)
+        })
+      )
   }
 
   private[this] def getUser(username: String, authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
-    userManagerActor.ask[GetConvergenceUserResponse](GetConvergenceUserRequest(username, _)).flatMap {
-      case GetConvergenceUserSuccess(user) =>
-        val publicUser = user.map(mapUser(_, authorizationProfile))
-        Future.successful(okResponse(publicUser))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    userManagerActor
+      .ask[GetConvergenceUserResponse](GetConvergenceUserRequest(username, _))
+      .map(_.user.fold(
+        {
+          case UserNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { user =>
+          val publicUser = mapUser(user, authorizationProfile)
+          okResponse(publicUser)
+        })
+      )
   }
 
   private[this] def createConvergenceUser(createRequest: CreateUserRequestData): Future[RestResponse] = {
     val CreateUserRequestData(username, firstName, lastName, displayName, email, serverRole, password) = createRequest
-    userManagerActor.ask[CreateConvergenceUserResponse](CreateConvergenceUserRequest(username, email, firstName.getOrElse(""), lastName.getOrElse(""), displayName, password, serverRole, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(CreatedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    val fName = firstName.getOrElse("")
+    val lName = lastName.getOrElse("")
+    userManagerActor
+      .ask[CreateConvergenceUserResponse](CreateConvergenceUserRequest(username, email, fName, lName, displayName, password, serverRole, _))
+      .map(_.response.fold(
+        {
+          case InvalidValueError(field) =>
+            badRequest(s"An invalid value for '$field' was provided")
+          case UserAlreadyExistsError(field) =>
+            duplicateResponse(field)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          CreatedResponse
+        })
+      )
   }
 
   private[this] def deleteConvergenceUserRequest(username: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
     if (authProfile.username == username) {
       Future.successful(forbiddenResponse(Some("You can not delete your own user.")))
     } else {
-      userManagerActor.ask[DeleteConvergenceUserResponse](DeleteConvergenceUserRequest(username, _)).flatMap {
-        case RequestSuccess() =>
-          Future.successful(DeletedResponse)
-        case RequestFailure(cause) =>
-          Future.failed(cause)
-      }
+      userManagerActor
+        .ask[DeleteConvergenceUserResponse](DeleteConvergenceUserRequest(username, _))
+        .map(_.response.fold(
+          {
+            case UserNotFoundError() =>
+              NotFoundResponse
+            case UnknownError() =>
+              InternalServerError
+          },
+          { _ =>
+            DeletedResponse
+          })
+        )
     }
   }
 
@@ -127,23 +157,36 @@ private[rest] class UserService(private[this] val userManagerActor: ActorRef[Mes
       Future.successful(forbiddenResponse(Some("You can not change your own server role.")))
     } else {
       val UpdateUserData(firstName, lastName, displayName, email, serverRole) = updateData
-      userManagerActor.ask[UpdateConvergenceUserResponse](UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole, _)).flatMap {
-        case RequestSuccess() =>
-          Future.successful(OkResponse)
-        case RequestFailure(cause) =>
-          Future.failed(cause)
-      }
+      userManagerActor
+        .ask[UpdateConvergenceUserResponse](UpdateConvergenceUserRequest(username, email, firstName, lastName, displayName, serverRole, _))
+        .map(_.response.fold(
+          {
+            case UserNotFoundError() =>
+              NotFoundResponse
+            case UnknownError() =>
+              InternalServerError
+          },
+          { _ =>
+            OkResponse
+          })
+        )
     }
   }
 
   private[this] def setUserPassword(username: String, passwordData: PasswordData): Future[RestResponse] = {
     val PasswordData(password) = passwordData
-    userManagerActor.ask[SetPasswordResponse](SetPasswordRequest(username, password, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    userManagerActor.ask[SetPasswordResponse](SetPasswordRequest(username, password, _))
+      .map(_.response.fold(
+        {
+          case UserNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        })
+      )
   }
 
   private[this] def mapUser(user: ConvergenceUserInfo, authProfile: AuthorizationProfile): UserData = {

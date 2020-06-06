@@ -13,34 +13,31 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{Behavior, PostStop}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import grizzled.slf4j.Logging
 
 import scala.language.postfixOps
 
-object UserSessionTokenReaperActor extends Logging {
+object UserSessionTokenReaperActor {
 
-  trait Message
+  sealed trait Message
 
   private case object CleanUpSessions extends Message
 
-  def apply(dbProvider: DatabaseProvider): Behavior[Message] = {
-    debug(msg = "UserSessionTokenReaperActor initializing")
-
-    val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
-
-    Behaviors.receiveMessage[Message] {
-      case CleanUpSessions =>
-        debug(msg = "Cleaning expired user session tokens")
-        userSessionTokenStore.cleanExpiredTokens() recover {
-          case cause: Throwable =>
-            error(msg = "Error cleaning up expired user session tokens", cause)
-        }
-        Behaviors.same
-    }.receiveSignal {
-      case (_, PostStop) =>
-        debug(msg = "UserSessionTokenReaperActor stopping")
-        Behaviors.same
+  def apply(userSessionTokenStore: UserSessionTokenStore): Behavior[Message] = {
+    Behaviors.setup { context =>
+      context.log.debug("UserSessionTokenReaperActor initializing")
+      Behaviors.receiveMessage[Message] {
+        case CleanUpSessions =>
+          context.log.debug("Cleaning expired user session tokens")
+          userSessionTokenStore.cleanExpiredTokens() recover {
+            case cause: Throwable =>
+              context.log. error("Error cleaning up expired user session tokens", cause)
+          }
+          Behaviors.same
+      }.receiveSignal {
+        case (_, PostStop) =>
+          context.log.debug("UserSessionTokenReaperActor stopping")
+          Behaviors.same
+      }
     }
   }
 }

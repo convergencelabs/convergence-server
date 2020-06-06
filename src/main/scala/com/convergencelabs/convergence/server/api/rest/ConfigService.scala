@@ -60,30 +60,44 @@ private[rest] class ConfigService(private[this] val configActor: ActorRef[Messag
       case Nil => None
       case k => Some(k)
     }
-    configActor.ask[GetConfigsResponse](GetConfigsRequest(keyFilter, _)).map {
-      case GetConfigsSuccess(configs) =>
-        okResponse(configs)
-      case _ =>
-        InternalServerError
-    }
+    configActor
+      .ask[GetConfigsResponse](GetConfigsRequest(keyFilter, _))
+      .map(_.configs.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { configs =>
+          okResponse(configs)
+        })
+      )
   }
 
   private[this] def getAppConfigs(authProfile: AuthorizationProfile): Future[RestResponse] = {
     // FIXME request specific keys
-    configActor.ask[GetConfigsResponse](GetConfigsRequest(None, _)).map {
-      case GetConfigsSuccess(configs) =>
-        okResponse(configs)
-      case _ =>
-        InternalServerError
-    }
+    configActor
+      .ask[GetConfigsResponse](GetConfigsRequest(None, _))
+      .map(_.configs.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { configs =>
+          okResponse(configs)
+        })
+      )
   }
 
   private[this] def setConfigs(authProfile: AuthorizationProfile, configs: Map[String, Any]): Future[RestResponse] = {
-    configActor.ask[SetConfigsResponse](SetConfigsRequest(configs, _)).map {
-      case RequestSuccess() =>
-        OkResponse
-      case _ =>
-        InternalServerError
-    }
+    configActor.ask[SetConfigsResponse](SetConfigsRequest(configs, _))
+      .map(_.response.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { configs =>
+          okResponse(configs)
+        })
+      )
   }
 }

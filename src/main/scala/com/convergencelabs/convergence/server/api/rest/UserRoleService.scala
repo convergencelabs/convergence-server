@@ -42,14 +42,14 @@ private[rest] class UserRoleService(private[this] val roleActor: ActorRef[Messag
           authorize(canManageUsers(authProfile)) {
             pathEnd {
               get {
-                complete(getUserRolesForTarget(authProfile, ServerRoleTarget()))
+                complete(getUserRolesForTarget(ServerRoleTarget()))
               } ~ post {
                 entity(as[Map[String, String]]) { userRoles =>
-                  complete(updateUserRolesForTarget(authProfile, ServerRoleTarget(), userRoles))
+                  complete(updateUserRolesForTarget(ServerRoleTarget(), userRoles))
                 }
               }
             } ~ (delete & path(Segment)) { username =>
-              complete(deleteUserRoleForTarget(authProfile, ServerRoleTarget(), username))
+              complete(deleteUserRoleForTarget(ServerRoleTarget(), username))
             }
           }
         },
@@ -57,14 +57,14 @@ private[rest] class UserRoleService(private[this] val roleActor: ActorRef[Messag
           authorize(canManageNamespaceUsers(namespace, authProfile)) {
             pathEnd {
               get {
-                complete(getUserRolesForTarget(authProfile, NamespaceRoleTarget(namespace)))
+                complete(getUserRolesForTarget(NamespaceRoleTarget(namespace)))
               } ~ post {
                 entity(as[Map[String, String]]) { userRoles =>
-                  complete(updateUserRolesForTarget(authProfile, NamespaceRoleTarget(namespace), userRoles))
+                  complete(updateUserRolesForTarget(NamespaceRoleTarget(namespace), userRoles))
                 }
               }
             } ~ path(Segment) { username =>
-              complete(deleteUserRoleForTarget(authProfile, NamespaceRoleTarget(namespace), username))
+              complete(deleteUserRoleForTarget(NamespaceRoleTarget(namespace), username))
             }
           }
         },
@@ -72,48 +72,73 @@ private[rest] class UserRoleService(private[this] val roleActor: ActorRef[Messag
           authorize(canManageDomainUsers(namespace, domain, authProfile)) {
             pathEnd {
               get {
-                complete(getUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain))))
+                complete(getUserRolesForTarget(DomainRoleTarget(DomainId(namespace, domain))))
               } ~ post {
                 entity(as[Map[String, String]]) { userRoles =>
-                  complete(updateUserRolesForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), userRoles))
+                  complete(updateUserRolesForTarget(DomainRoleTarget(DomainId(namespace, domain)), userRoles))
                 }
               }
             } ~ path(Segment) { username =>
-              complete(deleteUserRoleForTarget(authProfile, DomainRoleTarget(DomainId(namespace, domain)), username))
+              complete(deleteUserRoleForTarget(DomainRoleTarget(DomainId(namespace, domain)), username))
             }
           }
         })
     }
   }
 
-  private[this] def getUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget): Future[RestResponse] = {
-    roleActor.ask[GetAllUserRolesResponse](GetAllUserRolesRequest(target, _)).flatMap {
-      case GetAllUserRolesSuccess(userRoles) =>
-        val response = userRoles.filter(_.roles.nonEmpty)
-          .map(userRole => (userRole.username, userRole.roles.head.role.name))
-        Future.successful(okResponse(response))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+  private[this] def getUserRolesForTarget(target: RoleTarget): Future[RestResponse] = {
+    roleActor
+      .ask[GetAllUserRolesResponse](GetAllUserRolesRequest(target, _))
+      .map(_.userRoles.fold(
+        {
+          case TargetNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { userRoles =>
+          val response = userRoles.filter(_.roles.nonEmpty)
+            .map(userRole => (userRole.username, userRole.roles.head.role.name))
+          okResponse(response)
+        })
+      )
   }
 
-  private[this] def updateUserRolesForTarget(authProfile: AuthorizationProfile, target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
+  private[this] def updateUserRolesForTarget(target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
     val mappedRoles = userRoles.map(entry => entry._1 -> Set(entry._2))
-    roleActor.ask[UpdateRolesForTargetResponse](UpdateRolesForTargetRequest(target, mappedRoles, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    roleActor
+      .ask[UpdateRolesForTargetResponse](UpdateRolesForTargetRequest(target, mappedRoles, _))
+      .map(_.response.fold(
+        {
+          case UserNotFoundError() =>
+            NotFoundResponse
+          case TargetNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        })
+      )
   }
 
-  private[this] def deleteUserRoleForTarget(authProfile: AuthorizationProfile, target: RoleTarget, username: String): Future[RestResponse] = {
-    roleActor.ask[RemoveUserFromResponse](RemoveUserFromRequest(target, username, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+  private[this] def deleteUserRoleForTarget(target: RoleTarget, username: String): Future[RestResponse] = {
+    roleActor
+      .ask[RemoveUserFromTargetResponse](RemoveUserFromTargetRequest(target, username, _))
+      .map(_.response.fold(
+        {
+          case TargetNotFoundError() =>
+            notFoundResponse(Some("The target was not found"))
+          case UserNotFoundError() =>
+            notFoundResponse(Some("The user was not found"))
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          DeletedResponse
+        })
+      )
   }
 
   private[this] def canManageUsers(authProfile: AuthorizationProfile): Boolean = {
@@ -144,5 +169,4 @@ private[rest] object UserRoleService {
   case class NamespaceAndDomainsRestData(id: String, displayName: String, domains: Set[DomainRestData])
 
   case class UserRoleData(username: String, role: String)
-
 }

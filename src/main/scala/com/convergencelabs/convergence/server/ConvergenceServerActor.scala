@@ -46,11 +46,7 @@ object ConvergenceServerActor {
 
   case object Stop extends Command
 
-  private case class StartBackendServices(activityShardRegion: ActorRef[ActivityActor.Message],
-                                          chatChannelRegion: ActorRef[ChatActor.Message],
-                                          domainRegion: ActorRef[DomainActor.Message],
-                                          realtimeModelRegion: ActorRef[RealtimeModelActor.Message],
-                                          domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]) extends Command
+  private case class StartBackendServices(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]) extends Command
 
   private case class BackendInitializationFailure(cause: Throwable) extends Command
 
@@ -94,7 +90,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
   }
 
   private[this] def startBackend(msg: StartBackendServices): Behavior[Command] = {
-    val StartBackendServices(activityShardRegion, chatChannelRegion, domainRegion, realtimeModelRegion, domainLifecycleTopic) = msg
+    val StartBackendServices(domainLifecycleTopic) = msg
     val persistenceConfig = config.getConfig("convergence.persistence")
     val dbServerConfig = persistenceConfig.getConfig("server")
 
@@ -114,12 +110,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
     context.spawn(DomainPersistenceManagerActor(baseUri, domainStore, domainLifecycleTopic), "DomainPersistenceManager")
 
-    val backend = new BackendServices(context, dbProvider,
-      activityShardRegion,
-      chatChannelRegion,
-      domainRegion,
-      realtimeModelRegion,
-      domainLifecycleTopic)
+    val backend = new BackendServices(context, dbProvider, domainLifecycleTopic)
     backend.start()
     this.backend = Some(backend)
     Behaviors.same
@@ -161,7 +152,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
 
     if (roles.contains(ServerClusterRoles.Backend)) {
-      this.processBackendRole(activityShardRegion, chatShardRegion, domainShardRegion, modelShardRegion, domainLifeCycleTopic)
+      this.processBackendRole(domainLifeCycleTopic)
     }
     if (roles.contains(ServerClusterRoles.RestApi)) {
       this.processRestApiRole(domainRestShardRegion, modelShardRegion, chatShardRegion)
@@ -200,11 +191,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
   /**
    * A helper method that will bootstrap the backend node.
    */
-  private[this] def processBackendRole(activityShardRegion: ActorRef[ActivityActor.Message],
-                                       chatChannelRegion: ActorRef[ChatActor.Message],
-                                       domainRegion: ActorRef[DomainActor.Message],
-                                       realtimeModelRegion: ActorRef[RealtimeModelActor.Message],
-                                       domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Unit = {
+  private[this] def processBackendRole(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Unit = {
     info("Role 'backend' detected, activating Backend Services...")
 
     val singletonManager = ClusterSingleton(context.system)
@@ -220,7 +207,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
     context.ask(convergenceDatabaseInitializerActor, ConvergenceDatabaseInitializerActor.AssertInitialized) {
       case Success(ConvergenceDatabaseInitializerActor.Initialized()) =>
-        StartBackendServices(activityShardRegion, chatChannelRegion, domainRegion, realtimeModelRegion, domainLifecycleTopic)
+        StartBackendServices(domainLifecycleTopic)
       case Success(ConvergenceDatabaseInitializerActor.InitializationFailed(cause)) =>
         BackendInitializationFailure(cause)
       case Failure(cause) =>

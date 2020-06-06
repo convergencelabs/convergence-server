@@ -16,27 +16,24 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.BuildInfo
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.JsonSubTypes
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
-class ServerStatusActor private[datastore](private[this] val context: ActorContext[ServerStatusActor.Message],
-                                            private[this] val dbProvider: DatabaseProvider)
-  extends AbstractBehavior[ServerStatusActor.Message](context) with Logging {
+class ServerStatusActor private(context: ActorContext[ServerStatusActor.Message],
+                                domainStore: DomainStore,
+                                namespaceStore: NamespaceStore)
+  extends AbstractBehavior[ServerStatusActor.Message](context) {
 
   import ServerStatusActor._
 
   context.system.receptionist ! Receptionist.Register(Key, context.self)
 
-  private[this] val domainStore = new DomainStore(dbProvider)
-  private[this] val namespaceStore = new NamespaceStore(dbProvider)
-
   override def onMessage(msg: Message): Behavior[Message] = {
-   msg match {
-     case msg: GetStatusRequest =>
-       onGetStatus(msg)
-   }
+    msg match {
+      case msg: GetStatusRequest =>
+        onGetStatus(msg)
+    }
     Behaviors.same
   }
 
@@ -48,12 +45,13 @@ class ServerStatusActor private[datastore](private[this] val context: ActorConte
       distribution <- Try(this.context.system.settings.config.getString("convergence.distribution"))
     } yield {
       ServerStatusResponse(BuildInfo.version, distribution, "healthy", namespaces, domains)
-    }) match {
-      case Success(status) =>
-        replyTo ! GetStatusSuccess(status)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    })
+      .map(s => GetStatusResponse(Right(s)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting server status", cause)
+        GetStatusResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
@@ -61,10 +59,14 @@ class ServerStatusActor private[datastore](private[this] val context: ActorConte
 object ServerStatusActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("ServerStatusActor")
 
-  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
-    Behaviors.setup(context => new ServerStatusActor(context, dbProvider))
+  def apply(domainStore: DomainStore,
+            namespaceStore: NamespaceStore): Behavior[Message] =
+    Behaviors.setup(context => new ServerStatusActor(context, domainStore, namespaceStore))
 
-  case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable
 
@@ -73,13 +75,15 @@ object ServerStatusActor {
   //
   case class GetStatusRequest(replyTo: ActorRef[GetStatusResponse]) extends Message
 
-  sealed trait GetStatusResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetStatusError
 
-  case class GetStatusSuccess(status: ServerStatusResponse) extends GetStatusResponse
+  case class UnknownError() extends GetStatusError
 
-  //
-  // Generic Responses
-  //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with GetStatusResponse
+  case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
+
+  case class GetStatusResponse(status: Either[GetStatusError, ServerStatusResponse]) extends CborSerializable
+
 }

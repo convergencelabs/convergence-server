@@ -15,23 +15,20 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.domain.{Domain, DomainId}
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 
-private class UserFavoriteDomainStoreActor private[datastore](private[this] val context: ActorContext[UserFavoriteDomainStoreActor.Message],
-                                                      private[this] val dbProvider: DatabaseProvider)
-  extends AbstractBehavior[UserFavoriteDomainStoreActor.Message](context) with Logging {
+class UserFavoriteDomainStoreActor private(context: ActorContext[UserFavoriteDomainStoreActor.Message],
+                                           favoriteStore: UserFavoriteDomainStore)
+  extends AbstractBehavior[UserFavoriteDomainStoreActor.Message](context) {
 
   import UserFavoriteDomainStoreActor._
 
   context.system.receptionist ! Receptionist.Register(Key, context.self)
-
-  private[this] val favoriteStore = new UserFavoriteDomainStore(dbProvider)
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -48,32 +45,47 @@ private class UserFavoriteDomainStoreActor private[datastore](private[this] val 
 
   private[this] def onAddFavorite(message: AddFavoriteDomainRequest): Unit = {
     val AddFavoriteDomainRequest(username, domain, replyTo) = message
-    favoriteStore.addFavorite(username, domain) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    favoriteStore
+      .addFavorite(username, domain)
+      .map(_ => AddFavoriteDomainResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          AddFavoriteDomainResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error adding favorite domains for user", cause)
+          AddFavoriteDomainResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onRemoveFavorite(message: RemoveFavoriteDomainRequest): Unit = {
     val RemoveFavoriteDomainRequest(username, domain, replyTo) = message
-    favoriteStore.removeFavorite(username, domain) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    favoriteStore
+      .removeFavorite(username, domain)
+      .map(_ => RemoveFavoriteDomainResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          RemoveFavoriteDomainResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error removing favorite domains for user", cause)
+          RemoveFavoriteDomainResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetFavoritesForUser(message: GetFavoritesForUserRequest): Unit = {
     val GetFavoritesForUserRequest(username, replyTo) = message
-    favoriteStore.getFavoritesForUser(username) match {
-      case Success(favorites) =>
-        replyTo ! GetFavoritesForUserSuccess(favorites)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    favoriteStore
+      .getFavoritesForUser(username)
+      .map(domains => GetFavoritesForUserResponse(Right(domains)))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetFavoritesForUserResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error getting favorite domains for user", cause)
+          GetFavoritesForUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
@@ -81,8 +93,12 @@ object UserFavoriteDomainStoreActor {
 
   val Key: ServiceKey[Message] = ServiceKey[Message]("UserFavoriteDomainStore")
 
-  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
-    Behaviors.setup(context => new UserFavoriteDomainStoreActor(context, dbProvider))
+  def apply(favoriteStore: UserFavoriteDomainStore): Behavior[Message] =
+    Behaviors.setup(context => new UserFavoriteDomainStoreActor(context, favoriteStore))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable
 
@@ -91,34 +107,50 @@ object UserFavoriteDomainStoreActor {
   //
   case class AddFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
 
-  sealed trait AddFavoriteDomainResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait AddFavoriteDomainError
+
+  case class AddFavoriteDomainResponse(response: Either[AddFavoriteDomainError,Unit]) extends CborSerializable
 
   //
   // RemoveFavoriteDomain
   //
   case class RemoveFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[RemoveFavoriteDomainResponse]) extends Message
 
-  sealed trait RemoveFavoriteDomainResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait RemoveFavoriteDomainError
+
+  case class RemoveFavoriteDomainResponse(response: Either[RemoveFavoriteDomainError,Unit]) extends CborSerializable
 
   //
   // GetFavoritesForUser
   //
   case class GetFavoritesForUserRequest(username: String, replyTo: ActorRef[GetFavoritesForUserResponse]) extends Message
 
-  sealed trait GetFavoritesForUserResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetFavoritesForUserError
 
-  case class GetFavoritesForUserSuccess(domains: Set[Domain]) extends GetFavoritesForUserResponse
+  case class GetFavoritesForUserResponse(domains: Either[GetFavoritesForUserError,Set[Domain]]) extends CborSerializable
 
   //
-  // Generic Responses
+  // Commons Errors
   //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with AddFavoriteDomainResponse
-    with RemoveFavoriteDomainResponse
-    with GetFavoritesForUserResponse
+  case class UserNotFoundError() extends AnyRef
+    with GetFavoritesForUserError
+    with RemoveFavoriteDomainError
+    with AddFavoriteDomainError
 
-
-  case class RequestSuccess() extends CborSerializable
-    with AddFavoriteDomainResponse
-    with RemoveFavoriteDomainResponse
+  case class UnknownError() extends AnyRef
+    with GetFavoritesForUserError
+    with RemoveFavoriteDomainError
+    with AddFavoriteDomainError
 }

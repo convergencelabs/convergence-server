@@ -16,22 +16,18 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.{Role, UserRoles}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import grizzled.slf4j.Logging
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
+import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
-private class RoleStoreActor(private[this] val context: ActorContext[RoleStoreActor.Message],
-                             private[this] val dbProvider: DatabaseProvider)
-  extends AbstractBehavior[RoleStoreActor.Message](context) with Logging {
+class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
+                             roleStore: RoleStore)
+  extends AbstractBehavior[RoleStoreActor.Message](context) {
 
   import RoleStoreActor._
 
   context.system.receptionist ! Receptionist.Register(Key, context.self)
-
-  private[this] val permissionsStore: RoleStore = new RoleStore(dbProvider)
-
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -51,7 +47,7 @@ private class RoleStoreActor(private[this] val context: ActorContext[RoleStoreAc
         onUpdateRolesForTarget(message)
       case message: SetAllUserRolesForTargetRequest =>
         onSetRolesForTarget(message)
-      case message: RemoveUserFromRequest =>
+      case message: RemoveUserFromTargetRequest =>
         onRemoveUserRoleFromTarget(message)
     }
 
@@ -60,200 +56,300 @@ private class RoleStoreActor(private[this] val context: ActorContext[RoleStoreAc
 
   private[this] def onCreateRole(message: CreateRoleRequest): Unit = {
     val CreateRoleRequest(role, replyTo) = message
-    permissionsStore.createRole(role) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore.createRole(role)
+      .map(_ => CreateRoleResponse(Right(())))
+      .recover {
+        case _: DuplicateValueException =>
+          CreateRoleResponse(Left(RoleExistsError()))
+        case cause =>
+          context.log.error("unexpected error creating role", cause)
+          CreateRoleResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onSetRolesRequest(message: SetUsersRolesForTargetRequest): Unit = {
     val SetUsersRolesForTargetRequest(username, target, roles, replyTo) = message
-    permissionsStore.setUserRolesForTarget(username, target, roles) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore
+      .setUserRolesForTarget(username, target, roles)
+      .map(_ => SetUsersRolesForTargetResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          SetUsersRolesForTargetResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error setting roles for user and target", cause)
+          SetUsersRolesForTargetResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onUpdateRolesForTarget(message: UpdateRolesForTargetRequest): Unit = {
     val UpdateRolesForTargetRequest(target, userRoles, replyTo) = message
-    permissionsStore.setUserRolesForTarget(target, userRoles) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore.setUserRolesForTarget(target, userRoles)
+      .map(roles => UpdateRolesForTargetResponse(Right(roles)))
+      .recover {
+        case _: EntityNotFoundException =>
+          UpdateRolesForTargetResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error updating roles for target", cause)
+          UpdateRolesForTargetResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onSetRolesForTarget(message: SetAllUserRolesForTargetRequest): Unit = {
     val SetAllUserRolesForTargetRequest(target, userRoles, replyTo) = message
     (for {
-      _ <- permissionsStore.removeAllRolesFromTarget(target)
-      _ <- permissionsStore.setUserRolesForTarget(target, userRoles)
+      _ <- roleStore.removeAllRolesFromTarget(target)
+      _ <- roleStore.setUserRolesForTarget(target, userRoles)
     } yield {
       ()
-    }) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    })
+      .map(_ => SetAllUserRolesForTargetResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          SetAllUserRolesForTargetResponse(Left(TargetNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error updating roles for target", cause)
+          SetAllUserRolesForTargetResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetRoleProfile(message: GetRoleProfileRequest): Unit = {
     val GetRoleProfileRequest(target, username, replyTo) = message
-    permissionsStore.getUserRolesForTarget(username, target) match {
-      case Success(roleProfile) =>
-        replyTo ! GetRoleProfileSuccess(roleProfile)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore
+      .getUserRolesForTarget(username, target)
+      .map(roles => GetRoleProfileResponse(Right(roles)))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetRoleProfileResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error getting role profile", cause)
+          GetRoleProfileResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetAllUserRoles(message: GetAllUserRolesRequest): Unit = {
     val GetAllUserRolesRequest(target, replyTo) = message
-    permissionsStore.getAllUserRolesForTarget(target) match {
-      case Success(roles) =>
-        replyTo ! GetAllUserRolesSuccess(roles)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore
+      .getAllUserRolesForTarget(target)
+      .map(roles => GetAllUserRolesResponse(Right(roles)))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetAllUserRolesResponse(Left(TargetNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error getting roles for target", cause)
+          GetAllUserRolesResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetUserRoles(message: GetUserRolesForTargetRequest): Unit = {
     val GetUserRolesForTargetRequest(username, target, replyTo) = message
-    permissionsStore.getUserRolesForTarget(username, target) match {
-      case Success(roles) =>
-        replyTo ! GetUserRolesForTargetSuccess(roles)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore
+      .getUserRolesForTarget(username, target)
+      .map(roles => GetUserRolesForTargetResponse(Right(roles)))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetUserRolesForTargetResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error getting roles for user and target", cause)
+          GetUserRolesForTargetResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetUserPermissions(message: GetUserPermissionsRequest): Unit = {
     val GetUserPermissionsRequest(username, target, replyTo) = message
-    permissionsStore.getUserPermissionsForTarget(username, target) match {
-      case Success(permissions) =>
-        replyTo ! GetUserPermissionsSuccess(permissions)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    roleStore
+      .getUserPermissionsForTarget(username, target)
+      .map(permissions => GetUserPermissionsResponse(Right(permissions)))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetUserPermissionsResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error getting permissions for user and target", cause)
+          GetUserPermissionsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
-  private[this] def onRemoveUserRoleFromTarget(message: RemoveUserFromRequest): Unit = {
-    val RemoveUserFromRequest(target, username, replyTo) = message
-    permissionsStore.removeUserRoleFromTarget(target, username) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+  private[this] def onRemoveUserRoleFromTarget(message: RemoveUserFromTargetRequest): Unit = {
+    val RemoveUserFromTargetRequest(target, username, replyTo) = message
+    roleStore
+      .removeUserRoleFromTarget(target, username)
+      .map(_ => RemoveUserFromTargetResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          RemoveUserFromTargetResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error removing user from target", cause)
+          RemoveUserFromTargetResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
-
 
 object RoleStoreActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("RoleStore")
 
-  def apply(dbProvider: DatabaseProvider): Behavior[Message] = Behaviors.setup(context => new RoleStoreActor(context, dbProvider))
+  def apply(roleStore: RoleStore): Behavior[Message] =
+    Behaviors.setup(context => new RoleStoreActor(context, roleStore))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   trait Message extends CborSerializable
 
   //
-  // CreateRoleRequest
+  // CreateRole
   //
   case class CreateRoleRequest(role: Role, replyTo: ActorRef[CreateRoleResponse]) extends Message
 
-  sealed trait CreateRoleResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[RoleExistsError], name = "role_exists"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait CreateRoleError
+
+  case class RoleExistsError() extends CreateRoleError
+
+  case class CreateRoleResponse(response: Either[CreateRoleError, Unit]) extends CborSerializable
 
   //
-  // SetUsersRolesForTargetRequest
+  // SetUsersRolesForTarget
   //
   case class SetUsersRolesForTargetRequest(username: String, target: RoleTarget, roles: Set[String], replyTo: ActorRef[SetUsersRolesForTargetResponse]) extends Message
 
-  sealed trait SetUsersRolesForTargetResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetUsersRolesForTargetError
+
+  case class SetUsersRolesForTargetResponse(response: Either[SetUsersRolesForTargetError, Unit]) extends CborSerializable
 
   //
-  // GetRoleProfileRequest
+  // GetRoleProfile
   //
   case class GetRoleProfileRequest(target: RoleTarget, username: String, replyTo: ActorRef[GetRoleProfileResponse]) extends Message
 
-  sealed trait GetRoleProfileResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetRoleProfileError
 
-  case class GetRoleProfileSuccess(profile: Set[Role]) extends GetRoleProfileResponse
+  case class GetRoleProfileResponse(profile: Either[GetRoleProfileError, Set[Role]]) extends CborSerializable
 
   //
-  // GetAllUserRolesRequest
+  // GetAllUserRoles
   //
   case class GetAllUserRolesRequest(target: RoleTarget, replyTo: ActorRef[GetAllUserRolesResponse]) extends Message
 
-  sealed trait GetAllUserRolesResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[TargetNotFoundError], name = "target_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetAllUserRolesForTargetError
 
-  case class GetAllUserRolesSuccess(userRoles: Set[UserRoles]) extends GetAllUserRolesResponse
+  case class GetAllUserRolesResponse(userRoles: Either[GetAllUserRolesForTargetError, Set[UserRoles]]) extends CborSerializable
 
   //
-  // GetUserRolesForTargetRequest
+  // GetUserRolesForTarget
   //
   case class GetUserRolesForTargetRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserRolesForTargetResponse]) extends Message
 
-  sealed trait GetUserRolesForTargetResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserRolesForTargetError
 
-  case class GetUserRolesForTargetSuccess(roles: Set[Role]) extends GetUserRolesForTargetResponse
+  case class GetUserRolesForTargetResponse(roles: Either[GetUserRolesForTargetError, Set[Role]]) extends CborSerializable
 
   //
   // UpdateRolesForTarget
   //
   case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]], replyTo: ActorRef[UpdateRolesForTargetResponse]) extends Message
 
-  sealed trait UpdateRolesForTargetResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+  new JsonSubTypes.Type(value = classOf[TargetNotFoundError], name = "target_not_found")
+  ))
+  sealed trait UpdateRolesForTargetError
+
+  case class UpdateRolesForTargetResponse(response: Either[UpdateRolesForTargetError, Unit]) extends CborSerializable
 
   //
   // SetAllUserRolesForTarget
   //
   case class SetAllUserRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]], replyTo: ActorRef[SetAllUserRolesForTargetResponse]) extends Message
 
-  sealed trait SetAllUserRolesForTargetResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+    new JsonSubTypes.Type(value = classOf[TargetNotFoundError], name = "target_not_found")
+  ))
+  sealed trait SetAllUserRolesForTargetError
+
+  case class SetAllUserRolesForTargetResponse(response: Either[SetAllUserRolesForTargetError, Unit]) extends CborSerializable
 
   //
   // RemoveUserFromTarget
   //
-  case class RemoveUserFromRequest(target: RoleTarget, username: String, replyTo: ActorRef[RemoveUserFromResponse]) extends Message
+  case class RemoveUserFromTargetRequest(target: RoleTarget, username: String, replyTo: ActorRef[RemoveUserFromTargetResponse]) extends Message
 
-  sealed trait RemoveUserFromResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait RemoveUserFromTargetError
+
+  case class RemoveUserFromTargetResponse(response: Either[RemoveUserFromTargetError, Unit]) extends CborSerializable
 
   //
-  // GetUserPermissionsRequest
+  // GetUserPermissions
   //
   case class GetUserPermissionsRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserPermissionsResponse]) extends Message
 
-  sealed trait GetUserPermissionsResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserPermissionsError
 
-  case class GetUserPermissionsSuccess(permissions: Set[String]) extends GetUserPermissionsResponse
-
+  case class GetUserPermissionsResponse(permissions: Either[GetUserPermissionsError, Set[String]]) extends CborSerializable
 
   //
-  // Generic Responses
+  // Commons Errors
   //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with CreateRoleResponse
-    with SetUsersRolesForTargetResponse
-    with GetRoleProfileResponse
-    with GetAllUserRolesResponse
-    with GetUserRolesForTargetResponse
-    with UpdateRolesForTargetResponse
-    with SetAllUserRolesForTargetResponse
-    with RemoveUserFromResponse
-    with GetUserPermissionsResponse
+  case class UserNotFoundError() extends AnyRef
+    with SetUsersRolesForTargetError
+    with GetRoleProfileError
+    with SetAllUserRolesForTargetError
+    with RemoveUserFromTargetError
+    with GetUserPermissionsError
+    with UpdateRolesForTargetError
+    with GetUserRolesForTargetError
 
+  case class TargetNotFoundError() extends AnyRef
+    with SetAllUserRolesForTargetError
+    with GetAllUserRolesForTargetError
+    with UpdateRolesForTargetError
+    with RemoveUserFromTargetError
 
-  case class RequestSuccess() extends CborSerializable
-    with CreateRoleResponse
-    with SetUsersRolesForTargetResponse
-    with UpdateRolesForTargetResponse
-    with SetAllUserRolesForTargetResponse
-    with RemoveUserFromResponse
+  case class UnknownError() extends AnyRef
+    with CreateRoleError
+    with SetUsersRolesForTargetError
+    with GetRoleProfileError
+    with GetAllUserRolesForTargetError
+    with GetUserRolesForTargetError
+    with UpdateRolesForTargetError
+    with SetAllUserRolesForTargetError
+    with RemoveUserFromTargetError
+    with GetUserPermissionsError
 
 }

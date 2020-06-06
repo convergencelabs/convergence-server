@@ -211,13 +211,11 @@ object ModelStoreActor {
   // Common Errors
   //
 
-  sealed trait RequestError
-
-  case class ModelNotFoundError() extends RequestError
+  case class ModelNotFoundError() extends AnyRef
     with GetModelsInCollectionError
     with GetModelsError
 
-  case class UnknownError() extends RequestError
+  case class UnknownError() extends AnyRef
     with QueryModelsError
     with GetModelsInCollectionError
     with GetModelsError

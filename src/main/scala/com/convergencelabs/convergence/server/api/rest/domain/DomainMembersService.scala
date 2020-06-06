@@ -19,9 +19,8 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, RoleStoreActor}
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor._
+import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, RoleStoreActor}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Roles}
 
@@ -66,55 +65,80 @@ class DomainMembersService(private[this] val roleStoreActor: ActorRef[RoleStoreA
   }
 
   private[this] def getAllMembers(domain: DomainId): Future[RestResponse] = {
-    roleStoreActor.ask[GetAllUserRolesResponse](GetAllUserRolesRequest(DomainRoleTarget(domain), _)).flatMap {
-      case GetAllUserRolesSuccess(userRoles) =>
+    roleStoreActor.ask[GetAllUserRolesResponse](GetAllUserRolesRequest(DomainRoleTarget(domain), _))
+      .map(_.userRoles.fold(
+        {
+          case TargetNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { userRoles =>
           val roleMap = userRoles.map(ur => (ur.username, ur.roles.head.role.name)).toMap
-          Future.successful(okResponse(roleMap))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+          okResponse(roleMap)
+        })
+      )
   }
 
   private[this] def setAllMembers(domain: DomainId, userRoles: Map[String, String], authProfile: AuthorizationProfile): Future[RestResponse] = {
     // Force the current user to be an owner.
     val mapped = userRoles.map { case (username, role) => (username, Set(role)) } +
       (authProfile.username -> Set(Roles.Domain.Owner))
-    roleStoreActor.ask[SetAllUserRolesForTargetResponse](SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    roleStoreActor
+      .ask[SetAllUserRolesForTargetResponse](SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped, _))
+      .map(_.response.fold(
+        {
+          case TargetNotFoundError() =>
+            notFoundResponse(Some("The specified domain does not exists"))
+          case UserNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        })
+      )
   }
 
   private[this] def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
-    roleStoreActor.ask[GetUserRolesForTargetResponse]( GetUserRolesForTargetRequest(username, DomainRoleTarget(domain), _)).flatMap {
-      case GetUserRolesForTargetSuccess(roles) =>
-        val role = if (roles.isEmpty) {
-          UserRoleResponse(None)
-        } else {
-          UserRoleResponse(Some(roles.head.name))
-        }
-        Future.successful(okResponse(role))
-      case RequestFailure(EntityNotFoundException(_, _)) =>
-        Future.successful(notFoundResponse())
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    roleStoreActor
+      .ask[GetUserRolesForTargetResponse](GetUserRolesForTargetRequest(username, DomainRoleTarget(domain), _))
+      .map(_.roles.fold(
+        {
+          case UserNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { roles =>
+          val r = if (roles.isEmpty) {
+            UserRoleResponse(None)
+          } else {
+            UserRoleResponse(Some(roles.head.name))
+          }
+          okResponse(r)
+        })
+      )
   }
 
   private[this] def setRoleForUser(domain: DomainId, username: String, role: String, authProfile: AuthorizationProfile): Future[RestResponse] = {
     if (username == authProfile.username) {
       Future.successful(forbiddenResponse(Some("You can not set your own user's role.")))
     } else {
-      roleStoreActor.ask[SetUsersRolesForTargetResponse](SetUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role), _)).flatMap {
-        case RequestSuccess() =>
-          Future.successful(OkResponse)
-        case RequestFailure(EntityNotFoundException(_, _)) =>
-          Future.successful(notFoundResponse())
-        case RequestFailure(cause) =>
-          Future.failed(cause)
-      }
+      roleStoreActor
+        .ask[SetUsersRolesForTargetResponse](SetUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role), _))
+        .map(_.response.fold(
+          {
+            case UserNotFoundError() =>
+              NotFoundResponse
+            case UnknownError() =>
+              InternalServerError
+          },
+          { _ =>
+            OkResponse
+          })
+        )
     }
   }
 
@@ -122,14 +146,21 @@ class DomainMembersService(private[this] val roleStoreActor: ActorRef[RoleStoreA
     if (username == authProfile.username) {
       Future.successful(forbiddenResponse(Some("You can not remove your own user.")))
     } else {
-      roleStoreActor.ask[RemoveUserFromResponse](RemoveUserFromRequest(DomainRoleTarget(domain), username, _)).flatMap {
-        case RequestSuccess() =>
-          Future.successful(DeletedResponse)
-        case RequestFailure(EntityNotFoundException(_, _)) =>
-          Future.successful(notFoundResponse())
-        case RequestFailure(cause) =>
-          Future.failed(cause)
-      }
+      roleStoreActor
+        .ask[RemoveUserFromTargetResponse](RemoveUserFromTargetRequest(DomainRoleTarget(domain), username, _))
+        .map(_.response.fold(
+          {
+            case TargetNotFoundError() =>
+              notFoundResponse(Some("The specified domain does not exits"))
+            case UserNotFoundError() =>
+              notFoundResponse(Some("The specified user does not exits"))
+            case UnknownError() =>
+              InternalServerError
+          },
+          { _ =>
+            DeletedResponse
+          })
+        )
     }
   }
 }

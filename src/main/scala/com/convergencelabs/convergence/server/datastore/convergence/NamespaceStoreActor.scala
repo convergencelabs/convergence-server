@@ -15,88 +15,100 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.InvalidValueException
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceAndDomains, NamespaceUpdates}
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-private class NamespaceStoreActor (private[this] val context: ActorContext[NamespaceStoreActor.Message],
-                                             private[this] val dbProvider: DatabaseProvider)
-  extends AbstractBehavior[NamespaceStoreActor.Message](context) with Logging {
+class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Message],
+                                  namespaceStore: NamespaceStore,
+                                  roleStore: RoleStore,
+                                  configStore: ConfigStore)
+  extends AbstractBehavior[NamespaceStoreActor.Message](context) {
 
   import NamespaceStoreActor._
 
   context.system.receptionist ! Receptionist.Register(Key, context.self)
 
-  private[this] val namespaceStore = new NamespaceStore(dbProvider)
-  private[this] val roleStore = new RoleStore(dbProvider)
-  private[this] val configStore = new ConfigStore(dbProvider)
-
   override def onMessage(msg: Message): Behavior[Message] = {
-   msg match {
-     case msg: CreateNamespaceRequest =>
-       onCreateNamespace(msg)
-     case msg: DeleteNamespaceRequest =>
-       onDeleteNamespace(msg)
-     case msg: UpdateNamespaceRequest =>
-       onUpdateNamespace(msg)
-     case msg: GetNamespaceRequest =>
-       onGetNamespace(msg)
-     case msg: GetAccessibleNamespacesRequest =>
-      onGetAccessibleNamespaces(msg)
-   }
+    msg match {
+      case msg: CreateNamespaceRequest =>
+        onCreateNamespace(msg)
+      case msg: DeleteNamespaceRequest =>
+        onDeleteNamespace(msg)
+      case msg: UpdateNamespaceRequest =>
+        onUpdateNamespace(msg)
+      case msg: GetNamespaceRequest =>
+        onGetNamespace(msg)
+      case msg: GetAccessibleNamespacesRequest =>
+        onGetAccessibleNamespaces(msg)
+    }
 
-   Behaviors.same
+    Behaviors.same
   }
 
   private[this] def onCreateNamespace(createRequest: CreateNamespaceRequest): Unit = {
     val CreateNamespaceRequest(_, namespaceId, displayName, replyTo) = createRequest
 
     this.validate(namespaceId, displayName)
-      .flatMap(_ => namespaceStore.createNamespace(namespaceId, displayName, userNamespace = false)) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+      .flatMap(_ => namespaceStore.createNamespace(namespaceId, displayName, userNamespace = false))
+      .map(_ => CreateNamespaceResponse(Right(())))
+      .recover {
+        case DuplicateValueException(field, _, _) =>
+          CreateNamespaceResponse(Left(NamespaceAlreadyExistsError(field)))
+        case cause =>
+          context.log.error("unexpected error creating namespace", cause)
+          CreateNamespaceResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetNamespace(getRequest: GetNamespaceRequest): Unit = {
     val GetNamespaceRequest(namespaceId, replyTo) = getRequest
-    namespaceStore.getNamespace(namespaceId) match {
-      case Success(namespace) =>
-        replyTo ! GetNamespaceSuccess(namespace)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    namespaceStore.getNamespace(namespaceId)
+      .map(_.map(ns => GetNamespaceResponse(Right(ns)))
+        .getOrElse(GetNamespaceResponse(Left(NamespaceNotFoundError()))
+        ))
+      .recover { cause =>
+        context.log.error("unexpected error getting namespace", cause)
+        GetNamespaceResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onUpdateNamespace(request: UpdateNamespaceRequest): Unit = {
     val UpdateNamespaceRequest(_, namespaceId, displayName, replyTo) = request
-    namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName)) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName))
+      .map(_ => UpdateNamespaceResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          UpdateNamespaceResponse(Left(NamespaceNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error updating namespace", cause)
+          UpdateNamespaceResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onDeleteNamespace(deleteRequest: DeleteNamespaceRequest): Unit = {
     val DeleteNamespaceRequest(_, namespaceId, replyTo) = deleteRequest
-    debug("Delete Namespace: " + namespaceId)
+    context.log.debug("Delete Namespace: " + namespaceId)
     (for {
       _ <- roleStore.removeAllRolesFromTarget(NamespaceRoleTarget(namespaceId))
       _ <- namespaceStore.deleteNamespace(namespaceId)
-    } yield ()) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    } yield ())
+      .map(_ => DeleteNamespaceResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          DeleteNamespaceResponse(Left(NamespaceNotFoundError()))
+        case cause =>
+          context.log.error("unexpected error updating namespace", cause)
+          DeleteNamespaceResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
@@ -108,12 +120,13 @@ private class NamespaceStoreActor (private[this] val context: ActorContext[Names
       namespaceStore
         .getAccessibleNamespaces(authProfile.username)
         .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet))
-    } match {
-      case Success(namespaces) =>
-        replyTo ! GetAccessibleNamespacesSuccess(namespaces)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
     }
+      .map(n => GetAccessibleNamespacesResponse(Right(n)))
+      .recover { cause =>
+        context.log.error("unexpected error getting namespaces", cause)
+        GetAccessibleNamespacesResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def validate(namespace: String, displayName: String): Try[Unit] = {
@@ -141,8 +154,14 @@ object NamespaceStoreActor {
 
   val Key: ServiceKey[Message] = ServiceKey[Message]("NamespaceStore")
 
-  def apply(dbProvider: DatabaseProvider): Behavior[Message] =
-    Behaviors.setup(context => new NamespaceStoreActor(context, dbProvider))
+  def apply(namespaceStore: NamespaceStore,
+            roleStore: RoleStore,
+            configStore: ConfigStore): Behavior[Message] =
+    Behaviors.setup(context => new NamespaceStoreActor(context, namespaceStore, roleStore, configStore))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable
 
@@ -151,21 +170,41 @@ object NamespaceStoreActor {
   //
   case class CreateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[CreateNamespaceResponse]) extends Message
 
-  sealed trait CreateNamespaceResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+    new JsonSubTypes.Type(value = classOf[NamespaceAlreadyExistsError], name = "already_exists")
+  ))
+  sealed trait CreateNamespaceError
+
+  case class NamespaceAlreadyExistsError(field: String) extends CreateNamespaceError
+
+  case class CreateNamespaceResponse(response: Either[CreateNamespaceError, Unit]) extends CborSerializable
 
   //
   // CreateNamespace
   //
   case class UpdateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
 
-  sealed trait UpdateNamespaceResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+    new JsonSubTypes.Type(value = classOf[NamespaceNotFoundError], name = "not_found")
+  ))
+  sealed trait UpdateNamespaceError
+
+  case class UpdateNamespaceResponse(response: Either[UpdateNamespaceError, Unit]) extends CborSerializable
 
   //
   // CreateNamespace
   //
   case class DeleteNamespaceRequest(requester: String, namespaceId: String, replyTo: ActorRef[DeleteNamespaceResponse]) extends Message
 
-  sealed trait DeleteNamespaceResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+    new JsonSubTypes.Type(value = classOf[NamespaceNotFoundError], name = "not_found")
+  ))
+  sealed trait DeleteNamespaceError
+
+  case class DeleteNamespaceResponse(response: Either[DeleteNamespaceError, Unit]) extends CborSerializable
 
   //
   // GetAccessibleNamespacesRequest
@@ -176,31 +215,39 @@ object NamespaceStoreActor {
                                             limit: Option[Int],
                                             replyTo: ActorRef[GetAccessibleNamespacesResponse]) extends Message
 
-  sealed trait GetAccessibleNamespacesResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetAccessibleNamespacesError
 
-  case class GetAccessibleNamespacesSuccess(namespaces: Set[NamespaceAndDomains]) extends GetAccessibleNamespacesResponse
+  case class GetAccessibleNamespacesResponse(namespaces: Either[GetAccessibleNamespacesError, Set[NamespaceAndDomains]]) extends CborSerializable
 
   //
   // GetNamespace
   //
   case class GetNamespaceRequest(namespaceId: String, replyTo: ActorRef[GetNamespaceResponse]) extends Message
 
-  sealed trait GetNamespaceResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+    new JsonSubTypes.Type(value = classOf[NamespaceNotFoundError], name = "not_found")
+  ))
+  sealed trait GetNamespaceError
 
-  case class GetNamespaceSuccess(namespace: Option[Namespace]) extends GetNamespaceResponse
+  case class GetNamespaceResponse(namespace: Either[GetNamespaceError, Namespace]) extends CborSerializable
 
   //
-  // Generic Responses
+  // Common Errors
   //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with CreateNamespaceResponse
-    with UpdateNamespaceResponse
-    with DeleteNamespaceResponse
-    with GetAccessibleNamespacesResponse
-    with GetNamespaceResponse
+  case class NamespaceNotFoundError() extends AnyRef
+    with UpdateNamespaceError
+    with DeleteNamespaceError
+    with GetNamespaceError
 
-  case class RequestSuccess() extends CborSerializable
-    with CreateNamespaceResponse
-    with UpdateNamespaceResponse
-    with DeleteNamespaceResponse
+  case class UnknownError() extends AnyRef
+    with CreateNamespaceError
+    with UpdateNamespaceError
+    with DeleteNamespaceError
+    with GetAccessibleNamespacesError
+    with GetNamespaceError
+
 }

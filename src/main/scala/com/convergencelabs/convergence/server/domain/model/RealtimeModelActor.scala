@@ -683,34 +683,31 @@ object RealtimeModelActor {
   //
   // Common Errors
   //
-
-  sealed trait RequestError
-
-  case class ModelAlreadyOpenError() extends RequestError
+  case class ModelAlreadyOpenError() extends AnyRef
     with OpenRealtimeModelError
     with ModelResyncError
 
-  case class ModelAlreadyOpeningError() extends RequestError
+  case class ModelAlreadyOpeningError() extends AnyRef
     with OpenRealtimeModelError
     with ModelResyncError
 
-  case class ModelNotOpenError() extends RequestError
+  case class ModelNotOpenError() extends AnyRef
     with CloseRealtimeModelError
 
-  case class ModelDeletedWhileOpeningError() extends RequestError
+  case class ModelDeletedWhileOpeningError() extends AnyRef
     with OpenRealtimeModelError
 
-  case class ModelAlreadyExistsError() extends RequestError
+  case class ModelAlreadyExistsError() extends AnyRef
     with CreateRealtimeModelError
 
-  case class ClientDataRequestError(message: String) extends RequestError
+  case class ClientDataRequestError(message: String) extends AnyRef
     with OpenRealtimeModelError
 
-  case class ModelClosingAfterErrorError() extends RequestError
+  case class ModelClosingAfterErrorError() extends AnyRef
     with OpenRealtimeModelError
     with ModelResyncError
 
-  case class ModelNotFoundError() extends RequestError
+  case class ModelNotFoundError() extends AnyRef
     with GetRealtimeModelError
     with OpenRealtimeModelError
     with ModelResyncError
@@ -718,7 +715,7 @@ object RealtimeModelActor {
     with GetModelPermissionsError
     with SetModelPermissionsError
 
-  case class UnauthorizedError(message: String) extends RequestError
+  case class UnauthorizedError(message: String) extends AnyRef
     with GetRealtimeModelError
     with OpenRealtimeModelError
     with CreateOrUpdateRealtimeModelError
@@ -728,7 +725,7 @@ object RealtimeModelActor {
     with GetModelPermissionsError
     with SetModelPermissionsError
 
-  case class UnknownError() extends RequestError
+  case class UnknownError() extends AnyRef
     with GetRealtimeModelError
     with OpenRealtimeModelError
     with CreateOrUpdateRealtimeModelError

@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.api.rest
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -72,57 +73,91 @@ private[rest] class NamespaceService(private[this] val namespaceActor: ActorRef[
   }
 
   private[this] def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    namespaceActor.ask[GetAccessibleNamespacesResponse](GetAccessibleNamespacesRequest(authProfile.data, filter, offset, limit, _)).map {
-      case GetAccessibleNamespacesSuccess(namespaces) =>
-        val response = namespaces.map { n =>
-          val domainData = n.domains.map(d => DomainRestData(d.displayName, d.domainFqn.namespace, d.domainFqn.domainId, d.status.toString))
-          NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
-        }
-        okResponse(response)
-      case _ =>
-        InternalServerError
-    }
+    namespaceActor
+      .ask[GetAccessibleNamespacesResponse](GetAccessibleNamespacesRequest(authProfile.data, filter, offset, limit, _))
+      .map(_.namespaces.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { namespaces =>
+          val response = namespaces.map { n =>
+            val domainData = n.domains.map(d => DomainRestData(d.displayName, d.domainFqn.namespace, d.domainFqn.domainId, d.status.toString))
+            NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
+          }
+          okResponse(response)
+        })
+      )
   }
 
   private[this] def getNamespace(namespaceId: String): Future[RestResponse] = {
-    namespaceActor.ask[GetNamespaceResponse](GetNamespaceRequest(namespaceId, _)) map {
-      case GetNamespaceSuccess(Some(namespace)) =>
-        okResponse(namespace)
-      case GetNamespaceSuccess(None) =>
-        notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
-      case _ =>
-        InternalServerError
-    }
+    namespaceActor
+      .ask[GetNamespaceResponse](GetNamespaceRequest(namespaceId, _))
+      .map(_.namespace.fold(
+        {
+          case NamespaceNotFoundError() =>
+            namespaceNotFound(namespaceId)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { namespace =>
+          okResponse(namespace)
+        })
+      )
   }
 
   private[this] def createNamespace(authProfile: AuthorizationProfile, create: CreateNamespacePost): Future[RestResponse] = {
     val CreateNamespacePost(id, displayName) = create
-    namespaceActor.ask[CreateNamespaceResponse](CreateNamespaceRequest(authProfile.username, id, displayName, _)) map {
-      case RequestSuccess() =>
-        OkResponse
-      case _ =>
-        InternalServerError
-    }
+    namespaceActor
+      .ask[CreateNamespaceResponse](CreateNamespaceRequest(authProfile.username, id, displayName, _))
+      .map(_.response.fold(
+        {
+          case NamespaceAlreadyExistsError(field) =>
+            duplicateResponse(field)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          CreatedResponse
+        })
+      )
   }
 
   private[this] def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, update: UpdateNamespacePut): Future[RestResponse] = {
     val UpdateNamespacePut(displayName) = update
-    namespaceActor.ask[UpdateNamespaceResponse](UpdateNamespaceRequest(authProfile.username, namespaceId, displayName, _)) map {
-      case RequestSuccess() =>
-        OkResponse
-      case _ =>
-        InternalServerError
-    }
+    namespaceActor
+      .ask[UpdateNamespaceResponse](UpdateNamespaceRequest(authProfile.username, namespaceId, displayName, _))
+      .map(_.response.fold(
+        {
+          case NamespaceNotFoundError() =>
+            namespaceNotFound(namespaceId)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        })
+      )
   }
 
   private[this] def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
-    namespaceActor.ask[DeleteNamespaceResponse](DeleteNamespaceRequest(authProfile.username, namespaceId, _)) map {
-      case RequestSuccess() =>
-        OkResponse
-      case _ =>
-        InternalServerError
-    }
+    namespaceActor
+      .ask[DeleteNamespaceResponse](DeleteNamespaceRequest(authProfile.username, namespaceId, _))
+      .map(_.response.fold(
+        {
+          case NamespaceNotFoundError() =>
+            namespaceNotFound(namespaceId)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          DeletedResponse
+        })
+      )
   }
+
+  private[this] def namespaceNotFound(namespaceId: String): (StatusCode, ResponseMessage) =
+    notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
 
   private[this] def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)

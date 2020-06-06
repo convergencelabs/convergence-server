@@ -20,7 +20,6 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.security.AuthorizationProfileData
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
 
@@ -41,7 +40,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
                                   roleStore: RoleStore,
                                   configStore: ConfigStore,
                                   userSessionTokenStore: UserSessionTokenStore)
-  extends AbstractBehavior[AuthenticationActor.Message](context) with Logging {
+  extends AbstractBehavior[AuthenticationActor.Message](context) {
 
   import AuthenticationActor._
 
@@ -87,7 +86,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
       }
     } yield resp)
       .recover { cause =>
-        error("Unable to authenticate user", cause)
+        context.log.error("Unable to authenticate user", cause)
         AuthResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
@@ -99,7 +98,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
       .map(_.map(t => LoginResponse(Right(t))).getOrElse(LoginResponse(Left(LoginFailed()))))
       .recover {
         cause =>
-          error("Unexpected error handling login request", cause)
+          context.log.error("Unexpected error handling login request", cause)
           LoginResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
@@ -137,7 +136,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
         )
     } yield authProfile)
       .recover { cause =>
-        error("Unexpected error validating user", cause)
+        context.log.error("Unexpected error validating user", cause)
         ValidateResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
@@ -154,7 +153,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
       }.getOrElse(GetSessionTokenExpirationResponse(Left(TokenNotFoundError())))
       )
       .recover { cause =>
-        error("Unexpected error getting session token expiration", cause)
+        context.log.error("Unexpected error getting session token expiration", cause)
         GetSessionTokenExpirationResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
@@ -165,7 +164,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
     userSessionTokenStore.removeToken(token)
       .map(_ => InvalidateSessionTokenResponse(Right(())))
       .recover { cause =>
-        error("Unexpected error invalidating session token", cause)
+        context.log.error("Unexpected error invalidating session token", cause)
         InvalidateSessionTokenResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
@@ -206,10 +205,10 @@ object AuthenticationActor {
   case class AuthRequest(username: String, password: String, replyTo: ActorRef[AuthResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-  @JsonSubTypes(
-    Array(
-      new JsonSubTypes.Type(value = classOf[AuthenticationFailed], name = "auth_failure"),
-      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[AuthenticationFailed], name = "auth_failure"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait AuthError
 
   case class AuthenticationFailed() extends AuthError
@@ -225,10 +224,10 @@ object AuthenticationActor {
   case class LoginRequest(username: String, password: String, replyTo: ActorRef[LoginResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-  @JsonSubTypes(
-    Array(
-      new JsonSubTypes.Type(value = classOf[LoginFailed], name = "login_failure"),
-      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[LoginFailed], name = "login_failure"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait LoginError extends CborSerializable
 
   case class LoginFailed() extends LoginError
@@ -240,10 +239,10 @@ object AuthenticationActor {
   //
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-  @JsonSubTypes(
-    Array(
-      new JsonSubTypes.Type(value = classOf[ValidationFailed], name = "validation_failure"),
-      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ValidationFailed], name = "validation_failure"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait ValidateError
 
   case class ValidationFailed() extends ValidateError
@@ -273,10 +272,10 @@ object AuthenticationActor {
   case class GetSessionTokenExpirationRequest(token: String, replyTo: ActorRef[GetSessionTokenExpirationResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-  @JsonSubTypes(
-    Array(
-      new JsonSubTypes.Type(value = classOf[TokenNotFoundError], name = "token_not_found"),
-      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[TokenNotFoundError], name = "token_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetSessionTokenExpirationError
 
   case class TokenNotFoundError() extends GetSessionTokenExpirationError
@@ -291,9 +290,9 @@ object AuthenticationActor {
   case class InvalidateSessionTokenRequest(token: String, replyTo: ActorRef[InvalidateSessionTokenResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-  @JsonSubTypes(
-    Array(
-      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait InvalidateSessionTokenError
 
   case class InvalidateSessionTokenResponse(response: Either[InvalidateSessionTokenError, Unit]) extends CborSerializable
@@ -307,4 +306,5 @@ object AuthenticationActor {
     with ValidateError
     with GetSessionTokenExpirationError
     with InvalidateSessionTokenError
+
 }

@@ -141,7 +141,7 @@ class DomainService(private[this] val system: ActorSystem[_],
       .map(_.domain.fold(
         {
           case DomainNotFound() =>
-            NotFound
+            NotFoundResponse
           case UnknownError() =>
             InternalServerError
         },
@@ -160,7 +160,7 @@ class DomainService(private[this] val system: ActorSystem[_],
       .map(_.response.fold(
         {
           case DomainNotFound() =>
-            NotFound
+            NotFoundResponse
           case UnknownError() =>
             InternalServerError
         },
@@ -176,7 +176,7 @@ class DomainService(private[this] val system: ActorSystem[_],
       .map(_.response.fold(
         {
           case DomainNotFound() =>
-            NotFound
+            NotFoundResponse
           case DomainAlreadyExistsError(field) =>
             conflictsResponse(field, s"Can't update the domain because a domain with this value for '$field' already exists.")
           case UnknownError() =>

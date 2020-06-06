@@ -18,19 +18,20 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
-class ConvergenceUserManagerActor private[datastore](private[this] val context: ActorContext[ConvergenceUserManagerActor.Message],
-                                                     private[this] val dbProvider: DatabaseProvider,
-                                                     private[this] val domainStoreActor: ActorRef[DomainStoreActor.Message])
-  extends AbstractBehavior[ConvergenceUserManagerActor.Message](context) with Logging {
+class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserManagerActor.Message],
+                                          userStore: UserStore,
+                                          roleStore: RoleStore,
+                                          userCreator: UserCreator,
+                                          domainStoreActor: ActorRef[DomainStoreActor.Message])
+  extends AbstractBehavior[ConvergenceUserManagerActor.Message](context) {
 
   import ConvergenceUserManagerActor._
 
@@ -41,10 +42,6 @@ class ConvergenceUserManagerActor private[datastore](private[this] val context: 
   private[this] implicit val executionContext: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
 
-  private[this] val userStore: UserStore = new UserStore(dbProvider)
-  private[this] val roleStore: RoleStore = new RoleStore(dbProvider)
-
-  private[this] val userCreator = new UserCreator(dbProvider)
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -75,12 +72,18 @@ class ConvergenceUserManagerActor private[datastore](private[this] val context: 
   private[this] def onCreateConvergenceUser(message: CreateConvergenceUserRequest): Unit = {
     val CreateConvergenceUserRequest(username, email, firstName, lastName, displayName, password, serverRole, replyTo) = message
     val user = User(username, email, firstName, lastName, displayName, None)
-    userCreator.createUser(user, password, serverRole) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    userCreator
+      .createUser(user, password, serverRole)
+      .map(_ => CreateConvergenceUserResponse(Right(())))
+      .recover {
+        case InvalidValueException(_, message, _) =>
+          CreateConvergenceUserResponse(Left(InvalidValueError(message)))
+        case DuplicateValueException(field, _, _) =>
+          CreateConvergenceUserResponse(Left(UserAlreadyExistsError(field)))
+        case _ =>
+          CreateConvergenceUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetConvergenceUser(message: GetConvergenceUserRequest): Unit = {
@@ -93,12 +96,16 @@ class ConvergenceUserManagerActor private[datastore](private[this] val context: 
         val globalRole = roles.get(u.username).flatMap(_.headOption).getOrElse("")
         ConvergenceUserInfo(u, globalRole)
       }
-    }) match {
-      case Success(user) =>
-        replyTo ! GetConvergenceUserSuccess(user)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    })
+      .map(_.map(user => GetConvergenceUserResponse(Right(user))).getOrElse(GetConvergenceUserResponse(Left(UserNotFoundError()))))
+      .recover {
+        case _: EntityNotFoundException =>
+          GetConvergenceUserResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error getting convergence user", cause)
+          GetConvergenceUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetConvergenceUsers(message: GetConvergenceUsersRequest): Unit = {
@@ -111,34 +118,45 @@ class ConvergenceUserManagerActor private[datastore](private[this] val context: 
         val globalRole = roles.get(user.username).flatMap(_.headOption).getOrElse("")
         ConvergenceUserInfo(user, globalRole)
       }.toSet
-    }) match {
-      case Success(users) =>
-        replyTo ! GetConvergenceUsersSuccess(users)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    })
+      .map(users => GetConvergenceUsersResponse(Right(users)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting convergence user", cause)
+        GetConvergenceUsersResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onDeleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
     val DeleteConvergenceUserRequest(username, replyTo) = message
-    domainStoreActor.ask[DomainStoreActor.DeleteDomainsForUserResponse](ref => DomainStoreActor.DeleteDomainsForUserRequest(username, ref))
-      .flatMap(_ => FutureUtils.tryToFuture(userStore.deleteUser(username))) onComplete {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    domainStoreActor
+      .ask[DomainStoreActor.DeleteDomainsForUserResponse](ref => DomainStoreActor.DeleteDomainsForUserRequest(username, ref))
+      .flatMap(_ => FutureUtils.tryToFuture(userStore.deleteUser(username)))
+      .map(_ => DeleteConvergenceUserResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          DeleteConvergenceUserResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error deleting convergence user", cause)
+          DeleteConvergenceUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onUpdateConvergenceUserProfile(message: UpdateConvergenceUserProfileRequest): Unit = {
     val UpdateConvergenceUserProfileRequest(username, email, firstName, lastName, displayName, replyTo) = message
     val update = User(username, email, firstName, lastName, displayName, None)
-    userStore.updateUser(update) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    userStore
+      .updateUser(update)
+      .map(_ => UpdateConvergenceUserProfileResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          UpdateConvergenceUserProfileResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error updating convergence user profile", cause)
+          UpdateConvergenceUserProfileResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onUpdateConvergenceUser(message: UpdateConvergenceUserRequest): Unit = {
@@ -147,43 +165,59 @@ class ConvergenceUserManagerActor private[datastore](private[this] val context: 
     (for {
       - <- userStore.updateUser(update)
       _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget(), Set(globalRole))
-    } yield ()) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    } yield ())
+      .map(_ => UpdateConvergenceUserResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          UpdateConvergenceUserResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error updating convergence user profile", cause)
+          UpdateConvergenceUserResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onSetUserPassword(message: SetPasswordRequest): Unit = {
     val SetPasswordRequest(username, password, replyTo) = message
-    userStore.setUserPassword(username, password) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    userStore
+      .setUserPassword(username, password)
+      .map(_ => SetPasswordResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          SetPasswordResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error setting user password", cause)
+          SetPasswordResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetUserBearerToken(message: GetUserBearerTokenRequest): Unit = {
     val GetUserBearerTokenRequest(username, replyTo) = message
-    userStore.getBearerToken(username) match {
-      case Success(token) =>
-        replyTo ! GetUserBearerTokenSuccess(token)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    userStore
+      .getBearerToken(username)
+      .map(_.map(token => GetUserBearerTokenResponse(Right(token))).getOrElse(GetUserBearerTokenResponse(Left(UserNotFoundError()))))
+      .recover { cause =>
+        context.log.error("Unexpected error getting user bearer token", cause)
+        GetUserBearerTokenResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onRegenerateUserBearerToken(message: RegenerateUserBearerTokenRequest): Unit = {
     val RegenerateUserBearerTokenRequest(username, replyTo) = message
     val bearerToken = userCreator.bearerTokenGen.nextString()
-    userStore.setBearerToken(username, bearerToken) match {
-      case Success(_) =>
-        replyTo ! RegenerateUserBearerTokenSuccess(bearerToken)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    userStore
+      .setBearerToken(username, bearerToken)
+      .map(_ => RegenerateUserBearerTokenResponse(Right(bearerToken)))
+      .recover {
+        case _: EntityNotFoundException =>
+          RegenerateUserBearerTokenResponse(Left(UserNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error setting user bearer token", cause)
+          RegenerateUserBearerTokenResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
@@ -191,10 +225,18 @@ class ConvergenceUserManagerActor private[datastore](private[this] val context: 
 object ConvergenceUserManagerActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("ConvergenceUserManagerActor")
 
-  def apply(dbProvider: DatabaseProvider, domainStoreActor: ActorRef[DomainStoreActor.Message]): Behavior[Message] =
-    Behaviors.setup(context => new ConvergenceUserManagerActor(context, dbProvider, domainStoreActor))
+  def apply(userStore: UserStore,
+            roleStore: RoleStore,
+            userCreator: UserCreator,
+            domainStoreActor: ActorRef[DomainStoreActor.Message]): Behavior[Message] =
+    Behaviors.setup(context => new ConvergenceUserManagerActor(context, userStore, roleStore, userCreator, domainStoreActor))
 
   case class ConvergenceUserInfo(user: User, globalRole: String)
+
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable
 
@@ -211,7 +253,16 @@ object ConvergenceUserManagerActor {
                                           globalRole: String,
                                           replyTo: ActorRef[CreateConvergenceUserResponse]) extends Message
 
-  sealed trait CreateConvergenceUserResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserAlreadyExistsError], name = "user_exists"),
+    new JsonSubTypes.Type(value = classOf[InvalidValueError], name = "invalid"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait CreateConvergenceUserError
+
+  case class UserAlreadyExistsError(filed: String) extends CreateConvergenceUserError
+
+  case class CreateConvergenceUserResponse(response: Either[CreateConvergenceUserError, Unit]) extends CborSerializable
 
   //
   //UpdateConvergenceUser
@@ -224,7 +275,13 @@ object ConvergenceUserManagerActor {
                                           globalRole: String,
                                           replyTo: ActorRef[UpdateConvergenceUserResponse]) extends Message
 
-  sealed trait UpdateConvergenceUserResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait UpdateConvergenceUserError
+
+  case class UpdateConvergenceUserResponse(response: Either[UpdateConvergenceUserError, Unit]) extends CborSerializable
 
   //
   // UpdateConvergenceUserProfile
@@ -236,78 +293,116 @@ object ConvergenceUserManagerActor {
                                                  displayName: String,
                                                  replyTo: ActorRef[UpdateConvergenceUserProfileResponse]) extends Message
 
-  sealed trait UpdateConvergenceUserProfileResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait UpdateConvergenceUserProfileError
+
+  case class UpdateConvergenceUserProfileResponse(response: Either[UpdateConvergenceUserProfileError, Unit]) extends CborSerializable
 
   //
   // SetPassword
   //
   case class SetPasswordRequest(username: String, password: String, replyTo: ActorRef[SetPasswordResponse]) extends Message
 
-  sealed trait SetPasswordResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetPasswordError
+
+  case class SetPasswordResponse(response: Either[SetPasswordError, Unit]) extends CborSerializable
 
   //
   // DeleteConvergenceUser
   //
   case class DeleteConvergenceUserRequest(username: String, replyTo: ActorRef[DeleteConvergenceUserResponse]) extends Message
 
-  sealed trait DeleteConvergenceUserResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait DeleteConvergenceUserError
+
+  case class DeleteConvergenceUserResponse(response: Either[DeleteConvergenceUserError, Unit]) extends CborSerializable
 
   //
   // GetConvergenceUsers
   //
   case class GetConvergenceUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int], replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
 
-  sealed trait GetConvergenceUsersResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetConvergenceUsersError
 
-  case class GetConvergenceUsersSuccess(users: Set[ConvergenceUserInfo]) extends GetConvergenceUsersResponse
+  case class GetConvergenceUsersResponse(users: Either[GetConvergenceUsersError, Set[ConvergenceUserInfo]]) extends CborSerializable
 
   //
   // GetConvergenceUser
   //
   case class GetConvergenceUserRequest(username: String, replyTo: ActorRef[GetConvergenceUserResponse]) extends Message
 
-  sealed trait GetConvergenceUserResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetConvergenceUserError
 
-  case class GetConvergenceUserSuccess(user: Option[ConvergenceUserInfo]) extends GetConvergenceUserResponse
+  case class GetConvergenceUserResponse(user: Either[GetConvergenceUserError, ConvergenceUserInfo]) extends CborSerializable
 
   //
   // GetUserBearerToken
   //
   case class GetUserBearerTokenRequest(username: String, replyTo: ActorRef[GetUserBearerTokenResponse]) extends Message
 
-  sealed trait GetUserBearerTokenResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserBearerTokenError
 
-  case class GetUserBearerTokenSuccess(token: Option[String]) extends GetUserBearerTokenResponse
+  case class GetUserBearerTokenResponse(token: Either[GetUserBearerTokenError, String]) extends CborSerializable
 
   //
   // RegenerateUserBearerToken
   //
   case class RegenerateUserBearerTokenRequest(username: String, replyTo: ActorRef[RegenerateUserBearerTokenResponse]) extends Message
 
-  sealed trait RegenerateUserBearerTokenResponse extends CborSerializable
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait RegenerateUserBearerTokenError
 
-  case class RegenerateUserBearerTokenSuccess(username: String) extends RegenerateUserBearerTokenResponse
+  case class RegenerateUserBearerTokenResponse(token: Either[RegenerateUserBearerTokenError, String]) extends CborSerializable
 
   //
-  // Generic Responses
+  // Common Errors
   //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with SetPasswordResponse
-    with DeleteConvergenceUserResponse
-    with UpdateConvergenceUserProfileResponse
-    with UpdateConvergenceUserResponse
-    with CreateConvergenceUserResponse
-    with GetConvergenceUsersResponse
-    with GetConvergenceUserResponse
-    with GetUserBearerTokenResponse
-    with RegenerateUserBearerTokenResponse
 
+  case class InvalidValueError(field: String) extends AnyRef
+    with CreateConvergenceUserError
 
-  case class RequestSuccess() extends CborSerializable
-    with SetPasswordResponse
-    with DeleteConvergenceUserResponse
-    with UpdateConvergenceUserProfileResponse
-    with UpdateConvergenceUserResponse
-    with CreateConvergenceUserResponse
+  case class UserNotFoundError() extends AnyRef
+    with SetPasswordError
+    with DeleteConvergenceUserError
+    with UpdateConvergenceUserProfileError
+    with UpdateConvergenceUserError
+    with GetConvergenceUserError
+    with GetUserBearerTokenError
+    with RegenerateUserBearerTokenError
+
+  case class UnknownError() extends AnyRef
+    with SetPasswordError
+    with DeleteConvergenceUserError
+    with UpdateConvergenceUserProfileError
+    with UpdateConvergenceUserError
+    with CreateConvergenceUserError
+    with GetConvergenceUsersError
+    with GetConvergenceUserError
+    with GetUserBearerTokenError
+    with RegenerateUserBearerTokenError
 
 }

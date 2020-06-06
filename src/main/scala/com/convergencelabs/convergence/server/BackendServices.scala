@@ -16,12 +16,9 @@ import akka.actor.typed.{ActorRef, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.convergence.server.db.provision.{DomainLifecycleTopic, DomainProvisioner, DomainProvisionerActor}
 import com.convergencelabs.convergence.server.db.schema.{DatabaseManager, DatabaseManagerActor}
-import com.convergencelabs.convergence.server.domain.DomainActor
-import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.chat.ChatActor
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import grizzled.slf4j.Logging
 
 import scala.language.postfixOps
@@ -38,10 +35,6 @@ import scala.language.postfixOps
  */
 class BackendServices(context: ActorContext[_],
                       convergenceDbProvider: DatabaseProvider,
-                      activityShardRegion: ActorRef[ActivityActor.Message],
-                      chatChannelRegion: ActorRef[ChatActor.Message],
-                      domainRegion: ActorRef[DomainActor.Message],
-                      realtimeModelRegion: ActorRef[RealtimeModelActor.Message],
                       domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]
                      ) extends Logging {
 
@@ -56,14 +49,28 @@ class BackendServices(context: ActorContext[_],
     val dbServerConfig = context.system.settings.config.getConfig("convergence.persistence.server")
     val convergenceDbConfig = context.system.settings.config.getConfig("convergence.persistence.convergence-database")
 
+    val userStore = new UserStore(convergenceDbProvider)
+    val userApiKeyStore = new UserApiKeyStore(convergenceDbProvider)
+    val roleStore = new RoleStore(convergenceDbProvider)
+    val configStore = new ConfigStore(convergenceDbProvider)
+    val userSessionTokenStore = new UserSessionTokenStore(convergenceDbProvider)
+    val namespaceStore = new NamespaceStore(convergenceDbProvider)
+    val domainStore = new DomainStore(convergenceDbProvider)
+
+    val favoriteDomainStore = new UserFavoriteDomainStore(convergenceDbProvider)
+    val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
+
+    val userCreator = new UserCreator(convergenceDbProvider)
+
     val singletonManager = ClusterSingleton(context.system)
 
     // This is a cluster singleton that cleans up User Session Tokens after they have expired.
     singletonManager.init(
-      SingletonActor(Behaviors.supervise(UserSessionTokenReaperActor(convergenceDbProvider))
+      SingletonActor(Behaviors.supervise(UserSessionTokenReaperActor(userSessionTokenStore))
         .onFailure[Exception](SupervisorStrategy.restart), "UserSessionTokenReaper")
         .withSettings(ClusterSingletonSettings(context.system).withRole("backed"))
     )
+
 
     //
     // REST Services
@@ -79,27 +86,30 @@ class BackendServices(context: ActorContext[_],
     val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
     context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
 
-    val domainStoreActor = context.spawn(DomainStoreActor(convergenceDbProvider, provisionerActor), "DomainStore")
+    val domainCreator: DomainCreator = new ActorBasedDomainCreator(
+      convergenceDbProvider,
+      this.context.system.settings.config,
+      provisionerActor.narrow[ProvisionDomain],
+      context.executionContext,
+      context.system.scheduler)
+
+    val domainStoreActor = context.spawn(DomainStoreActor(
+      domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor), "DomainStore")
     // FIXME enable importer
     //    context.spawn(ConvergenceImporterActor.props(
     //      dbServerConfig.getString("uri"),
     //      convergenceDbProvider,
     //      domainStoreActor),"ConvergenceImporter")
 
-    val userStore = new UserStore(convergenceDbProvider)
-    val userApiKeyStore = new UserApiKeyStore(convergenceDbProvider)
-    val roleStore = new RoleStore(convergenceDbProvider)
-    val configStore = new ConfigStore(convergenceDbProvider)
-    val userSessionTokenStore = new UserSessionTokenStore(convergenceDbProvider)
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
-    context.spawn(ConvergenceUserManagerActor(convergenceDbProvider, domainStoreActor), "UserManager")
-    context.spawn(NamespaceStoreActor(convergenceDbProvider), "NamespaceStore")
-    context.spawn(RoleStoreActor(convergenceDbProvider), "RoleStore")
-    context.spawn(UserApiKeyStoreActor(convergenceDbProvider), "UserApiKeyStore")
-    context.spawn(ConfigStoreActor(convergenceDbProvider), "ConfigStore")
-    context.spawn(ServerStatusActor(convergenceDbProvider), "ServerStatus")
-    context.spawn(UserFavoriteDomainStoreActor(convergenceDbProvider), "FavoriteDomains")
+    context.spawn(ConvergenceUserManagerActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")
+    context.spawn(NamespaceStoreActor(namespaceStore, roleStore, configStore), "NamespaceStore")
+    context.spawn(RoleStoreActor(roleStore), "RoleStore")
+    context.spawn(UserApiKeyStoreActor(userApiKeyStore), "UserApiKeyStore")
+    context.spawn(ConfigStoreActor(configStore), "ConfigStore")
+    context.spawn(ServerStatusActor(domainStore, namespaceStore), "ServerStatus")
+    context.spawn(UserFavoriteDomainStoreActor(favoriteDomainStore), "FavoriteDomains")
 
     logger.info("Convergence Backend Services started up.")
   }

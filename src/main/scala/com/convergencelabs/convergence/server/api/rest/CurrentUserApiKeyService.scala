@@ -70,54 +70,88 @@ private[rest] class CurrentUserApiKeyService(private[this] val userApiKeyStoreAc
   }
 
   private[this] def getApiKeysForUser(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    userApiKeyStoreActor.ask[GetApiKeysForUserResponse](GetApiKeysForUserRequest(authProfile.username, _)).map {
-      case GetApiKeysForUserSuccess(keys) =>
-        val keyData = keys.map(key => {
-          val UserApiKey(_, name, keyId, enabled, lastUsed) = key
-          UserApiKeyData(name, keyId, enabled, lastUsed)
-        }).toList
-        okResponse(keyData)
-      case _ =>
-        InternalServerError
-    }
+    userApiKeyStoreActor
+      .ask[GetApiKeysForUserResponse](GetApiKeysForUserRequest(authProfile.username, _))
+      .map(_.keys.fold(
+        {
+          case UserNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { keys =>
+          val keyData = keys.map(key => {
+            val UserApiKey(_, name, keyId, enabled, lastUsed) = key
+            UserApiKeyData(name, keyId, enabled, lastUsed)
+          }).toList
+          okResponse(keyData)
+        })
+      )
   }
 
   private[this] def getApiKey(authProfile: AuthorizationProfile, key: String): Future[RestResponse] = {
-    userApiKeyStoreActor.ask[GetUserApiKeyResponse](GetUserApiKeyRequest(authProfile.username, key, _)).map {
-      case GetUserApiKeySuccess(Some(UserApiKey(_, name, keyId, enabled, lastUsed))) =>
-        okResponse(UserApiKeyData(name, keyId, enabled, lastUsed))
-      case GetUserApiKeySuccess(None) =>
-        notFoundResponse(Some(s"A key with id '$key' could not be found"))
-      case _ =>
-        InternalServerError
-    }
+    userApiKeyStoreActor
+      .ask[GetUserApiKeyResponse](GetUserApiKeyRequest(authProfile.username, key, _))
+      .map(_.key.fold(
+        {
+          case KeyNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        {
+          case UserApiKey(_, name, keyId, enabled, lastUsed) =>
+          okResponse(UserApiKeyData(name, keyId, enabled, lastUsed))
+        })
+      )
   }
 
   private[this] def createApiKey(authProfile: AuthorizationProfile, keyData: CreateKeyData): Future[RestResponse] = {
-    userApiKeyStoreActor.ask[CreateUserApiKeyResponse](CreateUserApiKeyRequest(authProfile.username, keyData.name, keyData.enabled, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(CreatedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    userApiKeyStoreActor
+      .ask[CreateUserApiKeyResponse](CreateUserApiKeyRequest(authProfile.username, keyData.name, keyData.enabled, _))
+      .map(_.response.fold(
+        {
+          case UserApiKeyExistsError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          CreatedResponse
+        })
+      )
   }
 
   private[this] def updateApiKey(authProfile: AuthorizationProfile, keyId: String, updateData: UpdateKeyData): Future[RestResponse] = {
-    userApiKeyStoreActor.ask[UpdateUserApiKeyResponse](UpdateUserApiKeyRequest(authProfile.username, keyId, updateData.name, updateData.enabled, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(CreatedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    userApiKeyStoreActor
+      .ask[UpdateUserApiKeyResponse](UpdateUserApiKeyRequest(authProfile.username, keyId, updateData.name, updateData.enabled, _))
+      .map(_.response.fold(
+        {
+          case KeyNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          DeletedResponse
+        })
+      )
   }
 
   private[this] def deleteApiKey(authProfile: AuthorizationProfile, keyId: String): Future[RestResponse] = {
-    userApiKeyStoreActor.ask[DeleteUserApiKeyResponse](DeleteUserApiKeyRequest(authProfile.username, keyId, _)).flatMap {
-      case RequestSuccess() =>
-        Future.successful(DeletedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    userApiKeyStoreActor
+      .ask[DeleteUserApiKeyResponse](DeleteUserApiKeyRequest(authProfile.username, keyId, _))
+      .map(_.response.fold(
+        {
+          case KeyNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          DeletedResponse
+        })
+      )
   }
 }
 

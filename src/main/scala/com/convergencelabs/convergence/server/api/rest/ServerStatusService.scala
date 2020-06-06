@@ -54,11 +54,16 @@ private[rest] class ServerStatusService(private[this] val statusActor: ActorRef[
   }
 
   private[this] def getServerStatus(authProfile: AuthorizationProfile): Future[RestResponse] = {
-    statusActor.ask[GetStatusResponse](GetStatusRequest).map {
-      case GetStatusSuccess(ServerStatusResponse(version, distribution, serverStatus, namespaces, domains)) =>
-        okResponse(ServerStatus(version, distribution, serverStatus, namespaces, domains))
-      case _ =>
-        InternalServerError
-    }
+    statusActor.ask[GetStatusResponse](GetStatusRequest)
+      .map(_.status.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        {
+          case ServerStatusResponse(version, distribution, serverStatus, namespaces, domains)=>
+            okResponse(ServerStatus(version, distribution, serverStatus, namespaces, domains))
+        })
+      )
   }
 }

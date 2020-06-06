@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Scheduler}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
@@ -24,6 +24,7 @@ import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActo
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DestroyDomain, DestroyDomainResponse, ProvisionDomain, ProvisionDomainResponse}
 import com.convergencelabs.convergence.server.domain.{Domain, DomainDatabase, DomainId, DomainStatus}
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
@@ -32,28 +33,22 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-private class DomainStoreActor private[datastore](private[this] val context: ActorContext[DomainStoreActor.Message],
-                                                  private[this] val dbProvider: DatabaseProvider,
-                                                  private[this] val domainProvisioner: ActorRef[DomainProvisionerActor.Message])
+class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
+                               domainStore: DomainStore,
+                               configStore: ConfigStore,
+                               roleStore: RoleStore,
+                               favoriteDomainStore: UserFavoriteDomainStore,
+                               deltaHistoryStore: DeltaHistoryStore,
+                               domainCreator: DomainCreator,
+                               domainProvisioner: ActorRef[DomainProvisionerActor.Message])
   extends AbstractBehavior[DomainStoreActor.Message](context) with Logging {
 
   import DomainStoreActor._
 
-  context.system.receptionist ! Receptionist.Register(DomainStoreActor.Key, context.self)
-
-  private[this] val domainStore = new DomainStore(dbProvider)
-  private[this] val configStore = new ConfigStore(dbProvider)
-  private[this] val roleStore = new RoleStore(dbProvider)
-  private[this] val favoriteDomainStore = new UserFavoriteDomainStore(dbProvider)
-  private[this] val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(dbProvider)
   private[this] implicit val ec: ExecutionContextExecutor = context.system.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
-  private[this] val domainCreator: DomainCreator = new ActorBasedDomainCreator(
-    dbProvider,
-    this.context.system.settings.config,
-    domainProvisioner.narrow[ProvisionDomain],
-    ec,
-    system)
+
+  context.system.receptionist ! Receptionist.Register(DomainStoreActor.Key, context.self)
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -240,7 +235,7 @@ class ActorBasedDomainCreator(databaseProvider: DatabaseProvider,
                               config: Config,
                               domainProvisioner: ActorRef[ProvisionDomain],
                               executionContext: ExecutionContext,
-                              implicit val system: ActorSystem[_])
+                              implicit val scheduler: Scheduler)
   extends DomainCreator(databaseProvider, config, executionContext) {
 
   def provisionDomain(data: ProvisionRequest): Future[Unit] = {
@@ -252,9 +247,19 @@ class ActorBasedDomainCreator(databaseProvider: DatabaseProvider,
 object DomainStoreActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("DomainStoreActor")
 
-  def apply(dbProvider: DatabaseProvider, provisionerActor: ActorRef[DomainProvisionerActor.Message]): Behavior[Message] =
-    Behaviors.setup(context => new DomainStoreActor(context, dbProvider, provisionerActor))
+  def apply(domainStore: DomainStore,
+            configStore: ConfigStore,
+            roleStore: RoleStore,
+            favoriteDomainStore: UserFavoriteDomainStore,
+            deltaHistoryStore: DeltaHistoryStore,
+            domainCreator: DomainCreator,
+            provisionerActor: ActorRef[DomainProvisionerActor.Message]): Behavior[Message] =
+    Behaviors.setup(context => new DomainStoreActor(
+      context, domainStore, configStore,roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor))
 
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable
 
@@ -268,6 +273,12 @@ object DomainStoreActor {
                                  owner: String,
                                  replyTo: ActorRef[CreateDomainResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainAlreadyExistsError], name = "domain_exists"),
+    new JsonSubTypes.Type(value = classOf[InvalidDomainCreationRequest], name = "invalid_request"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait CreateDomainError
 
   case class InvalidDomainCreationRequest(message: String) extends CreateDomainError
@@ -279,6 +290,11 @@ object DomainStoreActor {
   //
   case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String, replyTo: ActorRef[UpdateDomainResponse]) extends Message
 
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainAlreadyExistsError], name = "domain_exists"),
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait UpdateDomainError
 
   case class UpdateDomainResponse(response: Either[UpdateDomainError, Unit]) extends CborSerializable
@@ -288,6 +304,10 @@ object DomainStoreActor {
   //
   case class DeleteDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[DeleteDomainResponse]) extends Message
 
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait DeleteDomainError
 
   case class DeleteDomainResponse(response: Either[DeleteDomainError, Unit]) extends CborSerializable
@@ -297,6 +317,9 @@ object DomainStoreActor {
   //
   case class DeleteDomainsForUserRequest(username: String, replyTo: ActorRef[DeleteDomainsForUserResponse]) extends Message
 
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait DeleteDomainsForUserError
 
   case class DeleteDomainsForUserResponse(response: Either[DeleteDomainsForUserError, Unit]) extends CborSerializable
@@ -306,12 +329,16 @@ object DomainStoreActor {
   //
   case class GetDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainResponse]) extends Message
 
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetDomainError
 
   case class GetDomainResponse(domain: Either[GetDomainError, Domain]) extends CborSerializable
 
   //
-  // ListDomains
+  // GetDomains
   //
   case class GetDomainsRequest(authProfile: AuthorizationProfileData,
                                namespace: Option[String],
@@ -320,20 +347,27 @@ object DomainStoreActor {
                                limit: Option[Int],
                                replyTo: ActorRef[GetDomainsResponse]) extends Message
 
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetDomainsError extends CborSerializable
 
   case class GetDomainsResponse(domains: Either[GetDomainsError, List[Domain]])
 
   //
+  // Common Errors
   //
-  //
-  sealed trait RequestError
 
-  case class DomainAlreadyExistsError(field: String) extends RequestError
+  case class DomainAlreadyExistsError(field: String) extends AnyRef
     with CreateDomainError
     with UpdateDomainError
 
-  case class UnknownError() extends RequestError
+  case class DomainNotFound() extends AnyRef
+    with UpdateDomainError
+    with DeleteDomainError
+    with GetDomainError
+
+  case class UnknownError() extends AnyRef
     with CreateDomainError
     with UpdateDomainError
     with DeleteDomainError
@@ -341,8 +375,4 @@ object DomainStoreActor {
     with GetDomainsError
     with DeleteDomainsForUserError
 
-  case class DomainNotFound() extends RequestError
-    with UpdateDomainError
-    with DeleteDomainError
-    with GetDomainError
 }
