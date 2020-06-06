@@ -16,27 +16,38 @@ import java.time.{Duration, Instant}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.security.AuthorizationProfileData
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
 
-class AuthenticationActor private[datastore](context: ActorContext[AuthenticationActor.Message],
-                                                     dbProvider: DatabaseProvider)
+/**
+ * The [[AuthenticationActor]] actor is responsible for handling authentication.
+ * of Convergence users from the HTTP API.
+ *
+ * @param context               The actor context for this actor.
+ * @param userStore             The user store used for validating users.
+ * @param userApiKeyStore       The api key store used for validating user API Keys.
+ * @param roleStore             The role store used for constructing the authentication profile
+ * @param configStore           The config store that provide authentication configuration.
+ * @param userSessionTokenStore The store to create and update HTTP API Sessions
+ */
+class AuthenticationActor private(context: ActorContext[AuthenticationActor.Message],
+                                  userStore: UserStore,
+                                  userApiKeyStore: UserApiKeyStore,
+                                  roleStore: RoleStore,
+                                  configStore: ConfigStore,
+                                  userSessionTokenStore: UserSessionTokenStore)
   extends AbstractBehavior[AuthenticationActor.Message](context) with Logging {
 
   import AuthenticationActor._
 
-  context.system.receptionist ! Receptionist.Register(Key, context.self)
-
-  private[this] val userStore = new UserStore(dbProvider)
-  private[this] val userApiKeyStore = new UserApiKeyStore(dbProvider)
-  private[this] val roleStore = new RoleStore(dbProvider)
-  private[this] val configStore = new ConfigStore(dbProvider)
-  private[this] val userSessionTokenStore = new UserSessionTokenStore(dbProvider)
   private[this] val sessionTokenGenerator = new RandomStringGenerator(length = 32)
+
+  context.system.receptionist ! Receptionist.Register(Key, context.self)
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -113,7 +124,6 @@ class AuthenticationActor private[datastore](context: ActorContext[Authenticatio
     val username = () => userApiKeyStore.validateUserApiKey(apiKey).flatMap { username =>
       userApiKeyStore.setLastUsedForKey(apiKey, Instant.now()).map(_ => username)
     }
-
     this.validate(username, replyTo)
   }
 
@@ -173,10 +183,128 @@ class AuthenticationActor private[datastore](context: ActorContext[Authenticatio
   }
 }
 
-object AuthenticationActor extends AuthenticationActorProtocol {
+object AuthenticationActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("AuthenticationActor")
 
-  def apply(dbProvider: DatabaseProvider): Behavior[Message] = Behaviors.setup { context =>
-    new AuthenticationActor(context, dbProvider)
-  }
+  def apply(userStore: UserStore,
+            userApiKeyStore: UserApiKeyStore,
+            roleStore: RoleStore,
+            configStore: ConfigStore,
+            userSessionTokenStore: UserSessionTokenStore): Behavior[Message] = Behaviors.setup(context =>
+    new AuthenticationActor(context, userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore)
+  )
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
+  sealed trait Message extends CborSerializable
+
+  //
+  // Auth
+  //
+  case class AuthRequest(username: String, password: String, replyTo: ActorRef[AuthResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[AuthenticationFailed], name = "auth_failure"),
+      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  sealed trait AuthError
+
+  case class AuthenticationFailed() extends AuthError
+
+  case class AuthData(token: String, expiration: Duration)
+
+  case class AuthResponse(data: Either[AuthError, AuthData]) extends CborSerializable
+
+
+  //
+  // Login
+  //
+  case class LoginRequest(username: String, password: String, replyTo: ActorRef[LoginResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[LoginFailed], name = "login_failure"),
+      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  sealed trait LoginError extends CborSerializable
+
+  case class LoginFailed() extends LoginError
+
+  case class LoginResponse(bearerToken: Either[LoginError, String]) extends CborSerializable
+
+  //
+  // ValidateResponse
+  //
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[ValidationFailed], name = "validation_failure"),
+      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  sealed trait ValidateError
+
+  case class ValidationFailed() extends ValidateError
+
+  case class ValidateResponse(profile: Either[ValidateError, AuthorizationProfileData]) extends CborSerializable
+
+
+  //
+  // ValidateSessionToken
+  //
+  case class ValidateSessionTokenRequest(token: String, replyTo: ActorRef[ValidateResponse]) extends Message
+
+
+  //
+  // ValidateUserBearerToken
+  //
+  case class ValidateUserBearerTokenRequest(bearerToken: String, replyTo: ActorRef[ValidateResponse]) extends Message
+
+  //
+  // ValidateUserApiKey
+  //
+  case class ValidateUserApiKeyRequest(apiKey: String, replyTo: ActorRef[ValidateResponse]) extends Message
+
+  //
+  // GetSessionTokenExpiration
+  //
+  case class GetSessionTokenExpirationRequest(token: String, replyTo: ActorRef[GetSessionTokenExpirationResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[TokenNotFoundError], name = "token_not_found"),
+      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  sealed trait GetSessionTokenExpirationError
+
+  case class TokenNotFoundError() extends GetSessionTokenExpirationError
+
+  case class SessionTokenExpiration(username: String, expiration: Duration)
+
+  case class GetSessionTokenExpirationResponse(expiration: Either[GetSessionTokenExpirationError, SessionTokenExpiration]) extends CborSerializable
+
+  //
+  // InvalidateTokenRequest
+  //
+  case class InvalidateSessionTokenRequest(token: String, replyTo: ActorRef[InvalidateSessionTokenResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(
+    Array(
+      new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")))
+  sealed trait InvalidateSessionTokenError
+
+  case class InvalidateSessionTokenResponse(response: Either[InvalidateSessionTokenError, Unit]) extends CborSerializable
+
+  //
+  // Common Errors
+  //
+
+  case class UnknownError() extends AuthError
+    with LoginError
+    with ValidateError
+    with GetSessionTokenExpirationError
+    with InvalidateSessionTokenError
 }

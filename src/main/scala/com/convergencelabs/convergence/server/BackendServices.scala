@@ -86,9 +86,15 @@ class BackendServices(context: ActorContext[_],
     //      convergenceDbProvider,
     //      domainStoreActor),"ConvergenceImporter")
 
+    val userStore = new UserStore(convergenceDbProvider)
+    val userApiKeyStore = new UserApiKeyStore(convergenceDbProvider)
+    val roleStore = new RoleStore(convergenceDbProvider)
+    val configStore = new ConfigStore(convergenceDbProvider)
+    val userSessionTokenStore = new UserSessionTokenStore(convergenceDbProvider)
+
+    context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
     context.spawn(ConvergenceUserManagerActor(convergenceDbProvider, domainStoreActor), "UserManager")
     context.spawn(NamespaceStoreActor(convergenceDbProvider), "NamespaceStore")
-    context.spawn(AuthenticationActor(convergenceDbProvider), "Authentication")
     context.spawn(RoleStoreActor(convergenceDbProvider), "RoleStore")
     context.spawn(UserApiKeyStoreActor(convergenceDbProvider), "UserApiKeyStore")
     context.spawn(ConfigStoreActor(convergenceDbProvider), "ConfigStore")

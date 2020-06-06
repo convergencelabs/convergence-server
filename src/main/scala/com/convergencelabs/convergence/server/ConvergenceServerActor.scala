@@ -160,7 +160,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
     val domainRestShardRegion = DomainRestActorSharding(context.system, sharding, shardCount)
 
 
-    if (roles.contains(ServerClusterRoles.RestApi)) {
+    if (roles.contains(ServerClusterRoles.Backend)) {
       this.processBackendRole(activityShardRegion, chatShardRegion, domainShardRegion, modelShardRegion, domainLifeCycleTopic)
     }
     if (roles.contains(ServerClusterRoles.RestApi)) {
