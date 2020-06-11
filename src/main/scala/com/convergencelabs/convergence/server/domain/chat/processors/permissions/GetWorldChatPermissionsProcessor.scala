@@ -12,36 +12,35 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetClientChatPermissionsRequest, GetClientChatPermissionsResponse, UnknownError}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetWorldChatPermissionsRequest, GetWorldChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
 import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-object GetClientChatPermissionsProcessor extends PermissionsMessageProcessor[GetClientChatPermissionsRequest, GetClientChatPermissionsResponse] with Logging {
+object GetWorldChatPermissionsProcessor extends PermissionsMessageProcessor[GetWorldChatPermissionsRequest, GetWorldChatPermissionsResponse] with Logging {
 
-  def execute(message: GetClientChatPermissionsRequest,
+  def execute(message: GetWorldChatPermissionsRequest,
               getChatRid: String => Try[ORID],
-              permissionsStore: PermissionsStore): GetClientChatPermissionsResponse = {
+              permissionsStore: PermissionsStore): GetWorldChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
       getChatRid = getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermission),
+      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord _),
       handleRequest = getPermissions(permissionsStore),
-      createErrorReply = v => GetClientChatPermissionsResponse(Left(v))
+      createErrorReply = v => GetWorldChatPermissionsResponse(Left(v))
     )
   }
 
-  def getPermissions(permissionsStore: PermissionsStore)(message: GetClientChatPermissionsRequest, chatRid: ORID): Try[GetClientChatPermissionsResponse] = {
-    val GetClientChatPermissionsRequest(_, _, requester, _) = message
-    permissionsStore
-      .getAggregateUserPermissions(requester.userId, chatRid, ChatPermissions.AllChatChatPermissions)
-      .map(p => GetClientChatPermissionsResponse(Right(p)))
+  def getPermissions(permissionsStore: PermissionsStore)(message: GetWorldChatPermissionsRequest, chatRid: ORID): Try[GetWorldChatPermissionsResponse] = {
+    permissionsStore.getWorldPermissions(Some(chatRid))
+      .map(p => p.map(_.permission))
+      .map(p => GetWorldChatPermissionsResponse(Right(p)))
       .recover { cause =>
-        error("Unexpected error getting client chat permissions", cause)
-        GetClientChatPermissionsResponse(Left(UnknownError()))
+        error("Unexpected error getting chat world permissions", cause)
+        GetWorldChatPermissionsResponse(Left(UnknownError()))
       }
   }
 }

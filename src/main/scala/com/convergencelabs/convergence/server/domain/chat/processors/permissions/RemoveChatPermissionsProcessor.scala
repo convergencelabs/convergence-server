@@ -12,50 +12,49 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{AddChatPermissionsRequest, AddChatPermissionsResponse, UnknownError}
-import com.convergencelabs.convergence.server.domain.chat.processors.MessageReply
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{RemoveChatPermissionsRequest, RemoveChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
 import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-object AddChatPermissionsProcessor extends PermissionsMessageProcessor[AddChatPermissionsRequest, AddChatPermissionsResponse] with Logging {
+object RemoveChatPermissionsProcessor extends PermissionsMessageProcessor[RemoveChatPermissionsRequest, RemoveChatPermissionsResponse] with Logging {
 
-  def execute(message: AddChatPermissionsRequest,
+  def execute(message: RemoveChatPermissionsRequest,
               getChatRid: String => Try[ORID],
-              permissionsStore: PermissionsStore): AddChatPermissionsResponse = {
+              permissionsStore: PermissionsStore): RemoveChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
       getChatRid= getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermission),
-      updatePermission = updatePermissions(permissionsStore),
-      createErrorReply = v => AddChatPermissionsResponse(Left(v))
+      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
+      handleRequest = updatePermissions(permissionsStore),
+      createErrorReply = v => RemoveChatPermissionsResponse(Left(v))
     )
   }
 
-  def updatePermissions(permissionsStore: PermissionsStore)(message: AddChatPermissionsRequest, chatRid: ORID): Try[AddChatPermissionsResponse] = {
-    val AddChatPermissionsRequest(_, _, _, world, user, group, _) = message
+  def updatePermissions(permissionsStore: PermissionsStore)(message: RemoveChatPermissionsRequest, chatRid: ORID): Try[RemoveChatPermissionsResponse] = {
+    val RemoveChatPermissionsRequest(_, _, _, world, user, group, _) = message
     (for {
       _ <- toTry(world) {
-        permissionsStore.addWorldPermissions(_, Some(chatRid))
+        permissionsStore.removeWorldPermissions(_, Some(chatRid))
       }
       _ <- unsafeToTry(user) {
         _.foreach { case UserPermissions(userId, permissions) =>
-          permissionsStore.addUserPermissions(permissions, userId, Some(chatRid)).get
+          permissionsStore.removeUserPermissions(permissions, userId, Some(chatRid)).get
         }
       }
       _ <- unsafeToTry(group) {
         _.foreach { case GroupPermissions(group, permissions) =>
-          permissionsStore.addGroupPermissions(permissions, group, Some(chatRid)).get
+          permissionsStore.removeGroupPermissions(permissions, group, Some(chatRid)).get
         }
       }
     } yield {
-      AddChatPermissionsResponse(Right(()))
+      RemoveChatPermissionsResponse(Right(()))
     }).recover { cause =>
-      error("Unexpected error adding chat permissions", cause)
-      AddChatPermissionsResponse(Left(UnknownError()))
+      error("Unexpected error removing chat permissions", cause)
+      RemoveChatPermissionsResponse(Left(UnknownError()))
     }
   }
 }

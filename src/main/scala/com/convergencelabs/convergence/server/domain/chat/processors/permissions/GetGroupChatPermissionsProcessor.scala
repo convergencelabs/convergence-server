@@ -12,35 +12,34 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetUserChatPermissionsRequest, GetUserChatPermissionsResponse, UnknownError}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetGroupChatPermissionsRequest, GetGroupChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
 import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-object GetUserChatPermissionsProcessor extends PermissionsMessageProcessor[GetUserChatPermissionsRequest, GetUserChatPermissionsResponse] with Logging {
+object GetGroupChatPermissionsProcessor extends PermissionsMessageProcessor[GetGroupChatPermissionsRequest, GetGroupChatPermissionsResponse] with Logging {
 
-  def execute(message: GetUserChatPermissionsRequest,
+  def execute(message: GetGroupChatPermissionsRequest,
               getChatRid: String => Try[ORID],
-              permissionsStore: PermissionsStore): GetUserChatPermissionsResponse = {
+              permissionsStore: PermissionsStore): GetGroupChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
       getChatRid = getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermission),
+      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
       handleRequest = getPermissions(permissionsStore),
-      createErrorReply = v => GetUserChatPermissionsResponse(Left(v))
+      createErrorReply = v => GetGroupChatPermissionsResponse(Left(v))
     )
   }
 
-  def getPermissions(permissionsStore: PermissionsStore)(message: GetUserChatPermissionsRequest, chatRid: ORID): Try[GetUserChatPermissionsResponse] = {
-    permissionsStore.getUserPermissions(message.userId, Some(chatRid))
-      .map(permissions => GetUserChatPermissionsResponse(Right(permissions)))
+  def getPermissions(permissionsStore: PermissionsStore)(message: GetGroupChatPermissionsRequest, chatRid: ORID): Try[GetGroupChatPermissionsResponse] = {
+    permissionsStore.getGroupPermissions(message.groupId, Some(chatRid))
+      .map(permissions => GetGroupChatPermissionsResponse(Right(permissions)))
       .recover { cause =>
-        error("Unexpected error getting chat user permissions", cause)
-        GetUserChatPermissionsResponse(Left(UnknownError()))
+        error("Unexpected error getting chat group permissions", cause)
+        GetGroupChatPermissionsResponse(Left(UnknownError()))
       }
   }
 }

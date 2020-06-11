@@ -16,21 +16,21 @@ import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, Chat
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
-import com.convergencelabs.convergence.server.domain.chat.processors.ChatResponseAction
+import com.convergencelabs.convergence.server.domain.chat.processors.ReplyAndBroadcastTask
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions, ChatState}
 
 import scala.util.Try
 
 case class MarkSeen(chatId: String, user: DomainUserId, eventNumber: Long)
 
-object ChatSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
+object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
 
   private val RequiredPermission = ChatPermissions.Permissions.SetTopic
 
   def execute(message: ChatActor.MarkChatsEventsSeenRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[ChatActor.MarkChatsEventsSeenResponse] =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
       state = state,
       message = message,
@@ -44,7 +44,7 @@ object ChatSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
     )
 
   def validateMessage(message: MarkChatsEventsSeenRequest, state: ChatState): Either[ChatActor.MarkChatsEventsSeenResponse, Unit] = {
-    if (!state.members.contains(message.requester.userId)) {
+    if (!state.members.contains(message.requester)) {
       Left(ChatActor.MarkChatsEventsSeenResponse(Left(ChatActor.ChatNotJoinedError())))
     } else {
       Right(())
@@ -52,7 +52,7 @@ object ChatSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
   }
 
   def createEvent(message: MarkChatsEventsSeenRequest, state: ChatState): MarkSeen =
-    MarkSeen(message.chatId, message.requester.userId, message.eventNumber)
+    MarkSeen(message.chatId, message.requester, message.eventNumber)
 
   def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: MarkSeen): Try[Unit] = {
     chatStore.markSeen(event.chatId, event.user, event.eventNumber)
@@ -63,8 +63,9 @@ object ChatSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
     state.copy(members = newMembers)
   }
 
-  def createSuccessReply(state: ChatState)(message: MarkChatsEventsSeenRequest, event: MarkSeen): ChatResponseAction[MarkChatsEventsSeenResponse] = {
-    ChatResponseAction(
+  def createSuccessReply(state: ChatState)(message: MarkChatsEventsSeenRequest, event: MarkSeen): ReplyAndBroadcastTask = {
+    replyAndBroadcastTask(
+      message.replyTo,
       MarkChatsEventsSeenResponse(Right(())),
       Some(ChatClientActor.EventsMarkedSeen(event.chatId, event.eventNumber, message.requester))
     )
