@@ -229,7 +229,7 @@ class ChatStoreSpec
       "successfully create an add user event" in withTestData { provider =>
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
-        provider.chatStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user3Id, Instant.now(), user1Id)).get
+        provider.chatStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user1Id, Instant.now(), user3Id)).get
         val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
         events.data.size shouldEqual 2
       }
