@@ -9,16 +9,8 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.chat
+package com.convergencelabs.convergence.server.domain.chat.processors
 
-import java.time.Instant
+import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 
-import akka.actor.ActorRef
-import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.domain.ChatInfo
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
-
-object ChatMessages {
-
-
-}
+final case class ReplyAndBroadcastTask(reply: MessageReplyTask[_], broadcast: Option[ChatClientActor.OutgoingMessage])

@@ -27,6 +27,7 @@ import com.convergencelabs.convergence.server.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -470,6 +471,10 @@ object RealtimeModelActor {
       resyncTimeout)
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
   sealed trait Message extends CborSerializable {
     val domainId: DomainId
     val modelId: String
@@ -488,11 +493,18 @@ object RealtimeModelActor {
 
   //
   // GetRealtimeModel
+  //
   case class GetRealtimeModelRequest(domainId: DomainId,
                                      modelId: String,
                                      session: Option[DomainUserSessionId],
                                      replyTo: ActorRef[GetRealtimeModelResponse]) extends StatelessModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetRealtimeModelError
 
   case class GetRealtimeModelResponse(model: Either[GetRealtimeModelError, Model]) extends CborSerializable
@@ -510,6 +522,12 @@ object RealtimeModelActor {
                                                 session: Option[DomainUserSessionId],
                                                 replyTo: ActorRef[CreateOrUpdateRealtimeModelResponse]) extends StatelessModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelOpenError], name = "model_open"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait CreateOrUpdateRealtimeModelError
 
   case class ModelOpenError() extends CreateOrUpdateRealtimeModelError
@@ -529,6 +547,13 @@ object RealtimeModelActor {
                                         session: Option[DomainUserSessionId],
                                         replyTo: ActorRef[CreateRealtimeModelResponse]) extends StatelessModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelAlreadyExistsError], name = "model_exists"),
+    new JsonSubTypes.Type(value = classOf[InvalidCreationDataError], name = "invalid_data"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait CreateRealtimeModelError
 
   case class InvalidCreationDataError(message: String) extends CreateRealtimeModelError
@@ -544,6 +569,12 @@ object RealtimeModelActor {
                                         session: Option[DomainUserSessionId],
                                         replyTo: ActorRef[DeleteRealtimeModelResponse]) extends StatelessModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait DeleteRealtimeModelError
 
   case class DeleteRealtimeModelResponse(response: Either[DeleteRealtimeModelError, Unit]) extends CborSerializable
@@ -557,6 +588,12 @@ object RealtimeModelActor {
                                         replyTo: ActorRef[GetModelPermissionsResponse]) extends StatelessModelMessage
 
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetModelPermissionsError
 
   case class GetModelPermissionsResponse(response: Either[GetModelPermissionsError, GetModelPermissionsSuccess]) extends CborSerializable
@@ -579,6 +616,12 @@ object RealtimeModelActor {
                                         removedUserPermissions: List[DomainUserId],
                                         replyTo: ActorRef[SetModelPermissionsResponse]) extends StatelessModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait SetModelPermissionsError
 
   case class SetModelPermissionsResponse(response: Either[SetModelPermissionsError, Unit]) extends CborSerializable
@@ -598,6 +641,18 @@ object RealtimeModelActor {
                                       clientActor: ActorRef[OutgoingMessage],
                                       replyTo: ActorRef[OpenRealtimeModelResponse]) extends RealTimeModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ClientDataRequestError], name = "client_data_error"),
+    new JsonSubTypes.Type(value = classOf[ClientErrorResponse], name = "client_error"),
+    new JsonSubTypes.Type(value = classOf[ModelAlreadyOpenError], name = "already_open"),
+    new JsonSubTypes.Type(value = classOf[ModelAlreadyOpeningError], name = "already_opening"),
+    new JsonSubTypes.Type(value = classOf[ModelClosingAfterErrorError], name = "closing_after_error"),
+    new JsonSubTypes.Type(value = classOf[ModelDeletedWhileOpeningError], name = "deleted"),
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait OpenRealtimeModelError
 
   case class ClientErrorResponse(message: String) extends OpenRealtimeModelError
@@ -620,6 +675,11 @@ object RealtimeModelActor {
                                        session: DomainUserSessionId,
                                        replyTo: ActorRef[CloseRealtimeModelResponse]) extends RealTimeModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotOpenError], name = "not_open"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait CloseRealtimeModelError
 
   case class CloseRealtimeModelResponse(response: Either[CloseRealtimeModelError, Unit]) extends CborSerializable
@@ -635,6 +695,15 @@ object RealtimeModelActor {
                                 clientActor: ActorRef[OutgoingMessage],
                                 replyTo: ActorRef[ModelResyncResponse]) extends RealTimeModelMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelAlreadyOpenError], name = "already_open"),
+    new JsonSubTypes.Type(value = classOf[ModelAlreadyOpeningError], name = "already_opening"),
+    new JsonSubTypes.Type(value = classOf[ModelClosingAfterErrorError], name = "closing_after_error"),
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait ModelResyncError
 
   case class ModelResyncResponseData(currentVersion: Long, modelPermissions: ModelPermissions)
@@ -734,5 +803,6 @@ object RealtimeModelActor {
     with GetModelPermissionsError
     with SetModelPermissionsError
     with ModelResyncError
+    with CloseRealtimeModelError
 
 }

@@ -15,107 +15,151 @@ package com.convergencelabs.convergence.server.datastore.domain
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-import scala.util.{Failure, Success}
-
-class UserGroupStoreActor private[datastore](private[this] val context: ActorContext[UserGroupStoreActor.Message],
-                                             private[this] val groupStore: UserGroupStore)
-  extends AbstractBehavior[UserGroupStoreActor.Message](context) with Logging {
+class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Message],
+                                  groupStore: UserGroupStore)
+  extends AbstractBehavior[UserGroupStoreActor.Message](context) {
 
   import UserGroupStoreActor._
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
       case CreateUserGroupRequest(group, replyTo) =>
-        groupStore.createUserGroup(group) match {
-          case Success(_) =>
-            replyTo ! RequestSuccess()
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .createUserGroup(group)
+          .map(_ => Right(()))
+          .recover {
+            case _: DuplicateValueException =>
+              Left(GroupAlreadyExistsError())
+            case cause =>
+              context.log.error("unexpected error deleting group", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! CreateUserGroupResponse(_))
 
       case DeleteUserGroupRequest(id, replyTo) =>
-        groupStore.deleteUserGroup(id) match {
-          case Success(_) =>
-            replyTo ! RequestSuccess()
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .deleteUserGroup(id)
+          .map(_ => Right(()))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(GroupNotFoundError())
+            case cause =>
+              context.log.error("unexpected error deleting group", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! DeleteUserGroupResponse(_))
 
       case GetUserGroupRequest(id, replyTo) =>
-        groupStore.getUserGroup(id) match {
-          case Success(group) =>
-            replyTo ! GetUserGroupSuccess(group)
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .getUserGroup(id)
+          .map(_.map(Right(_)).getOrElse(Left(GroupNotFoundError())))
+          .recover {
+            case cause =>
+              context.log.error("unexpected error getting group", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! GetUserGroupResponse(_))
 
       case GetUserGroupsRequest(filter, offset, limit, replyTo) =>
-        groupStore.getUserGroups(filter, offset, limit) match {
-          case Success(groups) =>
-            replyTo ! GetUserGroupsSuccess(groups)
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .getUserGroups(filter, offset, limit)
+          .map(Right(_))
+          .recover {
+            case cause =>
+              context.log.error("unexpected error getting groups", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! GetUserGroupsResponse(_))
 
       case GetUserGroupSummaryRequest(id, replyTo) =>
-        groupStore.getUserGroupSummary(id) match {
-          case Success(summary) =>
-            replyTo ! GetUserGroupSummarySuccess(summary)
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .getUserGroupSummary(id)
+          .map(_.map(Right(_)).getOrElse(Left(GroupNotFoundError())))
+          .recover {
+            case cause =>
+              context.log.error("unexpected error getting group summary", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! GetUserGroupSummaryResponse(_))
 
       case GetUserGroupSummariesRequest(filter, offset, limit, replyTo) =>
-        groupStore.getUserGroupSummaries(filter, offset, limit) match {
-          case Success(summaries) =>
-            replyTo ! GetUserGroupSummariesSuccess(summaries)
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .getUserGroupSummaries(filter, offset, limit)
+          .map(Right(_))
+          .recover {
+            case cause =>
+              context.log.error("unexpected error getting group info", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! GetUserGroupSummariesResponse(_))
 
       case GetUserGroupInfoRequest(id, replyTo) =>
-        groupStore.getUserGroupInfo(id) match {
-          case Success(info) =>
-            replyTo ! GetUserGroupInfoSuccess(info)
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .getUserGroupInfo(id)
+          .map(_.map(Right(_)).getOrElse(Left(GroupNotFoundError())))
+          .recover {
+            case cause =>
+              context.log.error("unexpected error getting group info", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! GetUserGroupInfoResponse(_))
 
       case UpdateUserGroupRequest(id, group, replyTo) =>
-        groupStore.updateUserGroup(id, group) match {
-          case Success(_) =>
-            replyTo ! RequestSuccess()
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .updateUserGroup(id, group)
+          .map(_ => Right(()))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(GroupNotFoundError())
+            case cause =>
+              context.log.error("unexpected error updating group info", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! UpdateUserGroupResponse(_))
 
       case UpdateUserGroupInfoRequest(id, info, replyTo) =>
-        groupStore.updateUserGroupInfo(id, info) match {
-          case Success(_) =>
-            replyTo ! RequestSuccess()
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .updateUserGroupInfo(id, info)
+          .map(_ => Right(()))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(GroupNotFoundError())
+            case cause =>
+              context.log.error("unexpected error updating group info", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! UpdateUserGroupInfoResponse(_))
 
       case AddUserToGroupRequest(id, userId, replyTo) =>
-        groupStore.addUserToGroup(id, userId) match {
-          case Success(_) =>
-            replyTo ! RequestSuccess()
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .addUserToGroup(id, userId)
+          .map(_ => Right(()))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(UserNotFoundError())
+            case cause =>
+              context.log.error("unexpected error adding user to group", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! AddUserToGroupResponse(_))
 
       case RemoveUserFromGroupRequest(id, userId, replyTo) =>
-        groupStore.removeUserFromGroup(id, userId) match {
-          case Success(_) =>
-            replyTo ! RequestSuccess()
-          case Failure(cause) =>
-            replyTo ! RequestFailure(cause)
-        }
+        groupStore
+          .removeUserFromGroup(id, userId)
+          .map(_ => Right(()))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(UserNotFoundError())
+            case cause =>
+              context.log.error("unexpected error removing user from group", cause)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! RemoveUserFromGroupResponse(_))
     }
 
     Behaviors.same
@@ -124,123 +168,205 @@ class UserGroupStoreActor private[datastore](private[this] val context: ActorCon
 
 
 object UserGroupStoreActor {
-  def apply(groupStore: UserGroupStore): Behavior[Message] = Behaviors.setup { context =>
-    new UserGroupStoreActor(context, groupStore)
-  }
+  def apply(groupStore: UserGroupStore): Behavior[Message] =
+    Behaviors.setup(context => new UserGroupStoreActor(context, groupStore))
+
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable with DomainRestMessageBody
 
   //
   // AddUserToGroup
   //
-  case class AddUserToGroupRequest(groupId: String, userId: DomainUserId, replyTo: ActorRef[AddUserToGroupResponse]) extends Message
+  final case class AddUserToGroupRequest(groupId: String, userId: DomainUserId, replyTo: ActorRef[AddUserToGroupResponse]) extends Message
 
-  sealed trait AddUserToGroupResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait AddUserToGroupError
+
+  final case class AddUserToGroupResponse(response: Either[AddUserToGroupError, Unit]) extends CborSerializable
 
 
   //
   // RemoveUserFromGroup
   //
-  case class RemoveUserFromGroupRequest(groupId: String, userId: DomainUserId, replyTo: ActorRef[RemoveUserFromGroupResponse]) extends Message
+  final case class RemoveUserFromGroupRequest(groupId: String, userId: DomainUserId, replyTo: ActorRef[RemoveUserFromGroupResponse]) extends Message
 
-  sealed trait RemoveUserFromGroupResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait RemoveUserFromGroupError
+
+  final case class RemoveUserFromGroupResponse(response: Either[RemoveUserFromGroupError, Unit]) extends CborSerializable
 
   //
   // CreateUserGroup
   //
-  case class CreateUserGroupRequest(group: UserGroup, replyTo: ActorRef[CreateUserGroupResponse]) extends Message
+  final case class CreateUserGroupRequest(group: UserGroup, replyTo: ActorRef[CreateUserGroupResponse]) extends Message
 
-  sealed trait CreateUserGroupResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupAlreadyExistsError], name = "group_exists"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait CreateUserGroupError
+
+  final case class GroupAlreadyExistsError() extends CreateUserGroupError
+
+  final case class CreateUserGroupResponse(response: Either[CreateUserGroupError, Unit]) extends CborSerializable
 
 
   //
   // UpdateUserGroup
   //
-  case class UpdateUserGroupRequest(id: String, group: UserGroup, replyTo: ActorRef[UpdateUserGroupResponse]) extends Message
+  final case class UpdateUserGroupRequest(id: String, group: UserGroup, replyTo: ActorRef[UpdateUserGroupResponse]) extends Message
 
-  sealed trait UpdateUserGroupResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait UpdateUserGroupError
+
+  final case class UpdateUserGroupResponse(response: Either[UpdateUserGroupError, Unit]) extends CborSerializable
 
   //
   // UpdateUserGroupInfo
   //
-  case class UpdateUserGroupInfoRequest(id: String, group: UserGroupInfo, replyTo: ActorRef[UpdateUserGroupInfoResponse]) extends Message
+  final case class UpdateUserGroupInfoRequest(id: String, group: UserGroupInfo, replyTo: ActorRef[UpdateUserGroupInfoResponse]) extends Message
 
-  sealed trait UpdateUserGroupInfoResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait UpdateUserGroupInfoError
+
+  final case class UpdateUserGroupInfoResponse(response: Either[UpdateUserGroupInfoError, Unit]) extends CborSerializable
 
   //
   // DeleteUserGroup
   //
-  case class DeleteUserGroupRequest(id: String, replyTo: ActorRef[DeleteUserGroupResponse]) extends Message
+  final case class DeleteUserGroupRequest(id: String, replyTo: ActorRef[DeleteUserGroupResponse]) extends Message
 
-  sealed trait DeleteUserGroupResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait DeleteUserGroupError
+
+  final case class DeleteUserGroupResponse(response: Either[DeleteUserGroupError, Unit]) extends CborSerializable
 
   //
   // GetUserGroup
   //
-  case class GetUserGroupRequest(id: String, replyTo: ActorRef[GetUserGroupResponse]) extends Message
+  final case class GetUserGroupRequest(id: String, replyTo: ActorRef[GetUserGroupResponse]) extends Message
 
-  sealed trait GetUserGroupResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserGroupError
 
-  case class GetUserGroupSuccess(userGroup: Option[UserGroup]) extends GetUserGroupResponse
+  final case class GetUserGroupResponse(userGroup: Either[GetUserGroupError, UserGroup]) extends CborSerializable
 
   //
   // GetUserGroupIng
   //
-  case class GetUserGroupInfoRequest(id: String, replyTo: ActorRef[GetUserGroupInfoResponse]) extends Message
+  final case class GetUserGroupInfoRequest(id: String, replyTo: ActorRef[GetUserGroupInfoResponse]) extends Message
 
-  sealed trait GetUserGroupInfoResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserGroupInfoError
 
-  case class GetUserGroupInfoSuccess(groupInfo: Option[UserGroupInfo]) extends GetUserGroupInfoResponse
+  final case class GetUserGroupInfoResponse(groupInfo: Either[GetUserGroupInfoError, UserGroupInfo]) extends CborSerializable
 
   //
   // GetUserGroupSummary
   //
-  case class GetUserGroupSummaryRequest(id: String, replyTo: ActorRef[GetUserGroupSummaryResponse]) extends Message
+  final case class GetUserGroupSummaryRequest(id: String, replyTo: ActorRef[GetUserGroupSummaryResponse]) extends Message
 
-  sealed trait GetUserGroupSummaryResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GroupNotFoundError], name = "group_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserGroupSummaryError
 
-  case class GetUserGroupSummarySuccess(summary: Option[UserGroupSummary]) extends GetUserGroupSummaryResponse
+  final case class GetUserGroupSummaryResponse(summary: Either[GetUserGroupSummaryError, UserGroupSummary]) extends CborSerializable
 
   //
   // GetUserGroups
   //
-  case class GetUserGroupsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
+  final case class GetUserGroupsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
-  sealed trait GetUserGroupsResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserGroupsError
 
-  case class GetUserGroupsSuccess(userGroups: List[UserGroup]) extends GetUserGroupsResponse
+  final case class GetUserGroupsResponse(userGroups: Either[GetUserGroupsError, List[UserGroup]]) extends CborSerializable
 
   //
   // GetUserGroupSummaries
   //
-  case class GetUserGroupSummariesRequest(filter: Option[String], offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetUserGroupSummariesResponse]) extends Message
+  final case class GetUserGroupSummariesRequest(filter: Option[String],
+                                          offset: Option[Int],
+                                          limit: Option[Int],
+                                          replyTo: ActorRef[GetUserGroupSummariesResponse]) extends Message
 
-  sealed trait GetUserGroupSummariesResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetUserGroupSummariesError
 
-  case class GetUserGroupSummariesSuccess(summaries: List[UserGroupSummary]) extends GetUserGroupSummariesResponse
+  final case class GetUserGroupSummariesResponse(summaries: Either[GetUserGroupSummariesError, List[UserGroupSummary]]) extends CborSerializable
 
   //
-  // Helpers
+  // Common Errors
   //
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with AddUserToGroupResponse
-    with RemoveUserFromGroupResponse
-    with CreateUserGroupResponse
-    with UpdateUserGroupResponse
-    with UpdateUserGroupInfoResponse
-    with DeleteUserGroupResponse
-    with GetUserGroupResponse
-    with GetUserGroupInfoResponse
-    with GetUserGroupSummaryResponse
-    with GetUserGroupsResponse
-    with GetUserGroupSummariesResponse
+  final case class UserNotFoundError() extends AnyRef
+    with AddUserToGroupError
+    with RemoveUserFromGroupError
 
-  case class RequestSuccess() extends CborSerializable
-    with AddUserToGroupResponse
-    with RemoveUserFromGroupResponse
-    with CreateUserGroupResponse
-    with UpdateUserGroupResponse
-    with UpdateUserGroupInfoResponse
-    with DeleteUserGroupResponse
+  final case class GroupNotFoundError() extends AnyRef
+    with AddUserToGroupError
+    with RemoveUserFromGroupError
+    with UpdateUserGroupError
+    with UpdateUserGroupInfoError
+    with DeleteUserGroupError
+    with GetUserGroupError
+    with GetUserGroupInfoError
+    with GetUserGroupSummaryError
+
+  final case class UnknownError() extends AnyRef
+    with AddUserToGroupError
+    with RemoveUserFromGroupError
+    with CreateUserGroupError
+    with UpdateUserGroupError
+    with UpdateUserGroupInfoError
+    with DeleteUserGroupError
+    with GetUserGroupError
+    with GetUserGroupInfoError
+    with GetUserGroupSummaryError
+    with GetUserGroupsError
+    with GetUserGroupSummariesError
 
 }

@@ -178,18 +178,60 @@ class ChatStoreSpec
     }
 
     "creating chat channel events" must {
-      "successfully create all chat events" in withTestData { provider =>
+      "successfully create a message event" in withTestData { provider =>
         val id = provider.chatStore.createChat(
-          Some(channel1Id), ChatType.Direct, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatMessageEvent(ChatMessageEvent(1, id, user2Id, Instant.now(), "some message")).get
-        provider.chatStore.addChatNameChangedEvent(ChatNameChangedEvent(2, id, user2Id, Instant.now(), "new name")).get
-        provider.chatStore.addChatTopicChangedEvent(ChatTopicChangedEvent(3, id, user2Id, Instant.now(), "new topic")).get
-        provider.chatStore.addChatUserLeftEvent(ChatUserLeftEvent(4, id, user3Id, Instant.now())).get
-        provider.chatStore.addChatUserJoinedEvent(ChatUserJoinedEvent(5, id, user3Id, Instant.now())).get
-        provider.chatStore.addChatUserRemovedEvent(ChatUserRemovedEvent(6, id, user2Id, Instant.now(), user1Id)).get
-        provider.chatStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user2Id, Instant.now(), user1Id)).get
         val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
-        events.data.size shouldEqual 8
+        events.data.size shouldEqual 2
+      }
+
+      "successfully create a name change event" in withTestData { provider =>
+        val id = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+        provider.chatStore.addChatNameChangedEvent(ChatNameChangedEvent(2, id, user2Id, Instant.now(), "new name")).get
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 2
+      }
+
+      "successfully create a topic change event" in withTestData { provider =>
+        val id = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+        provider.chatStore.addChatTopicChangedEvent(ChatTopicChangedEvent(3, id, user2Id, Instant.now(), "new topic")).get
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 2
+      }
+
+      "successfully create a leave event" in withTestData { provider =>
+        val id = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+        provider.chatStore.addChatUserLeftEvent(ChatUserLeftEvent(4, id, user2Id, Instant.now())).get
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 2
+      }
+
+      "successfully create a joined event" in withTestData { provider =>
+        val id = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+        provider.chatStore.addChatUserJoinedEvent(ChatUserJoinedEvent(5, id, user3Id, Instant.now())).get
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 2
+      }
+
+      "successfully create a user removed event" in withTestData { provider =>
+        val id = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+        provider.chatStore.addChatUserRemovedEvent(ChatUserRemovedEvent(6, id, user2Id, Instant.now(), user1Id)).get
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 2
+      }
+
+      "successfully create an add user event" in withTestData { provider =>
+        val id = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
+        provider.chatStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user3Id, Instant.now(), user1Id)).get
+        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        events.data.size shouldEqual 2
       }
     }
   }

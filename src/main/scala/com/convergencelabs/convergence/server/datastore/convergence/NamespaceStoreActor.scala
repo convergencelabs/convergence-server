@@ -168,7 +168,7 @@ object NamespaceStoreActor {
   //
   // CreateNamespace
   //
-  case class CreateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[CreateNamespaceResponse]) extends Message
+  final case class CreateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[CreateNamespaceResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -176,14 +176,14 @@ object NamespaceStoreActor {
   ))
   sealed trait CreateNamespaceError
 
-  case class NamespaceAlreadyExistsError(field: String) extends CreateNamespaceError
+  final case class NamespaceAlreadyExistsError(field: String) extends CreateNamespaceError
 
-  case class CreateNamespaceResponse(response: Either[CreateNamespaceError, Unit]) extends CborSerializable
+  final case class CreateNamespaceResponse(response: Either[CreateNamespaceError, Unit]) extends CborSerializable
 
   //
   // CreateNamespace
   //
-  case class UpdateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
+  final case class UpdateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -191,12 +191,12 @@ object NamespaceStoreActor {
   ))
   sealed trait UpdateNamespaceError
 
-  case class UpdateNamespaceResponse(response: Either[UpdateNamespaceError, Unit]) extends CborSerializable
+  final case class UpdateNamespaceResponse(response: Either[UpdateNamespaceError, Unit]) extends CborSerializable
 
   //
   // CreateNamespace
   //
-  case class DeleteNamespaceRequest(requester: String, namespaceId: String, replyTo: ActorRef[DeleteNamespaceResponse]) extends Message
+  final case class DeleteNamespaceRequest(requester: String, namespaceId: String, replyTo: ActorRef[DeleteNamespaceResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -204,12 +204,12 @@ object NamespaceStoreActor {
   ))
   sealed trait DeleteNamespaceError
 
-  case class DeleteNamespaceResponse(response: Either[DeleteNamespaceError, Unit]) extends CborSerializable
+  final case class DeleteNamespaceResponse(response: Either[DeleteNamespaceError, Unit]) extends CborSerializable
 
   //
   // GetAccessibleNamespacesRequest
   //
-  case class GetAccessibleNamespacesRequest(requester: AuthorizationProfileData,
+  final case class GetAccessibleNamespacesRequest(requester: AuthorizationProfileData,
                                             filter: Option[String],
                                             offset: Option[Int],
                                             limit: Option[Int],
@@ -220,12 +220,12 @@ object NamespaceStoreActor {
   ))
   sealed trait GetAccessibleNamespacesError
 
-  case class GetAccessibleNamespacesResponse(namespaces: Either[GetAccessibleNamespacesError, Set[NamespaceAndDomains]]) extends CborSerializable
+  final case class GetAccessibleNamespacesResponse(namespaces: Either[GetAccessibleNamespacesError, Set[NamespaceAndDomains]]) extends CborSerializable
 
   //
   // GetNamespace
   //
-  case class GetNamespaceRequest(namespaceId: String, replyTo: ActorRef[GetNamespaceResponse]) extends Message
+  final case class GetNamespaceRequest(namespaceId: String, replyTo: ActorRef[GetNamespaceResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -233,17 +233,17 @@ object NamespaceStoreActor {
   ))
   sealed trait GetNamespaceError
 
-  case class GetNamespaceResponse(namespace: Either[GetNamespaceError, Namespace]) extends CborSerializable
+  final case class GetNamespaceResponse(namespace: Either[GetNamespaceError, Namespace]) extends CborSerializable
 
   //
   // Common Errors
   //
-  case class NamespaceNotFoundError() extends AnyRef
+  final case class NamespaceNotFoundError() extends AnyRef
     with UpdateNamespaceError
     with DeleteNamespaceError
     with GetNamespaceError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with CreateNamespaceError
     with UpdateNamespaceError
     with DeleteNamespaceError

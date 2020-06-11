@@ -16,14 +16,13 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
-import com.convergencelabs.convergence.server.util.concurrent.UnexpectedErrorException
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
-class DomainStatsActor(private[this] val context: ActorContext[DomainStatsActor.Message],
-                       private[this] val persistence: DomainPersistenceProvider)
-  extends AbstractBehavior[DomainStatsActor.Message](context) with Logging {
+class DomainStatsActor private(context: ActorContext[DomainStatsActor.Message],
+                               persistence: DomainPersistenceProvider)
+  extends AbstractBehavior[DomainStatsActor.Message](context) {
 
   import DomainStatsActor._
 
@@ -44,38 +43,53 @@ class DomainStatsActor(private[this] val context: ActorContext[DomainStatsActor.
       modelCount <- persistence.modelStore.getModelCount()
       dbSize <- databaseSize()
     } yield {
-      GetStatsSuccess(DomainStats(sessionCount, userCount, modelCount, dbSize))
-    }) match {
-      case Success(response) =>
-        replyTo ! response
-      case Failure(_) =>
-        replyTo ! RequestFailure(UnexpectedErrorException("Unexpected error getting domain stats"))
-    }
+      DomainStats(sessionCount, userCount, modelCount, dbSize)
+    })
+      .map(s => GetStatsResponse(Right(s)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting domain stats", cause)
+        GetStatsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def databaseSize(): Try[Long] = persistence.dbProvider.tryWithDatabase { db =>
-
     db.getSize()
   }
 }
 
 
 object DomainStatsActor {
-  def apply(persistence: DomainPersistenceProvider): Behavior[Message] = Behaviors.setup { context =>
-    new DomainStatsActor(context, persistence)
-  }
+  def apply(persistence: DomainPersistenceProvider): Behavior[Message] =
+    Behaviors.setup(context => new DomainStatsActor(context, persistence))
+
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable with DomainRestMessageBody
 
-  case class GetStatsRequest(replyTo: ActorRef[GetStatsResponse]) extends Message
+  //
+  // GetStats
+  //
+  final case class GetStatsRequest(replyTo: ActorRef[GetStatsResponse]) extends Message
 
-  sealed trait GetStatsResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetStatsError
 
-  case class GetStatsSuccess(stats: DomainStats) extends GetStatsResponse
+  final case class GetStatsResponse(stats: Either[GetStatsError, DomainStats]) extends CborSerializable
 
-  case class DomainStats(connectedSessions: Long, users: Long, models: Long, dbSize: Long)
+  final case class DomainStats(connectedSessions: Long, users: Long, models: Long, dbSize: Long)
 
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with GetStatsResponse
+  //
+  // Common Errors
+  //
+
+  final case class UnknownError() extends AnyRef
+    with GetStatsError
 
 }

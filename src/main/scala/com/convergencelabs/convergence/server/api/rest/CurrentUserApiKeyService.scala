@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.rest
 import java.time.Instant
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
@@ -27,17 +27,17 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import scala.concurrent.{ExecutionContext, Future}
 
 
-private[rest] class CurrentUserApiKeyService(private[this] val userApiKeyStoreActor: ActorRef[Message],
-                                             private[this] val system: ActorSystem[_],
-                                             private[this] val executionContext: ExecutionContext,
-                                             private[this] val defaultTimeout: Timeout)
+private[rest] class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Message],
+                                             scheduler: Scheduler,
+                                             executionContext: ExecutionContext,
+                                             defaultTimeout: Timeout)
   extends JsonSupport {
 
   import CurrentUserApiKeyService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
-  private[this] implicit val s: ActorSystem[_] = system
+  private[this] implicit val s: Scheduler = scheduler
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("user" / "apiKeys") {

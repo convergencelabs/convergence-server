@@ -29,7 +29,6 @@ import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.convergence.server.api.realtime.ErrorCodes
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
 import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.convergence.server.domain.chat.ChatActor
@@ -114,21 +113,21 @@ class ConvergenceRestApi(interface: String,
     // The Rest Services
     val infoService = new InfoService(ec, defaultRequestTimeout)
     val authService = new AuthService(authenticationActor, system.scheduler, ec, defaultRequestTimeout)
-    val currentUserService = new CurrentUserService(convergenceUserActor, favoriteDomainsActor, ec, system, defaultRequestTimeout)
-    val namespaceService = new NamespaceService(namespaceActor, system, ec, defaultRequestTimeout)
-    val roleService = new UserRoleService(roleActor, system, ec, defaultRequestTimeout)
-    val userApiKeyService = new CurrentUserApiKeyService(userApiKeyActor, system, ec, defaultRequestTimeout)
-    val configService = new ConfigService(configActor, system, ec, defaultRequestTimeout)
-    val statusService = new ServerStatusService(statusActor, system, ec, defaultRequestTimeout)
+    val currentUserService = new CurrentUserService(convergenceUserActor, favoriteDomainsActor, ec, system.scheduler, defaultRequestTimeout)
+    val namespaceService = new NamespaceService(namespaceActor, system.scheduler, ec, defaultRequestTimeout)
+    val roleService = new UserRoleService(roleActor, system.scheduler, ec, defaultRequestTimeout)
+    val userApiKeyService = new CurrentUserApiKeyService(userApiKeyActor, system.scheduler, ec, defaultRequestTimeout)
+    val configService = new ConfigService(configActor, system.scheduler, ec, defaultRequestTimeout)
+    val statusService = new ServerStatusService(statusActor, system.scheduler, ec, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
-    val convergenceUserService = new UserService(convergenceUserActor, system, ec, defaultRequestTimeout)
+    val convergenceUserService = new UserService(convergenceUserActor, system.scheduler, ec, defaultRequestTimeout)
 
     // TODO re-enable these when permissions are handled properly.
     //    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
     //    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
 
     val domainService = new DomainService(
-      system,
+      system.scheduler,
       ec,
       domainStoreActor,
       domainRestRegion,

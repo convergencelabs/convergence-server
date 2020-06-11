@@ -105,7 +105,7 @@ object UserFavoriteDomainStoreActor {
   //
   // RemoveFavoriteDomain
   //
-  case class AddFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
+  final case class AddFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -113,12 +113,12 @@ object UserFavoriteDomainStoreActor {
   ))
   sealed trait AddFavoriteDomainError
 
-  case class AddFavoriteDomainResponse(response: Either[AddFavoriteDomainError,Unit]) extends CborSerializable
+  final case class AddFavoriteDomainResponse(response: Either[AddFavoriteDomainError,Unit]) extends CborSerializable
 
   //
   // RemoveFavoriteDomain
   //
-  case class RemoveFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[RemoveFavoriteDomainResponse]) extends Message
+  final case class RemoveFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[RemoveFavoriteDomainResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -126,12 +126,12 @@ object UserFavoriteDomainStoreActor {
   ))
   sealed trait RemoveFavoriteDomainError
 
-  case class RemoveFavoriteDomainResponse(response: Either[RemoveFavoriteDomainError,Unit]) extends CborSerializable
+  final case class RemoveFavoriteDomainResponse(response: Either[RemoveFavoriteDomainError,Unit]) extends CborSerializable
 
   //
   // GetFavoritesForUser
   //
-  case class GetFavoritesForUserRequest(username: String, replyTo: ActorRef[GetFavoritesForUserResponse]) extends Message
+  final case class GetFavoritesForUserRequest(username: String, replyTo: ActorRef[GetFavoritesForUserResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -139,17 +139,17 @@ object UserFavoriteDomainStoreActor {
   ))
   sealed trait GetFavoritesForUserError
 
-  case class GetFavoritesForUserResponse(domains: Either[GetFavoritesForUserError,Set[Domain]]) extends CborSerializable
+  final case class GetFavoritesForUserResponse(domains: Either[GetFavoritesForUserError,Set[Domain]]) extends CborSerializable
 
   //
   // Commons Errors
   //
-  case class UserNotFoundError() extends AnyRef
+  final case class UserNotFoundError() extends AnyRef
     with GetFavoritesForUserError
     with RemoveFavoriteDomainError
     with AddFavoriteDomainError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with GetFavoritesForUserError
     with RemoveFavoriteDomainError
     with AddFavoriteDomainError

@@ -66,6 +66,7 @@ package object rest {
     ErrorResponse("invalid_value", Some(message), field.map(f => Map("field" -> f))))
 
   def forbiddenResponse(message: Option[String] = None): RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden", message))
+  def notFoundResponse(message: String): RestResponse = notFoundResponse(Some(message))
   def notFoundResponse(message: Option[String] = None): RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", message))
   def methodNotAllowed(methods: Seq[String]): RestResponse = (
     StatusCodes.MethodNotAllowed,

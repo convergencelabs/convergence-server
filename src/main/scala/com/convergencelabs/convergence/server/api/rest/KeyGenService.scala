@@ -27,8 +27,7 @@ private[rest] object KeyGenService {
 
 }
 
-private[rest] class KeyGenService(private[this] val executionContext: ExecutionContext)
-  extends JsonSupport {
+private[rest] class KeyGenService(executionContext: ExecutionContext) extends JsonSupport {
 
   private[this] implicit val ec: ExecutionContext = executionContext
 

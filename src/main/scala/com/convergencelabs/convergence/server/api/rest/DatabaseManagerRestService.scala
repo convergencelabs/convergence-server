@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.rest
 
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
@@ -40,10 +40,10 @@ private[rest] object DatabaseManagerRestService {
 
 }
 
-private[rest] class DatabaseManagerRestService(private[this] val executionContext: ExecutionContext,
-                                               private[this] val system: ActorSystem[_],
-                                               private[this] val databaseManager: ActorRef[DatabaseManagerActor.Message],
-                                               private[this] val defaultTimeout: Timeout)
+private[rest] class DatabaseManagerRestService(executionContext: ExecutionContext,
+                                               scheduler: Scheduler,
+                                               databaseManager: ActorRef[DatabaseManagerActor.Message],
+                                               defaultTimeout: Timeout)
   extends Json4sSupport with Logging {
 
   private[this] implicit val serialization: Serialization.type = Serialization
@@ -51,7 +51,7 @@ private[rest] class DatabaseManagerRestService(private[this] val executionContex
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
-  private[this] implicit val s: ActorSystem[_] = system
+  private[this] implicit val s: Scheduler = scheduler
 
   // FIXME need to check permissions
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>

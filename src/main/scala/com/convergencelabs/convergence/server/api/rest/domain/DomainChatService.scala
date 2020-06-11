@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import java.time.Instant
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
@@ -34,12 +34,12 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class DomainChatService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                        private[this] val chatSharding: ActorRef[ChatActor.Message],
-                        private[this] val system: ActorSystem[_],
-                        private[this] val executionContext: ExecutionContext,
-                        private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) with Logging {
+class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
+                        chatSharding: ActorRef[ChatActor.Message],
+                        scheduler: Scheduler,
+                        executionContext: ExecutionContext,
+                        timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) with Logging {
 
   import DomainChatService._
 
@@ -86,84 +86,108 @@ class DomainChatService(private[this] val domainRestActor: ActorRef[DomainRestAc
   }
 
   private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
-    domainRestActor.ask[ChatsSearchResponse](r =>
-      DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, offset, limit, r))).flatMap {
-      case ChatsSearchSuccess(PagedData(chatInfo, offset, total)) =>
-        val data = chatInfo.map { chat => toChatInfoData(chat) }
-        val response = PagedRestResponse(data, offset, total)
-        Future.successful(okResponse(response))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[ChatsSearchResponse](r =>
+        DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, offset, limit, r)))
+      .map(_.chats.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { case PagedData(chatInfo, offset, total) =>
+          val data = chatInfo.map { chat => toChatInfoData(chat) }
+          val response = PagedRestResponse(data, offset, total)
+          okResponse(response)
+        }))
   }
 
   private[this] def getChat(domain: DomainId, chatId: String): Future[RestResponse] = {
-    domainRestActor.ask[GetChatInfoResponse](r => DomainRestMessage(domain, GetChatInfoRequest(chatId, r))).flatMap {
-      case GetChatInfoSuccess(chat) =>
-        Future.successful(okResponse(toChatInfoData(chat)))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetChatInfoResponse](r => DomainRestMessage(domain, GetChatInfoRequest(chatId, r)))
+      .map(_.chat.fold(
+        {
+          case ChatNotFound() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        chat => okResponse(toChatInfoData(chat))
+      ))
+
   }
 
   private[this] def createChat(authProfile: AuthorizationProfile, domain: DomainId, chatData: CreateChatData): Future[RestResponse] = {
     val CreateChatData(chatId, chatType, membership, name, topic, members) = chatData
 
-    domainRestActor.ask[CreateChatResponse]{r =>
-      val request = CreateChatRequest(
-        Some(chatId),
-        DomainUserId.convergence(authProfile.username),
-        ChatType.parse(chatType).get,
-        ChatMembership.parse(membership).get,
-        Some(name),
-        Some(topic),
-        members.map(DomainUserId.normal),
-        r)
-      DomainRestMessage(domain, request)
-    }.flatMap {
-      case CreateChatSuccess(chatId) =>
-        Future.successful(createdResponse(chatId))
-      case RequestFailure(ChatActor.ChatAlreadyExistsException(_)) =>
-        Future.successful(duplicateResponse("chatId"))
-      case RequestFailure(cause) =>
-
-        logger.error("could not create chat: " + chatData.toString, cause)
-        Future.successful(unknownErrorResponse(Some("An unexpected error occurred creating the chat")))
-    }
+    domainRestActor
+      .ask[CreateChatResponse] { r =>
+        val request = CreateChatRequest(
+          Some(chatId),
+          DomainUserId.convergence(authProfile.username),
+          ChatType.parse(chatType).get,
+          ChatMembership.parse(membership).get,
+          Some(name),
+          Some(topic),
+          members.map(DomainUserId.normal),
+          r)
+        DomainRestMessage(domain, request)
+      }
+      .map(_.chatId.fold(
+        {
+          case ChatAlreadyExists() =>
+            duplicateResponse("chatId")
+          case UnknownError() =>
+            InternalServerError
+        },
+        chatId => createdResponse(chatId)
+      ))
   }
 
   private[this] def deleteChat(authProfile: AuthorizationProfile, domain: DomainId, chatId: String): Future[RestResponse] = {
-    domainRestActor.ask[ChatActor.RemoveChatResponse](r =>
-      DomainRestMessage(domain, ChatActor.RemoveChatRequest(domain, chatId, DomainUserId.convergence(authProfile.username), r))).flatMap {
-      case ChatActor.RequestSuccess() =>
-        Future.successful(DeletedResponse)
-      case ChatActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[ChatActor.RemoveChatResponse](r =>
+        DomainRestMessage(domain, ChatActor.RemoveChatRequest(domain, chatId, DomainUserId.convergence(authProfile.username), r)))
+      .map(_.response.fold(
+        {
+          case error: ChatActor.CommonErrors =>
+            handleCommonErrors(error)
+        },
+        _ => DeletedResponse
+      ))
   }
 
   private[this] def setName(authProfile: AuthorizationProfile, domain: DomainId, chatId: String, data: SetNameData): Future[RestResponse] = {
     val SetNameData(name) = data
     val userId = DomainUserId.convergence(authProfile.username)
-    domainRestActor.ask[ChatActor.SetChatNameResponse](r =>
-      DomainRestMessage(domain, ChatActor.SetChatNameRequest(domain, chatId, userId, name, r))).flatMap {
-      case ChatActor.RequestSuccess() =>
-        Future.successful(OkResponse)
-      case ChatActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[ChatActor.SetChatNameResponse](r =>
+        DomainRestMessage(domain, ChatActor.SetChatNameRequest(domain, chatId, userId, name, r)))
+      .map(_.response.fold(
+        {
+          case error: ChatActor.CommonErrors =>
+            handleCommonErrors(error)
+          case ChatActor.ChatNotJoinedError() =>
+            ForbiddenError
+        },
+        _ => OkResponse
+      ))
   }
 
   private[this] def setTopic(authProfile: AuthorizationProfile, domain: DomainId, chatId: String, data: SetTopicData): Future[RestResponse] = {
     val SetTopicData(topic) = data
     val userId = DomainUserId.convergence(authProfile.username)
-    domainRestActor.ask[ChatActor.SetChatTopicResponse](r =>
-      DomainRestMessage(domain, ChatActor.SetChatTopicRequest(domain, chatId, userId, topic, r))).flatMap {
-      case ChatActor.RequestSuccess() =>
-        Future.successful(OkResponse)
-      case ChatActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[ChatActor.SetChatTopicResponse](r =>
+        DomainRestMessage(domain, ChatActor.SetChatTopicRequest(domain, chatId, userId, topic, r)))
+      .map(_.response.fold(
+        {
+          case error: ChatActor.CommonErrors =>
+            handleCommonErrors(error)
+          case ChatActor.ChatNotJoinedError() =>
+            ForbiddenError
+        },
+        _ => OkResponse
+      ))
   }
 
   private[this] def getChatEvents(domain: DomainId,
@@ -175,14 +199,21 @@ class DomainChatService(private[this] val domainRestActor: ActorRef[DomainRestAc
                                   limit: Option[Long],
                                   forward: Option[Boolean]): Future[RestResponse] = {
     val types = eventTypes.map(t => t.split(",").toSet)
-    domainRestActor.ask[ChatActor.GetChatHistoryResponse](r => DomainRestMessage(domain,
-      ChatActor.GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, messageFilter, r))).flatMap {
-      case ChatActor.GetChatHistorySuccess(events) =>
-        val response = PagedRestResponse(events.data.map(toChatEventData), events.offset, events.count)
-        Future.successful(okResponse(response))
-      case ChatActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[ChatActor.GetChatHistoryResponse](r => DomainRestMessage(domain,
+      ChatActor.GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, messageFilter, r)))
+      .map(_.events.fold(
+        {
+          case error: ChatActor.CommonErrors =>
+            handleCommonErrors(error)
+          case ChatActor.ChatNotJoinedError() =>
+            ForbiddenError
+        },
+        {events =>
+          val response = PagedRestResponse(events.data.map(toChatEventData), events.offset, events.count)
+          okResponse(response)
+        }
+      ))
   }
 
   private[this] def toChatInfoData(chatInfo: ChatInfo): ChatInfoData = {
@@ -222,6 +253,17 @@ class DomainChatService(private[this] val domainRestActor: ActorRef[DomainRestAc
 
       case ChatMessageEvent(eventNumber, id, user, timestamp, message) =>
         ChatMessageEventData(eventNumber, id, user, timestamp, message)
+    }
+  }
+
+  private[this] def handleCommonErrors(error: ChatActor.CommonErrors): RestResponse = {
+    error match {
+      case ChatActor.ChatNotFoundError() =>
+        NotFoundResponse
+      case ChatActor.UnauthorizedError() =>
+        ForbiddenError
+      case ChatActor.UnknownError() =>
+        InternalServerError
     }
   }
 }

@@ -17,12 +17,12 @@ import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, Chat
 import com.convergencelabs.convergence.server.domain.DomainUserId
 
 
-case class ChatState(id: String,
-                     chatType: ChatType.Value,
-                     created: Instant,
-                     membership: ChatMembership.Value,
-                     name: String,
-                     topic: String,
-                     lastEventTime: Instant,
-                     lastEventNumber: Long,
-                     members: Map[DomainUserId, ChatMember])
+final case class ChatState(id: String,
+                           chatType: ChatType.Value,
+                           created: Instant,
+                           membership: ChatMembership.Value,
+                           name: String,
+                           topic: String,
+                           lastEventTime: Instant,
+                           lastEventNumber: Long,
+                           members: Map[DomainUserId, ChatMember])

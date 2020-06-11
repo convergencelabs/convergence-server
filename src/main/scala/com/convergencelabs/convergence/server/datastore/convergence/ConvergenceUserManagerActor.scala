@@ -231,7 +231,7 @@ object ConvergenceUserManagerActor {
             domainStoreActor: ActorRef[DomainStoreActor.Message]): Behavior[Message] =
     Behaviors.setup(context => new ConvergenceUserManagerActor(context, userStore, roleStore, userCreator, domainStoreActor))
 
-  case class ConvergenceUserInfo(user: User, globalRole: String)
+  final case class ConvergenceUserInfo(user: User, globalRole: String)
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -244,7 +244,7 @@ object ConvergenceUserManagerActor {
   //
   // CreateConvergenceUser
   //
-  case class CreateConvergenceUserRequest(username: String,
+  final case class CreateConvergenceUserRequest(username: String,
                                           email: String,
                                           firstName: String,
                                           lastName: String,
@@ -260,14 +260,14 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait CreateConvergenceUserError
 
-  case class UserAlreadyExistsError(filed: String) extends CreateConvergenceUserError
+  final case class UserAlreadyExistsError(filed: String) extends CreateConvergenceUserError
 
-  case class CreateConvergenceUserResponse(response: Either[CreateConvergenceUserError, Unit]) extends CborSerializable
+  final case class CreateConvergenceUserResponse(response: Either[CreateConvergenceUserError, Unit]) extends CborSerializable
 
   //
   //UpdateConvergenceUser
   //
-  case class UpdateConvergenceUserRequest(username: String,
+  final case class UpdateConvergenceUserRequest(username: String,
                                           email: String,
                                           firstName: String,
                                           lastName: String,
@@ -281,12 +281,12 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait UpdateConvergenceUserError
 
-  case class UpdateConvergenceUserResponse(response: Either[UpdateConvergenceUserError, Unit]) extends CborSerializable
+  final case class UpdateConvergenceUserResponse(response: Either[UpdateConvergenceUserError, Unit]) extends CborSerializable
 
   //
   // UpdateConvergenceUserProfile
   //
-  case class UpdateConvergenceUserProfileRequest(username: String,
+  final case class UpdateConvergenceUserProfileRequest(username: String,
                                                  email: String,
                                                  firstName: String,
                                                  lastName: String,
@@ -299,12 +299,12 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait UpdateConvergenceUserProfileError
 
-  case class UpdateConvergenceUserProfileResponse(response: Either[UpdateConvergenceUserProfileError, Unit]) extends CborSerializable
+  final case class UpdateConvergenceUserProfileResponse(response: Either[UpdateConvergenceUserProfileError, Unit]) extends CborSerializable
 
   //
   // SetPassword
   //
-  case class SetPasswordRequest(username: String, password: String, replyTo: ActorRef[SetPasswordResponse]) extends Message
+  final case class SetPasswordRequest(username: String, password: String, replyTo: ActorRef[SetPasswordResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -312,12 +312,12 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait SetPasswordError
 
-  case class SetPasswordResponse(response: Either[SetPasswordError, Unit]) extends CborSerializable
+  final case class SetPasswordResponse(response: Either[SetPasswordError, Unit]) extends CborSerializable
 
   //
   // DeleteConvergenceUser
   //
-  case class DeleteConvergenceUserRequest(username: String, replyTo: ActorRef[DeleteConvergenceUserResponse]) extends Message
+  final case class DeleteConvergenceUserRequest(username: String, replyTo: ActorRef[DeleteConvergenceUserResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -325,24 +325,24 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait DeleteConvergenceUserError
 
-  case class DeleteConvergenceUserResponse(response: Either[DeleteConvergenceUserError, Unit]) extends CborSerializable
+  final case class DeleteConvergenceUserResponse(response: Either[DeleteConvergenceUserError, Unit]) extends CborSerializable
 
   //
   // GetConvergenceUsers
   //
-  case class GetConvergenceUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int], replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
+  final case class GetConvergenceUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int], replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
   sealed trait GetConvergenceUsersError
 
-  case class GetConvergenceUsersResponse(users: Either[GetConvergenceUsersError, Set[ConvergenceUserInfo]]) extends CborSerializable
+  final case class GetConvergenceUsersResponse(users: Either[GetConvergenceUsersError, Set[ConvergenceUserInfo]]) extends CborSerializable
 
   //
   // GetConvergenceUser
   //
-  case class GetConvergenceUserRequest(username: String, replyTo: ActorRef[GetConvergenceUserResponse]) extends Message
+  final case class GetConvergenceUserRequest(username: String, replyTo: ActorRef[GetConvergenceUserResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -350,12 +350,12 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait GetConvergenceUserError
 
-  case class GetConvergenceUserResponse(user: Either[GetConvergenceUserError, ConvergenceUserInfo]) extends CborSerializable
+  final case class GetConvergenceUserResponse(user: Either[GetConvergenceUserError, ConvergenceUserInfo]) extends CborSerializable
 
   //
   // GetUserBearerToken
   //
-  case class GetUserBearerTokenRequest(username: String, replyTo: ActorRef[GetUserBearerTokenResponse]) extends Message
+  final case class GetUserBearerTokenRequest(username: String, replyTo: ActorRef[GetUserBearerTokenResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -363,12 +363,12 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait GetUserBearerTokenError
 
-  case class GetUserBearerTokenResponse(token: Either[GetUserBearerTokenError, String]) extends CborSerializable
+  final case class GetUserBearerTokenResponse(token: Either[GetUserBearerTokenError, String]) extends CborSerializable
 
   //
   // RegenerateUserBearerToken
   //
-  case class RegenerateUserBearerTokenRequest(username: String, replyTo: ActorRef[RegenerateUserBearerTokenResponse]) extends Message
+  final case class RegenerateUserBearerTokenRequest(username: String, replyTo: ActorRef[RegenerateUserBearerTokenResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -376,16 +376,16 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait RegenerateUserBearerTokenError
 
-  case class RegenerateUserBearerTokenResponse(token: Either[RegenerateUserBearerTokenError, String]) extends CborSerializable
+  final case class RegenerateUserBearerTokenResponse(token: Either[RegenerateUserBearerTokenError, String]) extends CborSerializable
 
   //
   // Common Errors
   //
 
-  case class InvalidValueError(field: String) extends AnyRef
+  final case class InvalidValueError(field: String) extends AnyRef
     with CreateConvergenceUserError
 
-  case class UserNotFoundError() extends AnyRef
+  final case class UserNotFoundError() extends AnyRef
     with SetPasswordError
     with DeleteConvergenceUserError
     with UpdateConvergenceUserProfileError
@@ -394,7 +394,7 @@ object ConvergenceUserManagerActor {
     with GetUserBearerTokenError
     with RegenerateUserBearerTokenError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with SetPasswordError
     with DeleteConvergenceUserError
     with UpdateConvergenceUserProfileError

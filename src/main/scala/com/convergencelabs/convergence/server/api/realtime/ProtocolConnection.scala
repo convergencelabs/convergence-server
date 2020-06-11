@@ -49,6 +49,11 @@ trait ReplyCallback {
   def unknownError(): Unit
 
   /**
+   * Responds to the request indicated a timeout occurred.
+   */
+  def timeoutError(): Unit
+
+  /**
    * Responds with an unexpected error but supplies a human readable
    * error message to the client.
    *
@@ -348,8 +353,12 @@ class ProtocolConnection(private[this] val clientActor: ActorRef[ClientActor.Fro
 
       sendMessage(envelope)
     }
-  }
 
+
+    override def timeoutError(): Unit = {
+      expectedError(ErrorCodes.Timeout, "An internal server timeout occurred")
+    }
+  }
 }
 
 object ProtocolConnection {

@@ -132,7 +132,7 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
       case Body.ChatEventsMarkedSeen(body) =>
         processMessage(message, Set(), Set(body.user.get))
       case Body.RemoteChatMessage(body) =>
-        processMessage(message, Set(body.sessionId), Set())
+        processMessage(message, Set(), Set(body.user.get))
       case Body.GetChatHistoryResponse(body) =>
         processChatEvent(message, body.data)
       case Body.ChatsSearchResponse(body) =>

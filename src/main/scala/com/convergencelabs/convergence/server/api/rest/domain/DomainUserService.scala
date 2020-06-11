@@ -14,15 +14,13 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import java.time.Instant
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor.{RequestFailure, RequestSuccess}
-import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.UserStoreActor._
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
@@ -32,11 +30,11 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class DomainUserService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                        private[this] val system: ActorSystem[_],
-                        private[this] val executionContext: ExecutionContext,
-                        private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
+                        scheduler: Scheduler,
+                        executionContext: ExecutionContext,
+                        timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainUserService._
 
@@ -85,80 +83,111 @@ class DomainUserService(private[this] val domainRestActor: ActorRef[DomainRestAc
   }
 
   private[this] def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
-    domainRestActor.ask[GetUsersResponse](r => DomainRestMessage(domain, GetUsersRequest(filter, offset, limit, r))).flatMap {
-      case GetUsersSuccess(users) =>
-        // FIXME Paged Data
-        Future.successful(okResponse(users.data.map(toUserData)))
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetUsersResponse](
+        r => DomainRestMessage(domain, GetUsersRequest(filter, offset, limit, r)))
+      .map(_.users.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        // FIXME paged data
+        users => okResponse(users.data.map(toUserData))
+      ))
   }
 
   private[this] def findUser(domain: DomainId, request: UserLookupRequest): Future[RestResponse] = {
     val UserLookupRequest(filter, excludes, offset, limit) = request
     val excludedUsers = excludes.map(_.map(DomainUserId(DomainUserType.Normal, _)))
-    domainRestActor.ask[FindUsersResponse](r => DomainRestMessage(domain, FindUsersRequest(filter, excludedUsers, offset, limit, r))).flatMap {
-      case FindUsersSuccess(users) =>
-        // FIXME paged data.
-        Future.successful(okResponse(users.data.map(toUserData)))
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[FindUsersResponse](
+        r => DomainRestMessage(domain, FindUsersRequest(filter, excludedUsers, offset, limit, r)))
+      .map(_.users.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        // FIXME paged data
+        users => okResponse(users.data.map(toUserData))
+      ))
   }
 
   private[this] def createUserRequest(createRequest: CreateUserRequestData, domain: DomainId): Future[RestResponse] = {
     val CreateUserRequestData(username, firstName, lastName, displayName, email, password) = createRequest
-    domainRestActor.ask[CreateUserResponse](r =>
-      DomainRestMessage(domain, CreateUserRequest(username, firstName, lastName, displayName, email, password, r))).flatMap {
-      case UserStoreActor.CreateUserSuccess(_) =>
-        Future.successful(CreatedResponse)
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[CreateUserResponse](
+        r => DomainRestMessage(domain, CreateUserRequest(username, firstName, lastName, displayName, email, password, r)))
+      .map(_.username.fold(
+        {
+          case UserAlreadyExistsError(field) =>
+            duplicateResponse(field)
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => CreatedResponse
+      ))
   }
 
   private[this] def updateUserRequest(username: String, updateRequest: UpdateUserRequestData, domain: DomainId): Future[RestResponse] = {
     val UpdateUserRequestData(firstName, lastName, displayName, email, disabled) = updateRequest
-    domainRestActor.ask[UpdateUserResponse](r =>
-      DomainRestMessage(domain, UpdateUserRequest(username, firstName, lastName, displayName, email, disabled, r))).flatMap {
-      case UserStoreActor.RequestSuccess() =>
-        Future.successful(OkResponse)
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[UpdateUserResponse](
+        r => DomainRestMessage(domain, UpdateUserRequest(username, firstName, lastName, displayName, email, disabled, r)))
+      .map(_.response.fold(
+        {
+          case UserNotFoundError() =>
+            userNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => OkResponse
+      ))
   }
 
   private[this] def setPasswordRequest(uid: String, setPasswordRequest: SetPasswordRequestData, domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[SetPasswordResponse](r =>
-      DomainRestMessage(domain, SetPasswordRequest(uid, setPasswordRequest.password, r))).flatMap {
-      case UserStoreActor.RequestSuccess() =>
-        Future.successful(OkResponse)
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[SetPasswordResponse](
+        r => DomainRestMessage(domain, SetPasswordRequest(uid, setPasswordRequest.password, r)))
+      .map(_.response.fold(
+        {
+          case UserNotFoundError() =>
+            userNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => OkResponse
+      ))
   }
 
   private[this] def getUserByUsername(username: String, domain: DomainId): Future[RestResponse] = {
     val userId = DomainUserId(DomainUserType.Normal, username)
-    domainRestActor.ask[GetUserResponse](r =>
-      DomainRestMessage(domain, GetUserRequest(userId, r))).flatMap {
-      case UserStoreActor.GetUserSuccess(Some(user)) =>
-        Future.successful(okResponse(toUserData(user)))
-      case UserStoreActor.GetUserSuccess(None) =>
-        Future.successful(notFoundResponse())
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetUserResponse](
+        r => DomainRestMessage(domain, GetUserRequest(userId, r)))
+      .map(_.user.fold(
+        {
+          case UserNotFoundError() =>
+            userNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => okResponse(toUserData(_))
+      ))
   }
 
   private[this] def deleteUser(uid: String, domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[DeleteUserResponse](r =>
-      DomainRestMessage(domain, DeleteUserRequest(uid, r))).flatMap {
-      case UserStoreActor.RequestSuccess() =>
-        Future.successful(DeletedResponse)
-      case UserStoreActor.RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[DeleteUserResponse](
+        r => DomainRestMessage(domain, DeleteUserRequest(uid, r)))
+      .map(_.response.fold(
+        {
+          case UserNotFoundError() =>
+            userNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => DeletedResponse
+      ))
   }
 
   private[this] def toUserData(user: DomainUser): DomainUserData = {
@@ -166,6 +195,8 @@ class DomainUserService(private[this] val domainRestActor: ActorRef[DomainRestAc
     val userId = DomainUserId(userType, username)
     DomainUserData(userId.username, firstName, lastName, displayName, email, lastLogin, disabled, deleted, deletedUsername)
   }
+
+  private[this] def userNotFound(): RestResponse = notFoundResponse("User not found")
 }
 
 object DomainUserService {

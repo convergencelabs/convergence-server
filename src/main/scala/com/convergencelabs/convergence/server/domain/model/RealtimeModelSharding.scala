@@ -16,25 +16,26 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ServerClusterRoles
 import com.convergencelabs.convergence.server.actor.ActorSharding
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
+import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 object RealtimeModelSharding {
   private val EntityName = "RealtimeModel"
 
-  def apply(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int): ActorRef[RealtimeModelActor.Message] = {
-    val modelSharding = new RealtimeModelSharding(system, sharding, numberOfShards)
+  def apply(config: Config, sharding: ClusterSharding, numberOfShards: Int): ActorRef[RealtimeModelActor.Message] = {
+    val modelSharding = new RealtimeModelSharding(config, sharding, numberOfShards)
     modelSharding.shardRegion
   }
 }
 
-private class RealtimeModelSharding(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)
-  extends ActorSharding[RealtimeModelActor.Message, Props](RealtimeModelSharding.EntityName, ServerClusterRoles.Backend, system, sharding, numberOfShards) {
+private class RealtimeModelSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int)
+  extends ActorSharding[RealtimeModelActor.Message, Props](RealtimeModelSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   override def extractEntityId(message: RealtimeModelActor.Message): String =
     s"${message.domainId.namespace}::${message.domainId.domainId}::${message.modelId}"
 
-  override def createBehavior(props: Props, system: ActorSystem[_], shardRegion: ActorRef[RealtimeModelActor.Message], entityContext: EntityContext[RealtimeModelActor.Message]): Behavior[RealtimeModelActor.Message] = {
+  override def createBehavior(props: Props, shardRegion: ActorRef[RealtimeModelActor.Message], entityContext: EntityContext[RealtimeModelActor.Message]): Behavior[RealtimeModelActor.Message] = {
     val Props(modelPermissionResolver, modelCreator, persistenceManager, clientDataResponseTimeout, receiveTimeout, resyncTimeout) = props
     RealtimeModelActor(
       shardRegion,
@@ -49,11 +50,11 @@ private class RealtimeModelSharding(system: ActorSystem[_], sharding: ClusterSha
 
   override protected def createProperties(): Props = {
     val clientDataResponseTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.model.client-data-timeout").toNanos)
+      config.getDuration("convergence.realtime.model.client-data-timeout").toNanos)
     val receiveTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.model.passivation-timeout").toNanos)
+      config.getDuration("convergence.realtime.model.passivation-timeout").toNanos)
     val resyncTimeout = Duration.fromNanos(
-      system.settings.config.getDuration("convergence.realtime.model.resynchronization-timeout").toNanos)
+      config.getDuration("convergence.realtime.model.resynchronization-timeout").toNanos)
 
     Props(new ModelPermissionResolver(),
       new ModelCreator(),

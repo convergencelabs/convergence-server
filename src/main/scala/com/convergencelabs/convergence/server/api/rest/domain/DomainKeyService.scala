@@ -12,12 +12,12 @@
 package com.convergencelabs.convergence.server.api.rest.domain
 
 
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
@@ -29,11 +29,11 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainKeyService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                       private[this] val system: ActorSystem[_],
-                       private[this] val executionContext: ExecutionContext,
-                       private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
+                       scheduler: Scheduler,
+                       executionContext: ExecutionContext,
+                       timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainKeyService._
 
@@ -62,54 +62,79 @@ class DomainKeyService(private[this] val domainRestActor: ActorRef[DomainRestAct
   }
 
   private[this] def getKeys(domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[GetJwtAuthKeysResponse](r => DomainRestMessage(domain, GetJwtAuthKeysRequest(None, None, r))).flatMap {
-      case GetJwtAuthKeysSuccess(keys) =>
-        Future.successful(okResponse(keys))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetJwtAuthKeysResponse](r => DomainRestMessage(domain, GetJwtAuthKeysRequest(None, None, r)))
+      .map(_.keys.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        okResponse(_)
+      ))
   }
 
   private[this] def getKey(domain: DomainId, keyId: String): Future[RestResponse] = {
-    domainRestActor.ask[GetJwtAuthKeyResponse](r => DomainRestMessage(domain, GetJwtAuthKeyRequest(keyId, r))).flatMap {
-      case GetJwtAuthKeySuccess(key) =>
-        Future.successful(okResponse(key))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetJwtAuthKeyResponse](r => DomainRestMessage(domain, GetJwtAuthKeyRequest(keyId, r)))
+      .map(_.key.fold(
+        {
+          case JwtAuthKeyNotFoundError() =>
+            keyNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        okResponse(_)
+      ))
   }
 
   private[this] def createKey(domain: DomainId, key: KeyInfo): Future[RestResponse] = {
-    domainRestActor.ask[CreateJwtAuthKeyResponse](r =>
-      DomainRestMessage(domain, CreateJwtAuthKeyRequest(key, r))).flatMap {
-      case RequestSuccess() =>
-        Future.successful(CreatedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[CreateJwtAuthKeyResponse](
+        r => DomainRestMessage(domain, CreateJwtAuthKeyRequest(key, r)))
+      .map(_.response.fold(
+        {
+          case JwtAuthKeyExistsError() =>
+            duplicateResponse("id")
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => CreatedResponse
+      ))
   }
 
   private[this] def updateKey(domain: DomainId, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
     val info = KeyInfo(keyId, description, key, enabled)
-    domainRestActor.ask[UpdateJwtAuthKeyResponse](r =>
-      DomainRestMessage(domain, UpdateJwtAuthKeyRequest(info, r))).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[UpdateJwtAuthKeyResponse](
+        r => DomainRestMessage(domain, UpdateJwtAuthKeyRequest(info, r)))
+      .map(_.response.fold(
+        {
+          case JwtAuthKeyNotFoundError() =>
+            keyNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => OkResponse
+      ))
   }
 
   private[this] def deleteKey(domain: DomainId, keyId: String): Future[RestResponse] = {
-    domainRestActor.ask[DeleteJwtAuthKeyResponse](r =>
-      DomainRestMessage(domain, DeleteJwtAuthKeyRequest(keyId, r))).flatMap {
-      case RequestSuccess() =>
-        Future.successful(DeletedResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[DeleteJwtAuthKeyResponse](
+        r => DomainRestMessage(domain, DeleteJwtAuthKeyRequest(keyId, r)))
+      .map(_.response.fold(
+        {
+          case JwtAuthKeyNotFoundError() =>
+            keyNotFound()
+          case UnknownError() =>
+            InternalServerError
+        },
+        _ => DeletedResponse
+      ))
   }
+
+  private def keyNotFound(): RestResponse = notFoundResponse("The specified key does not exist.")
 }
 
 object DomainKeyService {

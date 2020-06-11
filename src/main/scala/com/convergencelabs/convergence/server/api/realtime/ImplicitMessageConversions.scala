@@ -82,7 +82,7 @@ object ImplicitMessageConversions {
   implicit def messageToStringValue(stringValue: com.convergencelabs.convergence.proto.model.StringValue): StringValue = StringValue(stringValue.id, stringValue.value)
   implicit def messageToDateValue(dateValue: com.convergencelabs.convergence.proto.model.DateValue): DateValue = DateValue(dateValue.id, timestampToInstant(dateValue.value.get))
 
-  implicit def channelInfoToMessage(info: ChatInfo): ChatInfoData =
+  implicit def chatInfoToMessage(info: ChatInfo): ChatInfoData =
     com.convergencelabs.convergence.proto.chat.ChatInfoData(
       info.id, 
       info.chatType.toString.toLowerCase(),

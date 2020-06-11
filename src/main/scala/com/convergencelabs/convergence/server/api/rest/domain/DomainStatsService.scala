@@ -12,14 +12,14 @@
 package com.convergencelabs.convergence.server.api.rest.domain
 
 
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, path}
 import akka.http.scaladsl.server.Route
-import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.{RestResponse, okResponse}
+import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor._
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
@@ -28,11 +28,11 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainStatsService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                         private[this] val system: ActorSystem[_],
-                         private[this] val executionContext: ExecutionContext,
-                         private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainStatsService(domainRestActor: ActorRef[DomainRestActor.Message],
+                         scheduler: Scheduler,
+                         executionContext: ExecutionContext,
+                         timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainStatsService._
 
@@ -42,14 +42,19 @@ class DomainStatsService(private[this] val domainRestActor: ActorRef[DomainRestA
     }
 
   private[this] def getStats(domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[GetStatsResponse](r => DomainRestMessage(domain,  GetStatsRequest(r))).flatMap {
-      case GetStatsSuccess(stats) =>
-        val DomainStats(activeSessionCount, userCount, modelCount, dbSize) = stats
-        val response = DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize)
-        Future.successful(okResponse(response))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetStatsResponse](r => DomainRestMessage(domain,  GetStatsRequest(r)))
+      .map(_.stats.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        {stats =>
+          val DomainStats(activeSessionCount, userCount, modelCount, dbSize) = stats
+          val response = DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize)
+          okResponse(response)
+        }
+      ))
   }
 }
 

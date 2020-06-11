@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.actor
 
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityContext, EntityTypeKey}
 
 import scala.reflect.ClassTag
@@ -23,11 +23,10 @@ import scala.reflect.ClassTag
  * @param name           The name of the Actor.
  * @param systemRole     The Actor System Cluster Role on which to start the shard
  *                       regions.
- * @param system         The ActorSystem to start the shard in.
  * @param numberOfShards The number of shards to create across the cluster.
  *
  */
-abstract class ActorSharding[T, P](name: String, systemRole: String, system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)(implicit t:ClassTag[T]) {
+abstract class ActorSharding[T, P](name: String, systemRole: String, sharding: ClusterSharding, numberOfShards: Int)(implicit t:ClassTag[T]) {
 
   private[this] var createProperties: Option[P] = None
 
@@ -42,7 +41,7 @@ abstract class ActorSharding[T, P](name: String, systemRole: String, system: Act
 
   protected def createProperties(): P
 
-  protected def createBehavior(createProps: P, system: ActorSystem[_], shardRegion: ActorRef[T], entityContext: EntityContext[T]): Behavior[T]
+  protected def createBehavior(createProps: P, shardRegion: ActorRef[T], entityContext: EntityContext[T]): Behavior[T]
 
   private[this] def createBehaviorWrapper(entityContext: EntityContext[T]): Behavior[T] = {
     val props = createProperties match {
@@ -54,6 +53,6 @@ abstract class ActorSharding[T, P](name: String, systemRole: String, system: Act
         p
     }
 
-    createBehavior(props, system, shardRegion, entityContext)
+    createBehavior(props, shardRegion, entityContext)
   }
 }

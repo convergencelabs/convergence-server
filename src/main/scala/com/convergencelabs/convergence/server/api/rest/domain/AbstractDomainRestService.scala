@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ActorSystem, Scheduler}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.actor.AskUtils
 import com.convergencelabs.convergence.server.api.rest.JsonSupport
@@ -20,12 +20,14 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Pe
 
 import scala.concurrent.ExecutionContext
 
-class AbstractDomainRestService(system: ActorSystem[_], executionContext: ExecutionContext, defaultTimeout: Timeout)
+class AbstractDomainRestService(scheduler: Scheduler,
+                                executionContext: ExecutionContext,
+                                defaultTimeout: Timeout)
   extends JsonSupport with AskUtils {
 
   protected implicit val ec: ExecutionContext = executionContext
   protected implicit val t: Timeout = defaultTimeout
-  protected implicit val s: ActorSystem[_] = system
+  protected implicit val s: Scheduler = scheduler
 
   // Permission Checks
 

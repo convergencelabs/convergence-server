@@ -23,8 +23,8 @@ trait AskUtils extends Logging {
     cause match {
       case cause: TimeoutException =>
         val message = "an internal timeout occurred"
-        error(message, cause)
-        cb.unexpectedError(message)
+        warn(message, cause)
+        cb.timeoutError()
       case cause =>
         val message = "an unexpected error occurred"
         error(message, cause)

@@ -154,36 +154,36 @@ object ModelStoreActor {
   //
   // GetModels
   //
-  case class GetModelsRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsResponse]) extends Message
+  final case class GetModelsRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsResponse]) extends Message
 
   sealed trait GetModelsError
 
-  case class GetModelsResponse(models: Either[GetModelsError, List[ModelMetaData]]) extends CborSerializable
+  final case class GetModelsResponse(models: Either[GetModelsError, List[ModelMetaData]]) extends CborSerializable
 
   //
   // GetModelsInCollection
   //
-  case class GetModelsInCollectionRequest(collectionId: String, offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
+  final case class GetModelsInCollectionRequest(collectionId: String, offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
 
   sealed trait GetModelsInCollectionError
 
-  case class GetModelsInCollectionResponse(models: Either[GetModelsInCollectionError, List[ModelMetaData]]) extends CborSerializable
+  final case class GetModelsInCollectionResponse(models: Either[GetModelsInCollectionError, List[ModelMetaData]]) extends CborSerializable
 
   //
   // Query Models
   //
-  case class QueryModelsRequest(userId: DomainUserId, query: String, replyTo: ActorRef[QueryModelsResponse]) extends Message
+  final case class QueryModelsRequest(userId: DomainUserId, query: String, replyTo: ActorRef[QueryModelsResponse]) extends Message
 
   sealed trait QueryModelsError
 
-  case class InvalidQueryError(message: String, query: String, index: Option[Int]) extends QueryModelsError
+  final case class InvalidQueryError(message: String, query: String, index: Option[Int]) extends QueryModelsError
 
-  case class QueryModelsResponse(result: Either[QueryModelsError, PagedData[ModelQueryResult]]) extends CborSerializable
+  final case class QueryModelsResponse(result: Either[QueryModelsError, PagedData[ModelQueryResult]]) extends CborSerializable
 
   //
   // GetModelUpdate
   //
-  case class GetModelUpdateRequest(modelId: String,
+  final case class GetModelUpdateRequest(modelId: String,
                                    currentVersion: Long,
                                    currentPermissions: ModelPermissions,
                                    userId: DomainUserId,
@@ -194,28 +194,28 @@ object ModelStoreActor {
 
   sealed trait ModelUpdateResult
 
-  case class OfflineModelPermissionRevoked() extends ModelUpdateResult
+  final case class OfflineModelPermissionRevoked() extends ModelUpdateResult
 
-  case class OfflineModelNotUpdate() extends ModelUpdateResult
+  final case class OfflineModelNotUpdate() extends ModelUpdateResult
 
-  case class OfflineModelDeleted() extends ModelUpdateResult
+  final case class OfflineModelDeleted() extends ModelUpdateResult
 
-  case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends ModelUpdateResult
+  final case class OfflineModelUpdated(model: Option[Model], permissions: Option[ModelPermissions]) extends ModelUpdateResult
 
-  case class OfflineModelInitial(model: Model, permissions: ModelPermissions, valueIdPrefix: Long) extends ModelUpdateResult
+  final case class OfflineModelInitial(model: Model, permissions: ModelPermissions, valueIdPrefix: Long) extends ModelUpdateResult
 
 
-  case class GetModelUpdateResponse(result: Either[GetModelUpdateError, ModelUpdateResult]) extends CborSerializable
+  final case class GetModelUpdateResponse(result: Either[GetModelUpdateError, ModelUpdateResult]) extends CborSerializable
 
   //
   // Common Errors
   //
 
-  case class ModelNotFoundError() extends AnyRef
+  final case class ModelNotFoundError() extends AnyRef
     with GetModelsInCollectionError
     with GetModelsError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with QueryModelsError
     with GetModelsInCollectionError
     with GetModelsError

@@ -12,13 +12,13 @@
 package com.convergencelabs.convergence.server.api.rest.domain
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, pathEnd, pathPrefix}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.{RestResponse, okResponse}
+import com.convergencelabs.convergence.server.api.rest.{InternalServerError, RestResponse, okResponse}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor._
@@ -32,11 +32,11 @@ object DomainAdminTokenService {
 
 }
 
-class DomainAdminTokenService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                              private[this] val system: ActorSystem[_],
-                              private[this] val executionContext: ExecutionContext,
-                              private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainAdminTokenService(domainRestActor: ActorRef[DomainRestActor.Message],
+                              scheduler: Scheduler,
+                              executionContext: ExecutionContext,
+                              timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainAdminTokenService._
 
@@ -51,11 +51,16 @@ class DomainAdminTokenService(private[this] val domainRestActor: ActorRef[Domain
   }
 
   def getConvergenceUserToken(domain: DomainId, username: String): Future[RestResponse] = {
-    domainRestActor.ask[AdminTokenResponse](r => DomainRestMessage(domain, AdminTokenRequest(username, r))).flatMap {
-      case AdminTokenSuccess(token) =>
-        Future.successful(okResponse(AdminTokenRestResponse(token)))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[AdminTokenResponse](
+        r => DomainRestMessage(domain, AdminTokenRequest(username, r)))
+      .map(_.token.fold(
+        { _ =>
+          InternalServerError
+        },
+        { token =>
+          okResponse(AdminTokenRestResponse(token))
+        })
+      )
   }
 }

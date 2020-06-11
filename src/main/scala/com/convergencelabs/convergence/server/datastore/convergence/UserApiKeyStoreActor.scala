@@ -140,7 +140,7 @@ object UserApiKeyStoreActor {
   //
   // GetApiKeysForUser
   //
-  case class GetApiKeysForUserRequest(username: String, replyTo: ActorRef[GetApiKeysForUserResponse]) extends Message
+  final case class GetApiKeysForUserRequest(username: String, replyTo: ActorRef[GetApiKeysForUserResponse]) extends Message
 
 
   @JsonSubTypes(Array(
@@ -149,12 +149,12 @@ object UserApiKeyStoreActor {
   ))
   trait GetApiKeysForUserError
 
-  case class GetApiKeysForUserResponse(keys: Either[GetApiKeysForUserError, Set[UserApiKey]]) extends CborSerializable
+  final case class GetApiKeysForUserResponse(keys: Either[GetApiKeysForUserError, Set[UserApiKey]]) extends CborSerializable
 
   //
   // GetUserApiKey
   //
-  case class GetUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[GetUserApiKeyResponse]) extends Message
+  final case class GetUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[GetUserApiKeyResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[KeyNotFoundError], name = "key_not_found"),
@@ -162,12 +162,12 @@ object UserApiKeyStoreActor {
   ))
   trait GetUserApiKeyError
 
-  case class GetUserApiKeyResponse(key: Either[GetUserApiKeyError, UserApiKey]) extends CborSerializable
+  final case class GetUserApiKeyResponse(key: Either[GetUserApiKeyError, UserApiKey]) extends CborSerializable
 
   //
   // CreateUserApiKey
   //
-  case class CreateUserApiKeyRequest(username: String,
+  final case class CreateUserApiKeyRequest(username: String,
                                      name: String,
                                      enabled: Option[Boolean],
                                      replyTo: ActorRef[CreateUserApiKeyResponse]) extends Message
@@ -178,14 +178,14 @@ object UserApiKeyStoreActor {
   ))
   trait CreateUserApiKeyError
 
-  case class UserApiKeyExistsError() extends CreateUserApiKeyError
+  final case class UserApiKeyExistsError() extends CreateUserApiKeyError
 
-  case class CreateUserApiKeyResponse(response: Either[CreateUserApiKeyError, Unit]) extends CborSerializable
+  final case class CreateUserApiKeyResponse(response: Either[CreateUserApiKeyError, Unit]) extends CborSerializable
 
   //
   // DeleteUserApiKey
   //
-  case class DeleteUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[DeleteUserApiKeyResponse]) extends Message
+  final case class DeleteUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[DeleteUserApiKeyResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[KeyNotFoundError], name = "key_not_found"),
@@ -193,12 +193,12 @@ object UserApiKeyStoreActor {
   ))
   trait DeleteUserApiKeyError
 
-  case class DeleteUserApiKeyResponse(response: Either[DeleteUserApiKeyError, Unit]) extends CborSerializable
+  final case class DeleteUserApiKeyResponse(response: Either[DeleteUserApiKeyError, Unit]) extends CborSerializable
 
   //
   // UpdateUserApiKey
   //
-  case class UpdateUserApiKeyRequest(username: String, key: String, name: String, enabled: Boolean, replyTo: ActorRef[UpdateUserApiKeyResponse]) extends Message
+  final case class UpdateUserApiKeyRequest(username: String, key: String, name: String, enabled: Boolean, replyTo: ActorRef[UpdateUserApiKeyResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[KeyNotFoundError], name = "key_not_found"),
@@ -206,20 +206,20 @@ object UserApiKeyStoreActor {
   ))
   trait UpdateUserApiKeyError
 
-  case class UpdateUserApiKeyResponse(response: Either[UpdateUserApiKeyError, Unit]) extends CborSerializable
+  final case class UpdateUserApiKeyResponse(response: Either[UpdateUserApiKeyError, Unit]) extends CborSerializable
 
   //
   // Commons Errors
   //
-  case class UserNotFoundError() extends AnyRef
+  final case class UserNotFoundError() extends AnyRef
     with GetApiKeysForUserError
 
-  case class KeyNotFoundError() extends AnyRef
+  final case class KeyNotFoundError() extends AnyRef
     with GetUserApiKeyError
     with DeleteUserApiKeyError
     with UpdateUserApiKeyError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with GetApiKeysForUserError
     with GetUserApiKeyError
     with CreateUserApiKeyError

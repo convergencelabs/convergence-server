@@ -141,14 +141,14 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
     val sharding = ClusterSharding(context.system)
 
-    val modelShardRegion = RealtimeModelSharding(context.system, sharding, shardCount)
+    val modelShardRegion = RealtimeModelSharding(context.system.settings.config, sharding, shardCount)
     val activityShardRegion = ActivityActorSharding(context.system, sharding, shardCount)
-    val chatShardRegion = ChatSharding(context.system, sharding, shardCount)
-    val domainShardRegion = DomainActorSharding(context.system, sharding, shardCount, () => {
+    val chatShardRegion = ChatSharding(sharding, shardCount)
+    val domainShardRegion = DomainActorSharding(context.system.settings.config, sharding, shardCount, () => {
       domainLifeCycleTopic
     })
 
-    val domainRestShardRegion = DomainRestActorSharding(context.system, sharding, shardCount)
+    val domainRestShardRegion = DomainRestActorSharding(context.system.settings.config, sharding, shardCount)
 
 
     if (roles.contains(ServerClusterRoles.Backend)) {

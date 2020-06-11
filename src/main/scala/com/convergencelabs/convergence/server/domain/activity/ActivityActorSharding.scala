@@ -26,13 +26,12 @@ object ActivityActorSharding  {
 }
 
 private class ActivityActorSharding(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)
-  extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, system, sharding, numberOfShards) {
+  extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   override def extractEntityId(msg: ActivityActor.Message): String =
     s"${msg.domain.namespace}::${msg.domain.namespace}::${msg.activityId}"
 
-  override def createBehavior(system: ActorSystem[_],
-                              shardRegion: ActorRef[ActivityActor.Message],
+  override def createBehavior(shardRegion: ActorRef[ActivityActor.Message],
                               entityContext: EntityContext[ActivityActor.Message]): Behavior[ActivityActor.Message] = {
     ActivityActor(shardRegion, entityContext.shard)
   }

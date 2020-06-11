@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.rest.domain
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
@@ -29,29 +29,29 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainService(private[this] val system: ActorSystem[_],
-                    private[this] val executionContext: ExecutionContext,
-                    private[this] val domainStoreActor: ActorRef[DomainStoreActor.Message],
-                    private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                    private[this] val roleStoreActor: ActorRef[RoleStoreActor.Message],
-                    private[this] val modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                    private[this] val chatClusterRegion: ActorRef[ChatActor.Message],
-                    private[this] val defaultTimeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, defaultTimeout) {
+class DomainService(schedule: Scheduler,
+                    executionContext: ExecutionContext,
+                    domainStoreActor: ActorRef[DomainStoreActor.Message],
+                    domainRestActor: ActorRef[DomainRestActor.Message],
+                    roleStoreActor: ActorRef[RoleStoreActor.Message],
+                    modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                    chatClusterRegion: ActorRef[ChatActor.Message],
+                    defaultTimeout: Timeout)
+  extends AbstractDomainRestService(schedule, executionContext, defaultTimeout) {
 
   import DomainService._
 
-  val domainConfigService = new DomainConfigService(domainRestActor, system, ec, t)
-  val domainUserService = new DomainUserService(domainRestActor, system, ec, t)
-  val domainUserGroupService = new DomainUserGroupService(domainRestActor, system, ec, t)
-  val domainStatsService = new DomainStatsService(domainRestActor, system, ec, t)
-  val domainCollectionService = new DomainCollectionService(domainRestActor, system, ec, t)
-  val domainSessionService = new DomainSessionService(domainRestActor, system, ec, t)
-  val domainModelService = new DomainModelService(domainRestActor, modelClusterRegion, system, ec, t)
-  val domainKeyService = new DomainKeyService(domainRestActor, system, ec, t)
-  val domainAdminTokenService = new DomainAdminTokenService(domainRestActor, system, ec, t)
-  val domainChatService = new DomainChatService(domainRestActor, chatClusterRegion, system, ec, t)
-  val domainSecurityService = new DomainMembersService(roleStoreActor, system, ec, t)
+  val domainConfigService = new DomainConfigService(domainRestActor, schedule, ec, t)
+  val domainUserService = new DomainUserService(domainRestActor, schedule, ec, t)
+  val domainUserGroupService = new DomainUserGroupService(domainRestActor, schedule, ec, t)
+  val domainStatsService = new DomainStatsService(domainRestActor, schedule, ec, t)
+  val domainCollectionService = new DomainCollectionService(domainRestActor, schedule, ec, t)
+  val domainSessionService = new DomainSessionService(domainRestActor, schedule, ec, t)
+  val domainModelService = new DomainModelService(domainRestActor, modelClusterRegion, schedule, ec, t)
+  val domainKeyService = new DomainKeyService(domainRestActor, schedule, ec, t)
+  val domainAdminTokenService = new DomainAdminTokenService(domainRestActor, schedule, ec, t)
+  val domainChatService = new DomainChatService(domainRestActor, chatClusterRegion, schedule, ec, t)
+  val domainSecurityService = new DomainMembersService(roleStoreActor, schedule, ec, t)
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("domains") {
@@ -110,7 +110,7 @@ class DomainService(private[this] val system: ActorSystem[_],
           case UnknownError() =>
             InternalServerError
         },
-        { _ => CreatedResponse}
+        { _ => CreatedResponse }
       ))
   }
 

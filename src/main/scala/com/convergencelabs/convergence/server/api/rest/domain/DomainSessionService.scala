@@ -14,13 +14,13 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import java.time.Instant
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.{PagedRestResponse, RestResponse, notFoundResponse, okResponse}
+import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.DomainSession
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor._
@@ -47,11 +47,11 @@ object DomainSessionService {
 
 }
 
-class DomainSessionService(private[this] val domainRestActor: ActorRef[DomainRestActor.Message],
-                           private[this] val system: ActorSystem[_],
-                           private[this] val executionContext: ExecutionContext,
-                           private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
+                           scheduler: Scheduler,
+                           executionContext: ExecutionContext,
+                           timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainSessionService._
 
@@ -113,25 +113,31 @@ class DomainSessionService(private[this] val domainRestActor: ActorRef[DomainRes
       st,
       limit,
       offset,
-      r))).flatMap {
-      case GetSessionsSuccess(sessions) =>
-        val sessionData = sessions.data.map(sessionToSessionData)
-        val response = PagedRestResponse(sessionData, sessions.offset, sessions.count)
-        Future.successful(okResponse(response))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+      r)))
+      .map(_.sessions.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { sessions =>
+          val sessionData = sessions.data.map(sessionToSessionData)
+          val response = PagedRestResponse(sessionData, sessions.offset, sessions.count)
+          okResponse(response)
+        }))
   }
 
   private[this] def getSession(domain: DomainId, sessionId: String): Future[RestResponse] = {
-    domainRestActor.ask[GetSessionResponse](r => DomainRestMessage(domain,  GetSessionRequest(sessionId, r))).flatMap {
-      case GetSessionSuccess(Some(session)) =>
-        Future.successful(okResponse(sessionToSessionData(session)))
-      case GetSessionSuccess(None) =>
-        Future.successful(notFoundResponse())
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetSessionResponse](r => DomainRestMessage(domain, GetSessionRequest(sessionId, r)))
+      .map(_.session.fold(
+        {
+          case SessionNotFoundError() =>
+            NotFoundResponse
+          case UnknownError() =>
+            InternalServerError
+        },
+        session => okResponse(sessionToSessionData(session))
+      ))
   }
 
   private[this] def sessionToSessionData(session: DomainSession): DomainSessionData = {

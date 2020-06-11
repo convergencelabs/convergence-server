@@ -16,14 +16,11 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-import scala.util.{Failure, Success}
-
-
-class ConfigStoreActor private[datastore](private[this] val context: ActorContext[ConfigStoreActor.Message],
-                                          private[this] val store: DomainConfigStore)
-  extends AbstractBehavior[ConfigStoreActor.Message](context) with Logging {
+class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
+                               store: DomainConfigStore)
+  extends AbstractBehavior[ConfigStoreActor.Message](context) {
 
   import ConfigStoreActor._
 
@@ -45,87 +42,127 @@ class ConfigStoreActor private[datastore](private[this] val context: ActorContex
 
   private[this] def onGetAnonymousAuthEnabled(msg: GetAnonymousAuthRequest): Unit = {
     val GetAnonymousAuthRequest(replyTo) = msg
-    store.isAnonymousAuthEnabled() match {
-      case Success(enabled) =>
-        replyTo ! GetAnonymousAuthSuccess(enabled)
-      case Failure(exception) =>
-        replyTo ! RequestFailure(exception)
-    }
+    store
+      .isAnonymousAuthEnabled()
+      .map(enabled => GetAnonymousAuthResponse(Right(enabled)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting anonymous authentication", cause)
+        GetAnonymousAuthResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onSetAnonymousAuthEnabled(msg: SetAnonymousAuthRequest): Unit = {
     val SetAnonymousAuthRequest(enabled, replyTo) = msg
-    store.setAnonymousAuthEnabled(enabled) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(exception) =>
-        replyTo ! RequestFailure(exception)
-    }
+    store
+      .setAnonymousAuthEnabled(enabled)
+      .map(_ => SetAnonymousAuthResponse(Right(())))
+      .recover { cause =>
+        context.log.error("Unexpected error setting anonymous authentication", cause)
+        SetAnonymousAuthResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetModelSnapshotPolicy(msg: GetModelSnapshotPolicyRequest): Unit = {
     val GetModelSnapshotPolicyRequest(replyTo) = msg
-    store.getModelSnapshotConfig() match {
-      case Success(policy) =>
-        replyTo ! GetModelSnapshotPolicySuccess(policy)
-      case Failure(exception) =>
-        replyTo ! RequestFailure(exception)
-    }
+    store
+      .getModelSnapshotConfig()
+      .map(config => GetModelSnapshotPolicyResponse(Right(config)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting model snapshot policy", cause)
+        GetModelSnapshotPolicyResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onSetModelSnapshotPolicy(msg: SetModelSnapshotPolicyRequest): Unit = {
     val SetModelSnapshotPolicyRequest(policy, replyTo) = msg
-    store.setModelSnapshotConfig(policy) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(exception) =>
-        replyTo ! RequestFailure(exception)
-    }
+    store
+      .setModelSnapshotConfig(policy)
+      .map(_ => SetModelSnapshotPolicyResponse(Right(())))
+      .recover { cause =>
+        context.log.error("Unexpected error setting model snapshot policy", cause)
+        SetModelSnapshotPolicyResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
 
 object ConfigStoreActor {
-  def apply(store: DomainConfigStore): Behavior[Message] = Behaviors.setup { context =>
-    new ConfigStoreActor(context, store)
-  }
+  def apply(store: DomainConfigStore): Behavior[Message] =
+    Behaviors.setup(context => new ConfigStoreActor(context, store))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable with DomainRestMessageBody
 
+  //
+  // GetAnonymousAuth
+  //
+  final case class GetAnonymousAuthRequest(replyTo: ActorRef[GetAnonymousAuthResponse]) extends Message
 
-  case class GetAnonymousAuthRequest(replyTo: ActorRef[GetAnonymousAuthResponse]) extends Message
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetAnonymousAuthError
 
-  sealed trait GetAnonymousAuthResponse extends CborSerializable
-
-  case class GetAnonymousAuthSuccess(enabled: Boolean) extends GetAnonymousAuthResponse
-
-
-  case class SetAnonymousAuthRequest(enabled: Boolean, replyTo: ActorRef[SetAnonymousAuthResponse]) extends Message
-
-  sealed trait SetAnonymousAuthResponse extends CborSerializable
-
-
-  case class GetModelSnapshotPolicyRequest(replyTo: ActorRef[GetModelSnapshotPolicyResponse]) extends Message
-
-  sealed trait GetModelSnapshotPolicyResponse extends CborSerializable
-
-  case class GetModelSnapshotPolicySuccess(policy: ModelSnapshotConfig) extends GetModelSnapshotPolicyResponse
+  final case class GetAnonymousAuthResponse(enabled: Either[GetAnonymousAuthError, Boolean]) extends CborSerializable
 
 
-  case class SetModelSnapshotPolicyRequest(policy: ModelSnapshotConfig, replyTo: ActorRef[SetModelSnapshotPolicyResponse]) extends Message
+  //
+  // SetAnonymousAuth
+  //
+  final case class SetAnonymousAuthRequest(enabled: Boolean, replyTo: ActorRef[SetAnonymousAuthResponse]) extends Message
 
-  sealed trait SetModelSnapshotPolicyResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetAnonymousAuthError
+
+  final case class SetAnonymousAuthResponse(response: Either[SetAnonymousAuthError, Unit]) extends CborSerializable
 
 
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with GetAnonymousAuthResponse
-    with SetAnonymousAuthResponse
-    with GetModelSnapshotPolicyResponse
-    with SetModelSnapshotPolicyResponse
+  //
+  // GetModelSnapshotPolicy
+  //
+  final case class GetModelSnapshotPolicyRequest(replyTo: ActorRef[GetModelSnapshotPolicyResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetModelSnapshotPolicyError
+
+  final case class GetModelSnapshotPolicyResponse(policy: Either[GetModelSnapshotPolicyError, ModelSnapshotConfig]) extends CborSerializable
 
 
-  case class RequestSuccess() extends CborSerializable
-    with SetModelSnapshotPolicyResponse
-    with SetAnonymousAuthResponse
+  //
+  // SetModelSnapshotPolicy
+  //
+  final case class SetModelSnapshotPolicyRequest(policy: ModelSnapshotConfig, replyTo: ActorRef[SetModelSnapshotPolicyResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetModelSnapshotPolicyError
+
+  final case class SetModelSnapshotPolicyResponse(response: Either[SetModelSnapshotPolicyError, Unit]) extends CborSerializable
+
+
+  //
+  // Common Errors
+  //
+  final case class UnknownError() extends AnyRef
+    with GetAnonymousAuthError
+    with SetAnonymousAuthError
+    with GetModelSnapshotPolicyError
+    with SetModelSnapshotPolicyError
 
 }

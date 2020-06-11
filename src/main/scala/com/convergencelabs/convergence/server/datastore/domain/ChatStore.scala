@@ -30,22 +30,22 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-case class Chat(id: String,
-                chatType: ChatType.Value,
-                created: Instant,
-                membership: ChatMembership.Value,
-                name: String,
-                topic: String)
+final case class Chat(id: String,
+                      chatType: ChatType.Value,
+                      created: Instant,
+                      membership: ChatMembership.Value,
+                      name: String,
+                      topic: String)
 
-case class ChatInfo(id: String,
-                    chatType: ChatType.Value,
-                    created: Instant,
-                    membership: ChatMembership.Value,
-                    name: String,
-                    topic: String,
-                    lastEventNumber: Long,
-                    lastEventTime: Instant,
-                    members: Set[ChatMember])
+final case class ChatInfo(id: String,
+                          chatType: ChatType.Value,
+                          created: Instant,
+                          membership: ChatMembership.Value,
+                          name: String,
+                          topic: String,
+                          lastEventNumber: Long,
+                          lastEventTime: Instant,
+                          members: Set[ChatMember])
 
 sealed trait ChatEvent {
   val eventNumber: Long
@@ -54,55 +54,57 @@ sealed trait ChatEvent {
   val timestamp: Instant
 }
 
-case class ChatCreatedEvent(eventNumber: Long,
-                            id: String,
-                            user: DomainUserId,
-                            timestamp: Instant,
-                            name: String,
-                            topic: String,
-                            members: Set[DomainUserId]) extends ChatEvent
+final case class ChatCreatedEvent(eventNumber: Long,
+                                  id: String,
+                                  user: DomainUserId,
+                                  timestamp: Instant,
+                                  name: String,
+                                  topic: String,
+                                  members: Set[DomainUserId]) extends ChatEvent
 
-case class ChatMessageEvent(eventNumber: Long,
-                            id: String,
-                            user: DomainUserId,
-                            timestamp: Instant,
-                            message: String) extends ChatEvent
+sealed trait ExistingChatEvent extends ChatEvent
 
-case class ChatUserJoinedEvent(eventNumber: Long,
-                               id: String,
-                               user: DomainUserId,
-                               timestamp: Instant) extends ChatEvent
+final case class ChatMessageEvent(eventNumber: Long,
+                                  id: String,
+                                  user: DomainUserId,
+                                  timestamp: Instant,
+                                  message: String) extends ExistingChatEvent
 
-case class ChatUserLeftEvent(eventNumber: Long,
-                             id: String,
-                             user: DomainUserId,
-                             timestamp: Instant) extends ChatEvent
+final case class ChatUserJoinedEvent(eventNumber: Long,
+                                     id: String,
+                                     user: DomainUserId,
+                                     timestamp: Instant) extends ExistingChatEvent
 
-case class ChatUserAddedEvent(eventNumber: Long,
-                              id: String,
-                              user: DomainUserId,
-                              timestamp: Instant,
-                              userAdded: DomainUserId) extends ChatEvent
+final case class ChatUserLeftEvent(eventNumber: Long,
+                                   id: String,
+                                   user: DomainUserId,
+                                   timestamp: Instant) extends ExistingChatEvent
 
-case class ChatUserRemovedEvent(eventNumber: Long,
-                                id: String,
-                                user: DomainUserId,
-                                timestamp: Instant,
-                                userRemoved: DomainUserId) extends ChatEvent
+final case class ChatUserAddedEvent(eventNumber: Long,
+                                    id: String,
+                                    user: DomainUserId,
+                                    timestamp: Instant,
+                                    userAdded: DomainUserId) extends ExistingChatEvent
 
-case class ChatNameChangedEvent(eventNumber: Long,
-                                id: String,
-                                user: DomainUserId,
-                                timestamp: Instant,
-                                name: String) extends ChatEvent
+final case class ChatUserRemovedEvent(eventNumber: Long,
+                                      id: String,
+                                      user: DomainUserId,
+                                      timestamp: Instant,
+                                      userRemoved: DomainUserId) extends ExistingChatEvent
 
-case class ChatTopicChangedEvent(eventNumber: Long,
-                                 id: String,
-                                 user: DomainUserId,
-                                 timestamp: Instant,
-                                 topic: String) extends ChatEvent
+final case class ChatNameChangedEvent(eventNumber: Long,
+                                      id: String,
+                                      user: DomainUserId,
+                                      timestamp: Instant,
+                                      name: String) extends ExistingChatEvent
 
-case class ChatMember(chatId: String, userId: DomainUserId, seen: Long)
+final case class ChatTopicChangedEvent(eventNumber: Long,
+                                       id: String,
+                                       user: DomainUserId,
+                                       timestamp: Instant,
+                                       topic: String) extends ExistingChatEvent
+
+final case class ChatMember(chatId: String, userId: DomainUserId, seen: Long)
 
 object ChatMembership extends Enumeration {
   val Public, Private = Value
@@ -112,7 +114,7 @@ object ChatMembership extends Enumeration {
     case None => Failure(InvalidChatMembershipValue(s))
   }
 
-  case class InvalidChatMembershipValue(value: String) extends RuntimeException("Invalid ChatMembership string: " + value)
+  final case class InvalidChatMembershipValue(value: String) extends RuntimeException("Invalid ChatMembership string: " + value)
 
 }
 
@@ -124,11 +126,11 @@ object ChatType extends Enumeration {
     case None => Failure(InvalidChatTypeValue(s))
   }
 
-  case class InvalidChatTypeValue(value: String) extends RuntimeException("Invalid ChatType string: " + value)
+  final case class InvalidChatTypeValue(value: String) extends RuntimeException("Invalid ChatType string: " + value)
 
 }
 
-case class ChatNotFoundException(chatId: String) extends RuntimeException()
+final case class ChatNotFoundException(chatId: String) extends RuntimeException()
 
 object ChatStore {
 
@@ -599,6 +601,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
 
   def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = withDb { db =>
     val ChatUserJoinedEvent(eventNo, chatId, user, timestamp) = event
+    // FIXME add a transaction
     val query =
       """INSERT INTO ChatUserJoinedEvent SET
         |  eventNo = :eventNo,
@@ -611,9 +614,15 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "username" -> user.username,
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
-    OrientDBUtil
-      .commandReturningCount(db, query, params)
-      .map(_ => ())
+
+    for {
+      chatRid <- ChatStore.getChatRid(chatId, db)
+      userRid <- DomainUserStore.getUserRid(user, db)
+      _ <- addChatMember(db, chatRid, userRid, None)
+      _ <- OrientDBUtil
+        .commandReturningCount(db, query, params)
+        .map(_ => ())
+    } yield ()
   }
 
   def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = withDb { db =>
@@ -652,9 +661,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "timestamp" -> Date.from(timestamp),
       "addedUsername" -> userAdded.username,
       "addedUserType" -> userAdded.userType.toString.toLowerCase)
-    OrientDBUtil
-      .commandReturningCount(db, query, params)
-      .map(_ => ())
+
+    // TODO add transaction
+    for {
+      _ <- addAllChatMembers(chatId, Set(userAdded), None, db)
+      _ <- OrientDBUtil
+        .commandReturningCount(db, query, params)
+        .map(_ => ())
+    } yield ()
   }
 
   def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = withDb { db =>
@@ -674,9 +688,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "timestamp" -> Date.from(timestamp),
       "removedUsername" -> userRemoved.username,
       "removedUserType" -> userRemoved.userType.toString.toLowerCase)
-    OrientDBUtil
-      .commandReturningCount(db, query, params)
-      .map(_ => ())
+
+    // FIXME transaction
+    for {
+      _ <- this.removeChatMember(chatId, user, Some(db))
+      _ <- OrientDBUtil
+        .commandReturningCount(db, query, params)
+    } yield ()
+
   }
 
   def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = withDb { db =>
@@ -749,14 +768,6 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     } yield ()
   }
 
-  def addChatMember(chatId: String, userId: DomainUserId, seen: Option[Long]): Try[Unit] = withDb { db =>
-    for {
-      chatRid <- ChatStore.getChatRid(chatId, db)
-      userRid <- DomainUserStore.getUserRid(userId, db)
-      _ <- addChatMember(db, chatRid, userRid, seen)
-    } yield ()
-  }
-
   private[this] def addChatMember(db: ODatabaseDocument, chatRid: ORID, userRid: ORID, seen: Option[Long]): Try[Unit] = Try {
     val doc = db.newElement(Classes.ChatMember.ClassName)
     doc.setProperty(Classes.ChatMember.Fields.Chat, chatRid)
@@ -771,7 +782,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     chatDoc.save()
   }
 
-  def removeChatMember(chatId: String, userId: DomainUserId): Try[Unit] = withDb { db =>
+  def removeChatMember(chatId: String, userId: DomainUserId, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val script =
       """
         |BEGIN;

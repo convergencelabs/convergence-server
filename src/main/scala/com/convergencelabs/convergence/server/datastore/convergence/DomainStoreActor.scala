@@ -266,7 +266,7 @@ object DomainStoreActor {
   //
   // CreateDomain
   //
-  case class CreateDomainRequest(namespace: String,
+  final case class CreateDomainRequest(namespace: String,
                                  domainId: String,
                                  displayName: String,
                                  anonymousAuth: Boolean,
@@ -281,14 +281,14 @@ object DomainStoreActor {
   ))
   sealed trait CreateDomainError
 
-  case class InvalidDomainCreationRequest(message: String) extends CreateDomainError
+  final case class InvalidDomainCreationRequest(message: String) extends CreateDomainError
 
-  case class CreateDomainResponse(dbInfo: Either[CreateDomainError, DomainDatabase]) extends CborSerializable
+  final case class CreateDomainResponse(dbInfo: Either[CreateDomainError, DomainDatabase]) extends CborSerializable
 
   //
   // UpdateDomain
   //
-  case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String, replyTo: ActorRef[UpdateDomainResponse]) extends Message
+  final case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String, replyTo: ActorRef[UpdateDomainResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainAlreadyExistsError], name = "domain_exists"),
@@ -297,12 +297,12 @@ object DomainStoreActor {
   ))
   sealed trait UpdateDomainError
 
-  case class UpdateDomainResponse(response: Either[UpdateDomainError, Unit]) extends CborSerializable
+  final case class UpdateDomainResponse(response: Either[UpdateDomainError, Unit]) extends CborSerializable
 
   //
   // DeleteDomain
   //
-  case class DeleteDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[DeleteDomainResponse]) extends Message
+  final case class DeleteDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[DeleteDomainResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
@@ -310,24 +310,24 @@ object DomainStoreActor {
   ))
   sealed trait DeleteDomainError
 
-  case class DeleteDomainResponse(response: Either[DeleteDomainError, Unit]) extends CborSerializable
+  final case class DeleteDomainResponse(response: Either[DeleteDomainError, Unit]) extends CborSerializable
 
   //
   // DeleteDomainsForUser
   //
-  case class DeleteDomainsForUserRequest(username: String, replyTo: ActorRef[DeleteDomainsForUserResponse]) extends Message
+  final case class DeleteDomainsForUserRequest(username: String, replyTo: ActorRef[DeleteDomainsForUserResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
   sealed trait DeleteDomainsForUserError
 
-  case class DeleteDomainsForUserResponse(response: Either[DeleteDomainsForUserError, Unit]) extends CborSerializable
+  final case class DeleteDomainsForUserResponse(response: Either[DeleteDomainsForUserError, Unit]) extends CborSerializable
 
   //
   // GetDomain
   //
-  case class GetDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainResponse]) extends Message
+  final case class GetDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
@@ -335,12 +335,12 @@ object DomainStoreActor {
   ))
   sealed trait GetDomainError
 
-  case class GetDomainResponse(domain: Either[GetDomainError, Domain]) extends CborSerializable
+  final case class GetDomainResponse(domain: Either[GetDomainError, Domain]) extends CborSerializable
 
   //
   // GetDomains
   //
-  case class GetDomainsRequest(authProfile: AuthorizationProfileData,
+  final case class GetDomainsRequest(authProfile: AuthorizationProfileData,
                                namespace: Option[String],
                                filter: Option[String],
                                offset: Option[Int],
@@ -352,22 +352,22 @@ object DomainStoreActor {
   ))
   sealed trait GetDomainsError extends CborSerializable
 
-  case class GetDomainsResponse(domains: Either[GetDomainsError, List[Domain]])
+  final case class GetDomainsResponse(domains: Either[GetDomainsError, List[Domain]])
 
   //
   // Common Errors
   //
 
-  case class DomainAlreadyExistsError(field: String) extends AnyRef
+  final case class DomainAlreadyExistsError(field: String) extends AnyRef
     with CreateDomainError
     with UpdateDomainError
 
-  case class DomainNotFound() extends AnyRef
+  final case class DomainNotFound() extends AnyRef
     with UpdateDomainError
     with DeleteDomainError
     with GetDomainError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with CreateDomainError
     with UpdateDomainError
     with DeleteDomainError

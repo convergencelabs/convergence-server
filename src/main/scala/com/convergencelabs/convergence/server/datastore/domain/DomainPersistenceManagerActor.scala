@@ -44,11 +44,11 @@ import scala.util.{Failure, Success, Try}
  * @param baseDbUri   The base uri of the database.
  * @param domainStore The domain store to look up domain databases with.
  */
-class DomainPersistenceManagerActor(private[this] val context: ActorContext[DomainPersistenceManagerActor.Command],
+class DomainPersistenceManagerActor(private[this] val context: ActorContext[DomainPersistenceManagerActor.Message],
                                     private[this] val baseDbUri: String,
                                     private[this] val domainStore: DomainStore,
                                     domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
-  extends AbstractBehavior[DomainPersistenceManagerActor.Command](context) with Logging {
+  extends AbstractBehavior[DomainPersistenceManagerActor.Message](context) with Logging {
 
   import DomainPersistenceManagerActor._
 
@@ -64,7 +64,7 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
   context.system.receptionist ! Receptionist.Register(
     DomainPersistenceManagerActor.DomainPersistenceManagerServiceKey, context.self)
 
-  override def onMessage(msg: Command): Behavior[Command] = {
+  override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
       case Acquire(domainId, requester, replyTo) =>
         onAcquire(domainId, requester, replyTo)
@@ -77,7 +77,7 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
     Behaviors.same
   }
 
-  override def onSignal: PartialFunction[Signal, Behavior[Command]] = {
+  override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
     case Terminated(actor) =>
       onActorDeath(actor)
       Behaviors.same
@@ -201,11 +201,11 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
   private[this] val persistenceProviderTimeout = 10
   private[this] val ServiceKeyId = "domainPersistenceManager"
 
-  private val DomainPersistenceManagerServiceKey = ServiceKey[Command](ServiceKeyId)
+  private val DomainPersistenceManagerServiceKey = ServiceKey[Message](ServiceKeyId)
 
   def apply(baseDbUri: String,
             domainStore: DomainStore,
-            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Command] =
+            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
     Behaviors.setup(context => new DomainPersistenceManagerActor(context, baseDbUri, domainStore, domainLifecycleTopic))
 
   def acquirePersistenceProvider(requester: ActorRef[_], system: ActorSystem[_], domainId: DomainId): Try[DomainPersistenceProvider] = {
@@ -236,7 +236,7 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
     }
   }
 
-  def getLocalActor(system: ActorSystem[_]): Future[ActorRef[Command]] = {
+  def getLocalActor(system: ActorSystem[_]): Future[ActorRef[Message]] = {
     implicit val ec: ExecutionContextExecutor = system.executionContext
     implicit val timeout: Timeout = Timeout(persistenceProviderTimeout, TimeUnit.SECONDS)
     implicit val scheduler: Scheduler = system.scheduler
@@ -254,22 +254,34 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
   }
 
 
-  sealed trait Command
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+  sealed trait Message
 
-  case class Acquire(domainId: DomainId, requester: ActorRef[Nothing], replyTo: ActorRef[AcquireResponse]) extends Command
+  final case class Acquire(domainId: DomainId, requester: ActorRef[Nothing], replyTo: ActorRef[AcquireResponse]) extends Message
 
-  case class Release(domainId: DomainId, requester: ActorRef[_]) extends Command
-
+  //
+  // Acquire
+  //
   sealed trait AcquireResponse
 
-  case class Acquired(provider: DomainPersistenceProvider) extends AcquireResponse
+  final case class Acquired(provider: DomainPersistenceProvider) extends AcquireResponse
 
-  case class DomainDoesNotExist(domainId: DomainId) extends AcquireResponse
+  final case class DomainDoesNotExist(domainId: DomainId) extends AcquireResponse
 
-  case class AcquisitionFailure(cause: Throwable) extends AcquireResponse
+  final case class AcquisitionFailure(cause: Throwable) extends AcquireResponse
 
-  private case class DomainDeleted(domainId: DomainId) extends Command
+  //
+  // Release
+  //
+  final case class Release(domainId: DomainId, requester: ActorRef[_]) extends Message
 
-  case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
+  //
+  // DomainDeleted
+  //
+  private final case class DomainDeleted(domainId: DomainId) extends Message
+
+  final case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
 
 }

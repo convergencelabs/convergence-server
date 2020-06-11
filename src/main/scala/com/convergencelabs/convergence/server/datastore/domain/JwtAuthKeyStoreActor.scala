@@ -15,16 +15,14 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-import scala.util.{Failure, Success}
-
-
-class JwtAuthKeyStoreActor private[datastore](private[this] val context: ActorContext[JwtAuthKeyStoreActor.Message],
-                                              private[this] val keyStore: JwtAuthKeyStore)
-  extends AbstractBehavior[JwtAuthKeyStoreActor.Message](context) with Logging {
+class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Message],
+                                   keyStore: JwtAuthKeyStore)
+  extends AbstractBehavior[JwtAuthKeyStoreActor.Message](context) {
 
   import JwtAuthKeyStoreActor._
 
@@ -46,97 +44,171 @@ class JwtAuthKeyStoreActor private[datastore](private[this] val context: ActorCo
 
   private[this] def onGetKeys(msg: GetJwtAuthKeysRequest): Unit = {
     val GetJwtAuthKeysRequest(offset, limit, replyTo) = msg
-    keyStore.getKeys(offset, limit) match {
-      case Success(keys) =>
-        replyTo ! GetJwtAuthKeysSuccess(keys)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    keyStore
+      .getKeys(offset, limit)
+      .map(keys => GetJwtAuthKeysResponse(Right(keys)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting jwt auth keys", cause)
+        GetJwtAuthKeysResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetKey(msg: GetJwtAuthKeyRequest): Unit = {
     val GetJwtAuthKeyRequest(id, replyTo) = msg
-    keyStore.getKey(id) match {
-      case Success(key) =>
-        replyTo ! GetJwtAuthKeySuccess(key)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    keyStore
+      .getKey(id)
+      .map(_.map(key => GetJwtAuthKeyResponse(Right(key))).getOrElse(GetJwtAuthKeyResponse(Left(JwtAuthKeyNotFoundError()))))
+      .recover { cause =>
+        context.log.error("Unexpected error getting jwt auth key", cause)
+        GetJwtAuthKeyResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onDeleteKey(msg: DeleteJwtAuthKeyRequest): Unit = {
     val DeleteJwtAuthKeyRequest(id, replyTo) = msg
-    keyStore.deleteKey(id) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    keyStore
+      .deleteKey(id)
+      .map(_ => DeleteJwtAuthKeyResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          DeleteJwtAuthKeyResponse(Left(JwtAuthKeyNotFoundError()))
+        case cause =>
+        context.log.error("Unexpected error deleting jwt auth key", cause)
+        DeleteJwtAuthKeyResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onCreateKey(msg: CreateJwtAuthKeyRequest): Unit = {
     val CreateJwtAuthKeyRequest(key, replyTo) = msg
-    keyStore.createKey(key) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    keyStore
+      .createKey(key)
+      .map(_ => CreateJwtAuthKeyResponse(Right(())))
+      .recover {
+        case _: DuplicateValueException =>
+          CreateJwtAuthKeyResponse(Left(JwtAuthKeyExistsError()))
+        case cause =>
+          context.log.error("Unexpected error creating jwt auth key", cause)
+          CreateJwtAuthKeyResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onUpdateKey(msg: UpdateJwtAuthKeyRequest): Unit = {
     val UpdateJwtAuthKeyRequest(key, replyTo) = msg
-    keyStore.updateKey(key) match {
-      case Success(_) =>
-        replyTo ! RequestSuccess()
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    keyStore
+      .updateKey(key)
+      .map(_ => UpdateJwtAuthKeyResponse(Right(())))
+      .recover {
+        case _: EntityNotFoundException =>
+          UpdateJwtAuthKeyResponse(Left(JwtAuthKeyNotFoundError()))
+        case cause =>
+          context.log.error("Unexpected error updating jwt auth key", cause)
+          UpdateJwtAuthKeyResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
 
 object JwtAuthKeyStoreActor {
-  def apply(keyStore: JwtAuthKeyStore): Behavior[Message] = Behaviors.setup { context =>
-    new JwtAuthKeyStoreActor(context, keyStore)
-  }
+  def apply(keyStore: JwtAuthKeyStore): Behavior[Message] =
+    Behaviors.setup(context => new JwtAuthKeyStoreActor(context, keyStore))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable with DomainRestMessageBody
 
-  case class GetJwtAuthKeysRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetJwtAuthKeysResponse]) extends Message
+  //
+  // GetJwtAuthKeys
+  //
+  final case class GetJwtAuthKeysRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetJwtAuthKeysResponse]) extends Message
 
-  sealed trait GetJwtAuthKeysResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetJwtAuthKeysError
 
-  case class GetJwtAuthKeysSuccess(keys: List[JwtAuthKey]) extends GetJwtAuthKeysResponse
+  final case class GetJwtAuthKeysResponse(keys: Either[GetJwtAuthKeysError, List[JwtAuthKey]]) extends CborSerializable
+
+  //
+  // GetJwtAuthKey
+  //
+  final case class GetJwtAuthKeyRequest(id: String, replyTo: ActorRef[GetJwtAuthKeyResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[JwtAuthKeyNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetJwtAuthKeyError
+
+  final case class GetJwtAuthKeyResponse(key: Either[GetJwtAuthKeyError, JwtAuthKey]) extends CborSerializable
+
+  //
+  // DeleteJwtAuthKey
+  //
+  final case class DeleteJwtAuthKeyRequest(id: String, replyTo: ActorRef[DeleteJwtAuthKeyResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[JwtAuthKeyNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait DeleteJwtAuthKeyError
+
+  final case class DeleteJwtAuthKeyResponse(response: Either[DeleteJwtAuthKeyError, Unit]) extends CborSerializable
+
+  //
+  // UpdateJwtAuthKey
+  //
+  final case class UpdateJwtAuthKeyRequest(key: KeyInfo, replyTo: ActorRef[UpdateJwtAuthKeyResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[JwtAuthKeyNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait UpdateJwtAuthKeyError
+
+  final case class UpdateJwtAuthKeyResponse(response: Either[UpdateJwtAuthKeyError, Unit]) extends CborSerializable
 
 
-  case class GetJwtAuthKeyRequest(id: String, replyTo: ActorRef[GetJwtAuthKeyResponse]) extends Message
+  //
+  // CreateJwtAuthKey
+  //
+  final case class CreateJwtAuthKeyRequest(key: KeyInfo, replyTo: ActorRef[CreateJwtAuthKeyResponse]) extends Message
 
-  sealed trait GetJwtAuthKeyResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[JwtAuthKeyExistsError], name = "key_exists"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait CreateJwtAuthKeyError
 
-  case class GetJwtAuthKeySuccess(key: Option[JwtAuthKey]) extends GetJwtAuthKeyResponse
+  final case class JwtAuthKeyExistsError() extends CreateJwtAuthKeyError
 
-  case class DeleteJwtAuthKeyRequest(id: String, replyTo: ActorRef[DeleteJwtAuthKeyResponse]) extends Message
+  final case class CreateJwtAuthKeyResponse(response: Either[CreateJwtAuthKeyError, Unit]) extends CborSerializable
 
-  sealed trait DeleteJwtAuthKeyResponse extends CborSerializable
+  //
+  // Common Errors
+  //
 
-  case class UpdateJwtAuthKeyRequest(key: KeyInfo, replyTo: ActorRef[UpdateJwtAuthKeyResponse]) extends Message
+  final case class JwtAuthKeyNotFoundError() extends AnyRef
+    with GetJwtAuthKeyError
+    with UpdateJwtAuthKeyError
+    with DeleteJwtAuthKeyError
 
-  sealed trait UpdateJwtAuthKeyResponse extends CborSerializable
+  final case class UnknownError() extends AnyRef
+    with GetJwtAuthKeysError
+    with GetJwtAuthKeyError
+    with CreateJwtAuthKeyError
+    with UpdateJwtAuthKeyError
+    with DeleteJwtAuthKeyError
 
-  case class CreateJwtAuthKeyRequest(key: KeyInfo, replyTo: ActorRef[CreateJwtAuthKeyResponse]) extends Message
-
-  sealed trait CreateJwtAuthKeyResponse extends CborSerializable
-
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with GetJwtAuthKeysResponse
-    with GetJwtAuthKeyResponse
-    with CreateJwtAuthKeyResponse
-    with UpdateJwtAuthKeyResponse
-    with DeleteJwtAuthKeyResponse
-
-  case class RequestSuccess() extends CborSerializable
-    with CreateJwtAuthKeyResponse
-    with UpdateJwtAuthKeyResponse
-    with DeleteJwtAuthKeyResponse
 }

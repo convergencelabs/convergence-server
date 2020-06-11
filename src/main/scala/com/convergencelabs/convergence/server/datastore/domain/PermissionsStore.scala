@@ -98,7 +98,7 @@ class PermissionsStore(private[this] val dbProvider: DatabaseProvider) extends A
     }
   }
 
-  def hasPermission(userId: DomainUserId, forRecord: ORID, permission: String): Try[Boolean] = withDb { db =>
+  def hasPermissionForRecord(userId: DomainUserId, forRecord: ORID, permission: String): Try[Boolean] = withDb { db =>
     DomainUserStore.getUserRid(userId, db).flatMap { userRID =>
       // There are three conditions that must be matched in order to find permissions
       // that allow this action to happen:

@@ -9,31 +9,31 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.chat
+package com.convergencelabs.convergence.server.domain.chat.processors
 
-import akka.actor.typed.scaladsl.ActorContext
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatState}
 
 
 /**
  * Processes messages for a chats that have persistent members.
  *
- * @param stateManager The state manager that controls the persistence of chat state.
- * @param context      The actor context that the ChatActors are deployed into. This
- *                     is used primarily for using the DistributedPubSub mechanism
- *                     for broadcasting messages.
+ * @param chatState        The current state of the chat.
+ * @param chatStore        The chat persistence store
+ * @param permissionsStore The permissions persistence store.
  */
-private[chat] abstract class MembershipChatMessageProcessor(stateManager: ChatStateManager,
-                                                            context: ActorContext[_])
-  extends ChatMessageProcessor(stateManager) {
-
+private[chat] abstract class MembershipChatMessageProcessor(chatState: ChatState,
+                                                            chatStore: ChatStore,
+                                                            permissionsStore: PermissionsStore)
+  extends ChatMessageProcessor(chatState, chatStore, permissionsStore) {
 
   def broadcast(message: ChatClientActor.OutgoingMessage): Unit = {
-    val members = stateManager.state().members
+    val members = state.members
     members.values.foreach { member =>
       val topic = ChatActor.getChatUsernameTopicName(member.userId)
       // FIXME
-//      mediator ! Publish(topic, message)
+      //      mediator ! Publish(topic, message)
     }
   }
 }

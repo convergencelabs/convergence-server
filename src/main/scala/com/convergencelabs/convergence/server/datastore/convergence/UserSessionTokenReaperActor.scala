@@ -20,7 +20,7 @@ object UserSessionTokenReaperActor {
 
   sealed trait Message
 
-  private case object CleanUpSessions extends Message
+  private final case object CleanUpSessions extends Message
 
   def apply(userSessionTokenStore: UserSessionTokenStore): Behavior[Message] = {
     Behaviors.setup { context =>

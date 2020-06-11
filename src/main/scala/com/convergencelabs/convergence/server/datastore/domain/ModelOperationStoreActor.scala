@@ -16,11 +16,11 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.domain.model.ModelOperation
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class ModelOperationStoreActor private(context: ActorContext[ModelOperationStoreActor.Message],
                                        operationStore: ModelOperationStore)
-  extends AbstractBehavior[ModelOperationStoreActor.Message](context) with Logging {
+  extends AbstractBehavior[ModelOperationStoreActor.Message](context) {
 
   import ModelOperationStoreActor._
 
@@ -39,7 +39,8 @@ class ModelOperationStoreActor private(context: ActorContext[ModelOperationStore
       .recover {
         case _: EntityNotFoundException =>
           GetOperationsResponse(Left(ModelNotFoundError()))
-        case _ =>
+        case cause =>
+          context.log.error("Unexpected error getting model operations", cause)
           GetOperationsResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
@@ -56,16 +57,27 @@ object ModelOperationStoreActor {
 
   sealed trait Message extends CborSerializable
 
-  case class GetOperationsRequest(modelId: String, first: Long, last: Long, replyTo: ActorRef[GetOperationsResponse]) extends Message
+  //
+  // GetOperations
+  //
+  final case class GetOperationsRequest(modelId: String, first: Long, last: Long, replyTo: ActorRef[GetOperationsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "model_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetOperationsError
 
-  case class GetOperationsResponse(operations: Either[GetOperationsError, List[ModelOperation]]) extends CborSerializable
+  final case class GetOperationsResponse(operations: Either[GetOperationsError, List[ModelOperation]]) extends CborSerializable
 
-  case class ModelNotFoundError() extends AnyRef
+  //
+  // Common Errors
+  //
+  final case class ModelNotFoundError() extends AnyRef
     with GetOperationsError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with GetOperationsError
 
 }

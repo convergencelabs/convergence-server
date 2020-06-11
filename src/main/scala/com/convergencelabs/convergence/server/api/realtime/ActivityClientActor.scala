@@ -119,8 +119,9 @@ class ActivityClientActor private(context: ActorContext[Message],
   private[this] def onActivityJoin(RequestMessage: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityJoinRequestMessage(activityId, state, _) = RequestMessage
     val jsonState = JsonProtoConverter.valueMapToJValueMap(state)
-    activityShardRegion.ask[ActivityActor.JoinResponse](
-      ActivityActor.JoinRequest(domain, activityId, session.sessionId, jsonState, context.self.narrow[OutgoingMessage], _))
+    activityShardRegion
+      .ask[ActivityActor.JoinResponse](
+        ActivityActor.JoinRequest(domain, activityId, session.sessionId, jsonState, context.self.narrow[OutgoingMessage], _))
       .map(_.response.fold({
         case ActivityActor.AlreadyJoined() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity '$activityId'.")
@@ -133,20 +134,22 @@ class ActivityClientActor private(context: ActorContext[Message],
 
   private[this] def onActivityLeave(message: ActivityLeaveMessage): Unit = {
     val ActivityLeaveMessage(activityId, _) = message
-    activityShardRegion.ask[ActivityActor.LeaveResponse](
-      ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _)
-    ).map(_.response.fold({
-      case ActivityActor.NotJoinedError() =>
-      // cb.expectedError("not_joined", s"The session is already joined to activity '$activityId'.")
-    }, {
-      case () =>
-      // todo reply
-    })).recover {
-      case cause =>
-        val message = s"Could not leave activity '$activityId'"
-        error(message, cause)
-      // cb.expectedError("timeout", message)
-    }
+    activityShardRegion
+      .ask[ActivityActor.LeaveResponse](
+        ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _))
+      .map(_.response.fold({
+        case ActivityActor.NotJoinedError() =>
+        // cb.expectedError("not_joined", s"The session is already joined to activity '$activityId'.")
+      }, {
+        case () =>
+        // todo reply
+      }))
+      .recover {
+        case cause =>
+          val message = s"Could not leave activity '$activityId'"
+          error(message, cause)
+        // cb.expectedError("timeout", message)
+      }
   }
 
   //

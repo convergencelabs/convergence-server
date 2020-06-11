@@ -101,7 +101,7 @@ object ConfigStoreActor {
   //
   // SetConfigs
   //
-  case class SetConfigsRequest(configs: Map[String, Any], actorRef: ActorRef[SetConfigsResponse]) extends Message
+  final case class SetConfigsRequest(configs: Map[String, Any], actorRef: ActorRef[SetConfigsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -109,12 +109,12 @@ object ConfigStoreActor {
   ))
   sealed trait SetConfigsError
 
-  case class SetConfigsResponse(response: Either[SetConfigsError, Unit]) extends CborSerializable
+  final case class SetConfigsResponse(response: Either[SetConfigsError, Unit]) extends CborSerializable
 
   //
   // GetConfigs
   //
-  case class GetConfigsRequest(keys: Option[List[String]], actorRef: ActorRef[GetConfigsResponse]) extends Message
+  final case class GetConfigsRequest(keys: Option[List[String]], actorRef: ActorRef[GetConfigsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -122,12 +122,12 @@ object ConfigStoreActor {
   ))
   sealed trait GetConfigsError
 
-  case class GetConfigsResponse(configs: Either[GetConfigsError, Map[String, Any]]) extends CborSerializable
+  final case class GetConfigsResponse(configs: Either[GetConfigsError, Map[String, Any]]) extends CborSerializable
 
   //
   // GetConfigsByFilter
   //
-  case class GetConfigsByFilterRequest(filters: List[String], actorRef: ActorRef[GetConfigsByFilterResponse]) extends Message
+  final case class GetConfigsByFilterRequest(filters: List[String], actorRef: ActorRef[GetConfigsByFilterResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -135,12 +135,12 @@ object ConfigStoreActor {
   ))
   sealed trait GetConfigsByFilterError
 
-  case class GetConfigsByFilterResponse(configs: Either[GetConfigsByFilterError, Map[String, Any]]) extends CborSerializable
+  final case class GetConfigsByFilterResponse(configs: Either[GetConfigsByFilterError, Map[String, Any]]) extends CborSerializable
 
   //
   // Commons Errors
   //
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with SetConfigsError
     with GetConfigsError
     with GetConfigsByFilterError

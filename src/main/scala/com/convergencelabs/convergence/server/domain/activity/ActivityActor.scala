@@ -174,9 +174,12 @@ class ActivityActor(context: ActorContext[Message],
 
 object ActivityActor {
   def apply(shardRegion: ActorRef[Message],
-            shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] = Behaviors.setup { context =>
-    new ActivityActor(context, shardRegion, shard)
-  }
+            shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] =
+    Behaviors.setup(context => new ActivityActor(context, shardRegion, shard))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait Message extends CborSerializable {
     val domain: DomainId

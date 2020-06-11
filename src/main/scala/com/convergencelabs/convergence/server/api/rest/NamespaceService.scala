@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.rest
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
@@ -26,17 +26,17 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 
-private[rest] class NamespaceService(private[this] val namespaceActor: ActorRef[Message],
-                                     private[this] val system: ActorSystem[_],
-                                     private[this] val executionContext: ExecutionContext,
-                                     private[this] val defaultTimeout: Timeout)
+private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
+                                     scheduler: Scheduler,
+                                     executionContext: ExecutionContext,
+                                     defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import NamespaceService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
-  private[this] implicit val s: ActorSystem[_] = system
+  private[this] implicit val s: Scheduler = scheduler
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("namespaces") {

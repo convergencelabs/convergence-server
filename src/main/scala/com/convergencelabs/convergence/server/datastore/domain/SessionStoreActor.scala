@@ -11,19 +11,17 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
-import grizzled.slf4j.Logging
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-import scala.util.{Failure, Success}
-
-class SessionStoreActor private[datastore](private[this] val context: ActorContext[SessionStoreActor.Message],
-                                           private[this] val sessionStore: SessionStore)
-  extends AbstractBehavior[SessionStoreActor.Message](context) with Logging {
+class SessionStoreActor private(context: ActorContext[SessionStoreActor.Message],
+                                           sessionStore: SessionStore)
+  extends AbstractBehavior[SessionStoreActor.Message](context) {
 
   import SessionStoreActor._
 
@@ -40,34 +38,41 @@ class SessionStoreActor private[datastore](private[this] val context: ActorConte
 
   private[this] def onGetSessions(message: GetSessionsRequest): Unit = {
     val GetSessionsRequest(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset, replyTo) = message
-    sessionStore.getSessions(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset) match {
-      case Success(sessions) =>
-        replyTo ! GetSessionsSuccess(sessions)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    sessionStore
+      .getSessions(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset)
+      .map(sessions => GetSessionsResponse(Right(sessions)))
+      .recover { _ =>
+        GetSessionsResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onGetSession(message: GetSessionRequest): Unit = {
     val GetSessionRequest(sessionId, replyTo) = message
-    sessionStore.getSession(sessionId) match {
-      case Success(session) =>
-        replyTo ! GetSessionSuccess(session)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    sessionStore
+      .getSession(sessionId)
+      .map(_.map(s => GetSessionResponse(Right(s))).getOrElse(GetSessionResponse(Left(SessionNotFoundError()))))
+      .recover { _ =>
+        GetSessionResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
   }
 }
 
-
 object SessionStoreActor {
-  def apply(sessionStore: SessionStore): Behavior[Message] = Behaviors.setup { context =>
-    new SessionStoreActor(context, sessionStore)
-  }
+  def apply(sessionStore: SessionStore): Behavior[Message] =
+    Behaviors.setup(context => new SessionStoreActor(context, sessionStore))
 
-  trait Message extends CborSerializable with DomainRestMessageBody
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
-  case class GetSessionsRequest(sessionId: Option[String],
+  sealed trait Message extends CborSerializable with DomainRestMessageBody
+
+  //
+  // GetSessions
+  //
+  final case class GetSessionsRequest(sessionId: Option[String],
                                 username: Option[String],
                                 remoteHost: Option[String],
                                 authMethod: Option[String],
@@ -77,17 +82,35 @@ object SessionStoreActor {
                                 offset: Option[Int],
                                 replyTo: ActorRef[GetSessionsResponse]) extends Message
 
-  sealed trait GetSessionsResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetSessionsError
 
-  case class GetSessionsSuccess(sessions: PagedData[DomainSession]) extends GetSessionsResponse
+  final case class GetSessionsResponse(sessions: Either[GetSessionsError, PagedData[DomainSession]]) extends CborSerializable
 
-  case class GetSessionRequest(id: String, replyTo: ActorRef[GetSessionResponse]) extends Message
+  //
+  // GetSession
+  //
+  final case class GetSessionRequest(id: String, replyTo: ActorRef[GetSessionResponse]) extends Message
 
-  sealed trait GetSessionResponse extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[SessionNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetSessionError
 
-  case class GetSessionSuccess(session: Option[DomainSession]) extends GetSessionResponse
+  final case class SessionNotFoundError() extends GetSessionError
 
-  case class RequestFailure(cause: Throwable) extends CborSerializable
-    with GetSessionsResponse
-    with GetSessionResponse
+  final case class GetSessionResponse(session: Either[GetSessionError, DomainSession]) extends CborSerializable
+
+  //
+  // Common Errors
+  //
+  final case class UnknownError() extends AnyRef
+    with GetSessionsError
+    with GetSessionError
+
 }

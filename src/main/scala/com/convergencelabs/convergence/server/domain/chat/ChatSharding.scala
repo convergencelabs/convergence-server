@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ServerClusterRoles
 import com.convergencelabs.convergence.server.actor.NoPropsActorSharding
@@ -19,8 +19,8 @@ import com.convergencelabs.convergence.server.actor.NoPropsActorSharding
 object ChatSharding  {
   private val EntityName = "Chat"
 
-  def apply(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int): ActorRef[ChatActor.Message] = {
-    val chatSharding = new ChatSharding(system, sharding, numberOfShards)
+  def apply(sharding: ClusterSharding, numberOfShards: Int): ActorRef[ChatActor.Message] = {
+    val chatSharding = new ChatSharding(sharding, numberOfShards)
     chatSharding.shardRegion
   }
 }
@@ -28,14 +28,13 @@ object ChatSharding  {
 /**
  * Configures the sharding of the [[ChatActor]].
  */
-private class ChatSharding(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)
-  extends NoPropsActorSharding[ChatActor.Message](ChatSharding.EntityName, ServerClusterRoles.Backend, system, sharding, numberOfShards) {
+private class ChatSharding(sharding: ClusterSharding, numberOfShards: Int)
+  extends NoPropsActorSharding[ChatActor.Message](ChatSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   def extractEntityId(msg: ChatActor.Message): String =
     s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.chatId}"
 
-  def createBehavior(system: ActorSystem[_],
-                     shardRegion: ActorRef[ChatActor.Message],
+  def createBehavior(shardRegion: ActorRef[ChatActor.Message],
                      entityContext: EntityContext[ChatActor.Message]): Behavior[ChatActor.Message] = {
     ChatActor(shardRegion, entityContext.shard)
   }

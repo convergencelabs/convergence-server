@@ -41,4 +41,8 @@ class TestReplyCallback() extends ReplyCallback {
   def expectedError(code: ErrorCodes.ErrorCode, message: String): Unit = {
     p.failure(new IllegalStateException())
   }
+
+  override def timeoutError(): Unit = {
+    p.failure(new IllegalStateException())
+  }
 }

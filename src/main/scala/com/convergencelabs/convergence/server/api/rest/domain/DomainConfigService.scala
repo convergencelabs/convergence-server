@@ -14,13 +14,13 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import java.time.Duration
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.{OkResponse, RestResponse, okResponse}
+import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.{GetModelSnapshotPolicyResponse, _}
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.{DomainRestMessage, Message}
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
@@ -28,11 +28,11 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainConfigService(private[this] val domainRestActor: ActorRef[Message],
-                          private[this] val system: ActorSystem[_],
-                          private[this] val executionContext: ExecutionContext,
-                          private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainConfigService(domainRestActor: ActorRef[Message],
+                          scheduler: Scheduler,
+                          executionContext: ExecutionContext,
+                          timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainConfigService._
 
@@ -64,50 +64,65 @@ class DomainConfigService(private[this] val domainRestActor: ActorRef[Message],
   }
 
   private[this] def getAnonymousAuthEnabled(domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[GetAnonymousAuthResponse](r => DomainRestMessage(domain, GetAnonymousAuthRequest(r))).flatMap {
-      case GetAnonymousAuthSuccess(enabled) =>
-        Future.successful(okResponse(AnonymousAuthResponseData(enabled)))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[GetAnonymousAuthResponse](r => DomainRestMessage(domain, GetAnonymousAuthRequest(r)))
+      .map(_.enabled.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { enabled =>
+          okResponse(AnonymousAuthResponseData(enabled))
+        }
+      ))
   }
 
   private[this] def setAnonymousAuthEnabled(domain: DomainId, request: AnonymousAuthPut): Future[RestResponse] = {
-    domainRestActor.ask[SetAnonymousAuthResponse](r => DomainRestMessage(domain, SetAnonymousAuthRequest(request.enabled, r))).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[SetAnonymousAuthResponse](r => DomainRestMessage(domain, SetAnonymousAuthRequest(request.enabled, r)))
+      .map(_.response.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        }
+      ))
   }
 
   private[this] def getModelSnapshotPolicy(domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[GetModelSnapshotPolicyResponse](r => DomainRestMessage(domain, GetModelSnapshotPolicyRequest(r))).flatMap {
-      case GetModelSnapshotPolicySuccess(policy) =>
-        val ModelSnapshotConfig(
-        snapshotsEnabled,
-        triggerByVersion,
-        limitByVersion,
-        minimumVersionInterval,
-        maximumVersionInterval,
-        triggerByTime,
-        limitByTime,
-        minimumTimeInterval,
-        maximumTimeInterval) = policy
-        val responseData = ModelSnapshotPolicyData(
+    domainRestActor
+      .ask[GetModelSnapshotPolicyResponse](r => DomainRestMessage(domain, GetModelSnapshotPolicyRequest(r)))
+      .map(_.policy.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { policy =>
+          val ModelSnapshotConfig(
           snapshotsEnabled,
           triggerByVersion,
-          maximumVersionInterval,
           limitByVersion,
           minimumVersionInterval,
+          maximumVersionInterval,
           triggerByTime,
-          maximumTimeInterval.toMillis,
           limitByTime,
-          minimumTimeInterval.toMillis)
-        Future.successful(okResponse(responseData))
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+          minimumTimeInterval,
+          maximumTimeInterval) = policy
+          val responseData = ModelSnapshotPolicyData(
+            snapshotsEnabled,
+            triggerByVersion,
+            maximumVersionInterval,
+            limitByVersion,
+            minimumVersionInterval,
+            triggerByTime,
+            maximumTimeInterval.toMillis,
+            limitByTime,
+            minimumTimeInterval.toMillis)
+          okResponse(responseData)
+        }
+      ))
   }
 
   private[this] def setModelSnapshotPolicy(domain: DomainId, policyData: ModelSnapshotPolicyData): Future[RestResponse] = {
@@ -135,12 +150,18 @@ class DomainConfigService(private[this] val domainRestActor: ActorRef[Message],
         Duration.ofMillis(minimumTimeInterval),
         Duration.ofMillis(maximumTimeInterval))
 
-    domainRestActor.ask[SetModelSnapshotPolicyResponse](r => DomainRestMessage(domain, SetModelSnapshotPolicyRequest(policy, r))).flatMap {
-      case RequestSuccess() =>
-        Future.successful(OkResponse)
-      case RequestFailure(cause) =>
-        Future.failed(cause)
-    }
+    domainRestActor
+      .ask[SetModelSnapshotPolicyResponse](
+        r => DomainRestMessage(domain, SetModelSnapshotPolicyRequest(policy, r)))
+      .map(_.response.fold(
+        {
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        }
+      ))
   }
 }
 

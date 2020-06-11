@@ -56,13 +56,13 @@ import scala.language.postfixOps
  */
 class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                                timers: TimerScheduler[ModelClientActor.Message],
-                               private[this] val domainId: DomainId,
+                               domainId: DomainId,
                                private[this] implicit val session: DomainUserSessionId,
-                               private[this] val clientActor: ActorRef[ClientActor.SendToClient],
-                               private[this] val modelStoreActor: ActorRef[ModelStoreActor.Message],
-                               private[this] val modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                               clientActor: ActorRef[ClientActor.SendToClient],
+                               modelStoreActor: ActorRef[ModelStoreActor.Message],
+                               modelClusterRegion: ActorRef[RealtimeModelActor.Message],
                                private[this] implicit val requestTimeout: Timeout,
-                               private[this] val offlineModelSyncInterval: FiniteDuration)
+                               offlineModelSyncInterval: FiniteDuration)
   extends AbstractBehavior[ModelClientActor.Message](context) with Logging {
 
   private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
@@ -584,13 +584,14 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     val CloseRealtimeModelRequestMessage(resourceId, _) = request
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        modelClusterRegion.ask[RealtimeModelActor.CloseRealtimeModelResponse](
-          RealtimeModelActor.CloseRealtimeModelRequest(domainId, modelId, session, _))
+        modelClusterRegion
+          .ask[RealtimeModelActor.CloseRealtimeModelResponse](
+            RealtimeModelActor.CloseRealtimeModelRequest(domainId, modelId, session, _))
           .map(_.response.fold(
             {
               case RealtimeModelActor.ModelNotOpenError() =>
                 cb.expectedError(ErrorCodes.ModelNotOpen, s"The model '$modelId' could not be closed because it was not open.'")
-              case _ =>
+              case RealtimeModelActor.UnknownError() =>
                 cb.unexpectedError("An unexpected error occurred while closing the model.")
             },
             { _ =>
@@ -599,6 +600,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
               cb.reply(CloseRealTimeModelResponseMessage())
             })
           )
+          .recover { cause =>
+            warn("A timeout occurred closing a model", cause)
+            cb.timeoutError()
+          }
       case None =>
         cb.expectedError(ErrorCodes.ModelNotOpen, s"the requested model was not open")
     }
@@ -659,6 +664,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                   modelPermissions.manage))))
         })
       )
+      .recover { cause =>
+        warn("A timeout occurred waiting for an open model request", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def convertReferences(references: Set[ReferenceState]): Seq[ReferenceData] = {
@@ -700,6 +709,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
             cb.reply(responseMessage)
         })
       )
+      .recover { cause =>
+        warn("A timeout occurred waiting for an model resync request", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
@@ -711,18 +724,18 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 
     // FIXME make a utility for this.
     val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
-
-    modelClusterRegion.ask[RealtimeModelActor.CreateRealtimeModelResponse](
-      RealtimeModelActor.CreateRealtimeModelRequest(
-        domainId,
-        modelId,
-        collectionId,
-        data.get,
-        Some(overridePermissions),
-        worldPermissions,
-        userPermissions,
-        Some(session),
-        _))
+    modelClusterRegion
+      .ask[RealtimeModelActor.CreateRealtimeModelResponse](
+        RealtimeModelActor.CreateRealtimeModelRequest(
+          domainId,
+          modelId,
+          collectionId,
+          data.get,
+          Some(overridePermissions),
+          worldPermissions,
+          userPermissions,
+          Some(session),
+          _))
       .map(_.response.fold(
         {
           case RealtimeModelActor.ModelAlreadyExistsError() =>
@@ -738,14 +751,19 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           cb.reply(CreateRealtimeModelResponseMessage(modelId))
         }
       ))
+      .recover { cause =>
+        warn("A timeout occurred waiting for an close model request", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val DeleteRealtimeModelRequestMessage(modelId, _) = request
     // We may or may not be able to delete the model, but the user has obviously unsubscribed.
     this.subscribedModels -= request.modelId
-    modelClusterRegion.ask[RealtimeModelActor.DeleteRealtimeModelResponse](
-      RealtimeModelActor.DeleteRealtimeModelRequest(domainId, modelId, Some(session), _))
+    modelClusterRegion
+      .ask[RealtimeModelActor.DeleteRealtimeModelResponse](
+        RealtimeModelActor.DeleteRealtimeModelRequest(domainId, modelId, Some(session), _))
       .map(_.response.fold(
         {
           case RealtimeModelActor.ModelNotFoundError() =>
@@ -759,6 +777,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           cb.reply(DeleteRealtimeModelResponseMessage())
         }
       ))
+      .recover { cause =>
+        warn("A timeout occurred waiting for a delete model request", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
@@ -787,12 +809,17 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           cb.reply(ModelsQueryResponseMessage(models, result.offset, result.count))
         }
       ))
+      .recover { cause =>
+        warn("A timeout occurred waiting for a model query request", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def onGetModelPermissionsRequest(request: GetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val GetModelPermissionsRequestMessage(modelId, _) = request
-    modelClusterRegion.ask[RealtimeModelActor.GetModelPermissionsResponse](
-      RealtimeModelActor.GetModelPermissionsRequest(domainId, modelId, session, _))
+    modelClusterRegion
+      .ask[RealtimeModelActor.GetModelPermissionsResponse](
+        RealtimeModelActor.GetModelPermissionsRequest(domainId, modelId, session, _))
       .map(_.response.fold(
         {
           case RealtimeModelActor.ModelNotFoundError() =>
@@ -809,6 +836,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
             cb.reply(GetModelPermissionsResponseMessage(overridesCollection, Some(mappedWorld), mappedUsers))
         }
       ))
+      .recover { cause =>
+        warn("A timeout occurred getting model permissions", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def onSetModelPermissionsRequest(request: SetModelPermissionsRequestMessage, cb: ReplyCallback): Unit = {
@@ -816,17 +847,18 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     val mappedWorld = world map (w => ModelPermissions(w.read, w.write, w.remove, w.manage))
     val mappedAddedUsers = modelUserPermissionSeqToMap(addedUsers)
 
-    modelClusterRegion.ask[RealtimeModelActor.SetModelPermissionsResponse](
-      RealtimeModelActor.SetModelPermissionsRequest(
-        domainId,
-        modelId,
-        session,
-        overridePermissions,
-        mappedWorld,
-        setAllUsers,
-        mappedAddedUsers,
-        removedUsers.map(ImplicitMessageConversions.dataToDomainUserId).toList,
-        _))
+    modelClusterRegion
+      .ask[RealtimeModelActor.SetModelPermissionsResponse](
+        RealtimeModelActor.SetModelPermissionsRequest(
+          domainId,
+          modelId,
+          session,
+          overridePermissions,
+          mappedWorld,
+          setAllUsers,
+          mappedAddedUsers,
+          removedUsers.map(ImplicitMessageConversions.dataToDomainUserId).toList,
+          _))
       .map(_.response.fold(
         {
           case RealtimeModelActor.ModelNotFoundError() =>
@@ -840,6 +872,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           cb.reply(SetModelPermissionsResponseMessage())
         }
       ))
+      .recover { cause =>
+        warn("A timeout occurred setting model permissions", cause)
+        cb.timeoutError()
+      }
   }
 
   private[this] def resourceId(modelId: String): Option[String] = {

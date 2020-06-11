@@ -207,7 +207,7 @@ object RoleStoreActor {
   //
   // CreateRole
   //
-  case class CreateRoleRequest(role: Role, replyTo: ActorRef[CreateRoleResponse]) extends Message
+  final case class CreateRoleRequest(role: Role, replyTo: ActorRef[CreateRoleResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[RoleExistsError], name = "role_exists"),
@@ -215,14 +215,14 @@ object RoleStoreActor {
   ))
   sealed trait CreateRoleError
 
-  case class RoleExistsError() extends CreateRoleError
+  final case class RoleExistsError() extends CreateRoleError
 
-  case class CreateRoleResponse(response: Either[CreateRoleError, Unit]) extends CborSerializable
+  final case class CreateRoleResponse(response: Either[CreateRoleError, Unit]) extends CborSerializable
 
   //
   // SetUsersRolesForTarget
   //
-  case class SetUsersRolesForTargetRequest(username: String, target: RoleTarget, roles: Set[String], replyTo: ActorRef[SetUsersRolesForTargetResponse]) extends Message
+  final case class SetUsersRolesForTargetRequest(username: String, target: RoleTarget, roles: Set[String], replyTo: ActorRef[SetUsersRolesForTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -230,12 +230,12 @@ object RoleStoreActor {
   ))
   sealed trait SetUsersRolesForTargetError
 
-  case class SetUsersRolesForTargetResponse(response: Either[SetUsersRolesForTargetError, Unit]) extends CborSerializable
+  final case class SetUsersRolesForTargetResponse(response: Either[SetUsersRolesForTargetError, Unit]) extends CborSerializable
 
   //
   // GetRoleProfile
   //
-  case class GetRoleProfileRequest(target: RoleTarget, username: String, replyTo: ActorRef[GetRoleProfileResponse]) extends Message
+  final case class GetRoleProfileRequest(target: RoleTarget, username: String, replyTo: ActorRef[GetRoleProfileResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -243,12 +243,12 @@ object RoleStoreActor {
   ))
   sealed trait GetRoleProfileError
 
-  case class GetRoleProfileResponse(profile: Either[GetRoleProfileError, Set[Role]]) extends CborSerializable
+  final case class GetRoleProfileResponse(profile: Either[GetRoleProfileError, Set[Role]]) extends CborSerializable
 
   //
   // GetAllUserRoles
   //
-  case class GetAllUserRolesRequest(target: RoleTarget, replyTo: ActorRef[GetAllUserRolesResponse]) extends Message
+  final case class GetAllUserRolesRequest(target: RoleTarget, replyTo: ActorRef[GetAllUserRolesResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[TargetNotFoundError], name = "target_not_found"),
@@ -256,12 +256,12 @@ object RoleStoreActor {
   ))
   sealed trait GetAllUserRolesForTargetError
 
-  case class GetAllUserRolesResponse(userRoles: Either[GetAllUserRolesForTargetError, Set[UserRoles]]) extends CborSerializable
+  final case class GetAllUserRolesResponse(userRoles: Either[GetAllUserRolesForTargetError, Set[UserRoles]]) extends CborSerializable
 
   //
   // GetUserRolesForTarget
   //
-  case class GetUserRolesForTargetRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserRolesForTargetResponse]) extends Message
+  final case class GetUserRolesForTargetRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserRolesForTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -269,12 +269,12 @@ object RoleStoreActor {
   ))
   sealed trait GetUserRolesForTargetError
 
-  case class GetUserRolesForTargetResponse(roles: Either[GetUserRolesForTargetError, Set[Role]]) extends CborSerializable
+  final case class GetUserRolesForTargetResponse(roles: Either[GetUserRolesForTargetError, Set[Role]]) extends CborSerializable
 
   //
   // UpdateRolesForTarget
   //
-  case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]], replyTo: ActorRef[UpdateRolesForTargetResponse]) extends Message
+  final case class UpdateRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]], replyTo: ActorRef[UpdateRolesForTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -282,12 +282,12 @@ object RoleStoreActor {
   ))
   sealed trait UpdateRolesForTargetError
 
-  case class UpdateRolesForTargetResponse(response: Either[UpdateRolesForTargetError, Unit]) extends CborSerializable
+  final case class UpdateRolesForTargetResponse(response: Either[UpdateRolesForTargetError, Unit]) extends CborSerializable
 
   //
   // SetAllUserRolesForTarget
   //
-  case class SetAllUserRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]], replyTo: ActorRef[SetAllUserRolesForTargetResponse]) extends Message
+  final case class SetAllUserRolesForTargetRequest(target: RoleTarget, userRoles: Map[String, Set[String]], replyTo: ActorRef[SetAllUserRolesForTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -295,12 +295,12 @@ object RoleStoreActor {
   ))
   sealed trait SetAllUserRolesForTargetError
 
-  case class SetAllUserRolesForTargetResponse(response: Either[SetAllUserRolesForTargetError, Unit]) extends CborSerializable
+  final case class SetAllUserRolesForTargetResponse(response: Either[SetAllUserRolesForTargetError, Unit]) extends CborSerializable
 
   //
   // RemoveUserFromTarget
   //
-  case class RemoveUserFromTargetRequest(target: RoleTarget, username: String, replyTo: ActorRef[RemoveUserFromTargetResponse]) extends Message
+  final case class RemoveUserFromTargetRequest(target: RoleTarget, username: String, replyTo: ActorRef[RemoveUserFromTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -308,12 +308,12 @@ object RoleStoreActor {
   ))
   sealed trait RemoveUserFromTargetError
 
-  case class RemoveUserFromTargetResponse(response: Either[RemoveUserFromTargetError, Unit]) extends CborSerializable
+  final case class RemoveUserFromTargetResponse(response: Either[RemoveUserFromTargetError, Unit]) extends CborSerializable
 
   //
   // GetUserPermissions
   //
-  case class GetUserPermissionsRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserPermissionsResponse]) extends Message
+  final case class GetUserPermissionsRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserPermissionsResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -321,12 +321,12 @@ object RoleStoreActor {
   ))
   sealed trait GetUserPermissionsError
 
-  case class GetUserPermissionsResponse(permissions: Either[GetUserPermissionsError, Set[String]]) extends CborSerializable
+  final case class GetUserPermissionsResponse(permissions: Either[GetUserPermissionsError, Set[String]]) extends CborSerializable
 
   //
   // Commons Errors
   //
-  case class UserNotFoundError() extends AnyRef
+  final case class UserNotFoundError() extends AnyRef
     with SetUsersRolesForTargetError
     with GetRoleProfileError
     with SetAllUserRolesForTargetError
@@ -335,13 +335,13 @@ object RoleStoreActor {
     with UpdateRolesForTargetError
     with GetUserRolesForTargetError
 
-  case class TargetNotFoundError() extends AnyRef
+  final case class TargetNotFoundError() extends AnyRef
     with SetAllUserRolesForTargetError
     with GetAllUserRolesForTargetError
     with UpdateRolesForTargetError
     with RemoveUserFromTargetError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with CreateRoleError
     with SetUsersRolesForTargetError
     with GetRoleProfileError

@@ -84,16 +84,16 @@ class DomainRestActor(context: ActorContext[DomainRestActor.Message],
 
   private[this] def onGetAdminToken(msg: AdminTokenRequest): Unit = {
     val AdminTokenRequest(convergenceUsername, replyTo) = msg
-    domainConfigStore.getAdminKeyPair() flatMap { pair =>
-      ConvergenceJwtUtil.fromString(AuthenticationHandler.AdminKeyId, pair.privateKey)
-    } flatMap { util =>
-      util.generateToken(convergenceUsername)
-    } match {
-      case Success(token) =>
-        replyTo ! AdminTokenSuccess(token)
-      case Failure(cause) =>
-        replyTo ! RequestFailure(cause)
-    }
+    domainConfigStore
+      .getAdminKeyPair()
+      .flatMap(pair => ConvergenceJwtUtil.fromString(AuthenticationHandler.AdminKeyId, pair.privateKey))
+      .flatMap(util => util.generateToken(convergenceUsername))
+      .map(token => AdminTokenResponse(Right(token)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting admin token.", cause)
+        AdminTokenResponse(Left(()))
+      }
+      .foreach(replyTo ! _)
   }
 
   override protected def initialize(msg: Message): Try[ShardedActorStatUpPlan] = {
@@ -141,6 +141,10 @@ object DomainRestActor {
     new DomainRestActor(context, shardRegion, shard, domainPersistenceManager, receiveTimeout)
   )
 
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
   sealed trait Message extends CborSerializable {
     def domainId: DomainId
   }
@@ -152,10 +156,11 @@ object DomainRestActor {
   @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
   trait DomainRestMessageBody
 
+  //
+  // AdminToken
+  //
   case class AdminTokenRequest(convergenceUsername: String, replyTo: ActorRef[AdminTokenResponse]) extends DomainRestMessageBody
 
-  sealed trait AdminTokenResponse extends DomainRestMessageBody
-  case class AdminTokenSuccess(token: String) extends AdminTokenResponse
+  case class AdminTokenResponse(token: Either[Unit, String]) extends CborSerializable
 
-  case class RequestFailure(cause: Throwable) extends CborSerializable with AdminTokenResponse
 }

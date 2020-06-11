@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.rest
 
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
@@ -30,15 +30,15 @@ import scala.concurrent.{ExecutionContext, Future}
 private[rest] class CurrentUserService(convergenceUserActor: ActorRef[ConvergenceUserManagerActor.Message],
                                        favoriteDomainsActor: ActorRef[UserFavoriteDomainStoreActor.Message],
                                        executionContext: ExecutionContext,
-                                       system: ActorSystem[_],
+                                       scheduler: Scheduler,
                                        defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import CurrentUserService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
+  private[this] implicit val s: Scheduler = scheduler
   private[this] implicit val t: Timeout = defaultTimeout
-  private[this] implicit val s: ActorSystem[_] = system
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("user") {

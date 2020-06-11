@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.rest.domain
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
@@ -26,11 +26,11 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Ro
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainMembersService(private[this] val roleStoreActor: ActorRef[RoleStoreActor.Message],
-                           private[this] val system: ActorSystem[_],
-                           private[this] val executionContext: ExecutionContext,
-                           private[this] val timeout: Timeout)
-  extends AbstractDomainRestService(system, executionContext, timeout) {
+class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
+                           scheduler: Scheduler,
+                           executionContext: ExecutionContext,
+                           timeout: Timeout)
+  extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainMembersService._
 

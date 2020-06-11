@@ -23,9 +23,13 @@ object ErrorCodes extends Enumeration {
   //
   val Unknown: ErrorCode = Value("unknown")
 
+  val Timeout: ErrorCode = Value("timeout")
+
   val Unauthorized: ErrorCode = Value("unauthorized")
 
   val MalformedRequestContent: ErrorCode = Value("malformed_request_content")
+
+  val NotSupported: ErrorCode = Value("not_supported")
 
   //
   // Identity Related Errors
@@ -71,6 +75,4 @@ object ErrorCodes extends Enumeration {
   val ChatAlreadyJoined: ErrorCode = Value("chat_already_joined")
 
   val ChatAlreadyExists: ErrorCode = Value("chat_already_exists")
-
-  val InvalidChatMessage: ErrorCode = Value("invalid_chat_message")
 }

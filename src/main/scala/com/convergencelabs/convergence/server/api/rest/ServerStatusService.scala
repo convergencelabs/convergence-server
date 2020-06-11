@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.rest
 
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, pathEnd, pathPrefix}
@@ -30,17 +30,17 @@ private[rest] object ServerStatusService {
 
 }
 
-private[rest] class ServerStatusService(private[this] val statusActor: ActorRef[Message],
-                                        private[this] val system: ActorSystem[_],
-                                        private[this] val executionContext: ExecutionContext,
-                                        private[this] val defaultTimeout: Timeout)
+private[rest] class ServerStatusService(statusActor: ActorRef[Message],
+                                        scheduler: Scheduler,
+                                        executionContext: ExecutionContext,
+                                        defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import ServerStatusService._
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
-  private[this] implicit val s: ActorSystem[_] = system
+  private[this] implicit val s: Scheduler = scheduler
 
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
@@ -61,7 +61,7 @@ private[rest] class ServerStatusService(private[this] val statusActor: ActorRef[
             InternalServerError
         },
         {
-          case ServerStatusResponse(version, distribution, serverStatus, namespaces, domains)=>
+          case ServerStatusResponse(version, distribution, serverStatus, namespaces, domains) =>
             okResponse(ServerStatus(version, distribution, serverStatus, namespaces, domains))
         })
       )

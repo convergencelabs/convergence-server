@@ -73,17 +73,17 @@ object ServerStatusActor {
   //
   // GetStatus
   //
-  case class GetStatusRequest(replyTo: ActorRef[GetStatusResponse]) extends Message
+  final case class GetStatusRequest(replyTo: ActorRef[GetStatusResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
   sealed trait GetStatusError
 
-  case class UnknownError() extends GetStatusError
+  final case class UnknownError() extends GetStatusError
 
-  case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
+  final case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
 
-  case class GetStatusResponse(status: Either[GetStatusError, ServerStatusResponse]) extends CborSerializable
+  final case class GetStatusResponse(status: Either[GetStatusError, ServerStatusResponse]) extends CborSerializable
 
 }

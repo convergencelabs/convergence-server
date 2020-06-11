@@ -202,7 +202,7 @@ object AuthenticationActor {
   //
   // Auth
   //
-  case class AuthRequest(username: String, password: String, replyTo: ActorRef[AuthResponse]) extends Message
+  final case class AuthRequest(username: String, password: String, replyTo: ActorRef[AuthResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -211,17 +211,17 @@ object AuthenticationActor {
   ))
   sealed trait AuthError
 
-  case class AuthenticationFailed() extends AuthError
+  final case class AuthenticationFailed() extends AuthError
 
-  case class AuthData(token: String, expiration: Duration)
+  final case class AuthData(token: String, expiration: Duration)
 
-  case class AuthResponse(data: Either[AuthError, AuthData]) extends CborSerializable
+  final case class AuthResponse(data: Either[AuthError, AuthData]) extends CborSerializable
 
 
   //
   // Login
   //
-  case class LoginRequest(username: String, password: String, replyTo: ActorRef[LoginResponse]) extends Message
+  final case class LoginRequest(username: String, password: String, replyTo: ActorRef[LoginResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -230,9 +230,9 @@ object AuthenticationActor {
   ))
   sealed trait LoginError extends CborSerializable
 
-  case class LoginFailed() extends LoginError
+  final case class LoginFailed() extends LoginError
 
-  case class LoginResponse(bearerToken: Either[LoginError, String]) extends CborSerializable
+  final case class LoginResponse(bearerToken: Either[LoginError, String]) extends CborSerializable
 
   //
   // ValidateResponse
@@ -245,31 +245,31 @@ object AuthenticationActor {
   ))
   sealed trait ValidateError
 
-  case class ValidationFailed() extends ValidateError
+  final case class ValidationFailed() extends ValidateError
 
-  case class ValidateResponse(profile: Either[ValidateError, AuthorizationProfileData]) extends CborSerializable
+  final case class ValidateResponse(profile: Either[ValidateError, AuthorizationProfileData]) extends CborSerializable
 
 
   //
   // ValidateSessionToken
   //
-  case class ValidateSessionTokenRequest(token: String, replyTo: ActorRef[ValidateResponse]) extends Message
+  final case class ValidateSessionTokenRequest(token: String, replyTo: ActorRef[ValidateResponse]) extends Message
 
 
   //
   // ValidateUserBearerToken
   //
-  case class ValidateUserBearerTokenRequest(bearerToken: String, replyTo: ActorRef[ValidateResponse]) extends Message
+  final case class ValidateUserBearerTokenRequest(bearerToken: String, replyTo: ActorRef[ValidateResponse]) extends Message
 
   //
   // ValidateUserApiKey
   //
-  case class ValidateUserApiKeyRequest(apiKey: String, replyTo: ActorRef[ValidateResponse]) extends Message
+  final case class ValidateUserApiKeyRequest(apiKey: String, replyTo: ActorRef[ValidateResponse]) extends Message
 
   //
   // GetSessionTokenExpiration
   //
-  case class GetSessionTokenExpirationRequest(token: String, replyTo: ActorRef[GetSessionTokenExpirationResponse]) extends Message
+  final case class GetSessionTokenExpirationRequest(token: String, replyTo: ActorRef[GetSessionTokenExpirationResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -278,16 +278,16 @@ object AuthenticationActor {
   ))
   sealed trait GetSessionTokenExpirationError
 
-  case class TokenNotFoundError() extends GetSessionTokenExpirationError
+  final case class TokenNotFoundError() extends GetSessionTokenExpirationError
 
-  case class SessionTokenExpiration(username: String, expiration: Duration)
+  final case class SessionTokenExpiration(username: String, expiration: Duration)
 
-  case class GetSessionTokenExpirationResponse(expiration: Either[GetSessionTokenExpirationError, SessionTokenExpiration]) extends CborSerializable
+  final case class GetSessionTokenExpirationResponse(expiration: Either[GetSessionTokenExpirationError, SessionTokenExpiration]) extends CborSerializable
 
   //
   // InvalidateTokenRequest
   //
-  case class InvalidateSessionTokenRequest(token: String, replyTo: ActorRef[InvalidateSessionTokenResponse]) extends Message
+  final case class InvalidateSessionTokenRequest(token: String, replyTo: ActorRef[InvalidateSessionTokenResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -295,13 +295,13 @@ object AuthenticationActor {
   ))
   sealed trait InvalidateSessionTokenError
 
-  case class InvalidateSessionTokenResponse(response: Either[InvalidateSessionTokenError, Unit]) extends CborSerializable
+  final case class InvalidateSessionTokenResponse(response: Either[InvalidateSessionTokenError, Unit]) extends CborSerializable
 
   //
   // Common Errors
   //
 
-  case class UnknownError() extends AuthError
+  final case class UnknownError() extends AuthError
     with LoginError
     with ValidateError
     with GetSessionTokenExpirationError
