@@ -37,7 +37,7 @@ object GetClientChatPermissionsProcessor extends PermissionsMessageProcessor[Get
   def getPermissions(permissionsStore: PermissionsStore)(message: GetClientChatPermissionsRequest, chatRid: ORID): Try[GetClientChatPermissionsResponse] = {
     val GetClientChatPermissionsRequest(_, _, requester, _) = message
     permissionsStore
-      .getAggregateUserPermissions(requester.userId, chatRid, ChatPermissions.AllChatChatPermissions)
+      .getAggregateUserPermissions(requester.userId, chatRid, ChatPermissions.AllExistingChatPermissions)
       .map(p => GetClientChatPermissionsResponse(Right(p)))
       .recover { cause =>
         error("Unexpected error getting client chat permissions", cause)

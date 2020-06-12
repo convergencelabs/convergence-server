@@ -110,7 +110,7 @@ class DomainRestActor(context: ActorContext[DomainRestActor.Message],
       keyStoreActor = context.spawn(JwtAuthKeyStoreActor(provider.jwtAuthKeyStore), "JwtAuthKeyStore")
       sessionStoreActor = context.spawn(SessionStoreActor(provider.sessionStore), "SessionStore")
       groupStoreActor = context.spawn(UserGroupStoreActor(provider.userGroupStore), "GroupStore")
-      chatActor = context.spawn(ChatManagerActor(provider), "ChatManager")
+      chatActor = context.spawn(ChatManagerActor(provider.chatStore, provider.permissionsStore), "ChatManager")
 
       StartUpRequired
     } recoverWith {

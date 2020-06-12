@@ -28,13 +28,11 @@ import grizzled.slf4j.Logging
 import scala.util.{Failure, Success, Try}
 
 class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
-                               provider: DomainPersistenceProvider)
+                               chatStore: ChatStore,
+                               permissionsStore: PermissionsStore)
   extends AbstractBehavior[ChatManagerActor.Message](context) with Logging {
 
   import ChatManagerActor._
-
-  private[this] val chatStore: ChatStore = provider.chatStore
-  private[this] val permissionsStore: PermissionsStore = provider.permissionsStore
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -99,12 +97,13 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
   }
 
   private[this] def onGetChats(message: GetChatsRequest): Unit = {
-    val GetChatsRequest(sk, ids, replyTo) = message
+    val GetChatsRequest(user, ids, replyTo) = message
     (for {
       chatInfos <- Try(ids.map(chatStore.findChatInfo(_).get))
       filtered <- Try {
         chatInfos.collect {
-          case Some(chatInfo) if chatInfo.membership == ChatMembership.Public || hasPermission(sk, chatInfo.id, ChatPermissions.Permissions.JoinChat).get =>
+          case Some(chatInfo) if chatInfo.membership == ChatMembership.Public ||
+            ChatPermissionResolver.hasChatPermissions(chatStore, permissionsStore, chatInfo.id, ChatPermissions.Permissions.JoinChat, user).get =>
             chatInfo
         }
       }
@@ -117,13 +116,14 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
   }
 
   private[this] def onExists(message: ChatsExistsRequest): Unit = {
-    val ChatsExistsRequest(sk, ids, replyTo) = message
+    val ChatsExistsRequest(user, ids, replyTo) = message
     (for {
       chatInfos <- Try(ids.map(chatStore.findChatInfo(_).get))
       exists <- Try {
         chatInfos.map {
           case Some(chatInfo) =>
-            chatInfo.membership == ChatMembership.Public || hasPermission(sk, chatInfo.id, ChatPermissions.Permissions.JoinChat).get
+            chatInfo.membership == ChatMembership.Public ||
+              ChatPermissionResolver.hasChatPermissions(chatStore, permissionsStore, chatInfo.id, ChatPermissions.Permissions.JoinChat, user).get
           case None =>
             false
         }
@@ -216,23 +216,13 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
       permissionsStore.hasPermission(userId, permission.p)
     }
   }
-
-  private[this] def hasPermission(userId: DomainUserId, chatId: String, permission: ChatPermission): Try[Boolean] = {
-    if (userId.isConvergence) {
-      Success(true)
-    } else {
-      for {
-        rid <- chatStore.getChatRid(chatId)
-        permission <- permissionsStore.hasPermissionForRecord(userId, rid, permission.p)
-      } yield permission
-    }
-  }
 }
 
 object ChatManagerActor {
 
-  def apply(provider: DomainPersistenceProvider): Behavior[Message] =
-    Behaviors.setup(context => new ChatManagerActor(context, provider))
+  def apply(chatStore: ChatStore,
+            permissionsStore: PermissionsStore): Behavior[Message] =
+    Behaviors.setup(context => new ChatManagerActor(context, chatStore, permissionsStore))
 
 
   /////////////////////////////////////////////////////////////////////////////

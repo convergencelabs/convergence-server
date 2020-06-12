@@ -21,6 +21,7 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 import scala.util.Try
 
 object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFromChatRequest, ChatUserRemovedEvent, RemoveUserFromChatResponse] {
+  import ChatEventMessageProcessor._
 
   private val RequiredPermission = ChatPermissions.Permissions.RemoveUser
 
@@ -29,14 +30,14 @@ object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFrom
               chatStore: ChatStore,
               permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
-      state = state,
       message = message,
+      state = state,
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      processEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = processEvent(chatStore, permissionsStore),
       updateState = updateState,
-      createSuccessReply = createSuccessReply(state),
+      createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.RemoveUserFromChatResponse(Left(value))
     )
 
@@ -55,7 +56,7 @@ object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFrom
     for {
       _ <- chatStore.addChatUserRemovedEvent(event)
       chatRid <- chatStore.getChatRid(event.id)
-      _ <- permissionsStore.removeUserPermissions(ChatPermissions.AllChatChatPermissions, event.userRemoved, Some(chatRid))
+      _ <- permissionsStore.removeUserPermissions(ChatPermissions.AllExistingChatPermissions, event.userRemoved, Some(chatRid))
     } yield {
 
     }
@@ -66,7 +67,7 @@ object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFrom
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, members = newMembers)
   }
 
-  def createSuccessReply(state: ChatState)(message: RemoveUserFromChatRequest, event: ChatUserRemovedEvent): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: RemoveUserFromChatRequest, event: ChatUserRemovedEvent, state: ChatState): ReplyAndBroadcastTask = {
     replyAndBroadcastTask(
       message.replyTo,
       RemoveUserFromChatResponse(Right(())),

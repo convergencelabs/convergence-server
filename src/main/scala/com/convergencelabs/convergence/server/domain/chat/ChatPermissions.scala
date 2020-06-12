@@ -11,10 +11,20 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
+/**
+ * Constants relating to chat subsystem permissions.
+ */
 object ChatPermissions {
 
+  /**
+   * A value class that wraps a string for type safety for
+   * chat permissions.
+   */
   final case class ChatPermission(p: String) extends AnyVal
 
+  /**
+   * An object to collect individual chat permissions.
+   */
   object Permissions {
     val CreateChat: ChatPermission = ChatPermission("create_chat_channel")
     val RemoveChat: ChatPermission = ChatPermission("remove_chat_channel")
@@ -27,11 +37,26 @@ object ChatPermissions {
     val Manage: ChatPermission = ChatPermission("manage_chat_permissions")
   }
 
-  val AllChatChatPermissions: Set[String] = Set(Permissions.RemoveChat, Permissions.JoinChat,
-    Permissions.LeaveChat, Permissions.AddUser, Permissions.RemoveUser,
-    Permissions.SetName, Permissions.SetTopic, Permissions.Manage).map(_.p)
+  /**
+   * The set of all permissions that realate to an existing chat.
+   */
+  val AllExistingChatPermissions: Set[String] = Set(
+    Permissions.RemoveChat,
+    Permissions.JoinChat,
+    Permissions.LeaveChat,
+    Permissions.AddUser,
+    Permissions.RemoveUser,
+    Permissions.SetName,
+    Permissions.SetTopic,
+    Permissions.Manage).map(_.p)
 
-  val AllChatPermissions: Set[String] = AllChatChatPermissions + Permissions.CreateChat.p
+  /**
+   * A set of all chat permissions.
+   */
+  val AllChatPermissions: Set[String] = AllExistingChatPermissions + Permissions.CreateChat.p
 
+  /**
+   * The set of permissions to assign to a user by default.
+   */
   val DefaultChatPermissions: Set[String] = Set(Permissions.JoinChat, Permissions.LeaveChat).map(_.p)
 }

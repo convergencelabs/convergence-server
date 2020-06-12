@@ -251,7 +251,7 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
 
       val identityServiceActor = context.spawn(supervise(IdentityServiceActor(persistenceProvider)), "IdentityService")
       val presenceServiceActor = context.spawn(supervise(PresenceServiceActor()), "PresenceService")
-      val chatManagerActor = context.spawn(supervise(ChatManagerActor(persistenceProvider)), "ChatManager")
+      val chatManagerActor = context.spawn(supervise(ChatManagerActor(provider.chatStore, provider.permissionsStore)), "ChatManager")
       val modelStoreActor = context.spawn(supervise(ModelStoreActor(persistenceProvider)),"ModelStore")
       val operationStoreActor = context.spawn(supervise(ModelOperationStoreActor(persistenceProvider.modelOperationStore)), "ModelOperationStore")
 

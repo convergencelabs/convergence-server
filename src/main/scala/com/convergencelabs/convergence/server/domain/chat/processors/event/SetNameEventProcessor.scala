@@ -22,6 +22,8 @@ import scala.util.Try
 
 object SetNameEventProcessor extends ChatEventMessageProcessor[SetChatNameRequest, ChatNameChangedEvent, SetChatNameResponse] {
 
+  import ChatEventMessageProcessor._
+
   private val RequiredPermission = ChatPermissions.Permissions.SetName
 
   def execute(message: ChatActor.SetChatNameRequest,
@@ -29,14 +31,14 @@ object SetNameEventProcessor extends ChatEventMessageProcessor[SetChatNameReques
               chatStore: ChatStore,
               permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
-      state = state,
       message = message,
+      state = state,
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      processEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = processEvent(chatStore, permissionsStore),
       updateState = updateState,
-      createSuccessReply = createSuccessReply(state),
+      createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.SetChatNameResponse(Left(value))
     )
 
@@ -62,7 +64,7 @@ object SetNameEventProcessor extends ChatEventMessageProcessor[SetChatNameReques
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, name = event.name)
   }
 
-  def createSuccessReply(state: ChatState)(message: SetChatNameRequest, event: ChatNameChangedEvent): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: SetChatNameRequest, event: ChatNameChangedEvent, state: ChatState): ReplyAndBroadcastTask = {
     replyAndBroadcastTask(
       message.replyTo,
       SetChatNameResponse(Right(())),

@@ -22,6 +22,8 @@ import scala.util.Try
 
 object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequest, ChatUserAddedEvent, AddUserToChatResponse] {
 
+  import ChatEventMessageProcessor._
+
   private val RequiredPermission = ChatPermissions.Permissions.AddUser
 
   def execute(message: ChatActor.AddUserToChatRequest,
@@ -29,14 +31,14 @@ object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequ
               chatStore: ChatStore,
               permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
-      state = state,
       message = message,
+      state = state,
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      processEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = processEvent(chatStore, permissionsStore),
       updateState = updateState,
-      createSuccessReply = createSuccessReply(state),
+      createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.AddUserToChatResponse(Left(value))
     )
 
@@ -64,7 +66,7 @@ object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequ
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, members = newMembers)
   }
 
-  def createSuccessReply(state: ChatState)(message: AddUserToChatRequest, event: ChatUserAddedEvent): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: AddUserToChatRequest, event: ChatUserAddedEvent, state: ChatState): ReplyAndBroadcastTask = {
     replyAndBroadcastTask(
       message.replyTo,
       AddUserToChatResponse(Right(())),

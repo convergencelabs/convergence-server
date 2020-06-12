@@ -15,12 +15,13 @@ import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
-import com.convergencelabs.convergence.server.domain.chat.processors.{ReplyAndBroadcastTask, MessageReplyTask}
+import com.convergencelabs.convergence.server.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions, ChatState}
 
 import scala.util.Try
 
 object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, ChatUserJoinedEvent, JoinChatResponse] {
+  import ChatEventMessageProcessor._
 
   private val RequiredPermission = ChatPermissions.Permissions.JoinChat
 
@@ -29,14 +30,14 @@ object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, Cha
               chatStore: ChatStore,
               permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
-      state = state,
       message = message,
+      state = state,
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      processEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = processEvent(chatStore, permissionsStore),
       updateState = updateState,
-      createSuccessReply = createSuccessReply(state),
+      createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.JoinChatResponse(Left(value))
     )
 
@@ -60,7 +61,7 @@ object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, Cha
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, members = newMembers)
   }
 
-  def createSuccessReply(state: ChatState)(message: JoinChatRequest, event: ChatUserJoinedEvent): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: JoinChatRequest, event: ChatUserJoinedEvent, state: ChatState): ReplyAndBroadcastTask = {
     val info = stateToInfo(state)
     ReplyAndBroadcastTask(
       MessageReplyTask(message.replyTo, JoinChatResponse(Right(info))),
@@ -76,5 +77,4 @@ object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, Cha
     val ChatState(id, chatType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members) = state
     ChatInfo(id, chatType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members.values.toSet)
   }
-
 }

@@ -29,15 +29,20 @@ import scala.concurrent.duration.DurationInt
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
+
 /**
  * The [[ChatActor]] represents a single unique chat instance in the system. It
  * is sharded across the backend nodes and can represent a chat channel or a
  * chat room. The handling of messages is delegated to a ChatMessageProcessor
  * which implements the specific business logic of each type of chat.
+ *
+ * @param context     The ActorContext this actor is created in.
+ * @param shardRegion The ActorRef to send messages to the chat share region.
+ * @param shard       The ActorRef to send messages to this sharded actors host shard.
  */
-class ChatActor private[domain](context: ActorContext[ChatActor.Message],
-                                shardRegion: ActorRef[ChatActor.Message],
-                                shard: ActorRef[ClusterSharding.ShardCommand])
+class ChatActor private(context: ActorContext[ChatActor.Message],
+                        shardRegion: ActorRef[ChatActor.Message],
+                        shard: ActorRef[ClusterSharding.ShardCommand])
   extends ShardedActor[ChatActor.Message](context, shardRegion, shard) with Logging {
 
   import ChatActor._
@@ -55,7 +60,6 @@ class ChatActor private[domain](context: ActorContext[ChatActor.Message],
   }
 
   protected def initialize(message: Message): Try[ShardedActorStatUpPlan] = {
-
     (for {
       provider <- DomainPersistenceManagerActor.acquirePersistenceProvider(context.self, context.system, domainId)
       state <- createState(chatId, provider.chatStore)
@@ -162,17 +166,22 @@ object ChatActor {
     s"chat-user-${userId.userType.toString.toLowerCase}-${userId.username}"
   }
 
-
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * The trait of all messages sent to the ChatActor.
+   */
   sealed trait Message extends CborSerializable {
     val domainId: DomainId
     val chatId: String
   }
 
-
+  /**
+   * Signifies that a receive timeout occurred such that the chat actor can
+   * passivate.
+   */
   private final case class ReceiveTimeout(domainId: DomainId, chatId: String) extends Message
 
   // Incoming Messages

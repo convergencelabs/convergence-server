@@ -22,6 +22,8 @@ import scala.util.Try
 
 object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishChatMessageRequest, ChatMessageEvent, PublishChatMessageResponse] {
 
+  import ChatEventMessageProcessor._
+
   private val RequiredPermission = ChatPermissions.Permissions.JoinChat
 
   def execute(message: ChatActor.PublishChatMessageRequest,
@@ -29,14 +31,14 @@ object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishCha
               chatStore: ChatStore,
               permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
-      state = state,
       message = message,
+      state = state,
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      processEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = processEvent(chatStore, permissionsStore),
       updateState = updateState,
-      createSuccessReply = createSuccessReply(state),
+      createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.PublishChatMessageResponse(Left(value))
     )
 
@@ -59,7 +61,7 @@ object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishCha
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp)
   }
 
-  def createSuccessReply(state: ChatState)(message: PublishChatMessageRequest, event: ChatMessageEvent): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: PublishChatMessageRequest, event: ChatMessageEvent, state: ChatState): ReplyAndBroadcastTask = {
     replyAndBroadcastTask(
       message.replyTo,
       PublishChatMessageResponse(Right(PublishChatMessageAck(event.eventNumber, event.timestamp))),

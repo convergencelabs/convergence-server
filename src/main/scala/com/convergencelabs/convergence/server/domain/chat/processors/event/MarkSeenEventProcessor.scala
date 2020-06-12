@@ -25,6 +25,8 @@ case class MarkSeen(chatId: String, user: DomainUserId, eventNumber: Long)
 
 object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
 
+  import ChatEventMessageProcessor._
+
   private val RequiredPermission = ChatPermissions.Permissions.SetTopic
 
   def execute(message: ChatActor.MarkChatsEventsSeenRequest,
@@ -32,14 +34,14 @@ object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
               chatStore: ChatStore,
               permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
     process(
-      state = state,
       message = message,
+      state = state,
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      processEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = processEvent(chatStore, permissionsStore),
       updateState = updateState,
-      createSuccessReply = createSuccessReply(state),
+      createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.MarkChatsEventsSeenResponse(Left(value))
     )
 
@@ -63,7 +65,7 @@ object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
     state.copy(members = newMembers)
   }
 
-  def createSuccessReply(state: ChatState)(message: MarkChatsEventsSeenRequest, event: MarkSeen): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: MarkChatsEventsSeenRequest, event: MarkSeen, state: ChatState): ReplyAndBroadcastTask = {
     replyAndBroadcastTask(
       message.replyTo,
       MarkChatsEventsSeenResponse(Right(())),

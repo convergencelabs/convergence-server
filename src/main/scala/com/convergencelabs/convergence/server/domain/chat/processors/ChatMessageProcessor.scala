@@ -115,7 +115,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
         MessageReplyTask(msg.replyTo, onGetGroupChatPermissionsRequest(msg))
     }
 
-    result.reply()
+    result.execute()
 
     ChatMessageProcessor.Same
   }
@@ -160,7 +160,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
   }
 
   private[this] def replyAndBroadcast[T](task: ReplyAndBroadcastTask): Unit = {
-    task.reply.reply()
+    task.reply.execute()
     task.broadcast.foreach(broadcast)
   }
 
