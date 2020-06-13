@@ -24,7 +24,8 @@ import scala.util.Try
  * The [[SetNameEventProcessor]] provides helper methods to process
  * the [[SetChatNameRequest]].
  */
-private[chat] object SetNameEventProcessor extends ChatEventMessageProcessor[SetChatNameRequest, ChatNameChangedEvent, SetChatNameResponse] {
+private[chat] object SetNameEventProcessor
+  extends ChatEventMessageProcessor[SetChatNameRequest, ChatNameChangedEvent, SetChatNameResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -33,7 +34,7 @@ private[chat] object SetNameEventProcessor extends ChatEventMessageProcessor[Set
   def execute(message: ChatActor.SetChatNameRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[SetChatNameResponse] =
     process(
       message = message,
       state = state,
@@ -68,7 +69,9 @@ private[chat] object SetNameEventProcessor extends ChatEventMessageProcessor[Set
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, name = event.name)
   }
 
-  def createSuccessReply(message: SetChatNameRequest, event: ChatNameChangedEvent, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: SetChatNameRequest,
+                         event: ChatNameChangedEvent,
+                         state: ChatState): ReplyAndBroadcastTask[SetChatNameResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
       SetChatNameResponse(Right(())),

@@ -30,7 +30,8 @@ import scala.util.Try
  * last seen event.  This is the reason for the [[MarkSeen]]
  * case class rather than using a chat store event object.
  */
-private[chat] object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
+private[chat] object MarkSeenEventProcessor
+  extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -40,7 +41,7 @@ private[chat] object MarkSeenEventProcessor extends ChatEventMessageProcessor[Ma
   def execute(message: ChatActor.MarkChatsEventsSeenRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[MarkChatsEventsSeenResponse] =
     process(
       message = message,
       state = state,
@@ -73,7 +74,9 @@ private[chat] object MarkSeenEventProcessor extends ChatEventMessageProcessor[Ma
     state.copy(members = newMembers)
   }
 
-  def createSuccessReply(message: MarkChatsEventsSeenRequest, event: MarkSeen, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: MarkChatsEventsSeenRequest,
+                         event: MarkSeen,
+                         state: ChatState): ReplyAndBroadcastTask[MarkChatsEventsSeenResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
       MarkChatsEventsSeenResponse(Right(())),

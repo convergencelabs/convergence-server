@@ -47,7 +47,7 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
   private val newState = state.copy(lastEventNumber = state.lastEventNumber + 1)
   private val updateState = (_: ChatUserJoinedEvent, _: ChatState) => newState
 
-  private def createSuccessReply(r: JoinChatRequest, e: ChatUserJoinedEvent, state: ChatState): ReplyAndBroadcastTask = {
+  private def createSuccessReply(r: JoinChatRequest, e: ChatUserJoinedEvent, state: ChatState): ReplyAndBroadcastTask[JoinChatResponse] = {
     val info = JoinEventProcessor.stateToInfo(state)
     ReplyAndBroadcastTask(MessageReplyTask(r.replyTo, JoinChatResponse(Right(info))), None)
   }
@@ -160,8 +160,8 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
                       createEvent: (JoinChatRequest, ChatState) => ChatUserJoinedEvent = createEvent,
                       processEvent: ChatUserJoinedEvent => Try[Unit] = successProcessEvent,
                       updateState: (ChatUserJoinedEvent, ChatState) => ChatState = updateState,
-                      createSuccessReply: (JoinChatRequest, ChatUserJoinedEvent, ChatState) => ReplyAndBroadcastTask = createSuccessReply,
-                      createErrorReply: CommonErrors => JoinChatResponse = createErrorReply): ChatEventMessageProcessorResult = {
+                      createSuccessReply: (JoinChatRequest, ChatUserJoinedEvent, ChatState) => ReplyAndBroadcastTask[JoinChatResponse] = createSuccessReply,
+                      createErrorReply: CommonErrors => JoinChatResponse = createErrorReply): ChatEventMessageProcessorResult[JoinChatResponse] = {
     ChatEventMessageProcessor.process(message,
       state,
       checkPermissions,

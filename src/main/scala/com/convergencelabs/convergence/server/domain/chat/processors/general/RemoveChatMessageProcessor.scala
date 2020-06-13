@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.general
 
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.RemoveChatRequest
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{RemoveChatRequest, RemoveChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions}
@@ -25,7 +25,7 @@ object RemoveChatMessageProcessor extends Logging {
   def execute(message: RemoveChatRequest,
               checkPermissions: (DomainUserId, ChatPermission) => Try[Boolean],
               removeChat: String => Try[Unit],
-             ): ReplyAndBroadcastTask = {
+             ): ReplyAndBroadcastTask[RemoveChatResponse] = {
     val RemoveChatRequest(_, chatId, requester, _) = message
 
     (for {

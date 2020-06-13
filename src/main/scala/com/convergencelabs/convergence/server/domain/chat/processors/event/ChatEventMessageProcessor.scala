@@ -70,7 +70,7 @@ private[chat] trait ChatEventMessageProcessor[M <: ChatEventRequest[R], E, R] ex
   def execute(message: M,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[R]
 
   /**
    * Validates that the request is valid given the current state of the chat.
@@ -125,7 +125,7 @@ private[chat] trait ChatEventMessageProcessor[M <: ChatEventRequest[R], E, R] ex
    *                if any.
    * @return A successful response message.
    */
-  def createSuccessReply(message: M, event: E, state: ChatState): ReplyAndBroadcastTask
+  def createSuccessReply(message: M, event: E, state: ChatState): ReplyAndBroadcastTask[R]
 
   /**
    * Creates an error response to send to the requester in the case of a
@@ -150,7 +150,7 @@ object ChatEventMessageProcessor extends Logging {
    */
   def replyAndBroadcastTask[R](replyTo: ActorRef[R],
                                reply: R,
-                               broadcast: Option[ChatClientActor.OutgoingMessage] = None): ReplyAndBroadcastTask = {
+                               broadcast: Option[ChatClientActor.OutgoingMessage] = None): ReplyAndBroadcastTask[R] = {
     ReplyAndBroadcastTask(MessageReplyTask[R](replyTo, reply), broadcast)
   }
 
@@ -191,8 +191,8 @@ object ChatEventMessageProcessor extends Logging {
                                               createEvent: (M, ChatState) => E,
                                               persistEvent: E => Try[Unit],
                                               updateState: (E, ChatState) => ChatState,
-                                              createSuccessReply: (M, E, ChatState) => ReplyAndBroadcastTask,
-                                              createErrorReply: CommonErrors => R): ChatEventMessageProcessorResult = {
+                                              createSuccessReply: (M, E, ChatState) => ReplyAndBroadcastTask[R],
+                                              createErrorReply: CommonErrors => R): ChatEventMessageProcessorResult[R] = {
     val replyTo = message.replyTo
     checkPermissions(message.requester) match {
       case Failure(_) =>

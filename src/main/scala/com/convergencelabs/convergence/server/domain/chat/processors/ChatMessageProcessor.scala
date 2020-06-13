@@ -39,7 +39,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
   }
 
   protected def onChatEventRequest(msg: ChatEventRequest[_]): NextBehavior = {
-    val result: ChatEventMessageProcessorResult = msg match {
+    val result: ChatEventMessageProcessorResult[_] = msg match {
       case message: JoinChatRequest =>
         onJoinChatRequest(message)
       case message: LeaveChatRequest =>
@@ -54,7 +54,6 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
         onSetChatTopicRequest(message)
       case message: MarkChatsEventsSeenRequest =>
         onMarkChatsEventsSeenRequest(message)
-        MarkSeenEventProcessor.execute(message, state, chatStore, permissionsStore)
       case message: PublishChatMessageRequest =>
         onPublishChatMessageRequest(message)
     }
@@ -68,28 +67,28 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
     ChatMessageProcessor.Same
   }
 
-  protected def onJoinChatRequest(msg: JoinChatRequest): ChatEventMessageProcessorResult =
+  protected def onJoinChatRequest(msg: JoinChatRequest): ChatEventMessageProcessorResult[JoinChatResponse] =
     JoinEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onLeaveChatRequest(msg: LeaveChatRequest): ChatEventMessageProcessorResult =
+  protected def onLeaveChatRequest(msg: LeaveChatRequest): ChatEventMessageProcessorResult[LeaveChatResponse] =
     LeaveEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult =
+  protected def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult[AddUserToChatResponse] =
     AddUserEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onRemovedUserFromChatRequest(msg: RemoveUserFromChatRequest): ChatEventMessageProcessorResult =
+  protected def onRemovedUserFromChatRequest(msg: RemoveUserFromChatRequest): ChatEventMessageProcessorResult[RemoveUserFromChatResponse] =
     RemoveUserEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onSetChatNameRequest(msg: SetChatNameRequest): ChatEventMessageProcessorResult =
+  protected def onSetChatNameRequest(msg: SetChatNameRequest): ChatEventMessageProcessorResult[SetChatNameResponse] =
     SetNameEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onSetChatTopicRequest(msg: SetChatTopicRequest): ChatEventMessageProcessorResult =
+  protected def onSetChatTopicRequest(msg: SetChatTopicRequest): ChatEventMessageProcessorResult[SetChatTopicResponse] =
     SetTopicEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onMarkChatsEventsSeenRequest(msg: MarkChatsEventsSeenRequest): ChatEventMessageProcessorResult =
+  protected def onMarkChatsEventsSeenRequest(msg: MarkChatsEventsSeenRequest): ChatEventMessageProcessorResult[MarkChatsEventsSeenResponse] =
     MarkSeenEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
-  protected def onPublishChatMessageRequest(msg: PublishChatMessageRequest): ChatEventMessageProcessorResult =
+  protected def onPublishChatMessageRequest(msg: PublishChatMessageRequest): ChatEventMessageProcessorResult[PublishChatMessageResponse] =
     PublishMessageEventProcessor.execute(msg, state, chatStore, permissionsStore)
 
 
@@ -159,7 +158,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
     ChatMessageProcessor.Same
   }
 
-  private[this] def replyAndBroadcast[T](task: ReplyAndBroadcastTask): Unit = {
+  private[this] def replyAndBroadcast[T](task: ReplyAndBroadcastTask[_]): Unit = {
     task.reply.execute()
     task.broadcast.foreach(broadcast)
   }

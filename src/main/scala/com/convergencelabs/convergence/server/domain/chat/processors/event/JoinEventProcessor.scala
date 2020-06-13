@@ -24,7 +24,9 @@ import scala.util.Try
  * The [[JoinEventProcessor]] provides helper methods to process
  * the [[JoinChatRequest]].
  */
-private[chat] object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, ChatUserJoinedEvent, JoinChatResponse] {
+private[chat] object JoinEventProcessor
+  extends ChatEventMessageProcessor[JoinChatRequest, ChatUserJoinedEvent, JoinChatResponse] {
+
   import ChatEventMessageProcessor._
 
   private val RequiredPermission = ChatPermissions.Permissions.JoinChat
@@ -32,7 +34,7 @@ private[chat] object JoinEventProcessor extends ChatEventMessageProcessor[JoinCh
   def execute(message: ChatActor.JoinChatRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[JoinChatResponse] =
     process(
       message = message,
       state = state,
@@ -65,7 +67,9 @@ private[chat] object JoinEventProcessor extends ChatEventMessageProcessor[JoinCh
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, members = newMembers)
   }
 
-  def createSuccessReply(message: JoinChatRequest, event: ChatUserJoinedEvent, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: JoinChatRequest,
+                         event: ChatUserJoinedEvent,
+                         state: ChatState): ReplyAndBroadcastTask[JoinChatResponse] = {
     val info = stateToInfo(state)
     ReplyAndBroadcastTask(
       MessageReplyTask(message.replyTo, JoinChatResponse(Right(info))),
@@ -78,7 +82,7 @@ private[chat] object JoinEventProcessor extends ChatEventMessageProcessor[JoinCh
   }
 
   def stateToInfo(state: ChatState): ChatInfo = {
-    val ChatState(id, chatType, created, isPrivate, name, topic, lastEventTime, lastEventNo, members) = state
-    ChatInfo(id, chatType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members.values.toSet)
+    val ChatState(id, chatType, created, membership, name, topic, lastEventTime, lastEventNo, members) = state
+    ChatInfo(id, chatType, created, membership, name, topic, lastEventNo, lastEventTime, members.values.toSet)
   }
 }

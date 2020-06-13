@@ -24,7 +24,8 @@ import scala.util.Try
  * The [[SetTopicEventProcessor]] provides helper methods to process
  * the [[SetChatTopicRequest]].
  */
-private[chat] object SetTopicEventProcessor extends ChatEventMessageProcessor[SetChatTopicRequest, ChatTopicChangedEvent, SetChatTopicResponse] {
+private[chat] object SetTopicEventProcessor
+  extends ChatEventMessageProcessor[SetChatTopicRequest, ChatTopicChangedEvent, SetChatTopicResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -33,7 +34,7 @@ private[chat] object SetTopicEventProcessor extends ChatEventMessageProcessor[Se
   def execute(message: ChatActor.SetChatTopicRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[SetChatTopicResponse] =
     process(
       message = message,
       state = state,
@@ -68,7 +69,9 @@ private[chat] object SetTopicEventProcessor extends ChatEventMessageProcessor[Se
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, topic = event.topic)
   }
 
-  def createSuccessReply(message: SetChatTopicRequest, event: ChatTopicChangedEvent, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: SetChatTopicRequest,
+                         event: ChatTopicChangedEvent,
+                         state: ChatState): ReplyAndBroadcastTask[SetChatTopicResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
       SetChatTopicResponse(Right(())),

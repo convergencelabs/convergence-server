@@ -29,7 +29,7 @@ private[chat] class PrivateChannelMessageProcessor(chatState: ChatState,
   extends MembershipChatMessageProcessor(chatState, chatStore, permissionsStore) {
 
 
-  override def onJoinChatRequest(msg: JoinChatRequest): ChatEventMessageProcessorResult = {
+  override def onJoinChatRequest(msg: JoinChatRequest): ChatEventMessageProcessorResult[JoinChatResponse] = {
     ChatEventMessageProcessorResult(
       None,
       ReplyAndBroadcastTask(
@@ -39,7 +39,7 @@ private[chat] class PrivateChannelMessageProcessor(chatState: ChatState,
     )
   }
 
-  override def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult = {
+  override def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult[AddUserToChatResponse] = {
     if (state.members.contains(msg.requester)) {
       super.onAddUserToChatRequest(msg)
     } else {
@@ -53,7 +53,7 @@ private[chat] class PrivateChannelMessageProcessor(chatState: ChatState,
     }
   }
 
-  override def onRemovedUserFromChatRequest(msg: RemoveUserFromChatRequest): ChatEventMessageProcessorResult = {
+  override def onRemovedUserFromChatRequest(msg: RemoveUserFromChatRequest): ChatEventMessageProcessorResult[RemoveUserFromChatResponse] = {
     if (state.members.contains(msg.requester)) {
       super.onRemovedUserFromChatRequest(msg)
     } else {

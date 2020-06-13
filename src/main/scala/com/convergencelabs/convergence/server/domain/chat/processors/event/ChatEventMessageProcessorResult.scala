@@ -27,5 +27,5 @@ import com.convergencelabs.convergence.server.domain.chat.processors.ReplyAndBro
  * @param task     The reply and broadcast task that specifies what to
  *                 communicate the requester and the other members of the chat.
  */
-private[chat] final case class ChatEventMessageProcessorResult(newState: Option[ChatState],
-                                                               task: ReplyAndBroadcastTask)
+private[chat] final case class ChatEventMessageProcessorResult[T](newState: Option[ChatState],
+                                                                  task: ReplyAndBroadcastTask[T])

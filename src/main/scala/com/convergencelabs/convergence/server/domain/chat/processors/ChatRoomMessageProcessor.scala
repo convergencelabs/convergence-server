@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors
 
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, Terminated}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
@@ -27,17 +27,17 @@ import grizzled.slf4j.Logging
  * @param chatStore        The chat persistence store
  * @param permissionsStore The permissions persistence store.
  * @param domainId         The domainId of the domain this chat belongs to.
- * @param context          The ActorContext used to create child actors.
+ * @param clientManager          The ActorContext used to create child actors.
+ * @param clientWathcer
  */
 private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
                                              chatStore: ChatStore,
                                              permissionsStore: PermissionsStore,
                                              domainId: DomainId,
-                                             context: ActorContext[ChatActor.Message])
+                                             clientManager: ChatRoomClientManager,
+                                             clientWatcher: ActorRef[ChatRoomClientWatcher.Message]
+                                            )
   extends ChatMessageProcessor(chatState, chatStore, permissionsStore) with Logging {
-
-  private[this] val chatRoomSessionManager = new ChatRoomClientManager()
-  private[this] val watcher = context.spawnAnonymous(Watcher())
 
   override def onChatEventRequest(message: ChatEventRequest[_]): ChatMessageProcessor.NextBehavior = {
     val result = super.onChatEventRequest(message)
@@ -48,15 +48,15 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
     }
   }
 
-  override def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult =
+  override def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult[AddUserToChatResponse] =
     ChatEventMessageProcessorResult(None,
       ReplyAndBroadcastTask(MessageReplyTask(msg.replyTo, AddUserToChatResponse(Left(ChatOperationNotSupported("Can not add user to a chat room")))), None))
 
-  override def onJoinChatRequest(message: JoinChatRequest): ChatEventMessageProcessorResult = {
+  override def onJoinChatRequest(message: JoinChatRequest): ChatEventMessageProcessorResult[JoinChatResponse] = {
     val JoinChatRequest(_, channelId, requester, client, _) = message
     logger.debug(s"Client($requester) joined chat room: $channelId")
 
-    val result = if (chatRoomSessionManager.join(requester, client)) {
+    val result = if (clientManager.join(requester, client)) {
       super.onJoinChatRequest(message)
     } else {
       val action = ReplyAndBroadcastTask(
@@ -65,7 +65,7 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
         None
       )
 
-      watcher ! Watcher.Watch(client)
+      clientWatcher ! ChatRoomClientWatcher.Watch(client)
 
       ChatEventMessageProcessorResult(None, action)
     }
@@ -73,14 +73,14 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
   }
 
 
-  override def onLeaveChatRequest(message: LeaveChatRequest): ChatEventMessageProcessorResult = {
+  override def onLeaveChatRequest(message: LeaveChatRequest): ChatEventMessageProcessorResult[LeaveChatResponse] = {
     val LeaveChatRequest(_, channelId, _, client, _) = message
 
-    this.watcher ! Watcher.Unwatch(client)
+    this.clientWatcher ! ChatRoomClientWatcher.Unwatch(client)
 
-    if (chatRoomSessionManager.isConnected(client)) {
+    if (clientManager.isConnected(client)) {
       logger.debug(s"Client($client) left chat room: $channelId")
-      val result = if (chatRoomSessionManager.leave(client)) {
+      val result = if (clientManager.leave(client)) {
         super.onLeaveChatRequest(message)
       } else {
         val action = ReplyAndBroadcastTask(MessageReplyTask(message.replyTo, LeaveChatResponse(Right(()))), None)
@@ -98,43 +98,45 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
   }
 
   def broadcast(message: ChatClientActor.OutgoingMessage): Unit = {
-    chatRoomSessionManager.connectedClients().foreach(client => {
+    clientManager.connectedClients().foreach(client => {
       client ! message
     })
   }
+}
 
+/**
+ * A helper actor that watches chat clients and helps notify us that a client
+ * has left.
+ */
+object ChatRoomClientWatcher extends Logging {
 
-  /**
-   * A helper actor that watches chat clients and helps notify us that a client
-   * has left.
-   */
-  private object Watcher extends Logging {
+  sealed trait Message
 
-    sealed trait Message
+  final case class Watch(actor: ActorRef[ChatClientActor.OutgoingMessage]) extends Message
 
-    final case class Watch(actor: ActorRef[_]) extends Message
+  final case class Unwatch(actor: ActorRef[ChatClientActor.OutgoingMessage]) extends Message
 
-    final case class Unwatch(actor: ActorRef[_]) extends Message
-
-    def apply(): Behavior[Message] = Behaviors.setup { c =>
+  def apply(chat: ActorRef[ChatActor.Message],
+            domainId: DomainId,
+            id: String,
+            chatRoomClientManager: ChatRoomClientManager): Behavior[Message] =
+    Behaviors.setup { context =>
       debug(msg = "Private Chat Room Watcher initializing")
       Behaviors.receiveMessage[Message] {
         case Watch(client) =>
-          c.watch(client)
+          context.watch(client)
           Behaviors.same
         case Unwatch(client) =>
-          c.unwatch(client)
+          context.unwatch(client)
           Behaviors.same
       }.receiveSignal {
         case (_, Terminated(client)) =>
           debug("Client actor terminated, leaving the chat room")
-          context.unwatch(client)
-          chatRoomSessionManager.getUser(client.asInstanceOf[ActorRef[ChatClientActor.OutgoingMessage]]).foreach { user =>
-            val syntheticMessage = ChatActor.LeaveChatRequest(domainId, chatState.id, user, client.unsafeUpcast[ChatClientActor.OutgoingMessage], context.system.ignoreRef)
-            context.self ! syntheticMessage
+          chatRoomClientManager.getUser(client.asInstanceOf[ActorRef[ChatClientActor.OutgoingMessage]]).foreach { user =>
+            val syntheticMessage = ChatActor.LeaveChatRequest(domainId, id, user, client.unsafeUpcast[ChatClientActor.OutgoingMessage], context.system.ignoreRef)
+            chat ! syntheticMessage
           }
           Behaviors.same
       }
     }
-  }
 }

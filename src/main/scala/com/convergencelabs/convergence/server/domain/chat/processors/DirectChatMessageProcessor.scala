@@ -28,25 +28,25 @@ private[chat] class DirectChatMessageProcessor(chatState: ChatState,
                                                permissionsStore: PermissionsStore)
   extends MembershipChatMessageProcessor(chatState, chatStore, permissionsStore) {
 
-  override def onJoinChatRequest(msg: JoinChatRequest): ChatEventMessageProcessorResult =
+  override def onJoinChatRequest(msg: JoinChatRequest): ChatEventMessageProcessorResult[JoinChatResponse] =
     ChatEventMessageProcessorResult(None,
       ReplyAndBroadcastTask(
         MessageReplyTask(msg.replyTo, JoinChatResponse(Left(ChatOperationNotSupported("Can not join a direct chat")))),
         None))
 
-  override def onLeaveChatRequest(msg: LeaveChatRequest): ChatEventMessageProcessorResult =
+  override def onLeaveChatRequest(msg: LeaveChatRequest): ChatEventMessageProcessorResult[LeaveChatResponse] =
     ChatEventMessageProcessorResult(None,
       ReplyAndBroadcastTask(
         MessageReplyTask(msg.replyTo, LeaveChatResponse(Left(ChatOperationNotSupported("Can not leave a direct chat")))),
         None))
 
-  override def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult =
+  override def onAddUserToChatRequest(msg: AddUserToChatRequest): ChatEventMessageProcessorResult[AddUserToChatResponse] =
     ChatEventMessageProcessorResult(None,
       ReplyAndBroadcastTask(
         MessageReplyTask(msg.replyTo, AddUserToChatResponse(Left(ChatOperationNotSupported("Can not add user to a direct chat")))),
         None))
 
-  override def onRemovedUserFromChatRequest(msg: RemoveUserFromChatRequest): ChatEventMessageProcessorResult =
+  override def onRemovedUserFromChatRequest(msg: RemoveUserFromChatRequest): ChatEventMessageProcessorResult[RemoveUserFromChatResponse] =
     ChatEventMessageProcessorResult(None,
       ReplyAndBroadcastTask(
         MessageReplyTask(msg.replyTo, RemoveUserFromChatResponse(Left(ChatOperationNotSupported("Can not remove user to a direct chat")))),

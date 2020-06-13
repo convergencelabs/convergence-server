@@ -24,7 +24,8 @@ import scala.util.Try
  * The [[PublishMessageEventProcessor]] provides helper methods to process
  * the [[PublishChatMessageRequest]].
  */
-private[chat] object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishChatMessageRequest, ChatMessageEvent, PublishChatMessageResponse] {
+private[chat] object PublishMessageEventProcessor
+  extends ChatEventMessageProcessor[PublishChatMessageRequest, ChatMessageEvent, PublishChatMessageResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -33,7 +34,7 @@ private[chat] object PublishMessageEventProcessor extends ChatEventMessageProces
   def execute(message: ChatActor.PublishChatMessageRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[PublishChatMessageResponse] =
     process(
       message = message,
       state = state,
@@ -65,7 +66,9 @@ private[chat] object PublishMessageEventProcessor extends ChatEventMessageProces
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp)
   }
 
-  def createSuccessReply(message: PublishChatMessageRequest, event: ChatMessageEvent, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: PublishChatMessageRequest,
+                         event: ChatMessageEvent,
+                         state: ChatState): ReplyAndBroadcastTask[PublishChatMessageResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
       PublishChatMessageResponse(Right(PublishChatMessageAck(event.eventNumber, event.timestamp))),

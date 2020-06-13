@@ -66,12 +66,17 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
     } yield {
       state.chatType match {
         case ChatType.Room =>
+
+          val clientManager = new ChatRoomClientManager()
+          val clientWatcher = context.spawnAnonymous(ChatRoomClientWatcher(context.self, domainId, state.id, clientManager))
+
           val mp = new ChatRoomMessageProcessor(
             state,
             provider.chatStore,
             provider.permissionsStore,
             domainId,
-            context)
+            clientManager,
+            clientWatcher)
           // this would only need to happen if a previous instance of this room crashed without
           // cleaning up properly.
           mp.removeAllMembers()

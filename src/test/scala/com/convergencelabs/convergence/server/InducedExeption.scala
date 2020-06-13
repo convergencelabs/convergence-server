@@ -9,8 +9,8 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.chat.processors
+package com.convergencelabs.convergence.server
 
-import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import scala.util.control.NoStackTrace
 
-final case class ReplyAndBroadcastTask[T](reply: MessageReplyTask[T], broadcast: Option[ChatClientActor.OutgoingMessage])
+case class InducedTestingException() extends Exception() with NoStackTrace

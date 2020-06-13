@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, ChatUserLeftEvent, PermissionsStore}
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, LeaveChatRequest, LeaveChatResponse}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, LeaveChatRequest, LeaveChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.domain.chat.processors.ReplyAndBroadcastTask
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions, ChatState}
@@ -25,16 +25,17 @@ import scala.util.Try
  * The [[LeaveEventProcessor]] provides helper methods to process
  * the [[LeaveChatRequest]].
  */
-private[chat] object LeaveEventProcessor extends ChatEventMessageProcessor[LeaveChatRequest, ChatUserLeftEvent, LeaveChatResponse] {
+private[chat] object LeaveEventProcessor
+  extends ChatEventMessageProcessor[LeaveChatRequest, ChatUserLeftEvent, LeaveChatResponse] {
 
   import ChatEventMessageProcessor._
 
-  private  val RequiredPermission = ChatPermissions.Permissions.LeaveChat
+  private val RequiredPermission = ChatPermissions.Permissions.LeaveChat
 
   def execute(message: ChatActor.LeaveChatRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[LeaveChatResponse] =
     process(
       message = message,
       state = state,
@@ -70,7 +71,9 @@ private[chat] object LeaveEventProcessor extends ChatEventMessageProcessor[Leave
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, members = newMembers)
   }
 
-  def createSuccessReply(message: LeaveChatRequest, event: ChatUserLeftEvent, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: LeaveChatRequest,
+                         event: ChatUserLeftEvent,
+                         state: ChatState): ReplyAndBroadcastTask[LeaveChatResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
       LeaveChatResponse(Right(())),

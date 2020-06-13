@@ -24,7 +24,9 @@ import scala.util.Try
  * The [[RemoveUserEventProcessor]] provides helper methods to process
  * the [[RemoveUserFromChatRequest]].
  */
-private[chat] object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFromChatRequest, ChatUserRemovedEvent, RemoveUserFromChatResponse] {
+private[chat] object RemoveUserEventProcessor
+  extends ChatEventMessageProcessor[RemoveUserFromChatRequest, ChatUserRemovedEvent, RemoveUserFromChatResponse] {
+
   import ChatEventMessageProcessor._
 
   private val RequiredPermission = ChatPermissions.Permissions.RemoveUser
@@ -32,7 +34,7 @@ private[chat] object RemoveUserEventProcessor extends ChatEventMessageProcessor[
   def execute(message: ChatActor.RemoveUserFromChatRequest,
               state: ChatState,
               chatStore: ChatStore,
-              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult =
+              permissionsStore: PermissionsStore): ChatEventMessageProcessorResult[RemoveUserFromChatResponse] =
     process(
       message = message,
       state = state,
@@ -71,7 +73,9 @@ private[chat] object RemoveUserEventProcessor extends ChatEventMessageProcessor[
     state.copy(lastEventNumber = event.eventNumber, lastEventTime = event.timestamp, members = newMembers)
   }
 
-  def createSuccessReply(message: RemoveUserFromChatRequest, event: ChatUserRemovedEvent, state: ChatState): ReplyAndBroadcastTask = {
+  def createSuccessReply(message: RemoveUserFromChatRequest,
+                         event: ChatUserRemovedEvent,
+                         state: ChatState): ReplyAndBroadcastTask[RemoveUserFromChatResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
       RemoveUserFromChatResponse(Right(())),
