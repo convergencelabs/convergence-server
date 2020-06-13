@@ -20,7 +20,11 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 
 import scala.util.Try
 
-object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFromChatRequest, ChatUserRemovedEvent, RemoveUserFromChatResponse] {
+/**
+ * The [[RemoveUserEventProcessor]] provides helper methods to process
+ * the [[RemoveUserFromChatRequest]].
+ */
+private[chat] object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFromChatRequest, ChatUserRemovedEvent, RemoveUserFromChatResponse] {
   import ChatEventMessageProcessor._
 
   private val RequiredPermission = ChatPermissions.Permissions.RemoveUser
@@ -35,7 +39,7 @@ object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFrom
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.RemoveUserFromChatResponse(Left(value))
@@ -52,7 +56,7 @@ object RemoveUserEventProcessor extends ChatEventMessageProcessor[RemoveUserFrom
   def createEvent(message: RemoveUserFromChatRequest, state: ChatState): ChatUserRemovedEvent =
     ChatUserRemovedEvent(nextEvent(state), state.id, message.requester, timestamp(), message.userToRemove)
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserRemovedEvent): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserRemovedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserRemovedEvent(event)
       chatRid <- chatStore.getChatRid(event.id)

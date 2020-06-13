@@ -13,14 +13,19 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, ChatUserLeftEvent, PermissionsStore}
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, LeaveChatRequest, LeaveChatResponse}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, LeaveChatRequest, LeaveChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.domain.chat.processors.ReplyAndBroadcastTask
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions, ChatState}
 
 import scala.util.Try
 
-object LeaveEventProcessor extends ChatEventMessageProcessor[LeaveChatRequest, ChatUserLeftEvent, LeaveChatResponse] {
+
+/**
+ * The [[LeaveEventProcessor]] provides helper methods to process
+ * the [[LeaveChatRequest]].
+ */
+private[chat] object LeaveEventProcessor extends ChatEventMessageProcessor[LeaveChatRequest, ChatUserLeftEvent, LeaveChatResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -36,7 +41,7 @@ object LeaveEventProcessor extends ChatEventMessageProcessor[LeaveChatRequest, C
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.LeaveChatResponse(Left(value))
@@ -53,7 +58,7 @@ object LeaveEventProcessor extends ChatEventMessageProcessor[LeaveChatRequest, C
   def createEvent(message: LeaveChatRequest, state: ChatState): ChatUserLeftEvent =
     ChatUserLeftEvent(nextEvent(state), state.id, message.requester, timestamp())
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserLeftEvent): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserLeftEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserLeftEvent(event)
       _ <- chatStore.removeChatMember(event.id, event.user)

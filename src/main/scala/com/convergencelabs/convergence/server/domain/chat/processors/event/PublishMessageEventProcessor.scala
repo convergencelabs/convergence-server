@@ -20,7 +20,11 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 
 import scala.util.Try
 
-object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishChatMessageRequest, ChatMessageEvent, PublishChatMessageResponse] {
+/**
+ * The [[PublishMessageEventProcessor]] provides helper methods to process
+ * the [[PublishChatMessageRequest]].
+ */
+private[chat] object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishChatMessageRequest, ChatMessageEvent, PublishChatMessageResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -36,7 +40,7 @@ object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishCha
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.PublishChatMessageResponse(Left(value))
@@ -53,7 +57,7 @@ object PublishMessageEventProcessor extends ChatEventMessageProcessor[PublishCha
   def createEvent(message: PublishChatMessageRequest, state: ChatState): ChatMessageEvent =
     ChatMessageEvent(nextEvent(state), state.id, message.requester, timestamp(), message.message)
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatMessageEvent): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatMessageEvent): Try[Unit] = {
     chatStore.addChatMessageEvent(event)
   }
 

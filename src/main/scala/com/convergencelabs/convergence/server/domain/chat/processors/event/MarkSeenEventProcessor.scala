@@ -21,11 +21,19 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 
 import scala.util.Try
 
-case class MarkSeen(chatId: String, user: DomainUserId, eventNumber: Long)
-
-object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
+/**
+ * The [[MarkSeenEventProcessor]] provides helper methods to process
+ * the [[MarkChatsEventsSeenRequest]]. It should be noted that this
+ * is somewhat of a special case where the mark seen event does not
+ * generate a chat event that needs to be persisted to the chat store
+ * rather this event merely updates the particular chat members
+ * last seen event.  This is the reason for the [[MarkSeen]]
+ * case class rather than using a chat store event object.
+ */
+private[chat] object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsSeenRequest, MarkSeen, MarkChatsEventsSeenResponse] {
 
   import ChatEventMessageProcessor._
+
 
   private val RequiredPermission = ChatPermissions.Permissions.SetTopic
 
@@ -39,7 +47,7 @@ object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.MarkChatsEventsSeenResponse(Left(value))
@@ -56,7 +64,7 @@ object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
   def createEvent(message: MarkChatsEventsSeenRequest, state: ChatState): MarkSeen =
     MarkSeen(message.chatId, message.requester, message.eventNumber)
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: MarkSeen): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: MarkSeen): Try[Unit] = {
     chatStore.markSeen(event.chatId, event.user, event.eventNumber)
   }
 
@@ -77,3 +85,14 @@ object MarkSeenEventProcessor extends ChatEventMessageProcessor[MarkChatsEventsS
     ChatActor.MarkChatsEventsSeenResponse(Left(error))
   }
 }
+
+/**
+ * A helper case class that defines the data that needs to be passed from the
+ * create event to the persistEvent method, since we don't have a concrete
+ * chat event class for this message type.
+ *
+ * @param chatId      The id of the chat.
+ * @param user        The user id of the chat member
+ * @param eventNumber The latest event for the chat the user has seen.
+ */
+private[chat] final case class MarkSeen(chatId: String, user: DomainUserId, eventNumber: Long)

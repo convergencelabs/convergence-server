@@ -20,7 +20,11 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 
 import scala.util.Try
 
-object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequest, ChatUserAddedEvent, AddUserToChatResponse] {
+/**
+ * The [[AddUserEventProcessor]] provides helper methods to process
+ * the [[AddUserToChatRequest]].
+ */
+private[chat] object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequest, ChatUserAddedEvent, AddUserToChatResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -36,14 +40,14 @@ object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequ
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.AddUserToChatResponse(Left(value))
     )
 
   def validateMessage(message: AddUserToChatRequest, state: ChatState): Either[ChatActor.AddUserToChatResponse, Unit] = {
-    if (state.members.contains(message.requester)) {
+    if (state.members.contains(message.userToAdd)) {
       Left(ChatActor.AddUserToChatResponse(Left(ChatActor.ChatAlreadyJoinedError())))
     } else {
       Right(())
@@ -53,7 +57,7 @@ object AddUserEventProcessor extends ChatEventMessageProcessor[AddUserToChatRequ
   def createEvent(message: AddUserToChatRequest, state: ChatState): ChatUserAddedEvent =
     ChatUserAddedEvent(nextEvent(state), state.id, message.requester, timestamp(), message.userToAdd)
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserAddedEvent): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserAddedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserAddedEvent(event)
       chatRid <- chatStore.getChatRid(event.id)

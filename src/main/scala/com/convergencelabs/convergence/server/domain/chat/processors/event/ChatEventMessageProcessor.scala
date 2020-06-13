@@ -32,7 +32,7 @@ import scala.util.{Failure, Success, Try}
  * @tparam E The type of chat event to be created and processed from the request.
  * @tparam R The type of response message to be generated.
  */
-trait ChatEventMessageProcessor[M <: ChatEventRequest[R], E, R] extends Logging {
+private[chat] trait ChatEventMessageProcessor[M <: ChatEventRequest[R], E, R] extends Logging {
 
   /**
    * A helper method to create a timestamp for the current event.
@@ -93,7 +93,8 @@ trait ChatEventMessageProcessor[M <: ChatEventRequest[R], E, R] extends Logging 
   def createEvent(message: M, state: ChatState): E
 
   /**
-   * Processes the event. This is a potentially side-effecting method.
+   * Persists the event. This is likely a side-effecting method, that in
+   * production will hit a data store. Hence the Try return type.
    *
    * @param chatStore        The chat store to use to persist effects to
    *                         relating to the chat.
@@ -102,7 +103,7 @@ trait ChatEventMessageProcessor[M <: ChatEventRequest[R], E, R] extends Logging 
    * @param event            The event describing the action to take.
    * @return Success if the processing succeeds or a Failure otherwise.
    */
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: E): Try[Unit]
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: E): Try[Unit]
 
   /**
    * Produces a new state from the current state and the event describing the

@@ -20,7 +20,11 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 
 import scala.util.Try
 
-object SetTopicEventProcessor extends ChatEventMessageProcessor[SetChatTopicRequest, ChatTopicChangedEvent, SetChatTopicResponse] {
+/**
+ * The [[SetTopicEventProcessor]] provides helper methods to process
+ * the [[SetChatTopicRequest]].
+ */
+private[chat] object SetTopicEventProcessor extends ChatEventMessageProcessor[SetChatTopicRequest, ChatTopicChangedEvent, SetChatTopicResponse] {
 
   import ChatEventMessageProcessor._
 
@@ -36,7 +40,7 @@ object SetTopicEventProcessor extends ChatEventMessageProcessor[SetChatTopicRequ
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.SetChatTopicResponse(Left(value))
@@ -53,7 +57,7 @@ object SetTopicEventProcessor extends ChatEventMessageProcessor[SetChatTopicRequ
   def createEvent(message: SetChatTopicRequest, state: ChatState): ChatTopicChangedEvent =
     ChatTopicChangedEvent(nextEvent(state), state.id, message.requester, timestamp(), message.topic)
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatTopicChangedEvent): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatTopicChangedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatTopicChangedEvent(event)
       _ <- chatStore.updateChat(event.id, None, Some(event.topic))

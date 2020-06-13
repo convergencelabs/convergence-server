@@ -20,7 +20,11 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermis
 
 import scala.util.Try
 
-object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, ChatUserJoinedEvent, JoinChatResponse] {
+/**
+ * The [[JoinEventProcessor]] provides helper methods to process
+ * the [[JoinChatRequest]].
+ */
+private[chat] object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, ChatUserJoinedEvent, JoinChatResponse] {
   import ChatEventMessageProcessor._
 
   private val RequiredPermission = ChatPermissions.Permissions.JoinChat
@@ -35,7 +39,7 @@ object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, Cha
       checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
-      persistEvent = processEvent(chatStore, permissionsStore),
+      persistEvent = persistEvent(chatStore, permissionsStore),
       updateState = updateState,
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.JoinChatResponse(Left(value))
@@ -52,7 +56,7 @@ object JoinEventProcessor extends ChatEventMessageProcessor[JoinChatRequest, Cha
   def createEvent(message: JoinChatRequest, state: ChatState): ChatUserJoinedEvent =
     ChatUserJoinedEvent(nextEvent(state), state.id, message.requester, timestamp())
 
-  def processEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserJoinedEvent): Try[Unit] = {
+  def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserJoinedEvent): Try[Unit] = {
     chatStore.addChatUserJoinedEvent(event)
   }
 

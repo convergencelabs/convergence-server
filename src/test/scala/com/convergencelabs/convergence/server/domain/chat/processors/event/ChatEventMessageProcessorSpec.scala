@@ -15,45 +15,20 @@ import java.time.Instant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
-import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatMembership, ChatType, ChatUserJoinedEvent}
+import com.convergencelabs.convergence.server.datastore.domain.ChatUserJoinedEvent
+import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatState}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Success, Try}
 
 class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
-  with BeforeAndAfterAll
-  with MockitoSugar {
-
-  private val domainId = DomainId("ns", "d")
-  private val chatId = "chatId"
-
-  private val requester = DomainUserId.normal("requester")
-
-  private val user1 = DomainUserId.normal("user1")
-
-  private val user2 = DomainUserId.normal("user2")
-  private val user3 = DomainUserId.normal("user3")
-
-  private val member1 = ChatMember(chatId, user1, 0)
-  private val member2 = ChatMember(chatId, user2, 0)
-  private val member3 = ChatMember(chatId, user3, 0)
-
-  private val state = ChatState(chatId,
-    ChatType.Channel,
-    Instant.now(),
-    ChatMembership.Public,
-    "chat name",
-    "chat topic",
-    Instant.now(),
-    1,
-    Map(user1 -> member1, user2 -> member2))
+  with MockitoSugar
+  with TestConstants {
 
   private val validMessage = (_: JoinChatRequest, _: ChatState) => Right(())
   private val invalidMessage = (_: JoinChatRequest, _: ChatState) => Left(JoinChatResponse(Left(ChatActor.ChatAlreadyJoinedError())))
@@ -70,7 +45,7 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
   private val failureProcessEvent = (_: ChatUserJoinedEvent) => Failure(new IllegalArgumentException("Induced error for testing"))
 
   private val newState = state.copy(lastEventNumber = state.lastEventNumber + 1)
-  private val updateState = (e: ChatUserJoinedEvent, state: ChatState) => newState
+  private val updateState = (_: ChatUserJoinedEvent, _: ChatState) => newState
 
   private def createSuccessReply(r: JoinChatRequest, e: ChatUserJoinedEvent, state: ChatState): ReplyAndBroadcastTask = {
     val info = JoinEventProcessor.stateToInfo(state)
@@ -78,7 +53,9 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private val createErrorReply = (e: CommonErrors) => JoinChatResponse(Left(e))
-  "A processing a chat event" when {
+
+  "ChatEventMessageProcessor" when {
+
     "processing a chat event request" must {
 
       //
