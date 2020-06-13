@@ -238,6 +238,8 @@ object ChatActor {
 
   sealed trait AddUserToChatError
 
+  final case class AlreadyAMemberError() extends AddUserToChatError
+
   final case class AddUserToChatResponse(response: Either[AddUserToChatError, Unit]) extends CborSerializable
 
   //
@@ -250,6 +252,10 @@ object ChatActor {
                                              replyTo: ActorRef[RemoveUserFromChatResponse]) extends ChatEventRequest[RemoveUserFromChatResponse]
 
   sealed trait RemoveUserFromChatError
+
+  final case class NotAMemberError() extends RemoveUserFromChatError
+
+  final case class CantRemoveSelfError() extends RemoveUserFromChatError
 
   final case class RemoveUserFromChatResponse(response: Either[RemoveUserFromChatError, Unit]) extends CborSerializable
 
@@ -478,7 +484,6 @@ object ChatActor {
 
   final case class ChatAlreadyJoinedError() extends AnyRef
     with JoinChatError
-    with AddUserToChatError
 
   sealed trait CommonErrors extends AnyRef
     with RemoveChatError
@@ -512,6 +517,7 @@ object ChatActor {
     with RemoveUserFromChatError
     with JoinChatError
     with LeaveChatError
+
 
   final case class ChatNotJoinedError() extends AnyRef
     with LeaveChatError

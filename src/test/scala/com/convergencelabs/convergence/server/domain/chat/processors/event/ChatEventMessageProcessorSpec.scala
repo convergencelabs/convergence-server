@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 import java.time.Instant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.ChatUserJoinedEvent
 import com.convergencelabs.convergence.server.domain.DomainUserId
@@ -35,14 +36,14 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
 
   private val truePermissions = (_: DomainUserId) => Success(true)
   private val falsePermissions = (_: DomainUserId) => Success(false)
-  private val failPermissions = (_: DomainUserId) => Failure(new IllegalArgumentException("Induced error for testing"))
+  private val failPermissions = (_: DomainUserId) => Failure(InducedTestingException())
 
 
   private val createEvent = (msg: JoinChatRequest, state: ChatState) => ChatUserJoinedEvent(
     state.lastEventNumber + 1, state.id, msg.requester, Instant.now())
 
   private val successProcessEvent = (_: ChatUserJoinedEvent) => Success(())
-  private val failureProcessEvent = (_: ChatUserJoinedEvent) => Failure(new IllegalArgumentException("Induced error for testing"))
+  private val failureProcessEvent = (_: ChatUserJoinedEvent) => Failure(InducedTestingException())
 
   private val newState = state.copy(lastEventNumber = state.lastEventNumber + 1)
   private val updateState = (_: ChatUserJoinedEvent, _: ChatState) => newState

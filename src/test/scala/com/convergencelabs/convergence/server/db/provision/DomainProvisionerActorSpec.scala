@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.db.provision
 import java.util.concurrent.TimeUnit
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{ProvisionDomain, ProvisionDomainResponse}
 import com.convergencelabs.convergence.server.domain.DomainId
@@ -54,7 +55,7 @@ class DomainProvisionerActorSpec
       "respond with a failure if the provisioning is not successful" in new TestFixture {
         Mockito
           .when(provisioner.provisionDomain(ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)))
-          .thenReturn(Failure(new IllegalStateException("Induced error for testing")))
+          .thenReturn(Failure(InducedTestingException()))
 
         val client = testKit.createTestProbe[ProvisionDomainResponse]()
         val message = ProvisionDomain(ProvisionRequest(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false), client.ref)

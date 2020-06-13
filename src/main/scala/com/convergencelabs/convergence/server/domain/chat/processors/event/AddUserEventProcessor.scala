@@ -48,8 +48,10 @@ private[chat] object AddUserEventProcessor
     )
 
   def validateMessage(message: AddUserToChatRequest, state: ChatState): Either[ChatActor.AddUserToChatResponse, Unit] = {
-    if (state.members.contains(message.userToAdd)) {
-      Left(ChatActor.AddUserToChatResponse(Left(ChatActor.ChatAlreadyJoinedError())))
+    if (!state.members.contains(message.requester)) {
+      Left(ChatActor.AddUserToChatResponse(Left(ChatActor.ChatNotJoinedError())))
+    } else if (state.members.contains(message.userToAdd)) {
+      Left(ChatActor.AddUserToChatResponse(Left(ChatActor.AlreadyAMemberError())))
     } else {
       Right(())
     }

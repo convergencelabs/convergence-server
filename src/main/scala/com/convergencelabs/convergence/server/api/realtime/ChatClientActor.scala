@@ -33,7 +33,7 @@ import com.google.protobuf.timestamp.Timestamp
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
@@ -76,7 +76,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
           Some(domainUserIdToData(user)),
           message)
 
-      case EventsMarkedSeen(chatId: String, eventNumber: Long, userId: DomainUserId) =>
+      case EventsMarkedSeen(chatId: String, userId: DomainUserId, eventNumber: Long) =>
         ChatEventsMarkedSeenMessage(chatId, Some(domainUserIdToData(userId)), eventNumber)
 
       case UserJoinedChat(chatId, eventNumber, timestamp, userId) =>
@@ -136,8 +136,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
         onMarkEventsSeen(message, replyCallback)
       case message: GetChatsRequestMessage =>
         onGetChannels(message, replyCallback)
-      case message: GetJoinedChatsRequestMessage =>
-        onGetJoinedChannels(message, replyCallback)
+      case _: GetJoinedChatsRequestMessage =>
+        onGetJoinedChannels(replyCallback)
       case message: GetDirectChatsRequestMessage =>
         onGetDirect(message, replyCallback)
       case message: ChatHistoryRequestMessage =>
@@ -266,8 +266,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             handleCommonErrors(error, cb)
           case ChatActor.ChatNotJoinedError() =>
             chatNotJoined(chatId, cb)
-          case ChatActor.ChatAlreadyJoinedError() =>
-            cb.expectedError(ErrorCodes.ChatAlreadyJoined, "The specified users is already a member of this chat.")
+          case ChatActor.AlreadyAMemberError() =>
+            cb.expectedError(ErrorCodes.ChatAlreadyMember, "The specified users is already a member of this chat.")
           case ChatActor.ChatOperationNotSupported(reason) =>
             cb.expectedError(ErrorCodes.NotSupported, reason)
         },
@@ -287,6 +287,10 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             handleCommonErrors(error, cb)
           case ChatActor.ChatNotJoinedError() =>
             chatNotJoined(chatId, cb)
+          case ChatActor.NotAMemberError() =>
+            cb.expectedError(ErrorCodes.NotAlreadyMember, "The use to remove was not a member of the chat")
+          case ChatActor.CantRemoveSelfError() =>
+            cb.expectedError(ErrorCodes.CantRemoveSelf, "You can not remove yourself, instead leave.")
           case ChatActor.ChatOperationNotSupported(reason) =>
             cb.expectedError(ErrorCodes.NotSupported, reason)
         },
@@ -387,9 +391,9 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     val SetPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
     val groupPermissions = mapGroupPermissions(groupPermissionData)
     val userPermissions = mapUserPermissions(userPermissionData)
-    val f: Future[_] = chatShardRegion
+    chatShardRegion
       .ask[ChatActor.SetChatPermissionsResponse](
-      ChatActor.SetChatPermissionsRequest(domainId, id, session, Some(worldPermissionData.toSet), Some(userPermissions), Some(groupPermissions), _))
+        ChatActor.SetChatPermissionsRequest(domainId, id, session, Some(worldPermissionData.toSet), Some(userPermissions), Some(groupPermissions), _))
       .map(_.response.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -571,7 +575,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onGetJoinedChannels(message: GetJoinedChatsRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onGetJoinedChannels(cb: ReplyCallback): Unit = {
     chatManagerActor
       .ask[ChatManagerActor.GetJoinedChatsResponse](GetJoinedChatsRequest(session.userId, _))
       .map(_.chatInfo.fold(
@@ -668,13 +672,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .map(p => UserPermissions(ImplicitMessageConversions.dataToDomainUserId(p.user.get), p.permissions.toSet)).toSet
   }
 
-  private[this] def handleUnexpectedError(request: Any, cause: Throwable, cb: ReplyCallback): Unit = {
-    error("Unexpected error processing chat request " + request, cause)
-    cb.unexpectedError("Unexpected error processing chat request")
-  }
-
   private[this] def chatNotJoined(chatId: String, cb: ReplyCallback): Unit = {
-    cb.expectedError(ErrorCodes.ChatNotFound, "The chat must be joined to perform the requested operation.")
+    cb.expectedError(ErrorCodes.ChatNotFound, s"The chat must be joined to perform the requested operation: $chatId")
   }
 
   private[this] def notSupported(reason: String, cb: ReplyCallback): Unit = {
@@ -730,8 +729,8 @@ object ChatClientActor {
 
   case class ChatRemoved(chatId: String) extends OutgoingMessage
 
-  case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, session: DomainUserId, message: String) extends OutgoingMessage
+  case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, user: DomainUserId, message: String) extends OutgoingMessage
 
-  case class EventsMarkedSeen(chatId: String, eventNumber: Long, session: DomainUserId) extends OutgoingMessage
+  case class EventsMarkedSeen(chatId: String, user: DomainUserId, eventNumber: Long) extends OutgoingMessage
 
 }

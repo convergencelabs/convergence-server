@@ -18,6 +18,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding.Passivate
+import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
@@ -74,7 +75,7 @@ class RealtimeModelActorSpec
           val client = testKit.createTestProbe[ModelClientActor.OutgoingMessage]()
 
           // Set the database up to bomb
-          Mockito.when(persistenceProvider.modelStore.getModel(Matchers.any())).thenThrow(new IllegalArgumentException("Induced error for test"))
+          Mockito.when(persistenceProvider.modelStore.getModel(Matchers.any())).thenThrow(InducedTestingException())
 
           realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client.ref, replyTo.ref)
           val message: RealtimeModelActor.OpenRealtimeModelResponse =
@@ -295,7 +296,7 @@ class RealtimeModelActorSpec
         {
           val badOp = ObjectRemovePropertyOperation(modelJsonData.id, noOp = false, "not real")
           Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(
-            Matchers.any())).thenReturn(Failure(new IllegalArgumentException("Induced Exception for test: Invalid Operation")))
+            Matchers.any())).thenReturn(Failure(InducedTestingException()))
 
           realtimeModelActor ! RealtimeModelActor.OperationSubmission(domainFqn, modelId, skU1S1, 0, modelData.metaData.version, badOp)
 

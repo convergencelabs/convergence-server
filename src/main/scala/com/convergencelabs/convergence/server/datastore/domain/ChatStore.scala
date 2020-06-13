@@ -516,7 +516,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
         .map(_.toSet))
   }
 
-  def updateChat(chatId: String, name: Option[String], topic: Option[String]): Try[Unit] = withDb { db =>
+  def updateChat(chatId: String, name: Option[String], topic: Option[String], db: ODatabaseDocument): Try[Unit] = {
     ChatStore.getChatRid(chatId, db)
       .flatMap { chatRid =>
         Try {
@@ -639,9 +639,13 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "username" -> user.username,
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
-    OrientDBUtil
-      .commandReturningCount(db, query, params)
-      .map(_ => ())
+
+    // FIXME transaction
+    for {
+      _ <- this.removeChatMember(chatId, user, Some(db))
+      _ <- OrientDBUtil
+        .commandReturningCount(db, query, params)
+    } yield ()
   }
 
   def addChatUserAddedEvent(event: ChatUserAddedEvent): Try[Unit] = withDb { db =>
@@ -695,7 +699,6 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       _ <- OrientDBUtil
         .commandReturningCount(db, query, params)
     } yield ()
-
   }
 
   def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = withDb { db =>
@@ -714,9 +717,10 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "name" -> name)
-    OrientDBUtil
-      .commandReturningCount(db, query, params)
-      .map(_ => ())
+    for {
+      _ <- updateChat(event.id, Some(event.name), None, db)
+      _ <- OrientDBUtil.commandReturningCount(db, query, params)
+    } yield ()
   }
 
   def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = withDb { db =>
@@ -735,9 +739,11 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp),
       "topic" -> topic)
-    OrientDBUtil
-      .commandReturningCount(db, query, params)
-      .map(_ => ())
+
+    for {
+      _ <- updateChat(event.id, None, Some(event.topic), db)
+      _ <- OrientDBUtil.commandReturningCount(db, query, params)
+    } yield ()
   }
 
   def getChatMembers(chatId: String): Try[Set[DomainUserId]] = withDb { db =>

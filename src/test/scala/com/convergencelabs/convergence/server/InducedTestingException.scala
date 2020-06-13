@@ -13,4 +13,13 @@ package com.convergencelabs.convergence.server
 
 import scala.util.control.NoStackTrace
 
-case class InducedTestingException() extends Exception() with NoStackTrace
+/**
+ * A utility class used when any exception will do for testing error cases
+ * during unit testing. This exception has no stack trace in order to
+ * not clutter the console and to improve performance.
+ *
+ * @param message An optional message for the exception.
+ */
+final case class InducedTestingException(message: String = "induced error for testing")
+  extends RuntimeException(message)
+    with NoStackTrace

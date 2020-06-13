@@ -30,7 +30,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
           
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.close()
@@ -43,7 +43,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
@@ -57,7 +57,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.existsClass("MySuperclass") shouldBe true
@@ -73,7 +73,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
         val db = dbPool.acquire()
 
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe false
         db.getMetadata.getSchema.existsClass("NewName") shouldBe true
@@ -87,7 +87,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
             AlterClass("MyClass", None, Some("MySuperclass"))))
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").hasSuperClasses shouldBe true
@@ -103,7 +103,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
             DropClass("MyClass")))
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe false
         db.close()
@@ -117,7 +117,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
             AddProperty("MyClass", Property("prop1", OrientType.String, None, None, None))))
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
@@ -133,7 +133,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
             AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None, None))))
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
@@ -148,7 +148,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
             AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None, None))))
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop2") shouldBe true
@@ -166,7 +166,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
         val db = dbPool.acquire()
 
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe false
@@ -184,7 +184,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
         val db = dbPool.acquire()
 
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getIndexManager.existsIndex("MyClass.prop1") shouldBe true
         val index = db.getMetadata.getIndexManager.getIndex("MyClass.prop1")
@@ -202,7 +202,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
         val db = dbPool.acquire()
 
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getIndexManager.existsIndex("MyClass.prop1") shouldBe false
         db.close()
@@ -217,7 +217,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSequenceLibrary.getSequenceNames.contains("MYSEQUENCE") shouldBe true
         val sequence = db.getMetadata.getSequenceLibrary.getSequence("MySequence")
@@ -235,7 +235,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
         val db = dbPool.acquire()
 
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getSequenceLibrary.getSequenceNames.contains("MYSEQUENCE") shouldBe false
         db.close()
@@ -251,7 +251,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
         val db = dbPool.acquire()
 
         val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply()
+        processor.apply().get
 
         db.getMetadata.getFunctionLibrary.getFunction("MyFunction") != null shouldBe true
         db.close()

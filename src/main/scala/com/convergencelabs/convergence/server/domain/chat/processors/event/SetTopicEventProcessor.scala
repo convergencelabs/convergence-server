@@ -59,10 +59,7 @@ private[chat] object SetTopicEventProcessor
     ChatTopicChangedEvent(nextEvent(state), state.id, message.requester, timestamp(), message.topic)
 
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatTopicChangedEvent): Try[Unit] = {
-    for {
-      _ <- chatStore.addChatTopicChangedEvent(event)
-      _ <- chatStore.updateChat(event.id, None, Some(event.topic))
-    } yield ()
+    chatStore.addChatTopicChangedEvent(event)
   }
 
   def updateState(event: ChatTopicChangedEvent, state: ChatState): ChatState = {

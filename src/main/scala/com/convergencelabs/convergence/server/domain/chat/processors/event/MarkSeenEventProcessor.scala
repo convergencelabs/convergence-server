@@ -80,7 +80,7 @@ private[chat] object MarkSeenEventProcessor
     replyAndBroadcastTask(
       message.replyTo,
       MarkChatsEventsSeenResponse(Right(())),
-      Some(ChatClientActor.EventsMarkedSeen(event.chatId, event.eventNumber, message.requester))
+      Some(ChatClientActor.EventsMarkedSeen(event.chatId, message.requester,  event.eventNumber))
     )
   }
 

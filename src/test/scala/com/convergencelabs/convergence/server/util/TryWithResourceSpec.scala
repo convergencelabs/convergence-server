@@ -11,10 +11,10 @@
 
 package com.convergencelabs.convergence.server.util
 
+import com.convergencelabs.convergence.server.InducedTestingException
 import org.mockito.Mockito
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number null
@@ -29,8 +29,8 @@ class TryWithResourceSpec
     "why trying" must {
       "fail if the resource can't be closed" in {
         val resource = Mockito.mock(classOf[AutoCloseable])
-        Mockito.when(resource.close()).thenThrow(new RuntimeException("close"))
-        val result = TryWithResource(resource) { resource =>
+        Mockito.when(resource.close()).thenThrow(InducedTestingException())
+        val result = TryWithResource(resource) { _ =>
           1
         }
 
@@ -39,11 +39,11 @@ class TryWithResourceSpec
 
       "fail if the resource can't be resolved" in {
 
-        def getResource(): AutoCloseable = {
-          throw new IllegalStateException("induced error")
+        def getResource: AutoCloseable = {
+          throw InducedTestingException()
         }
 
-        val result = TryWithResource(getResource()) { resource =>
+        val result = TryWithResource(getResource) { _ =>
           1
         }
 
@@ -53,7 +53,7 @@ class TryWithResourceSpec
       "fail if the code block throws an exception" in {
 
         val resource = Mockito.mock(classOf[AutoCloseable])
-        val result = TryWithResource(resource) { resource =>
+        val result = TryWithResource(resource) { _ =>
           throw new RuntimeException(executionMessage)
         }
         Mockito.verify(resource, Mockito.times(1)).close()
@@ -64,24 +64,24 @@ class TryWithResourceSpec
 
       "add a suppressed exception if the code block throws and the resource can't be closed" in {
         val resource = Mockito.mock(classOf[AutoCloseable])
-        Mockito.when(resource.close()).thenThrow(new RuntimeException(closeMessage))
+        Mockito.when(resource.close()).thenThrow(InducedTestingException(closeMessage))
 
-        val result = TryWithResource(resource) { resource =>
-          throw new RuntimeException(executionMessage)
+        val result = TryWithResource(resource) { _ =>
+          throw InducedTestingException(executionMessage)
         }
 
-        result.failure.exception shouldBe a[RuntimeException]
+        result.failure.exception shouldBe a[InducedTestingException]
         result.failure.exception.getMessage shouldBe executionMessage
 
         val suppressed = result.failure.exception.getSuppressed
         suppressed.length shouldBe 1
-        suppressed(0) shouldBe a[RuntimeException]
+        suppressed(0) shouldBe a[InducedTestingException]
         suppressed(0).getMessage shouldBe closeMessage
       }
 
       "succeed if the code block succeeds and the close succeeds" in {
         val resource = Mockito.mock(classOf[AutoCloseable])
-        val result = TryWithResource(resource) { resource =>
+        val result = TryWithResource(resource) { _ =>
           4
         }
         Mockito.verify(resource, Mockito.times(1)).close()
@@ -89,7 +89,7 @@ class TryWithResourceSpec
       }
 
       "allow a null resource" in {
-        val result = TryWithResource(null) { resource =>
+        val result = TryWithResource(null) { _ =>
           4
         }
         result.success.value shouldBe 4

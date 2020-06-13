@@ -35,8 +35,8 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
   "An AddUserEventProcessor" when {
 
     "processing a request" must {
-      "return success if the user is not already a member" in {
-        val message = createMessage(nonMember)
+      "return success if the user is not a member" in {
+        val message = createMessage(member1.userId, nonMember)
 
         val chatStore = mock[ChatStore]
         Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success(()))
@@ -51,28 +51,34 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val response = AddUserEventProcessor.execute(message, state, chatStore, permissionsStore)
         response.newState shouldBe defined
-            response.task.broadcast shouldBe defined
+        response.task.broadcast shouldBe defined
         response.task.reply.replyTo shouldBe message.replyTo
         response.task.reply.response shouldBe AddUserToChatResponse(Right(()))
       }
     }
 
     "validating a request" must {
-      "return success if the user is not already a member" in {
-        val message = createMessage(nonMember)
+      "return success if the requester and the added user is not a member" in {
+        val message = createMessage(member1.userId, nonMember)
         AddUserEventProcessor.validateMessage(message, state) shouldBe Right(())
       }
 
-      "return a failure response if the user is already a member" in {
-        val message = createMessage(member1.userId)
+      "return a failure response if the added user is a member" in {
+        val message = createMessage(member1.userId, member2.userId)
         AddUserEventProcessor.validateMessage(message, state) shouldBe
-          Left(AddUserToChatResponse(Left(ChatActor.ChatAlreadyJoinedError())))
+          Left(AddUserToChatResponse(Left(ChatActor.AlreadyAMemberError())))
+      }
+
+      "return a failure response if the requester is not a member" in {
+        val message = createMessage(nonMember, member2.userId)
+        AddUserEventProcessor.validateMessage(message, state) shouldBe
+          Left(AddUserToChatResponse(Left(ChatActor.ChatNotJoinedError())))
       }
     }
 
     "creating an event" must {
       "create a proper event" in {
-        val message = createMessage(nonMember)
+        val message = createMessage(member1.userId, nonMember)
         val event = AddUserEventProcessor.createEvent(message, state)
 
         event.id shouldBe state.id
@@ -87,7 +93,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
     "persisting an event" must {
       "succeed when the persistence operations succeed" in {
         val chatStore = mock[ChatStore]
-        Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success())
+        Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success(()))
         Mockito.when(chatStore.getChatRid(Matchers.any())).thenReturn(Success(ORecordId.EMPTY_RECORD_ID))
 
         val permissionsStore = mock[PermissionsStore]
@@ -136,8 +142,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
 
     "creating a success reply" must {
       "compute the correct reply" in {
-
-        val message = createMessage(member1.userId)
+        val message = createMessage(member1.userId, nonMember)
 
         val timestamp = Instant.now()
         val event = ChatUserAddedEvent(1L, state.id, message.requester, timestamp, message.userToAdd)
@@ -158,10 +163,8 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
     }
   }
 
-  private def createMessage(userToAdd: DomainUserId): AddUserToChatRequest = {
+  private def createMessage(requester: DomainUserId, userToAdd: DomainUserId): AddUserToChatRequest = {
     val replyTo = TestProbe[AddUserToChatResponse]
     AddUserToChatRequest(domainId, chatId, requester, userToAdd, replyTo.ref)
   }
 }
-
-

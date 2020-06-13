@@ -17,8 +17,7 @@ import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Instant
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestKit, TestProbe}
+import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.CreateNormalDomainUser
 import com.convergencelabs.convergence.server.datastore.domain._
@@ -63,7 +62,7 @@ class AuthenticationHandlerSpec()
       }
 
       "return an authentication error when validating the cretentials fails" in new TestFixture {
-        val result = authHandler.authenticate(PasswordAuthRequest(authfailureUser, authfailurePassword)).failure.exception
+        val result = authHandler.authenticate(PasswordAuthRequest(authFailureUser, authFailurePassword)).failure.exception
         result shouldBe an[DomainActor.AuthenticationError]
       }
     }
@@ -115,14 +114,14 @@ class AuthenticationHandlerSpec()
   trait TestFixture {
     val sessionId = 0
     val existingUserName = "existing"
-    val existingUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, Some("existing@example.com"), None)
+    val existingUser: DomainUser = DomainUser(DomainUserType.Normal, existingUserName, None, None, None, Some("existing@example.com"), None)
 
     val existingCorrectPassword = "correct"
     val existingIncorrectPassword = "incorrect"
 
     val nonExistingUser = "non-existing"
 
-    val domainFqn = DomainId("convergence", "default")
+    val domainId: DomainId = DomainId("convergence", "default")
 
     def nextSessionId(): String = {
       val nextSessionId = sessionId + 1
@@ -153,7 +152,7 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.setLastLogin(MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(()))
 
     val lazyUserName = "newUserName"
-    val lazyUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
+    val lazyUser: CreateNormalDomainUser = CreateNormalDomainUser(lazyUserName, None, None, None, None)
     Mockito.when(userStore.getNormalDomainUser(lazyUserName)).thenReturn(Success(None))
     Mockito.when(userStore.createNormalDomainUser(lazyUser)).thenReturn(Success(lazyUserName))
     Mockito.when(userStore.createAdminDomainUser(lazyUserName)).thenReturn(Success(lazyUserName))
@@ -161,69 +160,69 @@ class AuthenticationHandlerSpec()
     Mockito.when(userStore.convergenceUserExists(lazyUserName)).thenReturn(Success(false))
 
     val brokenUserName = "brokenUser"
-    Mockito.when(userStore.getNormalDomainUser(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
-    Mockito.when(userStore.domainUserExists(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
-    Mockito.when(userStore.convergenceUserExists(brokenUserName)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
+    Mockito.when(userStore.getNormalDomainUser(brokenUserName)).thenReturn(Failure(InducedTestingException()))
+    Mockito.when(userStore.domainUserExists(brokenUserName)).thenReturn(Failure(InducedTestingException()))
+    Mockito.when(userStore.convergenceUserExists(brokenUserName)).thenReturn(Failure(InducedTestingException()))
 
     val brokenLazyUsername = "borkenLazyUserName"
-    val brokenLazyUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, None)
+    val brokenLazyUser: CreateNormalDomainUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, None)
     Mockito.when(userStore.getNormalDomainUser(brokenLazyUsername)).thenReturn(Success(None))
-    Mockito.when(userStore.createNormalDomainUser(brokenLazyUser)).thenReturn(Failure(new IllegalStateException("induced error for testing")))
+    Mockito.when(userStore.createNormalDomainUser(brokenLazyUser)).thenReturn(Failure(InducedTestingException()))
     Mockito.when(userStore.domainUserExists(brokenLazyUsername)).thenReturn(Success(false))
     Mockito.when(userStore.convergenceUserExists(brokenLazyUsername)).thenReturn(Success(false))
 
-    val duplicateEmailJwtUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, Some("test@example.com"))
-    Mockito.when(userStore.createNormalDomainUser(duplicateEmailJwtUser)).thenReturn(Failure(new DuplicateValueException(DomainSchema.Classes.User.Fields.Email)))
+    val duplicateEmailJwtUser: CreateNormalDomainUser = CreateNormalDomainUser(brokenLazyUsername, None, None, None, Some("test@example.com"))
+    Mockito.when(userStore.createNormalDomainUser(duplicateEmailJwtUser)).thenReturn(Failure(DuplicateValueException(DomainSchema.Classes.User.Fields.Email)))
 
-    val authfailureUser = "authFailureUser"
-    val authfailurePassword = "authFailurePassword"
-    Mockito.when(userStore.validateCredentials(authfailureUser, authfailurePassword)).thenReturn(Failure(new IllegalStateException("Induced filure in testing")))
-    Mockito.when(userStore.domainUserExists(authfailureUser)).thenReturn(Success(false))
+    val authFailureUser = "authFailureUser"
+    val authFailurePassword = "authFailurePassword"
+    Mockito.when(userStore.validateCredentials(authFailureUser, authFailurePassword)).thenReturn(Failure(InducedTestingException()))
+    Mockito.when(userStore.domainUserExists(authFailureUser)).thenReturn(Success(false))
 
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
 
     Mockito.when(userStore.updateDomainUser(MockitoMatchers.any())).thenReturn(Success(()))
 
-    val userGroupStore = mock[UserGroupStore]
+    val userGroupStore: UserGroupStore = mock[UserGroupStore]
     Mockito.when(userGroupStore.setGroupsForUser(MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(()))
 
-    val domainConfigStore = mock[DomainConfigStore]
+    val domainConfigStore: DomainConfigStore = mock[DomainConfigStore]
     Mockito.when(domainConfigStore.isAnonymousAuthEnabled()).thenReturn(Success(true))
 
-    val keyStore = mock[JwtAuthKeyStore]
+    val keyStore: JwtAuthKeyStore = mock[JwtAuthKeyStore]
 
-    val enabledKey = JwtAuthKey(
-      "enabledkey",
+    val enabledKey: JwtAuthKey = JwtAuthKey(
+      "enabledKey",
       "An enabled key",
       Instant.now(),
       KeyConstants.PublicKey,
-      true)
+      enabled = true)
     Mockito.when(keyStore.getKey(enabledKey.id)).thenReturn(Success(Some(enabledKey)))
 
-    val adminKeyPair = JwtKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
+    val adminKeyPair: JwtKeyPair = JwtKeyPair(KeyConstants.PublicKey, KeyConstants.PrivateKey)
     Mockito.when(domainConfigStore.getAdminKeyPair()).thenReturn(Success(adminKeyPair))
 
-    val disabledKey = JwtAuthKey(
-      "disabledkey",
+    val disabledKey: JwtAuthKey = JwtAuthKey(
+      "disabledKey",
       "A disabled key",
       Instant.now(),
       KeyConstants.PublicKey,
-      false)
+      enabled = false)
     Mockito.when(keyStore.getKey(disabledKey.id)).thenReturn(Success(Some(disabledKey)))
 
-    val invalidKey = JwtAuthKey(
+    val invalidKey: JwtAuthKey = JwtAuthKey(
       "invalidKey",
       "An invalid key",
       Instant.now(),
       "invalid",
-      true)
+      enabled = true)
     Mockito.when(keyStore.getKey(invalidKey.id)).thenReturn(Success(Some(invalidKey)))
 
     val missingKey = "missingKey"
     Mockito.when(keyStore.getKey(missingKey)).thenReturn(Success(None))
 
     val authHandler = new AuthenticationHandler(
-      domainFqn, domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.executionContext)
+      domainId, domainConfigStore, keyStore, userStore, userGroupStore, sessionStore, system.executionContext)
   }
 
 }
@@ -237,7 +236,7 @@ object JwtGenerator {
     pemReader.close()
 
     val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
-    val privateKeySpec = new PKCS8EncodedKeySpec(obj.getContent())
+    val privateKeySpec = new PKCS8EncodedKeySpec(obj.getContent)
     val privateKey = keyFactory.generatePrivate(privateKeySpec)
 
     // Create the claims with the basic info.
@@ -258,13 +257,13 @@ object JwtGenerator {
 
     // The JWS will be used to sign the payload.
     val jws = new JsonWebSignature()
-    jws.setPayload(jwtClaims.toJson())
+    jws.setPayload(jwtClaims.toJson)
     jws.setKey(privateKey)
 
     // We set the Key Id so that the server knows which key to check against.
     jws.setKeyIdHeaderValue(keyId)
     jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256)
-    jws.getCompactSerialization()
+    jws.getCompactSerialization
   }
 }
 

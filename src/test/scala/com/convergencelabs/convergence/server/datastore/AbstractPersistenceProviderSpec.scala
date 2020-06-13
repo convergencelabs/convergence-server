@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.datastore
 
+import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import org.mockito.Mockito
 import org.scalatest.matchers.should.Matchers
@@ -22,16 +23,16 @@ import scala.util.{Failure, Success}
 class AbstractPersistenceProviderSpec extends AnyWordSpec with MockitoSugar with Matchers {
   "A AbstractPersistenceProvider" when {
     "validating the connection" must {
-      "return true if a connection can be aquired and closed" in {
+      "return true if a connection can be acquired and closed" in {
         val pool = mock[DatabaseProvider]
         Mockito.when(pool.validateConnection()).thenReturn(Success(()))
         val provider = new AbstractPersistenceProvider(pool) {}
         provider.validateConnection() shouldBe Success(())
       }
 
-      "return false if a connection can not be aquired and closed" in {
+      "return false if a connection can not be acquired and closed" in {
         val pool = mock[DatabaseProvider]
-        val cause = new IllegalStateException("Induced")
+        val cause = InducedTestingException()
         Mockito.when(pool.validateConnection()).thenReturn(Failure(cause))
         val provider = new AbstractPersistenceProvider(pool) {}
         provider.validateConnection() shouldBe Failure(cause)

@@ -74,5 +74,11 @@ object ErrorCodes extends Enumeration {
 
   val ChatAlreadyJoined: ErrorCode = Value("chat_already_joined")
 
+  val ChatAlreadyMember: ErrorCode = Value("chat_already_a_member")
+
+  val NotAlreadyMember: ErrorCode = Value("not_a_member")
+
+  val CantRemoveSelf: ErrorCode = Value("cant_remove_self")
+
   val ChatAlreadyExists: ErrorCode = Value("chat_already_exists")
 }

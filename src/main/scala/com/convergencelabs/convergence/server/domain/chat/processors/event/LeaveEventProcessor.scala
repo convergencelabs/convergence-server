@@ -62,7 +62,6 @@ private[chat] object LeaveEventProcessor
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserLeftEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserLeftEvent(event)
-      _ <- chatStore.removeChatMember(event.id, event.user)
     } yield ()
   }
 

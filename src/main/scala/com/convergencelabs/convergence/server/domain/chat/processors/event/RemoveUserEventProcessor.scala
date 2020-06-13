@@ -50,6 +50,10 @@ private[chat] object RemoveUserEventProcessor
   def validateMessage(message: RemoveUserFromChatRequest, state: ChatState): Either[ChatActor.RemoveUserFromChatResponse, Unit] = {
     if (!state.members.contains(message.requester)) {
       Left(ChatActor.RemoveUserFromChatResponse(Left(ChatActor.ChatNotJoinedError())))
+    } else if (!state.members.contains(message.userToRemove)) {
+      Left(ChatActor.RemoveUserFromChatResponse(Left(ChatActor.NotAMemberError())))
+    } else if (message.requester == message.userToRemove) {
+      Left(ChatActor.RemoveUserFromChatResponse(Left(ChatActor.CantRemoveSelfError())))
     } else {
       Right(())
     }
@@ -79,7 +83,7 @@ private[chat] object RemoveUserEventProcessor
     replyAndBroadcastTask(
       message.replyTo,
       RemoveUserFromChatResponse(Right(())),
-      Some(ChatClientActor.UserAddedToChat(event.id, event.eventNumber, event.timestamp, event.user, event.userRemoved))
+      Some(ChatClientActor.UserRemovedFromChat(event.id, event.eventNumber, event.timestamp, event.user, event.userRemoved))
     )
   }
 

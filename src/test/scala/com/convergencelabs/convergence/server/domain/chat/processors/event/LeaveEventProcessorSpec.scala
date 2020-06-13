@@ -27,49 +27,49 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.{Failure, Success}
 
-class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
+class LeaveEventProcessorSpec extends ScalaTestWithActorTestKit
   with AnyWordSpecLike
   with MockitoSugar
   with TestConstants {
 
-  "An JoinEventProcessor" when {
+  "An LeaveEventProcessor" when {
 
     "processing a request" must {
-      "return success if the user is not a member" in {
+      "return success if the user is already a member" in {
         val message = createMessage(nonMember)
 
         val chatStore = mock[ChatStore]
-        Mockito.when(chatStore.addChatUserJoinedEvent(Matchers.any())).thenReturn(Success(()))
+        Mockito.when(chatStore.addChatUserLeftEvent(Matchers.any())).thenReturn(Success(()))
         Mockito.when(chatStore.getChatRid(Matchers.any())).thenReturn(Success(ORecordId.EMPTY_RECORD_ID))
 
         val permissionsStore = mock[PermissionsStore]
         Mockito.when(permissionsStore.hasPermissionForRecord(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
-        Mockito.when(permissionsStore.addUserPermissions(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.removeUserPermissions(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
-        JoinEventProcessor.execute(message, state, chatStore, permissionsStore)
+        LeaveEventProcessor.execute(message, state, chatStore, permissionsStore)
       }
     }
 
     "validating a request" must {
-      "return success if the user is not a member" in {
-        val message = createMessage(nonMember)
-        JoinEventProcessor.validateMessage(message, state) shouldBe Right(())
+      "return success if the user is a member" in {
+        val message = createMessage(member1.userId)
+        LeaveEventProcessor.validateMessage(message, state) shouldBe Right(())
       }
 
-      "return a failure response if the user is a member" in {
-        val message = createMessage(member1.userId)
-        JoinEventProcessor.validateMessage(message, state) shouldBe
-          Left(JoinChatResponse(Left(ChatActor.ChatAlreadyJoinedError())))
+      "return a failure response if the user is not a member" in {
+        val message = createMessage(nonMember)
+        LeaveEventProcessor.validateMessage(message, state) shouldBe
+          Left(LeaveChatResponse(Left(ChatActor.ChatNotJoinedError())))
       }
     }
 
     "creating an event" must {
       "create a proper event" in {
         val message = createMessage(nonMember)
-        val event = JoinEventProcessor.createEvent(message, state)
+        val event = LeaveEventProcessor.createEvent(message, state)
 
         event.id shouldBe state.id
         event.user shouldBe message.requester
@@ -82,28 +82,28 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
     "persisting an event" must {
       "succeed when the persistence operations succeed" in {
         val chatStore = mock[ChatStore]
-        Mockito.when(chatStore.addChatUserJoinedEvent(Matchers.any())).thenReturn(Success(()))
+        Mockito.when(chatStore.addChatUserLeftEvent(Matchers.any())).thenReturn(Success(()))
 
         val permissionsStore = mock[PermissionsStore]
 
         val timestamp = Instant.now()
-        val event = ChatUserJoinedEvent(1L, state.id, nonMember, timestamp)
+        val event = ChatUserLeftEvent(1L, state.id, nonMember, timestamp)
 
-        val result = JoinEventProcessor.persistEvent(chatStore, permissionsStore)(event)
+        val result = LeaveEventProcessor.persistEvent(chatStore, permissionsStore)(event)
         result shouldBe Success(())
-        Mockito.verify(chatStore).addChatUserJoinedEvent(event)
+        Mockito.verify(chatStore).addChatUserLeftEvent(event)
       }
 
       "fail when the persistence operations fail" in {
         val chatStore = mock[ChatStore]
-        Mockito.when(chatStore.addChatUserJoinedEvent(Matchers.any())).thenReturn(Failure(InducedTestingException()))
+        Mockito.when(chatStore.addChatUserLeftEvent(Matchers.any())).thenReturn(Failure(InducedTestingException()))
 
         val permissionsStore = mock[PermissionsStore]
 
         val timestamp = Instant.now()
-        val event = ChatUserJoinedEvent(1L, state.id, nonMember, timestamp)
+        val event = ChatUserLeftEvent(1L, state.id, nonMember, timestamp)
 
-        val result = JoinEventProcessor.persistEvent(chatStore, permissionsStore)(event)
+        val result = LeaveEventProcessor.persistEvent(chatStore, permissionsStore)(event)
         result shouldBe Failure(InducedTestingException())
       }
     }
@@ -111,11 +111,11 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
     "updating state" must {
       "compute the correct state" in {
         val timestamp = Instant.now()
-        val event = ChatUserJoinedEvent(1L, state.id, nonMember, timestamp)
+        val event = ChatUserLeftEvent(1L, state.id, nonMember, timestamp)
 
-        val newState = JoinEventProcessor.updateState(event, state)
+        val newState = LeaveEventProcessor.updateState(event, state)
         newState shouldBe state.copy(
-          members = state.members + (event.user -> ChatMember(state.id, event.user, 0L)),
+          members = state.members - event.user,
           lastEventNumber = event.eventNumber,
           lastEventTime = timestamp
         )
@@ -127,47 +127,28 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
         val message = createMessage(nonMember)
 
         val timestamp = Instant.now()
-        val event = ChatUserJoinedEvent(1L, state.id, message.requester, timestamp)
+        val event = ChatUserLeftEvent(1L, state.id, message.requester, timestamp)
 
-        val task = JoinEventProcessor.createSuccessReply(message, event, state)
+        val task = LeaveEventProcessor.createSuccessReply(message, event, state)
         task.reply.replyTo shouldBe message.replyTo
 
-        val info = JoinEventProcessor.stateToInfo(state)
-        task.reply.response shouldBe JoinChatResponse(Right(info))
-        task.broadcast shouldBe Some(ChatClientActor.UserJoinedChat(
+        task.reply.response shouldBe LeaveChatResponse(Right(()))
+        task.broadcast shouldBe Some(ChatClientActor.UserLeftChat(
           event.id, event.eventNumber, event.timestamp, event.user))
       }
     }
 
     "creating an error reply" must {
       "compute the correct reply" in {
-        val reply = JoinEventProcessor.createErrorReply(UnknownError())
-        reply shouldBe JoinChatResponse(Left(UnknownError()))
-      }
-    }
-
-    "creating chat info" must {
-      "compute the correct info for the state" in {
-        val info = JoinEventProcessor.stateToInfo(state)
-        info shouldBe ChatInfo(
-          state.id,
-          state.chatType,
-          state.created,
-          state.membership,
-          state.name,
-          state.topic,
-          state.lastEventNumber,
-          state.lastEventTime,
-          state.members.values.toSet)
+        val reply = LeaveEventProcessor.createErrorReply(UnknownError())
+        reply shouldBe LeaveChatResponse(Left(UnknownError()))
       }
     }
   }
 
-  private def createMessage(requester: DomainUserId): JoinChatRequest = {
-    val replyTo = TestProbe[JoinChatResponse]
+  private def createMessage(requester: DomainUserId): LeaveChatRequest = {
+    val replyTo = TestProbe[LeaveChatResponse]
     val client = TestProbe[ChatClientActor.OutgoingMessage]
-    JoinChatRequest(domainId, chatId, requester, client.ref, replyTo.ref)
+    LeaveChatRequest(domainId, chatId, requester, client.ref, replyTo.ref)
   }
 }
-
-
