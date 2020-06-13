@@ -156,15 +156,24 @@ class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Loggin
     (linkedType, linkedClass) match {
       case (None, None) =>
         // not linked
-        oProp.setLinkedClass(null)
-        oProp.setLinkedType(null)
+        if (oProp.getLinkedClass != null) {
+          oProp.setLinkedClass(null)
+        }
+
+        if (oProp.getLinkedType != null) {
+          oProp.setLinkedType(null)
+        }
       case (Some(typeName), None) =>
         // linked orientType
-        oProp.setLinkedClass(null)
+        if (oProp.getLinkedClass != null) {
+          oProp.setLinkedClass(null)
+        }
         oProp.setLinkedType(toOType(typeName))
       case (None, Some(className)) =>
         // linked class
-        oProp.setLinkedType(null)
+        if (oProp.getLinkedType != null) {
+          oProp.setLinkedType(null)
+        }
         Option(db.getMetadata.getSchema.getClass(className)) match {
           case Some(c) =>
             // Already defined, create it now with the link
