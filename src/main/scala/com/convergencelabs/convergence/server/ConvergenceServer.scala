@@ -15,15 +15,17 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Address
-import akka.actor.typed.ActorSystem
-import com.convergencelabs.convergence.server.ConvergenceServerActor.Command
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.{ActorSystem, Scheduler}
+import akka.util.Timeout
+import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.util.SystemOutRedirector
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
-import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{Await, ExecutionContext}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -67,7 +69,7 @@ object ConvergenceServer extends Logging {
   /**
    * The currently running instance of the ConvergenceServer.
    */
-  private var system: Option[ActorSystem[Command]] = None
+  private var system: Option[ActorSystem[Message]] = None
 
   /**
    * The main entry point of the ConvergenceServer.
@@ -92,10 +94,26 @@ object ConvergenceServer extends Logging {
       _ <- validateSeedNodes(config)
       _ <- validateRoles(config)
     } yield {
-      val system: ActorSystem[Command] = ActorSystem(ConvergenceServerActor(), ActorSystemName)
-      // TODO convert this to an ask.
-      system ! ConvergenceServerActor.Start
+      val system: ActorSystem[Message] = ActorSystem(ConvergenceServerActor(), ActorSystemName)
       this.system = Some(system)
+
+      implicit val t: Timeout = Timeout(10, TimeUnit.SECONDS)
+      implicit val s: Scheduler = system.scheduler
+      implicit val ec: ExecutionContext = system.executionContext
+      system
+        .ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
+        .map(_.response match {
+          case Left(_) =>
+            error("There was a failure on server start up. Exiting.")
+            system.terminate()
+            System.exit(1)
+          case Right(_) =>
+        })
+        .recover { _ =>
+          error("The server did not start up in time. Exiting.")
+          system.terminate()
+          System.exit(1)
+        }
     }).recover {
       case cause: Throwable =>
         logger.error("Could not start Convergence Server", cause)
@@ -108,12 +126,35 @@ object ConvergenceServer extends Logging {
   private[this] def stop(): Unit = {
     // TODO convert this to an ask.
     this.system.foreach(s => {
-      s ! ConvergenceServerActor.Stop
-      logger.info(s"Terminating ActorSystem...")
-      s.terminate()
-      Await.result(s.whenTerminated, FiniteDuration(10, TimeUnit.SECONDS))
-      logger.info(s"ActorSystem terminated")
+      implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
+      implicit val sys: Scheduler = s.scheduler
+      implicit val ec: ExecutionContext = s.executionContext
+      s
+        .ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
+        .map { _ =>
+          terminate(s)
+          System.exit(0)
+        }
+        .recover { _ =>
+          error("The server did not stop up in time. Exiting.")
+          terminate(s)
+          System.exit(1)
+        }
     })
+
+  }
+
+  private[this] def terminate(system: ActorSystem[Message]): Unit = {
+    logger.info(s"Terminating ActorSystem...")
+
+    system.terminate()
+
+    Try(
+      Await.result(system.whenTerminated, FiniteDuration(15, TimeUnit.SECONDS))
+    )
+
+    logger.info(s"ActorSystem terminated")
+
     LogManager.shutdown()
   }
 

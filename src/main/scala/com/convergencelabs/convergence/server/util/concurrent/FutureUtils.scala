@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.util.concurrent
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object FutureUtils {
@@ -19,6 +19,21 @@ object FutureUtils {
     t match {
       case Success(s) => Future.successful(s)
       case Failure(fail) => Future.failed(fail)
+    }
+  }
+
+  def lift[T](f: Future[T])(implicit ec: ExecutionContext): Future[Try[T]] =
+    f map { Success(_) } recover { case e => Failure(e) }
+
+  def lift[T](fs: Seq[Future[T]])(implicit ec: ExecutionContext): Seq[Future[Try[T]]] =
+    fs map { lift(_) }
+
+  implicit class RichSeqFuture[+T](val fs: Seq[Future[T]]) extends AnyVal {
+    def onComplete[U](f: Seq[Try[T]] => U)(implicit ec: ExecutionContext) = {
+      Future.sequence(lift(fs)) onComplete {
+        case Success(s) => f(s)
+        case Failure(e) => throw e // will never happen, because of the Try lifting
+      }
     }
   }
 }

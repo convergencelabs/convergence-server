@@ -17,18 +17,19 @@ import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.cluster.typed._
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.ConvergenceServerActor.Command
+import com.convergencelabs.convergence.common.Ok
+import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ConvergenceRealtimeApi
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.db.{ConvergenceDatabaseInitializerActor, PooledDatabaseProvider}
-import com.convergencelabs.convergence.server.domain.{DomainActor, DomainActorSharding}
 import com.convergencelabs.convergence.server.domain.activity.{ActivityActor, ActivityActorSharding}
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
 import com.convergencelabs.convergence.server.domain.model.{RealtimeModelActor, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.domain.rest.{DomainRestActor, DomainRestActorSharding}
+import com.convergencelabs.convergence.server.domain.{DomainActor, DomainActorSharding}
 import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
 import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
@@ -38,30 +39,14 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 
-object ConvergenceServerActor {
-
-  sealed trait Command
-
-  case object Start extends Command
-
-  case object Stop extends Command
-
-  private case class StartBackendServices(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]) extends Command
-
-  private case class BackendInitializationFailure(cause: Throwable) extends Command
-
-  def apply(): Behavior[Command] =
-    Behaviors.setup(context => new ConvergenceServerActor(context))
-}
-
 /**
  * This is the main ConvergenceServer class. It is responsible for starting
  * up all services including the Akka Actor System.
  *
  * @param context The configuration to use for the server.
  */
-class ConvergenceServerActor(private[this] val context: ActorContext[Command])
-  extends AbstractBehavior[Command](context)
+class ConvergenceServerActor(private[this] val context: ActorContext[Message])
+  extends AbstractBehavior[Message](context)
     with Logging {
 
   import ConvergenceServerActor._
@@ -75,45 +60,17 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
   private[this] var realtime: Option[ConvergenceRealtimeApi] = None
   private[this] var clusterListener: Option[ActorRef[MemberEvent]] = None
 
-  override def onMessage(msg: Command): Behavior[Command] = {
+  override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
-      case Start =>
-        start()
-      case Stop =>
-        stop()
+      case msg: StartRequest =>
+        start(msg)
+      case msg: StopRequest =>
+        stop(msg)
       case msg: StartBackendServices =>
         startBackend(msg)
-      case BackendInitializationFailure(cause) =>
-        error("Failed to start backend services", cause)
-        stop()
+      case msg: BackendInitializationFailure=>
+        onBackendFailure(msg)
     }
-  }
-
-  private[this] def startBackend(msg: StartBackendServices): Behavior[Command] = {
-    val StartBackendServices(domainLifecycleTopic) = msg
-    val persistenceConfig = config.getConfig("convergence.persistence")
-    val dbServerConfig = persistenceConfig.getConfig("server")
-
-    val baseUri = dbServerConfig.getString("uri")
-    orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
-
-    // TODO make the pool size configurable
-    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
-    val convergenceDatabase = convergenceDbConfig.getString("database")
-    val username = convergenceDbConfig.getString("username")
-    val password = convergenceDbConfig.getString("password")
-
-    val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
-    dbProvider.connect().get
-
-    val domainStore = new DomainStore(dbProvider)
-
-    context.spawn(DomainPersistenceManagerActor(baseUri, domainStore, domainLifecycleTopic), "DomainPersistenceManager")
-
-    val backend = new BackendServices(context, dbProvider, domainLifecycleTopic)
-    backend.start()
-    this.backend = Some(backend)
-    Behaviors.same
   }
 
   /**
@@ -122,7 +79,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
    *
    * @return This instance of the ConvergenceServer
    */
-  private[this] def start(): ConvergenceServerActor = {
+  private[this] def start(msg: StartRequest): Behavior[Message] = {
     info(s"Convergence Server (${BuildInfo.version}) starting up...")
 
     debug(s"Rendering configuration: \n ${config.root().render(ConfigRenderOptions.concise())}")
@@ -152,9 +109,6 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
     val domainRestShardRegion = DomainRestActorSharding(context.system.settings.config, sharding, shardCount)
 
 
-    if (roles.contains(ServerClusterRoles.Backend)) {
-      this.processBackendRole(domainLifeCycleTopic)
-    }
     if (roles.contains(ServerClusterRoles.RestApi)) {
       this.processRestApiRole(domainRestShardRegion, modelShardRegion, chatShardRegion)
     }
@@ -169,13 +123,66 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
         domainLifeCycleTopic)
     }
 
-    this
+    if (roles.contains(ServerClusterRoles.Backend)) {
+      this.processBackendRole(domainLifeCycleTopic, msg)
+    } else {
+      msg.replyTo ! StartResponse(Right(Ok()))
+    }
+
+    Behaviors.same
+  }
+
+  private[this] def startBackend(msg: StartBackendServices): Behavior[Message] = {
+    val StartBackendServices(domainLifecycleTopic, startRequest) = msg
+    val persistenceConfig = config.getConfig("convergence.persistence")
+    val dbServerConfig = persistenceConfig.getConfig("server")
+
+    val baseUri = dbServerConfig.getString("uri")
+    orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
+
+    // TODO make the pool size configurable
+    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
+    val convergenceDatabase = convergenceDbConfig.getString("database")
+    val username = convergenceDbConfig.getString("username")
+    val password = convergenceDbConfig.getString("password")
+
+    val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
+    dbProvider.connect().get
+
+    val domainStore = new DomainStore(dbProvider)
+
+    context.spawn(DomainPersistenceManagerActor(baseUri, domainStore, domainLifecycleTopic), "DomainPersistenceManager")
+
+    val backend = new BackendServices(context, dbProvider, domainLifecycleTopic)
+    backend.start()
+    this.backend = Some(backend)
+
+    startRequest.replyTo ! StartResponse(Right(Ok()))
+
+    Behaviors.same
+  }
+
+  private[this] def onBackendFailure(msg: BackendInitializationFailure): Behavior[Message] = {
+    val BackendInitializationFailure(cause, startRequest) = msg
+    error("Aborting the Convergence Sever startup because starting the backend services failed", cause)
+    shutdown()
+    startRequest.replyTo ! StartResponse(Left(()))
+    Behaviors.stopped
   }
 
   /**
    * Stops the Convergence Server.
    */
-  private[this] def stop(): Behavior[Command] = {
+  private[this] def stop(msg: StopRequest): Behavior[Message] = {
+    shutdown()
+    msg.replyTo ! StopResponse()
+    Behaviors.stopped
+  }
+
+  /**
+   * Stops the Convergence Server.
+   */
+  private[this] def shutdown(): Unit = {
     logger.info(s"Stopping the Convergence Server...")
 
     clusterListener.foreach(context.stop(_))
@@ -187,14 +194,13 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
     logger.info(s"Leaving the cluster")
     cluster.foreach(c => c.manager ! Leave(c.selfMember.address))
-
-    Behaviors.stopped
   }
 
   /**
    * A helper method that will bootstrap the backend node.
    */
-  private[this] def processBackendRole(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Unit = {
+  private[this] def processBackendRole(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
+                                       startRequest: StartRequest): Unit = {
     info("Role 'backend' detected, activating Backend Services...")
 
     val singletonManager = ClusterSingleton(context.system)
@@ -210,11 +216,11 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
     context.ask(convergenceDatabaseInitializerActor, ConvergenceDatabaseInitializerActor.AssertInitialized) {
       case Success(ConvergenceDatabaseInitializerActor.Initialized()) =>
-        StartBackendServices(domainLifecycleTopic)
+        StartBackendServices(domainLifecycleTopic, startRequest)
       case Success(ConvergenceDatabaseInitializerActor.InitializationFailed(cause)) =>
-        BackendInitializationFailure(cause)
+        BackendInitializationFailure(cause, startRequest)
       case Failure(cause) =>
-        BackendInitializationFailure(cause)
+        BackendInitializationFailure(cause, startRequest)
     }
   }
 
@@ -265,6 +271,42 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
     realTimeFrontEnd.start()
     this.realtime = Some(realTimeFrontEnd)
   }
+}
+
+object ConvergenceServerActor {
+
+  def apply(): Behavior[Message] = Behaviors.setup(new ConvergenceServerActor(_))
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
+
+  sealed trait Message
+
+  //
+  // Start
+  //
+  final case class StartRequest(replyTo: ActorRef[StartResponse]) extends Message
+
+  final case class StartResponse(response: Either[Unit, Ok])
+
+  //
+  // Stop
+  //
+  final case class StopRequest(replyTo: ActorRef[StopResponse]) extends Message
+
+  final case class StopResponse()
+
+
+  //////////////////////
+  // Internal Messages
+  //////////////////////
+
+  private final case class StartBackendServices(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
+                                                startRequest: StartRequest) extends Message
+
+  private final case class BackendInitializationFailure(cause: Throwable, startRequest: StartRequest) extends Message
+
 }
 
 

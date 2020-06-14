@@ -12,17 +12,23 @@
 package com.convergencelabs.convergence.server.testkit
 
 import java.io.{File, FileInputStream, InputStreamReader}
+import java.util.concurrent.TimeUnit
 
-import akka.actor.typed.{ActorSystem, Behavior}
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorSystem, Scheduler}
+import akka.util.Timeout
 import com.convergencelabs.convergence.server.ConvergenceServer.ActorSystemName
-import com.convergencelabs.convergence.server.ConvergenceServerActor.Command
+import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
+import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.convergencelabs.convergence.server.{ConvergenceServer, ConvergenceServerActor, ServerClusterRoles}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
+import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
+import scala.util.Success
 
 /**
  * Provides the main method to start up an instance of the [[ConvergenceDevServer]].
@@ -77,7 +83,7 @@ class ConvergenceDevServer() extends Logging {
   /**
    * This [[ConvergenceServer]] instance will run the Backend Services.
    */
-  private[this] val backend: ActorSystem[Command] = ActorSystem(
+  private[this] val backend: ActorSystem[Message] = ActorSystem(
     ConvergenceServerActor(),
     ActorSystemName,
     createConfig(ConfigFile, 2552, List(ServerClusterRoles.Backend)))
@@ -86,7 +92,7 @@ class ConvergenceDevServer() extends Logging {
    * This [[ConvergenceServer]] instance  will run the Rest API and the
    * Realtime API.
    */
-  private[this] val frontend: ActorSystem[Command] = ActorSystem(
+  private[this] val frontend: ActorSystem[Message] = ActorSystem(
     ConvergenceServerActor(),
     ActorSystemName,
     createConfig(ConfigFile, 2553, List(ServerClusterRoles.RealtimeApi, ServerClusterRoles.RestApi)))
@@ -105,10 +111,22 @@ class ConvergenceDevServer() extends Logging {
 
     orientDb.start()
 
-    backend ! ConvergenceServerActor.Start
-    frontend ! ConvergenceServerActor.Start
+    implicit val t: Timeout = Timeout(30, TimeUnit.SECONDS)
+    implicit val sys: Scheduler = backend.scheduler
+    implicit val ec: ExecutionContext = ExecutionContext.global
 
-    logger.info("Convergence Development Server started")
+    import FutureUtils._
+
+    val f1 = backend.ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
+    val f2 = frontend.ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
+
+    List(f1, f2) onComplete {
+      case Success(_) :: Success(_) :: Nil =>
+        logger.info("Convergence Development Server started")
+      case _ =>
+        logger.info("Convergence Development Server startup failed")
+        System.exit(1)
+    }
 
     scala.sys.addShutdownHook {
       logger.info("Convergence Development Server JVM Shutdown Hook called")
@@ -121,7 +139,7 @@ class ConvergenceDevServer() extends Logging {
       done = Option(line).isEmpty || line.trim() == "exit"
     } while (!done)
 
-    sys.exit(0)
+    System.exit(0)
   }
 
   /**
@@ -130,10 +148,30 @@ class ConvergenceDevServer() extends Logging {
   def stop(): Unit = {
     logger.info("Convergence Development Server shutting down...")
     seed.terminate()
-    backend ! ConvergenceServerActor.Stop
-    frontend ! ConvergenceServerActor.Stop
+
+    implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
+    implicit val sys: Scheduler = backend.scheduler
+    implicit val ec: ExecutionContext = ExecutionContext.global
+
+    import FutureUtils._
+
+    val stop1 = backend.ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
+    val stop2 = frontend.ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
+
+    List(stop1, stop2) onComplete { _ =>
+      backend.terminate()
+      frontend.terminate()
+
+      val terminate1 = backend.whenTerminated
+      val terminate2 = frontend.whenTerminated
+
+      List(terminate1, terminate2) onComplete { _ =>
+        LogManager.shutdown()
+        System.exit(0)
+      }
+    }
+
     orientDb.stop()
-    LogManager.shutdown()
   }
 
   /**
@@ -142,8 +180,8 @@ class ConvergenceDevServer() extends Logging {
    * the roles and port.
    *
    * @param configFile The base config file to use.
-   * @param port The port to run the ActorSystem on.
-   * @param roles The Akka Cluster Roles to use.
+   * @param port       The port to run the ActorSystem on.
+   * @param roles      The Akka Cluster Roles to use.
    * @return A modified [[Config]] with the roles and port overridden.
    */
   private[this] def createConfig(configFile: String, port: Int, roles: List[String]): Config = {
