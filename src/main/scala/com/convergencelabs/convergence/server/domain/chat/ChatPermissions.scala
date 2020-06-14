@@ -38,7 +38,7 @@ object ChatPermissions {
   }
 
   /**
-   * The set of all permissions that realate to an existing chat.
+   * The set of all permissions that relate to an existing chat.
    */
   val AllExistingChatPermissions: Set[String] = Set(
     Permissions.RemoveChat,
@@ -49,11 +49,6 @@ object ChatPermissions {
     Permissions.SetName,
     Permissions.SetTopic,
     Permissions.Manage).map(_.p)
-
-  /**
-   * A set of all chat permissions.
-   */
-  val AllChatPermissions: Set[String] = AllExistingChatPermissions + Permissions.CreateChat.p
 
   /**
    * The set of permissions to assign to a user by default.

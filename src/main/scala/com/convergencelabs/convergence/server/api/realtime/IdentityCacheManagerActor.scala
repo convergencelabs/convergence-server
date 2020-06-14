@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
+import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.IdentityResolutionError
 import com.convergencelabs.convergence.server.domain.{DomainUserId, IdentityServiceActor}
 import grizzled.slf4j.Logging
@@ -253,13 +254,11 @@ object IdentityCacheManagerActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message
+  sealed trait Message extends CborSerializable
 
+  private final case class IdentityResolved(record: MessageRecord, response: IdentityServiceActor.IdentityResolutionResponse) extends Message
 
-  private case class IdentityResolved(record: MessageRecord, response: IdentityServiceActor.IdentityResolutionResponse) extends Message
+  private final case class IdentityResolutionFailure(record: MessageRecord, cause: Throwable) extends Message
 
-  private case class IdentityResolutionFailure(record: MessageRecord, cause: Throwable) extends Message
-
-  case class OutgoingMessage(message: ConvergenceMessage) extends Message
-
+  final case class OutgoingMessage(message: ConvergenceMessage) extends Message
 }

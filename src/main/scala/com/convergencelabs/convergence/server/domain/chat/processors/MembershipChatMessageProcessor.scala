@@ -11,9 +11,11 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors
 
+import akka.actor.typed.ActorRef
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatState}
+import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.chat.{ChatDeliveryActor, ChatState}
 
 
 /**
@@ -25,15 +27,15 @@ import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatState}
  */
 private[chat] abstract class MembershipChatMessageProcessor(chatState: ChatState,
                                                             chatStore: ChatStore,
-                                                            permissionsStore: PermissionsStore)
+                                                            permissionsStore: PermissionsStore,
+                                                            domainId: DomainId,
+                                                            chatDelivery: ActorRef[ChatDeliveryActor.Send])
   extends ChatMessageProcessor(chatState, chatStore, permissionsStore) {
 
   def broadcast(message: ChatClientActor.OutgoingMessage): Unit = {
     val members = state.members
     members.values.foreach { member =>
-      val topic = ChatActor.getChatUsernameTopicName(member.userId)
-      // FIXME
-      //      mediator ! Publish(topic, message)
+      chatDelivery ! ChatDeliveryActor.Send(domainId, member.userId, message)
     }
   }
 }

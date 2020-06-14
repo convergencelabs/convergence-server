@@ -27,8 +27,8 @@ import grizzled.slf4j.Logging
  * @param chatStore        The chat persistence store
  * @param permissionsStore The permissions persistence store.
  * @param domainId         The domainId of the domain this chat belongs to.
- * @param clientManager          The ActorContext used to create child actors.
- * @param clientWathcer
+ * @param clientManager    The ActorContext used to create child actors.
+ * @param clientWatcher    A helper actor that will watch joined clients.
  */
 private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
                                              chatStore: ChatStore,
@@ -54,8 +54,10 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
 
   override def onJoinChatRequest(message: JoinChatRequest): ChatEventMessageProcessorResult[JoinChatResponse] = {
     val JoinChatRequest(_, channelId, requester, client, _) = message
-    logger.debug(s"Client($requester) joined chat room: $channelId")
+    logger.debug(s"Client($requester) requested to join chat room: $channelId")
 
+    // FIXME this is not right.  We need to just check if they are joined.  They might
+    //  not have the permissions to join.
     val result = if (clientManager.join(requester, client)) {
       super.onJoinChatRequest(message)
     } else {

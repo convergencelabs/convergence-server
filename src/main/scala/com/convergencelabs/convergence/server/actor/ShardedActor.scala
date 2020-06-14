@@ -65,6 +65,7 @@ abstract class ShardedActor[T](context: ActorContext[T],
     debug(s"$identityString: Passivating")
     shard ! Passivate(context.self)
     Behaviors.receiveMessage(receivePassivating)
+      .receiveSignal(s => onSignal(s._2))
   }
 
   private[this] def receivePassivating(msg: T): Behavior[T] = {

@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationSt
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatManagerActor}
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.domain.presence.{PresenceServiceActor, UserPresence}
 import com.convergencelabs.convergence.server.util.concurrent.{AskHandler, UnexpectedErrorException}
@@ -57,6 +57,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
                           activityShardRegion: ActorRef[ActivityActor.Message],
                           modelShardRegion: ActorRef[RealtimeModelActor.Message],
                           chatShardRegion: ActorRef[ChatActor.Message],
+                          chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                           domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
                           modelSyncInterval: FiniteDuration)
   extends AbstractBehavior[ClientActor.Message](context) with Logging {
@@ -97,7 +98,6 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
 
   private[this] var protocolConnection: ProtocolConnection = _
 
-
   private[this] var client: String = _
   private[this] var clientVersion: String = _
 
@@ -108,8 +108,8 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
     case PostStop =>
       debug(s"ClientActor($domainId/${this.sessionId}): Stopped")
-      if (timers.isTimerActive(HandshakeTimeout)) {
-        timers.cancel(HandshakeTimeout)
+      if (timers.isTimerActive(HandshakeTimerKey)) {
+        timers.cancel(HandshakeTimerKey)
       }
       Option(protocolConnection).foreach(_.dispose())
       Behaviors.same
@@ -128,7 +128,9 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         protocolConfig,
         context.system.scheduler,
         context.executionContext)
+      this.messageHandler = handleHandshakeMessage
       Behaviors.receiveMessage(receiveWhileHandshaking)
+        .receiveSignal{x => onSignal.apply(x._2)}
   }
 
   private[this] def receiveCommon: PartialFunction[Message, Behavior[Message]] = {
@@ -166,7 +168,6 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
       onOutgoingRequest(message, replyTo)
 
     case ConnectionClosed =>
-      debug(s"$domainId: WebSocketClosed for session: $sessionId")
       onConnectionClosed()
 
     case ConnectionError(cause) =>
@@ -241,8 +242,8 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   //
 
   private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Behavior[Message] = {
-    if (timers.isTimerActive(HandshakeTimeout)) {
-      timers.cancel(HandshakeTimeout)
+    if (timers.isTimerActive(HandshakeTimerKey)) {
+      timers.cancel(HandshakeTimerKey)
       debug(s"$domainId: Handshaking with DomainActor")
       domainRegion.ask[DomainActor.HandshakeResponse](DomainActor.HandshakeRequest(domainId, context.self, request.reconnect, request.reconnectToken, _))
         .map(_.handshake.fold(
@@ -272,6 +273,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
           this.disconnect()
         }
       Behaviors.receiveMessage(this.receiveWhileHandshaking)
+        .receiveSignal{x => onSignal.apply(x._2)}
     } else {
       debug(s"$domainId: Not handshaking with domain because handshake timeout occurred")
       Behaviors.same
@@ -321,6 +323,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
 
     this.messageHandler = handleAuthenticationMessage
     Behaviors.receiveMessage(receiveWhileAuthenticating)
+      .receiveSignal{x => onSignal.apply(x._2)}
   }
 
   //
@@ -343,22 +346,24 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
       case Some(authCredentials) =>
         // FIXME if authentication fails we should probably stop the actor
         //  and or shut down the connection?
-        domainRegion.ask[DomainActor.AuthenticationResponse](DomainActor.AuthenticationRequest(
-          domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _)) onComplete {
-          case Success(DomainActor.AuthenticationSuccess(session, reconnectToken)) =>
-            obtainPresenceAfterAuth(session, reconnectToken, cb)
-          case Success(DomainActor.AuthenticationFailure) =>
-            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
-          case Failure(cause) =>
-            error(s"Error authenticating user for domain $domainId", cause)
-            cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
-        }
+        domainRegion
+          .ask[DomainActor.AuthenticationResponse](DomainActor.AuthenticationRequest(
+          domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _))
+            .map(_.response.fold(
+              { _ =>
+                cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
+              },
+              { case DomainActor.AuthenticationSuccess(session, reconnectToken) =>
+                obtainPresenceAfterAuth(session, reconnectToken, cb)
+              }
+            ))
+            .recover(_ => cb.timeoutError())
       case None =>
         error(s"Invalid authentication message: $requestMessage")
         cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
     }
 
-    Behaviors.receiveMessage(this.receiveWhileAuthenticating)
+    Behaviors.same
   }
 
   private[this] def obtainPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback): Unit = {
@@ -386,7 +391,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     this.reconnectToken = reconnectToken
     this.modelClient = context.spawn(ModelClientActor(domainId, session, narrowedSelf, modelStoreActor, modelShardRegion, requestTimeout, modelSyncInterval), "ModelClient")
     this.identityClient = context.spawn(IdentityClientActor(identityServiceActor), "IdentityClient")
-    this.chatClient = context.spawn(ChatClientActor(domainId, session, narrowedSelf, chatShardRegion, chatManagerActor, requestTimeout), "ChatClient")
+    this.chatClient = context.spawn(ChatClientActor(domainId, session, narrowedSelf, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, requestTimeout), "ChatClient")
     this.activityClient = context.spawn(ActivityClientActor(domainId, session, narrowedSelf, activityShardRegion, requestTimeout), "ActivityClient")
     this.presenceClient = context.spawn(PresenceClientActor(domainId, session, narrowedSelf, presenceServiceActor, requestTimeout), "PresenceClient")
     this.historyClient = context.spawn(HistoricModelClientActor(domainId, session, narrowedSelf, modelStoreActor, operationStoreActor, modelShardRegion, requestTimeout), "ModelHistoryClient")
@@ -400,6 +405,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     cb.reply(response)
 
     Behaviors.receiveMessage(receiveWhileAuthenticated)
+      .receiveSignal{x => onSignal.apply(x._2)}
   }
 
   //
@@ -420,8 +426,9 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         error("Error processing a response message", cause)
         this.protocolConnection.send(ErrorMessage("invalid_response", "Error processing a response", Map()))
         this.connectionActor ! ConnectionActor.CloseConnection
-        this.onConnectionClosed()
+        context.self ! Disconnect()
     }
+
     Behaviors.same
   }
 
@@ -470,7 +477,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   //
 
   private[this] def onConnectionClosed(): Behavior[Message] = {
-    debug(s"$domainId: Sending disconnect to domain and stopping: $sessionId")
+    debug(s"$domainId: Received a ConnectionClosed; sending disconnect to domain and stopping: $sessionId")
     domainRegion ! DomainActor.ClientDisconnected(domainId, context.self)
 
     // TODO we may want to keep this client alive to smooth over reconnect in the future.
@@ -507,6 +514,7 @@ object ClientActor {
                               activityShardRegion: ActorRef[ActivityActor.Message],
                               modelShardRegion: ActorRef[RealtimeModelActor.Message],
                               chatShardRegion: ActorRef[ChatActor.Message],
+                              chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                               domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
                               modelSyncInterval: FiniteDuration): Behavior[ClientActor.Message] = {
     Behaviors.setup(context => Behaviors.withTimers(timers =>
@@ -521,6 +529,7 @@ object ClientActor {
         activityShardRegion,
         modelShardRegion,
         chatShardRegion,
+        chatDeliveryShardRegion,
         domainLifecycleTopic,
         modelSyncInterval)
     ))

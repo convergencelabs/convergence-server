@@ -112,40 +112,38 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
     _, clientActor, remoteAddress, client, clientVersion, clientMetaData, credentials, replyTo) = message
 
     val connected = Instant.now()
-    authenticator.authenticate(credentials) map {
-      case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), _) =>
-        debug(s"$identityString: Authenticated user successfully, creating session")
 
-        val method = message.credentials match {
-          case _: JwtAuthRequest => "jwt"
-          case _: ReconnectTokenAuthRequest => "reconnect"
-          case _: PasswordAuthRequest => "password"
-          case _: AnonymousAuthRequest => "anonymous"
-        }
+    val method = message.credentials match {
+      case _: JwtAuthRequest => "jwt"
+      case _: ReconnectTokenAuthRequest => "reconnect"
+      case _: PasswordAuthRequest => "password"
+      case _: AnonymousAuthRequest => "anonymous"
+    }
+
+    authenticator
+      .authenticate(credentials)
+      .map { case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), _) =>
+        debug(s"$identityString: Authenticated user successfully, creating session")
 
         val session = DomainSession(
           sessionId, userId, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
 
-        persistenceProvider.sessionStore.createSession(session) map { _ =>
-          debug(s"$identityString: Session created replying to ClientActor")
-          authenticatedClients.put(clientActor, sessionId)
-          replyTo ! authSuccess
-        } recover {
-          case cause: Throwable =>
-            error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
-            replyTo ! AuthenticationFailure
-            ()
-        }
-      case AuthenticationFailure =>
-        debug(s"$identityString: AuthenticationFailure")
-        replyTo ! AuthenticationFailure
-        ()
-    } recover {
-      case e: Throwable =>
-        error("There was an error authenticating the client", e)
-        replyTo ! AuthenticationFailure
-        ()
-    }
+        persistenceProvider
+          .sessionStore
+          .createSession(session)
+          .map { _ =>
+            debug(s"$identityString: Session created replying to ClientActor")
+            authenticatedClients.put(clientActor, sessionId)
+            AuthenticationResponse(Right(authSuccess))
+          }
+          .recoverWith {
+            case cause: Throwable =>
+              error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
+              Failure(cause)
+          }
+          .getOrElse(AuthenticationResponse(Left(())))
+      }
+      .foreach(replyTo ! _)
 
     debug(s"$identityString: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
 
@@ -235,9 +233,9 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
         DomainDeleted(id)
     })
 
-    debug(() => s"$identityString: Acquiring domain persistence provider")
+    debug(s"$identityString: Acquiring domain persistence provider")
     domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId) map { provider =>
-      debug(() => s"$identityString: Acquired domain persistence provider")
+      debug( s"$identityString: Acquired domain persistence provider")
 
       this.persistenceProvider = provider
       this.authenticator = new AuthenticationHandler(
@@ -252,7 +250,7 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
       val identityServiceActor = context.spawn(supervise(IdentityServiceActor(persistenceProvider)), "IdentityService")
       val presenceServiceActor = context.spawn(supervise(PresenceServiceActor()), "PresenceService")
       val chatManagerActor = context.spawn(supervise(ChatManagerActor(provider.chatStore, provider.permissionsStore)), "ChatManager")
-      val modelStoreActor = context.spawn(supervise(ModelStoreActor(persistenceProvider)),"ModelStore")
+      val modelStoreActor = context.spawn(supervise(ModelStoreActor(persistenceProvider)), "ModelStore")
       val operationStoreActor = context.spawn(supervise(ModelOperationStoreActor(persistenceProvider.modelOperationStore)), "ModelOperationStore")
 
       this.children = DomainActorChildren(
@@ -318,68 +316,66 @@ object DomainActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message {
+  sealed trait Message extends CborSerializable {
     val domainId: DomainId
   }
 
-  case class HandshakeRequest(domainId: DomainId,
-                              clientActor: ActorRef[ClientActor.Disconnect],
-                              reconnect: Boolean,
-                              reconnectToken: Option[String],
-                              replyTo: ActorRef[HandshakeResponse]) extends Message
+  final case class HandshakeRequest(domainId: DomainId,
+                                    clientActor: ActorRef[ClientActor.Disconnect],
+                                    reconnect: Boolean,
+                                    reconnectToken: Option[String],
+                                    replyTo: ActorRef[HandshakeResponse]) extends Message
 
 
   sealed trait HandshakeError
-  case class DomainNotFound(domainId: DomainId) extends HandshakeError
-  case class DomainDatabaseError(domainId: DomainId) extends HandshakeError
-  case class DomainUnavailable(domainId: DomainId) extends HandshakeError
 
-  case class HandshakeResponse(handshake: Either[HandshakeError, HandshakeSuccess]) extends CborSerializable
+  final case class DomainNotFound(domainId: DomainId) extends HandshakeError
 
-  case class HandshakeSuccess(modelStoreActor: ActorRef[ModelStoreActor.Message],
-                              operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
-                              identityServiceActor: ActorRef[IdentityServiceActor.Message],
-                              presenceService: ActorRef[PresenceServiceActor.Message],
-                              chatManagerActor: ActorRef[ChatManagerActor.Message])
+  final case class DomainDatabaseError(domainId: DomainId) extends HandshakeError
+
+  final case class DomainUnavailable(domainId: DomainId) extends HandshakeError
+
+  final case class HandshakeResponse(handshake: Either[HandshakeError, HandshakeSuccess]) extends CborSerializable
+
+  final case class HandshakeSuccess(modelStoreActor: ActorRef[ModelStoreActor.Message],
+                                    operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                                    identityServiceActor: ActorRef[IdentityServiceActor.Message],
+                                    presenceService: ActorRef[PresenceServiceActor.Message],
+                                    chatManagerActor: ActorRef[ChatManagerActor.Message])
 
 
+  final case class AuthenticationRequest(domainId: DomainId,
+                                         clientActor: ActorRef[ClientActor.Disconnect],
+                                         remoteAddress: String,
+                                         client: String,
+                                         clientVersion: String,
+                                         clientMetaData: String,
+                                         credentials: AuthenticationCredentials,
+                                         replyTo: ActorRef[AuthenticationResponse]) extends Message
 
-  case class AuthenticationRequest(domainId: DomainId,
-                                   clientActor: ActorRef[ClientActor.Disconnect],
-                                   remoteAddress: String,
-                                   client: String,
-                                   clientVersion: String,
-                                   clientMetaData: String,
-                                   credentials: AuthenticationCredentials,
-                                   replyTo: ActorRef[AuthenticationResponse]) extends Message
+  final case class AuthenticationResponse(response: Either[Unit, AuthenticationSuccess]) extends CborSerializable
 
-  sealed trait AuthenticationResponse
+  final case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: Option[String])
 
-  case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: Option[String]) extends AuthenticationResponse
+  final case class ClientDisconnected(domainId: DomainId, clientActor: ActorRef[ClientActor.Disconnect]) extends Message
 
-  case object AuthenticationFailure extends AuthenticationResponse
+  final case class DomainStatusRequest(domainId: DomainId, replyTo: ActorRef[DomainStatusResponse]) extends Message
 
-  case class AuthenticationError(message: String = "", cause: Throwable) extends Exception(message, cause)
+  final case class DomainStatusResponse(connectedClients: Int)
 
-  case class ClientDisconnected(domainId: DomainId, clientActor: ActorRef[ClientActor.Disconnect]) extends Message
+  private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
-  case class DomainStatusRequest(domainId: DomainId, replyTo: ActorRef[DomainStatusResponse]) extends Message
-
-  case class DomainStatusResponse(connectedClients: Int)
-
-  private case class ReceiveTimeout(domainId: DomainId) extends Message
-
-  case class DomainDeleted(domainId: DomainId) extends Message
+  final case class DomainDeleted(domainId: DomainId) extends Message
 
 
   //
   // Supporting Classes
   //
 
-  case class DomainActorChildren(modelStoreActor: ActorRef[ModelStoreActor.Message],
-                                 operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
-                                 identityServiceActor: ActorRef[IdentityServiceActor.Message],
-                                 presenceServiceActor: ActorRef[PresenceServiceActor.Message],
-                                 chatManagerActor: ActorRef[ChatManagerActor.Message])
+  final case class DomainActorChildren(modelStoreActor: ActorRef[ModelStoreActor.Message],
+                                       operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                                       identityServiceActor: ActorRef[IdentityServiceActor.Message],
+                                       presenceServiceActor: ActorRef[PresenceServiceActor.Message],
+                                       chatManagerActor: ActorRef[ChatManagerActor.Message])
 
 }

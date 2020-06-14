@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
 import scala.util.Success
@@ -156,6 +157,10 @@ object ModelStoreActor {
   //
   final case class GetModelsRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetModelsError
 
   final case class GetModelsResponse(models: Either[GetModelsError, List[ModelMetaData]]) extends CborSerializable
@@ -165,6 +170,10 @@ object ModelStoreActor {
   //
   final case class GetModelsInCollectionRequest(collectionId: String, offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetModelsInCollectionError
 
   final case class GetModelsInCollectionResponse(models: Either[GetModelsInCollectionError, List[ModelMetaData]]) extends CborSerializable
@@ -174,6 +183,11 @@ object ModelStoreActor {
   //
   final case class QueryModelsRequest(userId: DomainUserId, query: String, replyTo: ActorRef[QueryModelsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[InvalidQueryError], name = "invalid_query"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait QueryModelsError
 
   final case class InvalidQueryError(message: String, query: String, index: Option[Int]) extends QueryModelsError
@@ -190,6 +204,10 @@ object ModelStoreActor {
                                    replyTo: ActorRef[GetModelUpdateResponse]) extends Message
 
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetModelUpdateError
 
   sealed trait ModelUpdateResult
@@ -212,7 +230,6 @@ object ModelStoreActor {
   //
 
   final case class ModelNotFoundError() extends AnyRef
-    with GetModelsInCollectionError
     with GetModelsError
 
   final case class UnknownError() extends AnyRef

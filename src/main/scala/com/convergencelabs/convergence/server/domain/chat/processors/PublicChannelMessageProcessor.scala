@@ -11,8 +11,10 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors
 
+import akka.actor.typed.ActorRef
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
-import com.convergencelabs.convergence.server.domain.chat.ChatState
+import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.chat.{ChatDeliveryActor, ChatState}
 
 
 /**
@@ -24,6 +26,8 @@ import com.convergencelabs.convergence.server.domain.chat.ChatState
  */
 private[chat] class PublicChannelMessageProcessor(chatState: ChatState,
                                                   chatStore: ChatStore,
-                                                  permissionsStore: PermissionsStore)
-  extends MembershipChatMessageProcessor(chatState, chatStore, permissionsStore) {
+                                                  permissionsStore: PermissionsStore,
+                                                  domainId: DomainId,
+                                                  chatDelivery: ActorRef[ChatDeliveryActor.Send])
+  extends MembershipChatMessageProcessor(chatState, chatStore, permissionsStore, domainId, chatDelivery) {
 }

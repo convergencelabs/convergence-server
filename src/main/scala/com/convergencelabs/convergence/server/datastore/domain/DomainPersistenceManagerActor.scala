@@ -56,7 +56,6 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
   private[this] var providers = Map[DomainId, DomainPersistenceProviderImpl]()
   private[this] var providersByActor = Map[ActorRef[_], List[DomainId]]()
 
-
   domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
     case DomainLifecycleTopic.DomainDeleted(domainId) => DomainDeleted(domainId)
   })
@@ -85,12 +84,18 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
 
   private[this] def onAcquire(domainId: DomainId, requester: ActorRef[_], replyTo: ActorRef[AcquireResponse]): Unit = {
     debug(s"$domainId: Acquiring domain persistence for ${requester.path}")
-    providers.get(domainId)
-      .map(Success(_))
-      .getOrElse(createProvider(domainId))
+    (providers.get(domainId) match {
+      case Some(provider) =>
+        debug(s"$domainId: domain persistence provider already exists for domain")
+        Success(provider)
+      case None =>
+        createProvider(domainId)
+    })
       .map { provider =>
         val newCount = referenceCounts.getOrElse(domainId, 0) + 1
         referenceCounts += (domainId -> newCount)
+
+        debug(s"$domainId: Domain persistence provider has $newCount references")
 
         val newProviders = providersByActor.getOrElse(requester, List()) :+ domainId
         providersByActor += (requester -> newProviders)
@@ -100,23 +105,24 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
           context.watch(requester)
         }
 
-        replyTo ! Acquired(provider)
+        Acquired(provider)
       }
       .recover {
         case _: DomainNotFoundException =>
-          replyTo ! DomainDoesNotExist(domainId)
+          DomainDoesNotExist(domainId)
         case cause: Throwable =>
           error(s"$domainId: Unable obtain a persistence provider", cause)
-          replyTo ! AcquisitionFailure(cause)
+          AcquisitionFailure(cause)
       }
+      .foreach(replyTo ! _)
   }
 
   private[this] def onRelease(domainId: DomainId, requester: ActorRef[_]): Unit = {
     debug(s"$domainId: Releasing domain persistence for ${requester.path}")
 
-    decrementDomainReferenceCount(domainId)
-
     providersByActor.get(requester) foreach { pools =>
+      decrementDomainReferenceCount(domainId)
+
       val newPools = pools diff List(domainId)
       if (newPools.isEmpty) {
         providersByActor = providersByActor - requester
@@ -137,12 +143,14 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
 
   private[this] def decrementDomainReferenceCount(domainId: DomainId): Unit = {
     referenceCounts.get(domainId) foreach (currentCount => {
-      if (currentCount == 1) {
+      val newCount = currentCount - 1
+      referenceCounts += (domainId -> newCount)
+
+      debug(s"$domainId: Domain persistence provider has $newCount references")
+
+      if (newCount == 0) {
         // This was the last consumer. Shut it down.
         shutdownPool(domainId)
-      } else {
-        // otherwise decrement the count
-        referenceCounts += (domainId -> (currentCount - 1))
       }
     })
   }
@@ -184,7 +192,7 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
         referenceCounts -= domainId
         provider.shutdown()
       case None =>
-        warn(s"$domainId: Attempted to shutdown a persistence provider that was not open")
+        warn(s"$domainId: Attempted to shut down a persistence provider that was not open")
     }
   }
 }
@@ -244,7 +252,11 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
     system.receptionist
       .ask[Receptionist.Listing]((r: ActorRef[Receptionist.Listing]) => Receptionist.Find(DomainPersistenceManagerServiceKey, r))
       .flatMap { listing =>
-        listing.serviceInstances(DomainPersistenceManagerServiceKey).find(r => r.path.address == system.address) match {
+        listing
+          .serviceInstances(DomainPersistenceManagerServiceKey)
+          .find { r =>
+            r.path.address.hasLocalScope || r.path.address == system.address
+          } match {
           case Some(service) =>
             Future.successful(service)
           case None =>

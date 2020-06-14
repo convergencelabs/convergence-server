@@ -23,7 +23,7 @@ import com.convergencelabs.convergence.server.ProtocolConfigUtil
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain.DomainActor
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import grizzled.slf4j.Logging
 
@@ -41,13 +41,14 @@ import scala.util.{Failure, Success}
  * @param interface     The network interface to bind to.
  * @param websocketPort The network port to listen to web socket connections on.
  */
-class ConvergenceRealtimeApi(private[this] val context: ActorContext[_],
-                             private[this] val interface: String,
-                             private[this] val websocketPort: Int,
+class ConvergenceRealtimeApi(context: ActorContext[_],
+                             interface: String,
+                             websocketPort: Int,
                              domainRegion: ActorRef[DomainActor.Message],
                              activityShardRegion: ActorRef[ActivityActor.Message],
                              modelShardRegion: ActorRef[RealtimeModelActor.Message],
                              chatShardRegion: ActorRef[ChatActor.Message],
+                             chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                              domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
   extends Logging {
 
@@ -74,6 +75,7 @@ class ConvergenceRealtimeApi(private[this] val context: ActorContext[_],
       activityShardRegion,
       modelShardRegion,
       chatShardRegion,
+      chatDeliveryShardRegion,
       domainLifecycleTopic)
 
     Http().bindAndHandle(service.route, interface, websocketPort).onComplete {

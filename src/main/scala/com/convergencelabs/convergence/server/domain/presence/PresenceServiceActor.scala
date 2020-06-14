@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.PresenceClientActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.util.SubscriptionMap
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 
@@ -202,6 +203,11 @@ object PresenceServiceActor {
   //
   case class GetPresencesRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetPresencesResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetPresencesError
 
   case class GetPresencesResponse(presence: Either[GetPresencesError, List[UserPresence]]) extends CborSerializable
@@ -211,6 +217,11 @@ object PresenceServiceActor {
   //
   case class GetPresenceRequest(userId: DomainUserId, replyTo: ActorRef[GetPresenceResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetPresenceError
 
   case class GetPresenceResponse(presence: Either[GetPresenceError, UserPresence]) extends CborSerializable
@@ -222,9 +233,14 @@ object PresenceServiceActor {
                                       client: ActorRef[PresenceClientActor.OutgoingMessage],
                                       replyTo: ActorRef[SubscribePresenceResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait SubscribePresenceError
 
-  case class SubscribePresenceResponse(presences: Either[SubscribePresenceError, List[UserPresence]])
+  case class SubscribePresenceResponse(presences: Either[SubscribePresenceError, List[UserPresence]]) extends CborSerializable
 
   //
   // Unsubscribe
@@ -256,12 +272,13 @@ object PresenceServiceActor {
   //
   // Common Errors
   //
-  case class UserNotFound(userId: DomainUserId) extends GetPresenceError
+  @JsonTypeName("user_not_found")
+  case class UserNotFoundError(userId: DomainUserId) extends GetPresenceError
     with GetPresencesError
     with SubscribePresenceError
 
+  @JsonTypeName("unknown")
   case class UnknownError() extends GetPresenceError
     with GetPresencesError
     with SubscribePresenceError
-
 }

@@ -14,14 +14,46 @@ package com.convergencelabs.convergence.server.domain.model.ot
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.domain.model.data.DataValue
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[CompoundOperation], name = "compound"),
+  new JsonSubTypes.Type(value = classOf[DiscreteOperation], name = "discrete")
+))
 sealed trait Operation
 
 case class CompoundOperation(operations: List[DiscreteOperation]) extends Operation
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[ArrayInsertOperation], name = "array_insert"),
+  new JsonSubTypes.Type(value = classOf[ArrayRemoveOperation], name = "array_remove"),
+  new JsonSubTypes.Type(value = classOf[ArrayReplaceOperation], name = "array_replace"),
+  new JsonSubTypes.Type(value = classOf[ArrayMoveOperation], name = "array_move"),
+  new JsonSubTypes.Type(value = classOf[ArraySetOperation], name = "array_set"),
+
+  new JsonSubTypes.Type(value = classOf[ObjectAddPropertyOperation], name = "object_add_prop"),
+  new JsonSubTypes.Type(value = classOf[ObjectSetPropertyOperation], name = "object_set_prop"),
+  new JsonSubTypes.Type(value = classOf[ObjectRemovePropertyOperation], name = "object_remove_prop"),
+  new JsonSubTypes.Type(value = classOf[ObjectSetOperation], name = "object_set"),
+
+  new JsonSubTypes.Type(value = classOf[StringInsertOperation], name = "string_insert"),
+  new JsonSubTypes.Type(value = classOf[StringRemoveOperation], name = "string_remove"),
+  new JsonSubTypes.Type(value = classOf[StringSetOperation], name = "string_set"),
+
+  new JsonSubTypes.Type(value = classOf[NumberAddOperation], name = "number_delta"),
+  new JsonSubTypes.Type(value = classOf[NumberSetOperation], name = "number_set"),
+
+  new JsonSubTypes.Type(value = classOf[BooleanSetOperation], name = "boolean_set"),
+
+  new JsonSubTypes.Type(value = classOf[DateSetOperation], name = "date_set"),
+))
 sealed trait DiscreteOperation extends Operation {
   def id: String
+
   def noOp: Boolean
+
   def clone(noOp: scala.Boolean = noOp): DiscreteOperation
 }
 
@@ -30,6 +62,7 @@ sealed trait DiscreteOperation extends Operation {
 //////////////////////////////////////////////////////////////////////////////
 
 sealed trait StringOperation extends DiscreteOperation
+
 case class StringRemoveOperation(id: String, noOp: Boolean, index: Int, value: String) extends StringOperation {
   def clone(noOp: scala.Boolean = noOp): StringRemoveOperation = copy(noOp = noOp)
 }
@@ -89,6 +122,7 @@ case class BooleanSetOperation(id: String, noOp: Boolean, value: Boolean) extend
 // Array Operations
 //////////////////////////////////////////////////////////////////////////////
 sealed trait ArrayOperation extends DiscreteOperation
+
 case class ArrayInsertOperation(id: String, noOp: Boolean, index: Int, value: DataValue) extends ArrayOperation {
   def clone(noOp: scala.Boolean = noOp): ArrayInsertOperation = copy(noOp = noOp)
 }
@@ -118,66 +152,106 @@ case class DateSetOperation(id: String, noOp: Boolean, value: Instant) extends D
   def clone(noOp: scala.Boolean = noOp): DateSetOperation = copy(noOp = noOp)
 }
 
- 
-sealed trait AppliedOperation 
- 
-case class AppliedCompoundOperation(operations: List[AppliedDiscreteOperation]) extends AppliedOperation 
- 
-sealed trait AppliedDiscreteOperation extends AppliedOperation { 
-  def id: String 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[AppliedDiscreteOperation], name = "compound"),
+  new JsonSubTypes.Type(value = classOf[AppliedCompoundOperation], name = "discrete"),
+))
+sealed trait AppliedOperation
+
+case class AppliedCompoundOperation(operations: List[AppliedDiscreteOperation]) extends AppliedOperation
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[AppliedArrayInsertOperation], name = "array_insert"),
+  new JsonSubTypes.Type(value = classOf[AppliedArrayRemoveOperation], name = "array_remove"),
+  new JsonSubTypes.Type(value = classOf[AppliedArrayReplaceOperation], name = "array_replace"),
+  new JsonSubTypes.Type(value = classOf[AppliedArrayMoveOperation], name = "array_move"),
+  new JsonSubTypes.Type(value = classOf[AppliedArraySetOperation], name = "array_set"),
+
+  new JsonSubTypes.Type(value = classOf[AppliedObjectAddPropertyOperation], name = "object_add_prop"),
+  new JsonSubTypes.Type(value = classOf[AppliedObjectSetPropertyOperation], name = "object_set_prop"),
+  new JsonSubTypes.Type(value = classOf[AppliedObjectRemovePropertyOperation], name = "object_remove_prop"),
+  new JsonSubTypes.Type(value = classOf[AppliedObjectSetOperation], name = "object_set"),
+
+  new JsonSubTypes.Type(value = classOf[AppliedStringInsertOperation], name = "string_insert"),
+  new JsonSubTypes.Type(value = classOf[AppliedStringRemoveOperation], name = "string_remove"),
+  new JsonSubTypes.Type(value = classOf[AppliedStringSetOperation], name = "string_set"),
+
+  new JsonSubTypes.Type(value = classOf[AppliedNumberAddOperation], name = "number_delta"),
+  new JsonSubTypes.Type(value = classOf[AppliedNumberSetOperation], name = "number_set"),
+
+  new JsonSubTypes.Type(value = classOf[AppliedBooleanSetOperation], name = "boolean_set"),
+
+  new JsonSubTypes.Type(value = classOf[AppliedDateSetOperation], name = "date_set"),
+))
+sealed trait AppliedDiscreteOperation extends AppliedOperation {
+  def id: String
+
   def noOp: Boolean
-} 
- 
+}
+
 /////////////////////////////////////////////////////////////////////////////// 
 // String Operations 
 ////////////////////////////////////////////////////////////////////////////// 
- 
+
 sealed trait AppliedStringOperation extends AppliedDiscreteOperation
- 
-case class AppliedStringRemoveOperation(id: String, noOp: Boolean, index: Int, length: Int, oldValue: Option[String]) extends AppliedStringOperation 
+
+case class AppliedStringRemoveOperation(id: String, noOp: Boolean, index: Int, length: Int, oldValue: Option[String]) extends AppliedStringOperation
+
 case class AppliedStringInsertOperation(id: String, noOp: Boolean, index: Int, value: String) extends AppliedStringOperation
+
 case class AppliedStringSetOperation(id: String, noOp: Boolean, value: String, oldValue: Option[String]) extends AppliedStringOperation
- 
+
 /////////////////////////////////////////////////////////////////////////////// 
 // Object Operations 
 ////////////////////////////////////////////////////////////////////////////// 
 sealed trait AppliedObjectOperation extends AppliedDiscreteOperation
- 
-case class AppliedObjectSetPropertyOperation(id: String, noOp: Boolean, property: String, value: DataValue, oldValue: Option[DataValue]) extends AppliedObjectOperation  
-case class AppliedObjectAddPropertyOperation(id: String, noOp: Boolean, property: String, value: DataValue) extends AppliedObjectOperation  
-case class AppliedObjectRemovePropertyOperation(id: String, noOp: Boolean, property: String, oldValue: Option[DataValue]) extends AppliedObjectOperation 
-case class AppliedObjectSetOperation(id: String, noOp: Boolean, value: Map[String, DataValue], oldValue: Option[Map[String, DataValue]]) extends AppliedObjectOperation 
- 
+
+case class AppliedObjectSetPropertyOperation(id: String, noOp: Boolean, property: String, value: DataValue, oldValue: Option[DataValue]) extends AppliedObjectOperation
+
+case class AppliedObjectAddPropertyOperation(id: String, noOp: Boolean, property: String, value: DataValue) extends AppliedObjectOperation
+
+case class AppliedObjectRemovePropertyOperation(id: String, noOp: Boolean, property: String, oldValue: Option[DataValue]) extends AppliedObjectOperation
+
+case class AppliedObjectSetOperation(id: String, noOp: Boolean, value: Map[String, DataValue], oldValue: Option[Map[String, DataValue]]) extends AppliedObjectOperation
+
 /////////////////////////////////////////////////////////////////////////////// 
 // Number Operations 
 ////////////////////////////////////////////////////////////////////////////// 
-sealed trait AppliedNumberOperation extends AppliedDiscreteOperation 
- 
-case class AppliedNumberAddOperation(id: String, noOp: Boolean, value: Double) extends AppliedNumberOperation 
-case class AppliedNumberSetOperation(id: String, noOp: Boolean, value: Double, oldValue: Option[Double]) extends AppliedNumberOperation 
- 
+sealed trait AppliedNumberOperation extends AppliedDiscreteOperation
+
+case class AppliedNumberAddOperation(id: String, noOp: Boolean, value: Double) extends AppliedNumberOperation
+
+case class AppliedNumberSetOperation(id: String, noOp: Boolean, value: Double, oldValue: Option[Double]) extends AppliedNumberOperation
+
 /////////////////////////////////////////////////////////////////////////////// 
 // Boolean Operations 
 ////////////////////////////////////////////////////////////////////////////// 
-sealed trait AppliedBooleanOperation extends AppliedDiscreteOperation  
- 
-case class AppliedBooleanSetOperation(id: String, noOp: Boolean, value: Boolean, oldValue: Option[Boolean]) extends AppliedBooleanOperation 
- 
+sealed trait AppliedBooleanOperation extends AppliedDiscreteOperation
+
+case class AppliedBooleanSetOperation(id: String, noOp: Boolean, value: Boolean, oldValue: Option[Boolean]) extends AppliedBooleanOperation
+
 /////////////////////////////////////////////////////////////////////////////// 
 // Array Operations 
 ////////////////////////////////////////////////////////////////////////////// 
-sealed trait AppliedArrayOperation extends AppliedDiscreteOperation  
- 
-case class AppliedArrayInsertOperation(id: String, noOp: Boolean, index: Int, value: DataValue) extends AppliedArrayOperation 
-case class AppliedArrayRemoveOperation(id: String, noOp: Boolean, index: Int, oldValue: Option[DataValue]) extends AppliedArrayOperation 
-case class AppliedArrayReplaceOperation(id: String, noOp: Boolean, index: Int, value: DataValue, oldValue: Option[DataValue]) extends AppliedArrayOperation 
-case class AppliedArrayMoveOperation(id: String, noOp: Boolean, fromIndex: Int, toIndex: Int) extends AppliedArrayOperation  
-case class AppliedArraySetOperation(id: String, noOp: Boolean, value: List[DataValue], oldValue: Option[List[DataValue]]) extends AppliedArrayOperation 
+sealed trait AppliedArrayOperation extends AppliedDiscreteOperation
+
+case class AppliedArrayInsertOperation(id: String, noOp: Boolean, index: Int, value: DataValue) extends AppliedArrayOperation
+
+case class AppliedArrayRemoveOperation(id: String, noOp: Boolean, index: Int, oldValue: Option[DataValue]) extends AppliedArrayOperation
+
+case class AppliedArrayReplaceOperation(id: String, noOp: Boolean, index: Int, value: DataValue, oldValue: Option[DataValue]) extends AppliedArrayOperation
+
+case class AppliedArrayMoveOperation(id: String, noOp: Boolean, fromIndex: Int, toIndex: Int) extends AppliedArrayOperation
+
+case class AppliedArraySetOperation(id: String, noOp: Boolean, value: List[DataValue], oldValue: Option[List[DataValue]]) extends AppliedArrayOperation
 
 /////////////////////////////////////////////////////////////////////////////// 
 // Date Operations 
 ////////////////////////////////////////////////////////////////////////////// 
- 
+
 sealed trait AppliedDateOperation extends AppliedDiscreteOperation
+
 case class AppliedDateSetOperation(id: String, noOp: Boolean, value: Instant, oldValue: Option[Instant]) extends AppliedDateOperation
 

@@ -26,7 +26,7 @@ import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.db.{ConvergenceDatabaseInitializerActor, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.domain.{DomainActor, DomainActorSharding}
 import com.convergencelabs.convergence.server.domain.activity.{ActivityActor, ActivityActorSharding}
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatSharding}
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
 import com.convergencelabs.convergence.server.domain.model.{RealtimeModelActor, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.domain.rest.{DomainRestActor, DomainRestActorSharding}
 import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
@@ -143,7 +143,8 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
 
     val modelShardRegion = RealtimeModelSharding(context.system.settings.config, sharding, shardCount)
     val activityShardRegion = ActivityActorSharding(context.system, sharding, shardCount)
-    val chatShardRegion = ChatSharding(sharding, shardCount)
+    val chatDeliveryShardRegion = ChatDeliveryActorSharding(sharding, shardCount)
+    val chatShardRegion = ChatActorSharding(sharding, shardCount, chatDeliveryShardRegion.narrow[ChatDeliveryActor.Send])
     val domainShardRegion = DomainActorSharding(context.system.settings.config, sharding, shardCount, () => {
       domainLifeCycleTopic
     })
@@ -159,10 +160,12 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
     }
 
     if (roles.contains(ServerClusterRoles.RealtimeApi)) {
-      this.processRealtimeApiRole(domainShardRegion,
+      this.processRealtimeApiRole(
+        domainShardRegion,
         activityShardRegion,
         modelShardRegion,
         chatShardRegion,
+        chatDeliveryShardRegion,
         domainLifeCycleTopic)
     }
 
@@ -243,6 +246,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
                                            activityShardRegion: ActorRef[ActivityActor.Message],
                                            modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                            chatShardRegion: ActorRef[ChatActor.Message],
+                                           chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                                            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Unit = {
 
     info("Role 'realtimeApi' detected, activating the Realtime API...")
@@ -256,6 +260,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Command])
       activityShardRegion,
       modelShardRegion,
       chatShardRegion,
+      chatDeliveryShardRegion,
       domainLifecycleTopic)
     realTimeFrontEnd.start()
     this.realtime = Some(realTimeFrontEnd)

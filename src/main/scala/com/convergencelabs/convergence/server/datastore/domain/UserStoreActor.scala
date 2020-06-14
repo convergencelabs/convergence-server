@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.util.Success
 
@@ -189,6 +190,10 @@ object UserStoreActor {
                              limit: Option[Int],
                              replyTo: ActorRef[GetUsersResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetUsersError
 
   final case class GetUsersResponse(users: Either[GetUsersError, PagedData[DomainUser]]) extends CborSerializable
@@ -198,6 +203,11 @@ object UserStoreActor {
   //
   case class GetUserRequest(userId: DomainUserId, replyTo: ActorRef[GetUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetUserError
 
   final case class GetUserResponse(user: Either[GetUserError, DomainUser]) extends CborSerializable
@@ -211,6 +221,10 @@ object UserStoreActor {
                               limit: Option[Int],
                               replyTo: ActorRef[FindUsersResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait FindUsersError
 
   final case class FindUsersResponse(users: Either[FindUsersError, PagedData[DomainUser]]) extends CborSerializable
@@ -227,6 +241,11 @@ object UserStoreActor {
                                password: Option[String],
                                replyTo: ActorRef[CreateUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserAlreadyExistsError], name = "user_exists"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait CreateUserError
 
   final case class UserAlreadyExistsError(field: String) extends CreateUserError
@@ -238,6 +257,11 @@ object UserStoreActor {
   //
   final case class DeleteUserRequest(username: String, replyTo: ActorRef[DeleteUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait DeleteUserError
 
   final case class DeleteUserResponse(response: Either[DeleteUserError, Unit]) extends CborSerializable
@@ -253,6 +277,11 @@ object UserStoreActor {
                                disabled: Option[Boolean],
                                replyTo: ActorRef[UpdateUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait UpdateUserError
 
   final case class UpdateUserResponse(response: Either[UpdateUserError, Unit]) extends CborSerializable
@@ -264,6 +293,11 @@ object UserStoreActor {
                                 password: String,
                                 replyTo: ActorRef[SetPasswordResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait SetPasswordError
 
   final case class SetPasswordResponse(response: Either[SetPasswordError, Unit]) extends CborSerializable
@@ -286,5 +320,4 @@ object UserStoreActor {
     with UpdateUserError
     with DeleteUserError
     with SetPasswordError
-
 }

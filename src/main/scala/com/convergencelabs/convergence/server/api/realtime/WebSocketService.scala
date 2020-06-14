@@ -26,10 +26,10 @@ import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
 import com.convergencelabs.convergence.server.api.rest.{JsonSupport, OkResponse}
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.domain.{DomainActor, DomainId}
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.domain.{DomainActor, DomainId}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.Duration
@@ -51,6 +51,7 @@ private[realtime] class WebSocketService(protocolConfig: ProtocolConfiguration,
                                          activityShardRegion: ActorRef[ActivityActor.Message],
                                          modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                          chatShardRegion: ActorRef[ChatActor.Message],
+                                         chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                                          domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
   extends Directives with Logging with JsonSupport {
 
@@ -103,14 +104,14 @@ private[realtime] class WebSocketService(protocolConfig: ProtocolConfiguration,
       .mapAsync(parallelism = 3)(identity)
       .via(createFlowForConnection(namespace, domain, remoteAddress, ua))
       .map {
-        case ConnectionActor.OutgoingBinaryMessage(msg) => BinaryMessage.Strict(ByteString.fromArray(msg))
+        case WebSocketService.OutgoingBinaryMessage(msg) => BinaryMessage.Strict(ByteString.fromArray(msg))
       }
   }
 
   private[this] def createFlowForConnection(namespace: String,
                                             domain: String,
                                             remoteAddress: RemoteAddress,
-                                            ua: String): Flow[ConnectionActor.IncomingBinaryMessage, ConnectionActor.OutgoingBinaryMessage, Any] = {
+                                            ua: String): Flow[ConnectionActor.IncomingBinaryMessage, WebSocketService.OutgoingBinaryMessage, Any] = {
     val clientActor = context.spawnAnonymous(ClientActor(
       DomainId(namespace, domain),
       protocolConfig,
@@ -120,6 +121,7 @@ private[realtime] class WebSocketService(protocolConfig: ProtocolConfiguration,
       activityShardRegion,
       modelShardRegion,
       chatShardRegion,
+      chatDeliveryShardRegion,
       domainLifecycleTopic,
       modelSyncInterval)
     )
@@ -142,7 +144,7 @@ private[realtime] class WebSocketService(protocolConfig: ProtocolConfiguration,
     // actor.  We can send an actor ref (in a message) to the connection actor.  This is
     // how the connection actor will get a reference to the actor that it needs to sent
     // messages to.
-    val out = Source.actorRef[ConnectionActor.OutgoingBinaryMessage](
+    val out = Source.actorRef[WebSocketService.OutgoingBinaryMessage](
       {
         case WebSocketService.CloseSocket =>
           CompletionStrategy.draining

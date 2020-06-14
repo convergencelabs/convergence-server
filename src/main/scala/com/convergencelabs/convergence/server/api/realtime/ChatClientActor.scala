@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.datastore.domain.ChatMembership.In
 import com.convergencelabs.convergence.server.datastore.domain.ChatType.InvalidChatTypeValue
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatManagerActor, GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor, GroupPermissions, UserPermissions}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 import com.google.protobuf.timestamp.Timestamp
 import grizzled.slf4j.Logging
@@ -40,6 +40,7 @@ import scala.util.{Success, Try}
 class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
                               domainId: DomainId,
                               chatShardRegion: ActorRef[ChatActor.Message],
+                              chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                               chatManagerActor: ActorRef[ChatManagerActor.Message],
                               clientActor: ActorRef[ClientActor.SendServerMessage],
                               session: DomainUserSessionId,
@@ -52,6 +53,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
   implicit val s: ActorSystem[_] = context.system
 
   private[this] val outgoingSelf = context.self.narrow[ChatClientActor.OutgoingMessage]
+
+  chatDeliveryShardRegion ! ChatDeliveryActor.Subscribe(this.domainId, session.userId, outgoingSelf)
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -686,9 +689,10 @@ object ChatClientActor {
             session: DomainUserSessionId,
             clientActor: ActorRef[ClientActor.SendServerMessage],
             chatShardRegion: ActorRef[ChatActor.Message],
-            chatLookupActor: ActorRef[ChatManagerActor.Message],
+            chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
+            chatManagerActor: ActorRef[ChatManagerActor.Message],
             requestTimeout: Timeout): Behavior[Message] =
-    Behaviors.setup(new ChatClientActor(_, domain, chatShardRegion, chatLookupActor, clientActor, session, requestTimeout))
+    Behaviors.setup(new ChatClientActor(_, domain, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, clientActor, session, requestTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

@@ -11,12 +11,21 @@
 
 package com.convergencelabs.convergence.server.domain
 
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[PasswordAuthRequest], name = "password"),
+  new JsonSubTypes.Type(value = classOf[JwtAuthRequest], name = "jwt"),
+  new JsonSubTypes.Type(value = classOf[ReconnectTokenAuthRequest], name = "reconnect"),
+  new JsonSubTypes.Type(value = classOf[AnonymousAuthRequest], name = "anonymous")
+))
 sealed trait AuthenticationCredentials
 
-case class PasswordAuthRequest(username: String, password: String) extends AuthenticationCredentials
+final case class PasswordAuthRequest(username: String, password: String) extends AuthenticationCredentials
 
-case class JwtAuthRequest(jwt: String) extends AuthenticationCredentials
+final case class JwtAuthRequest(jwt: String) extends AuthenticationCredentials
 
-case class ReconnectTokenAuthRequest(token: String) extends AuthenticationCredentials
+final case class ReconnectTokenAuthRequest(token: String) extends AuthenticationCredentials
 
-case class AnonymousAuthRequest(displayName: Option[String]) extends AuthenticationCredentials
+final case class AnonymousAuthRequest(displayName: Option[String]) extends AuthenticationCredentials

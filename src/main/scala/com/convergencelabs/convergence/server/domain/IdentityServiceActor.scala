@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
 import scala.util.Success
@@ -88,7 +89,7 @@ class IdentityServiceActor private[domain](context: ActorContext[IdentityService
   }
 
   private[this] def resolveIdentities(msg: IdentityResolutionRequest): Unit = {
-    debug(() => s"Processing identity resolution: $msg")
+    debug(s"Processing identity resolution: $msg")
     val IdentityResolutionRequest(sessionIds, userIds, replyTo) = msg
     (for {
       sessions <- persistenceProvider.sessionStore.getSessions(sessionIds)
@@ -148,7 +149,7 @@ class IdentityServiceActor private[domain](context: ActorContext[IdentityService
   }
 
   private[this] def logRequestError(request: Any, cause: Throwable): Unit = {
-    error(() => s"Unexpected error handling request: $request", cause)
+    error(s"Unexpected error handling request: $request", cause)
   }
 
   private[this] def convertField(field: UserLookUpField.Value): DomainUserField.Field = {
@@ -187,6 +188,10 @@ object IdentityServiceActor {
                                 sort: Option[SortOrder.Value],
                                 replyTo: ActorRef[SearchUsersResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait SearchUsersError
 
   case class SearchUsersResponse(users: Either[SearchUsersError, PagedData[DomainUser]]) extends CborSerializable
@@ -196,6 +201,10 @@ object IdentityServiceActor {
   //
   case class GetUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUsersResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetUsersError
 
   case class GetUsersResponse(users: Either[GetUsersError, List[DomainUser]]) extends CborSerializable
@@ -206,6 +215,11 @@ object IdentityServiceActor {
   //
   case class GetUserRequest(userId: DomainUserId, replyTo: ActorRef[GetUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFound], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetUserError
 
   case class GetUserResponse(user: Either[GetUserError, DomainUser]) extends CborSerializable
@@ -216,6 +230,10 @@ object IdentityServiceActor {
   //
   case class GetUserGroupsRequest(ids: Option[List[String]], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetUserGroupsError
 
   case class GroupNotFound(groupId: String) extends GetUserGroupsError
@@ -230,6 +248,10 @@ object IdentityServiceActor {
                                        userIds: Set[DomainUserId],
                                        replyTo: ActorRef[IdentityResolutionResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait IdentityResolutionError
 
   case class IdentityResolutionResponse(resolution: Either[IdentityResolutionError, IdentityResolution]) extends CborSerializable
@@ -242,6 +264,11 @@ object IdentityServiceActor {
   //
   case class GetUserGroupsForUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUserGroupsForUsersResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UserNotFound], name = "user_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetUserGroupsForUsersError
 
   case class GetUserGroupsForUsersResponse(groups: Either[GetUserGroupsForUsersError, Map[DomainUserId, Set[String]]]) extends CborSerializable

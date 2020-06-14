@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success, Try}
@@ -61,13 +62,16 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
       (for {
         id <- createChat(chatId, chatType, membership, name, topic, members, createdBy)
         forRecord <- chatStore.getChatRid(id)
-        _ <- permissionsStore.addUserPermissions(ChatPermissions.AllChatPermissions, createdBy, Some(forRecord))
+        _ <- permissionsStore.addUserPermissions(ChatPermissions.AllExistingChatPermissions, createdBy, Some(forRecord))
       } yield {
         CreateChatResponse(Right(id))
       })
-        .recover { cause =>
-          error("unexpected error creating chats", cause)
-          CreateChatResponse(Left(UnknownError()))
+        .recover {
+          case _: DuplicateValueException =>
+            CreateChatResponse(Left(ChatAlreadyExists()))
+          case cause =>
+            error("unexpected error creating chats", cause)
+            CreateChatResponse(Left(UnknownError()))
         }.foreach(replyTo ! _)
     }
   }
@@ -242,6 +246,10 @@ object ChatManagerActor {
                                       limit: Option[Long],
                                       replyTo: ActorRef[ChatsSearchResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait ChatsSearchError
 
   final case class ChatsSearchResponse(chats: Either[ChatsSearchError, PagedData[ChatInfo]]) extends CborSerializable
@@ -251,6 +259,11 @@ object ChatManagerActor {
   //
   final case class GetChatInfoRequest(chatId: String, replyTo: ActorRef[GetChatInfoResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFound], name = "chat_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetChatInfoError
 
   final case class ChatNotFound() extends GetChatInfoError
@@ -270,6 +283,11 @@ object ChatManagerActor {
                                      replyTo: ActorRef[CreateChatResponse]) extends Message
 
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatAlreadyExists], name = "chat_exists"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait CreateChatError
 
   final case class ChatAlreadyExists() extends CreateChatError
@@ -281,6 +299,10 @@ object ChatManagerActor {
   //
   final case class GetChatsRequest(userId: DomainUserId, ids: Set[String], replyTo: ActorRef[GetChatsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetChatsError
 
   final case class GetChatsResponse(chatInfo: Either[GetChatsError, Set[ChatInfo]]) extends CborSerializable
@@ -290,6 +312,10 @@ object ChatManagerActor {
   //
   final case class ChatsExistsRequest(userId: DomainUserId, ids: List[String], replyTo: ActorRef[ChatsExistsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait ChatsExistsError
 
   final case class ChatsExistsResponse(exists: Either[ChatsExistsError, List[Boolean]]) extends CborSerializable
@@ -299,6 +325,10 @@ object ChatManagerActor {
   //
   final case class GetJoinedChatsRequest(userId: DomainUserId, replyTo: ActorRef[GetJoinedChatsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetJoinedChatsError
 
   final case class GetJoinedChatsResponse(chatInfo: Either[GetJoinedChatsError, Set[ChatInfo]]) extends CborSerializable
@@ -310,6 +340,10 @@ object ChatManagerActor {
                                          userLists: Set[Set[DomainUserId]],
                                          replyTo: ActorRef[GetDirectChatsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait GetDirectChatsError
 
   final case class GetDirectChatsResponse(chatInfo: Either[GetDirectChatsError, Set[ChatInfo]]) extends CborSerializable

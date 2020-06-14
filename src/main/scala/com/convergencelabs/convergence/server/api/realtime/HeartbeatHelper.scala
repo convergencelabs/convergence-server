@@ -115,10 +115,11 @@ private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDu
   private[this] def sendPing(): Unit = {
     handler lift PingRequest
     logger.trace("Requesting pint, scheduling the pong timeout.")
-    this.timeoutFuture = Some(scheduler.scheduleOnce(pongTimeout, () => onTimeout())(ec))
+    cancelPongTimeout()
+    this.timeoutFuture = Some(scheduler.scheduleOnce(pongTimeout, () => onPongTimeout())(ec))
   }
 
-  private[this] def onTimeout(): Unit = {
+  private[this] def onPongTimeout(): Unit = {
     logger.debug("PONG Timeout Exceeded")
     if (_started) {
       handler lift PongTimeout

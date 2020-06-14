@@ -111,7 +111,7 @@ class PresenceClientActor private(context: ActorContext[PresenceClientActor.Mess
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
     presenceServiceActor.ask[PresenceServiceActor.GetPresencesResponse](PresenceServiceActor.GetPresencesRequest(userIds.toList, _))
         .map(_.presence.fold({
-          case PresenceServiceActor.UserNotFound(userId) =>
+          case PresenceServiceActor.UserNotFoundError(userId) =>
             userNotFound(userId, cb)
           case _ =>
             cb.unexpectedError("An unexpected error occurred getting presence.")
@@ -126,7 +126,7 @@ class PresenceClientActor private(context: ActorContext[PresenceClientActor.Mess
     val userIds = userIdData.map(ImplicitMessageConversions.dataToDomainUserId)
     presenceServiceActor.ask[PresenceServiceActor.SubscribePresenceResponse](PresenceServiceActor.SubscribePresenceRequest(userIds.toList, context.self.narrow[OutgoingMessage], _))
       .map(_.presences.fold({
-        case PresenceServiceActor.UserNotFound(userId) =>
+        case PresenceServiceActor.UserNotFoundError(userId) =>
           userNotFound(userId, cb)
         case _ =>
           cb.unexpectedError("An unexpected error occurred subscribing to presence.")

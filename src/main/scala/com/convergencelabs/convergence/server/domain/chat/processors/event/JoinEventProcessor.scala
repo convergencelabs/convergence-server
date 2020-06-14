@@ -13,12 +13,13 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain._
+import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions, ChatState}
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 /**
  * The [[JoinEventProcessor]] provides helper methods to process
@@ -38,7 +39,7 @@ private[chat] object JoinEventProcessor
     process(
       message = message,
       state = state,
-      checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
+      checkPermissions = hasPermission(state, chatStore, permissionsStore),
       validateMessage = validateMessage,
       createEvent = createEvent,
       persistEvent = persistEvent(chatStore, permissionsStore),
@@ -46,6 +47,16 @@ private[chat] object JoinEventProcessor
       createSuccessReply = createSuccessReply,
       createErrorReply = value => ChatActor.JoinChatResponse(Left(value))
     )
+
+  def hasPermission(state: ChatState,
+                    chatStore: ChatStore,
+                    permissionsStore: PermissionsStore)(userId: DomainUserId): Try[Boolean] = {
+    if (state.membership == ChatMembership.Public) {
+      Success(true)
+    } else {
+      hasPermissions(chatStore, permissionsStore, state.id, RequiredPermission)(userId)
+    }
+  }
 
   def validateMessage(message: JoinChatRequest, state: ChatState): Either[ChatActor.JoinChatResponse, Unit] = {
     if (state.members.contains(message.requester)) {

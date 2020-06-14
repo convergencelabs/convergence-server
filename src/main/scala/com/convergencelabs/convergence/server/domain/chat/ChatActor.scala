@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.processors._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.DurationInt
@@ -36,13 +37,17 @@ import scala.util.{Failure, Success, Try}
  * chat room. The handling of messages is delegated to a ChatMessageProcessor
  * which implements the specific business logic of each type of chat.
  *
- * @param context     The ActorContext this actor is created in.
- * @param shardRegion The ActorRef to send messages to the chat share region.
- * @param shard       The ActorRef to send messages to this sharded actors host shard.
+ * @param context            The ActorContext this actor is created in.
+ * @param shardRegion        The ActorRef to send messages to the chat share
+ *                           region.
+ * @param shard              The ActorRef to send messages to this sharded
+ *                           actors host shard.
+ * @param chatDeliveryRegion The shard region for message delivery to users.
  */
 class ChatActor private(context: ActorContext[ChatActor.Message],
                         shardRegion: ActorRef[ChatActor.Message],
-                        shard: ActorRef[ClusterSharding.ShardCommand])
+                        shard: ActorRef[ClusterSharding.ShardCommand],
+                        chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send])
   extends ShardedActor[ChatActor.Message](context, shardRegion, shard) with Logging {
 
   import ChatActor._
@@ -85,19 +90,29 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
           context.setReceiveTimeout(120.seconds, ReceiveTimeout(this.domainId, this.chatId))
           state.membership match {
             case ChatMembership.Private =>
-              this.messageProcessor = Some(new PrivateChannelMessageProcessor(state,
+              this.messageProcessor = Some(new PrivateChannelMessageProcessor(
+                state,
                 provider.chatStore,
-                provider.permissionsStore))
+                provider.permissionsStore,
+                domainId,
+                chatDeliveryRegion))
             case ChatMembership.Public =>
-              this.messageProcessor = Some(new PublicChannelMessageProcessor(state,
+              this.messageProcessor = Some(new PublicChannelMessageProcessor(
+                state,
                 provider.chatStore,
-                provider.permissionsStore))
+                provider.permissionsStore,
+                domainId,
+                chatDeliveryRegion))
           }
         case ChatType.Direct =>
           context.setReceiveTimeout(120.seconds, ReceiveTimeout(this.domainId, this.chatId))
-          this.messageProcessor = Some(new DirectChatMessageProcessor(state,
+          this.messageProcessor = Some(new DirectChatMessageProcessor(
+            state,
             provider.chatStore,
-            provider.permissionsStore))
+            provider.permissionsStore,
+            domainId,
+            chatDeliveryRegion
+          ))
       }
       StartUpRequired
     })
@@ -163,13 +178,9 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
 
 object ChatActor {
   def apply(shardRegion: ActorRef[Message],
-            shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] = Behaviors.setup { context =>
-    new ChatActor(context, shardRegion, shard)
-  }
-
-  def getChatUsernameTopicName(userId: DomainUserId): String = {
-    s"chat-user-${userId.userType.toString.toLowerCase}-${userId.username}"
-  }
+            shard: ActorRef[ClusterSharding.ShardCommand],
+            chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send]): Behavior[Message] =
+    Behaviors.setup(context => new ChatActor(context, shardRegion, shard, chatDeliveryRegion))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -210,6 +221,14 @@ object ChatActor {
                                    client: ActorRef[ChatClientActor.OutgoingMessage],
                                    replyTo: ActorRef[JoinChatResponse]) extends ChatEventRequest[JoinChatResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatAlreadyJoinedError]),
+    new JsonSubTypes.Type(value = classOf[ChatOperationNotSupported]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait JoinChatError
 
   final case class JoinChatResponse(info: Either[JoinChatError, ChatInfo]) extends CborSerializable
@@ -223,6 +242,14 @@ object ChatActor {
                                     client: ActorRef[ChatClientActor.OutgoingMessage],
                                     replyTo: ActorRef[LeaveChatResponse]) extends ChatEventRequest[LeaveChatResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[ChatOperationNotSupported]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait LeaveChatError
 
   final case class LeaveChatResponse(response: Either[LeaveChatError, Unit]) extends CborSerializable
@@ -236,8 +263,18 @@ object ChatActor {
                                         userToAdd: DomainUserId,
                                         replyTo: ActorRef[AddUserToChatResponse]) extends ChatEventRequest[AddUserToChatResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[AlreadyAMemberError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[ChatOperationNotSupported]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait AddUserToChatError
 
+  @JsonTypeName("already_member")
   final case class AlreadyAMemberError() extends AddUserToChatError
 
   final case class AddUserToChatResponse(response: Either[AddUserToChatError, Unit]) extends CborSerializable
@@ -251,10 +288,22 @@ object ChatActor {
                                              userToRemove: DomainUserId,
                                              replyTo: ActorRef[RemoveUserFromChatResponse]) extends ChatEventRequest[RemoveUserFromChatResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[NotAMemberError]),
+    new JsonSubTypes.Type(value = classOf[CantRemoveSelfError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[ChatOperationNotSupported]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait RemoveUserFromChatError
 
+  @JsonTypeName("not_a_member")
   final case class NotAMemberError() extends RemoveUserFromChatError
 
+  @JsonTypeName("remove_self")
   final case class CantRemoveSelfError() extends RemoveUserFromChatError
 
   final case class RemoveUserFromChatResponse(response: Either[RemoveUserFromChatError, Unit]) extends CborSerializable
@@ -268,6 +317,13 @@ object ChatActor {
                                       name: String,
                                       replyTo: ActorRef[SetChatNameResponse]) extends ChatEventRequest[SetChatNameResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait SetChatNameError
 
   final case class SetChatNameResponse(response: Either[SetChatNameError, Unit]) extends CborSerializable
@@ -281,6 +337,13 @@ object ChatActor {
                                        topic: String,
                                        replyTo: ActorRef[SetChatTopicResponse]) extends ChatEventRequest[SetChatTopicResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait SetChatTopicError
 
   final case class SetChatTopicResponse(response: Either[SetChatTopicError, Unit]) extends CborSerializable
@@ -294,6 +357,13 @@ object ChatActor {
                                               eventNumber: Long,
                                               replyTo: ActorRef[MarkChatsEventsSeenResponse]) extends ChatEventRequest[MarkChatsEventsSeenResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait MarkChatsEventsSeenError
 
   final case class MarkChatsEventsSeenResponse(response: Either[MarkChatsEventsSeenError, Unit]) extends CborSerializable
@@ -307,6 +377,13 @@ object ChatActor {
                                              message: String,
                                              replyTo: ActorRef[PublishChatMessageResponse]) extends ChatEventRequest[PublishChatMessageResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait PublishChatMessageError
 
   final case class PublishChatMessageAck(eventNumber: Long, timestamp: Instant)
@@ -317,7 +394,6 @@ object ChatActor {
   /*
    *  Chat Permissions Messages
    */
-
 
   sealed trait ChatPermissionsRequest[R] extends ChatRequestMessage {
     val replyTo: ActorRef[R]
@@ -335,6 +411,13 @@ object ChatActor {
                                              group: Option[Set[GroupPermissions]],
                                              replyTo: ActorRef[AddChatPermissionsResponse]) extends ChatPermissionsRequest[AddChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait AddChatPermissionsError
 
   final case class AddChatPermissionsResponse(response: Either[AddChatPermissionsError, Unit]) extends CborSerializable
@@ -350,6 +433,13 @@ object ChatActor {
                                                 group: Option[Set[GroupPermissions]],
                                                 replyTo: ActorRef[RemoveChatPermissionsResponse]) extends ChatPermissionsRequest[RemoveChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait RemoveChatPermissionsError
 
   final case class RemoveChatPermissionsResponse(response: Either[RemoveChatPermissionsError, Unit]) extends CborSerializable
@@ -365,6 +455,13 @@ object ChatActor {
                                              group: Option[Set[GroupPermissions]],
                                              replyTo: ActorRef[SetChatPermissionsResponse]) extends ChatPermissionsRequest[SetChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait SetChatPermissionsError
 
   final case class SetChatPermissionsResponse(response: Either[SetChatPermissionsError, Unit]) extends CborSerializable
@@ -377,6 +474,13 @@ object ChatActor {
                                                    requester: DomainUserSessionId,
                                                    replyTo: ActorRef[GetClientChatPermissionsResponse]) extends ChatPermissionsRequest[GetClientChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetClientChatPermissionsError
 
   final case class GetClientChatPermissionsResponse(permissions: Either[GetClientChatPermissionsError, Set[String]]) extends CborSerializable
@@ -389,6 +493,13 @@ object ChatActor {
                                                   requester: DomainUserSessionId,
                                                   replyTo: ActorRef[GetWorldChatPermissionsResponse]) extends ChatPermissionsRequest[GetWorldChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetWorldChatPermissionsError
 
   final case class GetWorldChatPermissionsResponse(permissions: Either[GetWorldChatPermissionsError, Set[String]]) extends CborSerializable
@@ -401,6 +512,13 @@ object ChatActor {
                                                     requester: DomainUserSessionId,
                                                     replyTo: ActorRef[GetAllUserChatPermissionsResponse]) extends ChatPermissionsRequest[GetAllUserChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetAllUserChatPermissionsError
 
   final case class GetAllUserChatPermissionsResponse(users: Either[GetAllUserChatPermissionsError, Map[DomainUserId, Set[String]]]) extends CborSerializable
@@ -413,6 +531,13 @@ object ChatActor {
                                                      requester: DomainUserSessionId,
                                                      replyTo: ActorRef[GetAllGroupChatPermissionsResponse]) extends ChatPermissionsRequest[GetAllGroupChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetAllGroupChatPermissionsError
 
   final case class GetAllGroupChatPermissionsResponse(groups: Either[GetAllGroupChatPermissionsError, Map[String, Set[String]]]) extends CborSerializable
@@ -426,6 +551,13 @@ object ChatActor {
                                                  userId: DomainUserId,
                                                  replyTo: ActorRef[GetUserChatPermissionsResponse]) extends ChatPermissionsRequest[GetUserChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetUserChatPermissionsError
 
   final case class GetUserChatPermissionsResponse(permissions: Either[GetUserChatPermissionsError, Set[String]]) extends CborSerializable
@@ -439,6 +571,13 @@ object ChatActor {
                                                   groupId: String,
                                                   replyTo: ActorRef[GetGroupChatPermissionsResponse]) extends ChatPermissionsRequest[GetGroupChatPermissionsResponse]
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetGroupChatPermissionsError
 
   final case class GetGroupChatPermissionsResponse(permissions: Either[GetGroupChatPermissionsError, Set[String]]) extends CborSerializable
@@ -460,6 +599,13 @@ object ChatActor {
                                          messageFilter: Option[String] = None,
                                          replyTo: ActorRef[GetChatHistoryResponse]) extends ChatRequestMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[ChatNotJoinedError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait GetChatHistoryError
 
   final case class GetChatHistoryResponse(events: Either[GetChatHistoryError, PagedData[ChatEvent]]) extends CborSerializable
@@ -473,6 +619,12 @@ object ChatActor {
                                      requester: DomainUserId,
                                      replyTo: ActorRef[RemoveChatResponse]) extends ChatRequestMessage
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatNotFoundError]),
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError]),
+    new JsonSubTypes.Type(value = classOf[UnknownError]),
+  ))
   sealed trait RemoveChatError
 
   final case class RemoveChatResponse(response: Either[RemoveChatError, Unit]) extends CborSerializable
@@ -482,6 +634,7 @@ object ChatActor {
   // Common Errors
   //
 
+  @JsonTypeName("already_joined")
   final case class ChatAlreadyJoinedError() extends AnyRef
     with JoinChatError
 
@@ -506,12 +659,16 @@ object ChatActor {
     with GetGroupChatPermissionsError
     with GetChatHistoryError
 
+  @JsonTypeName("unknown")
   final case class UnknownError() extends CommonErrors
 
+  @JsonTypeName("unauthorized")
   final case class UnauthorizedError() extends CommonErrors
 
+  @JsonTypeName("not_found")
   final case class ChatNotFoundError() extends CommonErrors
 
+  @JsonTypeName("not_Supported")
   final case class ChatOperationNotSupported(reason: String) extends AnyRef
     with AddUserToChatError
     with RemoveUserFromChatError
@@ -519,6 +676,7 @@ object ChatActor {
     with LeaveChatError
 
 
+  @JsonTypeName("not_joined")
   final case class ChatNotJoinedError() extends AnyRef
     with LeaveChatError
     with AddUserToChatError
@@ -537,7 +695,6 @@ object ChatActor {
     with GetUserChatPermissionsError
     with GetGroupChatPermissionsError
     with GetChatHistoryError
-
 }
 
 
