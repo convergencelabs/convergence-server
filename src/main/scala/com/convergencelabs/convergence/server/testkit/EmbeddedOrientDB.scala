@@ -31,7 +31,7 @@ class EmbeddedOrientDB(private[this] val databasesPath: String,
   OLogManager.instance().setWarnEnabled(false)
   OLogManager.instance().setConsoleLevel("SEVERE")
 
-  private[this] val server = new OServer()
+  private[this] val server = new OServer(false)
   private[this] val databasesDir = new File(databasesPath)
 
   /**
