@@ -676,7 +676,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
   }
 
   private[this] def chatNotJoined(chatId: String, cb: ReplyCallback): Unit = {
-    cb.expectedError(ErrorCodes.ChatNotFound, s"The chat must be joined to perform the requested operation: $chatId")
+    cb.expectedError(ErrorCodes.ChatNotJoined, s"The chat must be joined to perform the requested operation: $chatId")
   }
 
   private[this] def notSupported(reason: String, cb: ReplyCallback): Unit = {
