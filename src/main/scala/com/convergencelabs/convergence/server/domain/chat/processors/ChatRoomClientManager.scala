@@ -24,13 +24,12 @@ private[chat] class ChatRoomClientManager {
   private[this] var clientUserMap = Map[Client, DomainUserId]()
   private[this] var clientsByUser = Map[DomainUserId, Set[Client]]()
 
-  def join(userId: DomainUserId, client: ActorRef[ChatClientActor.OutgoingMessage]): Boolean = {
+  def join(userId: DomainUserId, client: ActorRef[ChatClientActor.OutgoingMessage]): Unit = {
     val clientForUser = this.clientsByUser.getOrElse(userId, Set())
     val updatedClients = clientForUser + client
     this.clientsByUser += (userId -> updatedClients)
     clientUserMap += (client -> userId)
     this.clients += client
-    updatedClients.size == 1
   }
 
   def remove(userId: DomainUserId): Unit = {
@@ -39,7 +38,7 @@ private[chat] class ChatRoomClientManager {
     }
   }
 
-  def leave(client: Client): Boolean = {
+  def leave(client: Client): Unit = {
     val userId = this.clientUserMap(client)
     val clientForUser = this.clientsByUser.getOrElse(userId, Set())
     val updatedClients = clientForUser - client
@@ -51,14 +50,17 @@ private[chat] class ChatRoomClientManager {
 
     clientUserMap -= client
     clients -= client
-    updatedClients.isEmpty
   }
 
-  def isConnected(client: Client): Boolean = {
+  def isJoined(client: Client): Boolean = {
     this.clients.contains(client)
   }
 
-  def connectedClients(): Set[ActorRef[ChatClientActor.OutgoingMessage]] = {
+  def isJoined(user: DomainUserId): Boolean = {
+    this.clientsByUser.contains(user)
+  }
+
+  def joinedClients(): Set[ActorRef[ChatClientActor.OutgoingMessage]] = {
     clients
   }
 

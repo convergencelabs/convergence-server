@@ -124,9 +124,9 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       case message: RemoveChatRequestMessage =>
         onRemoveChannel(message, replyCallback)
       case message: JoinChatRequestMessage =>
-        onJoinChannel(message, replyCallback)
+        onJoinChatRequest(message, replyCallback)
       case message: LeaveChatRequestMessage =>
-        onLeaveChannel(message, replyCallback)
+        onLeaveChatRequest(message, replyCallback)
       case message: AddUserToChatChannelRequestMessage =>
         onAddUserToChannel(message, replyCallback)
       case message: RemoveUserFromChatChannelRequestMessage =>
@@ -222,7 +222,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
   }
 
 
-  private[this] def onJoinChannel(message: JoinChatRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onJoinChatRequest(message: JoinChatRequestMessage, cb: ReplyCallback): Unit = {
     val JoinChatRequestMessage(chatId, _) = message
     chatShardRegion
       .ask[ChatActor.JoinChatResponse](ChatActor.JoinChatRequest(domainId, chatId, session.userId, outgoingSelf, _))
@@ -241,7 +241,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onLeaveChannel(message: LeaveChatRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onLeaveChatRequest(message: LeaveChatRequestMessage, cb: ReplyCallback): Unit = {
     val LeaveChatRequestMessage(chatId, _) = message
     chatShardRegion
       .ask[ChatActor.LeaveChatResponse](ChatActor.LeaveChatRequest(domainId, chatId, session.userId, outgoingSelf, _))
@@ -254,8 +254,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
           case ChatActor.ChatOperationNotSupported(reason) =>
             cb.expectedError(ErrorCodes.NotSupported, reason)
         },
-        _ => LeaveChatResponseMessage())
-      )
+        _ => cb.reply(LeaveChatResponseMessage())
+      ))
       .recover(_ => cb.timeoutError())
   }
 

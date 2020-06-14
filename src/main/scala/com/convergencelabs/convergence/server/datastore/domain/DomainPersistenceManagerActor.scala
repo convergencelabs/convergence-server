@@ -135,7 +135,7 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
   }
 
   private[this] def onActorDeath(terminatedActor: ActorRef[_]): Unit = {
-    debug(s"Unregistering all persistence providers for died actor: ${terminatedActor.path}")
+    debug(s"Unregistering all persistence providers for terminated actor: ${terminatedActor.path}")
     context.unwatch(terminatedActor)
     providersByActor.get(terminatedActor) foreach (_.foreach(decrementDomainReferenceCount))
     providersByActor -= terminatedActor

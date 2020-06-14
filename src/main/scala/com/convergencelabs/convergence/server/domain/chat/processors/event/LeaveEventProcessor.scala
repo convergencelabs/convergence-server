@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, ChatUserLeftEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, LeaveChatRequest, LeaveChatResponse}
@@ -75,7 +76,7 @@ private[chat] object LeaveEventProcessor
                          state: ChatState): ReplyAndBroadcastTask[LeaveChatResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
-      LeaveChatResponse(Right(())),
+      LeaveChatResponse(Right(Ok())),
       Some(ChatClientActor.UserLeftChat(event.id, event.eventNumber, event.timestamp, event.user))
     )
   }

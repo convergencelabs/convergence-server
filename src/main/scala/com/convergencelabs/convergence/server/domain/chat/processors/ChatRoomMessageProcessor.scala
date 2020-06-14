@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, Terminated}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.DomainId
@@ -41,7 +42,7 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
 
   override def onChatEventRequest(message: ChatEventRequest[_]): ChatMessageProcessor.NextBehavior = {
     val result = super.onChatEventRequest(message)
-    if (this.chatState.members.isEmpty) {
+    if (state.members.isEmpty) {
       ChatMessageProcessor.Passivate
     } else {
       result
@@ -53,54 +54,78 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
       ReplyAndBroadcastTask(MessageReplyTask(msg.replyTo, AddUserToChatResponse(Left(ChatOperationNotSupported("Can not add user to a chat room")))), None))
 
   override def onJoinChatRequest(message: JoinChatRequest): ChatEventMessageProcessorResult[JoinChatResponse] = {
-    val JoinChatRequest(_, channelId, requester, client, _) = message
-    logger.debug(s"Client($requester) requested to join chat room: $channelId")
+    val JoinChatRequest(_, chatId, requester, client, _) = message
+    logger.debug(s"Client($requester) requested to join chat room: $chatId")
 
-    // FIXME this is not right.  We need to just check if they are joined.  They might
-    //  not have the permissions to join.
-    val result = if (clientManager.join(requester, client)) {
-      super.onJoinChatRequest(message)
+    if (!clientManager.isJoined(client)) {
+      // This client is not joined yet, so we can process the request.
+
+      if (!clientManager.isJoined(requester)) {
+        // The user has not joined yet. So we want to run the normal join
+        // process.
+
+        val result = super.onJoinChatRequest(message)
+        // we peek into the result and see if the join was a success. If so, we
+        // let the client manager know.
+        if (result.task.reply.response.info.isRight) {
+          clientManager.join(requester, client)
+          clientWatcher ! ChatRoomClientWatcher.Watch(client)
+        }
+
+        result
+      } else {
+        // We know this user is allowed to join since they already
+        // have a session.
+        clientManager.join(requester, client)
+        clientWatcher ! ChatRoomClientWatcher.Watch(client)
+
+        val action = ReplyAndBroadcastTask(
+          MessageReplyTask(message.replyTo, JoinChatResponse(Right(JoinEventProcessor.stateToInfo(chatState)))),
+          None
+        )
+
+        ChatEventMessageProcessorResult(None, action)
+      }
     } else {
+      // This session / client is already in the room.
       val action = ReplyAndBroadcastTask(
-        MessageReplyTask(message.replyTo,
-          JoinChatResponse(Right(JoinEventProcessor.stateToInfo(chatState)))),
+        MessageReplyTask(message.replyTo, JoinChatResponse(Left(ChatAlreadyJoinedError()))),
         None
       )
 
-      clientWatcher ! ChatRoomClientWatcher.Watch(client)
-
       ChatEventMessageProcessorResult(None, action)
     }
-    result
   }
 
-
   override def onLeaveChatRequest(message: LeaveChatRequest): ChatEventMessageProcessorResult[LeaveChatResponse] = {
-    val LeaveChatRequest(_, channelId, _, client, _) = message
+    val LeaveChatRequest(_, chatId, requester, client, _) = message
 
-    this.clientWatcher ! ChatRoomClientWatcher.Unwatch(client)
+    if (clientManager.isJoined(client)) {
+      // The client is joined, so we can process the leave.
+      logger.debug(s"Client($client) left chat room: $chatId")
 
-    if (clientManager.isConnected(client)) {
-      logger.debug(s"Client($client) left chat room: $channelId")
-      val result = if (clientManager.leave(client)) {
+      this.clientWatcher ! ChatRoomClientWatcher.Unwatch(client)
+      clientManager.leave(client)
+
+      if (!clientManager.isJoined(requester)) {
+        // Th user is not longer joined to the room. So process the leave.
         super.onLeaveChatRequest(message)
       } else {
-        val action = ReplyAndBroadcastTask(MessageReplyTask(message.replyTo, LeaveChatResponse(Right(()))), None)
+        // The user still has more sessions so we just respond to this
+        // request.
+        val action = ReplyAndBroadcastTask(MessageReplyTask(message.replyTo, LeaveChatResponse(Right(Ok()))), None)
         ChatEventMessageProcessorResult(None, action)
       }
-
-      result
     } else {
-      ChatEventMessageProcessorResult(None,
-        ReplyAndBroadcastTask(
-          MessageReplyTask(message.replyTo, ChatActor.LeaveChatResponse(Left(ChatNotJoinedError()))),
-          None)
-      )
+      // The client is not joined to this room so we returned an error.
+      val action = ReplyAndBroadcastTask(
+        MessageReplyTask(message.replyTo, LeaveChatResponse(Left(ChatNotJoinedError()))), None)
+      ChatEventMessageProcessorResult(None, action)
     }
   }
 
   def broadcast(message: ChatClientActor.OutgoingMessage): Unit = {
-    clientManager.connectedClients().foreach(client => {
+    clientManager.joinedClients().foreach(client => {
       client ! message
     })
   }

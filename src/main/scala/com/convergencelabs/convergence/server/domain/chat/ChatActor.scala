@@ -16,7 +16,7 @@ import java.time.Instant
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.common.{Ok, PagedData}
 import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
@@ -252,7 +252,7 @@ object ChatActor {
   ))
   sealed trait LeaveChatError
 
-  final case class LeaveChatResponse(response: Either[LeaveChatError, Unit]) extends CborSerializable
+  final case class LeaveChatResponse(response: Either[LeaveChatError, Ok]) extends CborSerializable
 
   //
   // AddUserToChannel

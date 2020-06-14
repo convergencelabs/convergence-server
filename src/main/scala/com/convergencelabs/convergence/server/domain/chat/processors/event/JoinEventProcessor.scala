@@ -70,7 +70,11 @@ private[chat] object JoinEventProcessor
     ChatUserJoinedEvent(nextEvent(state), state.id, message.requester, timestamp())
 
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserJoinedEvent): Try[Unit] = {
-    chatStore.addChatUserJoinedEvent(event)
+    for {
+      _ <- chatStore.addChatUserJoinedEvent(event)
+      chatRid <- chatStore.getChatRid(event.id)
+      _ <- permissionsStore.addUserPermissions(ChatPermissions.DefaultChatPermissions, event.user, Some(chatRid))
+    } yield ()
   }
 
   def updateState(event: ChatUserJoinedEvent, state: ChatState): ChatState = {
