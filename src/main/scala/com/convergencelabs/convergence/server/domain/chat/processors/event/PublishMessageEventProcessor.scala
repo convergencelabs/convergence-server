@@ -13,12 +13,12 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMessageEvent, ChatStore, PermissionsStore}
+import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, PublishChatMessageAck, PublishChatMessageRequest, PublishChatMessageResponse}
-import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.domain.chat.processors.ReplyAndBroadcastTask
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions, ChatState}
+import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatState}
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 /**
  * The [[PublishMessageEventProcessor]] provides helper methods to process
@@ -29,8 +29,6 @@ private[chat] object PublishMessageEventProcessor
 
   import ChatEventMessageProcessor._
 
-  private val RequiredPermission = ChatPermissions.Permissions.JoinChat
-
   def execute(message: ChatActor.PublishChatMessageRequest,
               state: ChatState,
               chatStore: ChatStore,
@@ -38,7 +36,7 @@ private[chat] object PublishMessageEventProcessor
     process(
       message = message,
       state = state,
-      checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
+      checkPermissions = (_: DomainUserId) => Success(true),
       validateMessage = validateMessage,
       createEvent = createEvent,
       persistEvent = persistEvent(chatStore, permissionsStore),
