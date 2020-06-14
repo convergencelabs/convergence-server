@@ -58,7 +58,9 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
   private[this] var authenticator: AuthenticationHandler = _
   private[this] var children: DomainActorChildren = _
 
-  override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
+  override def onSignal: PartialFunction[Signal, Behavior[Message]] = handleSignal orElse super.onSignal
+
+  private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
     case Terminated(client) =>
       handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
   }
