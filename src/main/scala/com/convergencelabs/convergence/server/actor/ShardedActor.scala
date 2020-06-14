@@ -44,6 +44,7 @@ abstract class ShardedActor[T](context: ActorContext[T],
   import ShardedActor._
 
   private[this] var initialized = false
+  private[this] var passivating = false
 
   /**
    * A string that represents the identity of this actor. Used in logging.
@@ -53,6 +54,8 @@ abstract class ShardedActor[T](context: ActorContext[T],
   override def onMessage(msg: T): Behavior[T] = {
     if (!initialized) {
       receiveInitialMessage(msg)
+    } else if (passivating) {
+      receivePassivating(msg)
     } else {
       receiveInitialized(msg)
     }
@@ -63,9 +66,9 @@ abstract class ShardedActor[T](context: ActorContext[T],
    */
   protected def passivate(): Behavior[T] = {
     debug(s"$identityString: Passivating")
+    this.passivating = true
     shard ! Passivate(context.self)
-    Behaviors.receiveMessage(receivePassivating)
-      .receiveSignal(s => onSignal(s._2))
+    Behaviors.same
   }
 
   private[this] def receivePassivating(msg: T): Behavior[T] = {
