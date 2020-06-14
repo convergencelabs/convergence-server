@@ -465,7 +465,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         if (idType == PermissionType.CHAT) {
           chatClient ! ChatClientActor.IncomingProtocolPermissionsRequest(msg, cb)
         }
-      case message: Any =>
+      case _: Any =>
       // TODO send an error back
     }
 
