@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
+import scala.annotation.nowarn
 import scala.util.Try
 
 class DomainStatsActor private(context: ActorContext[DomainStatsActor.Message],
@@ -52,8 +53,9 @@ class DomainStatsActor private(context: ActorContext[DomainStatsActor.Message],
       .foreach(replyTo ! _)
   }
 
+  @nowarn
   private[this] def databaseSize(): Try[Long] = persistence.dbProvider.tryWithDatabase { db =>
-    db.getSize()
+    db.getSize
   }
 }
 
@@ -90,5 +92,4 @@ object DomainStatsActor {
 
   final case class UnknownError() extends AnyRef
     with GetStatsError
-
 }

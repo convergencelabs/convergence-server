@@ -180,7 +180,7 @@ object IdentityServiceActor {
   //
   // SearchUsers
   //
-  case class SearchUsersRequest(fields: List[UserLookUpField.Value],
+  final case class SearchUsersRequest(fields: List[UserLookUpField.Value],
                                 searchValue: String,
                                 offset: Option[Int],
                                 limit: Option[Int],
@@ -194,12 +194,12 @@ object IdentityServiceActor {
   ))
   sealed trait SearchUsersError
 
-  case class SearchUsersResponse(users: Either[SearchUsersError, PagedData[DomainUser]]) extends CborSerializable
+  final case class SearchUsersResponse(users: Either[SearchUsersError, PagedData[DomainUser]]) extends CborSerializable
 
   //
   // GetUsersRequest
   //
-  case class GetUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUsersResponse]) extends Message
+  final case class GetUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -207,13 +207,13 @@ object IdentityServiceActor {
   ))
   sealed trait GetUsersError
 
-  case class GetUsersResponse(users: Either[GetUsersError, List[DomainUser]]) extends CborSerializable
+  final case class GetUsersResponse(users: Either[GetUsersError, List[DomainUser]]) extends CborSerializable
 
 
   //
   // GetUserRequest
   //
-  case class GetUserRequest(userId: DomainUserId, replyTo: ActorRef[GetUserResponse]) extends Message
+  final case class GetUserRequest(userId: DomainUserId, replyTo: ActorRef[GetUserResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -222,13 +222,13 @@ object IdentityServiceActor {
   ))
   sealed trait GetUserError
 
-  case class GetUserResponse(user: Either[GetUserError, DomainUser]) extends CborSerializable
+  final case class GetUserResponse(user: Either[GetUserError, DomainUser]) extends CborSerializable
 
 
   //
   // GetUserGroups
   //
-  case class GetUserGroupsRequest(ids: Option[List[String]], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
+  final case class GetUserGroupsRequest(ids: Option[List[String]], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -236,15 +236,15 @@ object IdentityServiceActor {
   ))
   sealed trait GetUserGroupsError
 
-  case class GroupNotFound(groupId: String) extends GetUserGroupsError
+  final case class GroupNotFound(groupId: String) extends GetUserGroupsError
 
-  case class GetUserGroupsResponse(groups: Either[GetUserGroupsError, List[UserGroup]]) extends CborSerializable
+  final case class GetUserGroupsResponse(groups: Either[GetUserGroupsError, List[UserGroup]]) extends CborSerializable
 
 
   //
   // IdentityResolution
   //
-  case class IdentityResolutionRequest(sessionIds: Set[String],
+  final case class IdentityResolutionRequest(sessionIds: Set[String],
                                        userIds: Set[DomainUserId],
                                        replyTo: ActorRef[IdentityResolutionResponse]) extends Message
 
@@ -254,15 +254,15 @@ object IdentityServiceActor {
   ))
   sealed trait IdentityResolutionError
 
-  case class IdentityResolutionResponse(resolution: Either[IdentityResolutionError, IdentityResolution]) extends CborSerializable
+  final case class IdentityResolutionResponse(resolution: Either[IdentityResolutionError, IdentityResolution]) extends CborSerializable
 
-  case class IdentityResolution(sessionMap: Map[String, DomainUserId], users: Set[DomainUser])
+  final case class IdentityResolution(sessionMap: Map[String, DomainUserId], users: Set[DomainUser])
 
 
   //
   // GetUserGroupsForUsers
   //
-  case class GetUserGroupsForUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUserGroupsForUsersResponse]) extends Message
+  final case class GetUserGroupsForUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUserGroupsForUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -271,16 +271,16 @@ object IdentityServiceActor {
   ))
   sealed trait GetUserGroupsForUsersError
 
-  case class GetUserGroupsForUsersResponse(groups: Either[GetUserGroupsForUsersError, Map[DomainUserId, Set[String]]]) extends CborSerializable
+  final case class GetUserGroupsForUsersResponse(groups: Either[GetUserGroupsForUsersError, Map[DomainUserId, Set[String]]]) extends CborSerializable
 
   //
   // Common Errors
   //
-  case class UserNotFound(userId: DomainUserId)
+  final case class UserNotFound(userId: DomainUserId)
     extends GetUserError
       with GetUserGroupsForUsersError
 
-  case class UnknownError()
+  final case class UnknownError()
     extends GetUserError
       with GetUsersError
       with GetUserGroupsForUsersError

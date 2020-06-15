@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 import java.time.Instant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatStore, ChatUserAddedEvent, PermissionsStore}
@@ -53,7 +54,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
         response.newState shouldBe defined
         response.task.broadcast shouldBe defined
         response.task.reply.replyTo shouldBe message.replyTo
-        response.task.reply.response shouldBe AddUserToChatResponse(Right(()))
+        response.task.reply.response shouldBe AddUserToChatResponse(Right(Ok()))
       }
     }
 
@@ -149,7 +150,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val task = AddUserEventProcessor.createSuccessReply(message, event, state)
         task.reply.replyTo shouldBe message.replyTo
-        task.reply.response shouldBe AddUserToChatResponse(Right(()))
+        task.reply.response shouldBe AddUserToChatResponse(Right(Ok()))
         task.broadcast shouldBe Some(ChatClientActor.UserAddedToChat(
           event.id, event.eventNumber, event.timestamp, event.user, event.userAdded))
       }

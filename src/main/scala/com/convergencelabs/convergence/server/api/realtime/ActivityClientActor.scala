@@ -140,8 +140,7 @@ class ActivityClientActor private(context: ActorContext[Message],
       .map(_.response.fold({
         case ActivityActor.NotJoinedError() =>
         // cb.expectedError("not_joined", s"The session is already joined to activity '$activityId'.")
-      }, {
-        case () =>
+      }, { _ =>
         // todo reply
       }))
       .recover {

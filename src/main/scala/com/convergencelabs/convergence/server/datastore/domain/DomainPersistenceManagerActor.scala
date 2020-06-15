@@ -269,9 +269,15 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
+
+  //
+  // Note: These messages are not tagged as serializable since they should NEVER
+  // be sent between actor systems.
+  //
+
   sealed trait Message
 
-  final case class Acquire(domainId: DomainId, requester: ActorRef[Nothing], replyTo: ActorRef[AcquireResponse]) extends Message
+  final case class Acquire(domainId: DomainId, requester: ActorRef[_], replyTo: ActorRef[AcquireResponse]) extends Message
 
   //
   // Acquire

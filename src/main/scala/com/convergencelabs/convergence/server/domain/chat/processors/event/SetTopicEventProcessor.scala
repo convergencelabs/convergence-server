@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, ChatTopicChangedEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, SetChatTopicRequest, SetChatTopicResponse}
@@ -71,7 +72,7 @@ private[chat] object SetTopicEventProcessor
                          state: ChatState): ReplyAndBroadcastTask[SetChatTopicResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
-      SetChatTopicResponse(Right(())),
+      SetChatTopicResponse(Right(Ok())),
       Some(ChatClientActor.ChatTopicChanged(event.id, event.eventNumber, event.timestamp, event.user, event.topic))
     )
   }

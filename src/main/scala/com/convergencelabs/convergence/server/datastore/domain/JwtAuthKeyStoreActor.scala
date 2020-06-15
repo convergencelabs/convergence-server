@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
@@ -69,7 +70,7 @@ class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Me
     val DeleteJwtAuthKeyRequest(id, replyTo) = msg
     keyStore
       .deleteKey(id)
-      .map(_ => DeleteJwtAuthKeyResponse(Right(())))
+      .map(_ => DeleteJwtAuthKeyResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           DeleteJwtAuthKeyResponse(Left(JwtAuthKeyNotFoundError()))
@@ -84,7 +85,7 @@ class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Me
     val CreateJwtAuthKeyRequest(key, replyTo) = msg
     keyStore
       .createKey(key)
-      .map(_ => CreateJwtAuthKeyResponse(Right(())))
+      .map(_ => CreateJwtAuthKeyResponse(Right(Ok())))
       .recover {
         case _: DuplicateValueException =>
           CreateJwtAuthKeyResponse(Left(JwtAuthKeyExistsError()))
@@ -99,7 +100,7 @@ class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Me
     val UpdateJwtAuthKeyRequest(key, replyTo) = msg
     keyStore
       .updateKey(key)
-      .map(_ => UpdateJwtAuthKeyResponse(Right(())))
+      .map(_ => UpdateJwtAuthKeyResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateJwtAuthKeyResponse(Left(JwtAuthKeyNotFoundError()))
@@ -125,7 +126,9 @@ object JwtAuthKeyStoreActor {
   //
   // GetJwtAuthKeys
   //
-  final case class GetJwtAuthKeysRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetJwtAuthKeysResponse]) extends Message
+  final case class GetJwtAuthKeysRequest(offset: Option[Int],
+                                         limit: Option[Int],
+                                         replyTo: ActorRef[GetJwtAuthKeysResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -161,7 +164,7 @@ object JwtAuthKeyStoreActor {
   ))
   sealed trait DeleteJwtAuthKeyError
 
-  final case class DeleteJwtAuthKeyResponse(response: Either[DeleteJwtAuthKeyError, Unit]) extends CborSerializable
+  final case class DeleteJwtAuthKeyResponse(response: Either[DeleteJwtAuthKeyError, Ok]) extends CborSerializable
 
   //
   // UpdateJwtAuthKey
@@ -175,7 +178,7 @@ object JwtAuthKeyStoreActor {
   ))
   sealed trait UpdateJwtAuthKeyError
 
-  final case class UpdateJwtAuthKeyResponse(response: Either[UpdateJwtAuthKeyError, Unit]) extends CborSerializable
+  final case class UpdateJwtAuthKeyResponse(response: Either[UpdateJwtAuthKeyError, Ok]) extends CborSerializable
 
 
   //
@@ -192,7 +195,7 @@ object JwtAuthKeyStoreActor {
 
   final case class JwtAuthKeyExistsError() extends CreateJwtAuthKeyError
 
-  final case class CreateJwtAuthKeyResponse(response: Either[CreateJwtAuthKeyError, Unit]) extends CborSerializable
+  final case class CreateJwtAuthKeyResponse(response: Either[CreateJwtAuthKeyError, Ok]) extends CborSerializable
 
   //
   // Common Errors

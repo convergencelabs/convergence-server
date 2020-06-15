@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.general
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{RemoveChatRequest, RemoveChatResponse}
@@ -32,7 +33,7 @@ object RemoveChatMessageProcessor extends Logging {
       allowed <- checkPermissions(requester, ChatPermissions.Permissions.RemoveChat)
       response <- if (allowed) {
         removeChat(message.chatId).map { _ =>
-          ReplyAndBroadcastTask(MessageReplyTask(message.replyTo, ChatActor.RemoveChatResponse(Right(()))), Some(ChatClientActor.ChatRemoved(chatId)))
+          ReplyAndBroadcastTask(MessageReplyTask(message.replyTo, ChatActor.RemoveChatResponse(Right(Ok()))), Some(ChatClientActor.ChatRemoved(chatId)))
         }
       } else {
         val r = ReplyAndBroadcastTask(MessageReplyTask(message.replyTo, ChatActor.RemoveChatResponse(Left(ChatActor.UnauthorizedError()))), None)

@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
@@ -55,7 +56,7 @@ class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
     val SetAnonymousAuthRequest(enabled, replyTo) = msg
     store
       .setAnonymousAuthEnabled(enabled)
-      .map(_ => SetAnonymousAuthResponse(Right(())))
+      .map(_ => SetAnonymousAuthResponse(Right(Ok())))
       .recover { cause =>
         context.log.error("Unexpected error setting anonymous authentication", cause)
         SetAnonymousAuthResponse(Left(UnknownError()))
@@ -79,7 +80,7 @@ class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
     val SetModelSnapshotPolicyRequest(policy, replyTo) = msg
     store
       .setModelSnapshotConfig(policy)
-      .map(_ => SetModelSnapshotPolicyResponse(Right(())))
+      .map(_ => SetModelSnapshotPolicyResponse(Right(Ok())))
       .recover { cause =>
         context.log.error("Unexpected error setting model snapshot policy", cause)
         SetModelSnapshotPolicyResponse(Left(UnknownError()))
@@ -124,7 +125,7 @@ object ConfigStoreActor {
   ))
   sealed trait SetAnonymousAuthError
 
-  final case class SetAnonymousAuthResponse(response: Either[SetAnonymousAuthError, Unit]) extends CborSerializable
+  final case class SetAnonymousAuthResponse(response: Either[SetAnonymousAuthError, Ok]) extends CborSerializable
 
 
   //
@@ -152,7 +153,7 @@ object ConfigStoreActor {
   ))
   sealed trait SetModelSnapshotPolicyError
 
-  final case class SetModelSnapshotPolicyResponse(response: Either[SetModelSnapshotPolicyError, Unit]) extends CborSerializable
+  final case class SetModelSnapshotPolicyResponse(response: Either[SetModelSnapshotPolicyError, Ok]) extends CborSerializable
 
 
   //

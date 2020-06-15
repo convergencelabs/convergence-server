@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceAndDomains, NamespaceUpdates}
@@ -55,7 +56,7 @@ class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Mess
 
     this.validate(namespaceId, displayName)
       .flatMap(_ => namespaceStore.createNamespace(namespaceId, displayName, userNamespace = false))
-      .map(_ => CreateNamespaceResponse(Right(())))
+      .map(_ => CreateNamespaceResponse(Right(Ok())))
       .recover {
         case DuplicateValueException(field, _, _) =>
           CreateNamespaceResponse(Left(NamespaceAlreadyExistsError(field)))
@@ -82,7 +83,7 @@ class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Mess
   private[this] def onUpdateNamespace(request: UpdateNamespaceRequest): Unit = {
     val UpdateNamespaceRequest(_, namespaceId, displayName, replyTo) = request
     namespaceStore.updateNamespace(NamespaceUpdates(namespaceId, displayName))
-      .map(_ => UpdateNamespaceResponse(Right(())))
+      .map(_ => UpdateNamespaceResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateNamespaceResponse(Left(NamespaceNotFoundError()))
@@ -100,7 +101,7 @@ class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Mess
       _ <- roleStore.removeAllRolesFromTarget(NamespaceRoleTarget(namespaceId))
       _ <- namespaceStore.deleteNamespace(namespaceId)
     } yield ())
-      .map(_ => DeleteNamespaceResponse(Right(())))
+      .map(_ => DeleteNamespaceResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           DeleteNamespaceResponse(Left(NamespaceNotFoundError()))
@@ -168,7 +169,10 @@ object NamespaceStoreActor {
   //
   // CreateNamespace
   //
-  final case class CreateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[CreateNamespaceResponse]) extends Message
+  final case class CreateNamespaceRequest(requester: String,
+                                          namespaceId: String,
+                                          displayName: String,
+                                          replyTo: ActorRef[CreateNamespaceResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -178,7 +182,7 @@ object NamespaceStoreActor {
 
   final case class NamespaceAlreadyExistsError(field: String) extends CreateNamespaceError
 
-  final case class CreateNamespaceResponse(response: Either[CreateNamespaceError, Unit]) extends CborSerializable
+  final case class CreateNamespaceResponse(response: Either[CreateNamespaceError, Ok]) extends CborSerializable
 
   //
   // CreateNamespace
@@ -191,7 +195,7 @@ object NamespaceStoreActor {
   ))
   sealed trait UpdateNamespaceError
 
-  final case class UpdateNamespaceResponse(response: Either[UpdateNamespaceError, Unit]) extends CborSerializable
+  final case class UpdateNamespaceResponse(response: Either[UpdateNamespaceError, Ok]) extends CborSerializable
 
   //
   // CreateNamespace
@@ -204,23 +208,24 @@ object NamespaceStoreActor {
   ))
   sealed trait DeleteNamespaceError
 
-  final case class DeleteNamespaceResponse(response: Either[DeleteNamespaceError, Unit]) extends CborSerializable
+  final case class DeleteNamespaceResponse(response: Either[DeleteNamespaceError, Ok]) extends CborSerializable
 
   //
   // GetAccessibleNamespacesRequest
   //
   final case class GetAccessibleNamespacesRequest(requester: AuthorizationProfileData,
-                                            filter: Option[String],
-                                            offset: Option[Int],
-                                            limit: Option[Int],
-                                            replyTo: ActorRef[GetAccessibleNamespacesResponse]) extends Message
+                                                  filter: Option[String],
+                                                  offset: Option[Int],
+                                                  limit: Option[Int],
+                                                  replyTo: ActorRef[GetAccessibleNamespacesResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
   sealed trait GetAccessibleNamespacesError
 
-  final case class GetAccessibleNamespacesResponse(namespaces: Either[GetAccessibleNamespacesError, Set[NamespaceAndDomains]]) extends CborSerializable
+  final case class GetAccessibleNamespacesResponse(namespaces: Either[GetAccessibleNamespacesError, Set[NamespaceAndDomains]])
+    extends CborSerializable
 
   //
   // GetNamespace

@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.db.provision
 import akka.actor.typed.pubsub.Topic.Publish
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.domain.DomainId
@@ -41,11 +42,11 @@ class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActo
     val ProvisionDomain(data, replyTo) = provision
     Future {
       provisioner.provisionDomain(data) map { _ =>
-        replyTo ! ProvisionDomainResponse(Right(()))
+        replyTo ! ProvisionDomainResponse(Right(Ok()))
       } recover {
         case cause: Exception =>
           error(s"Error provisioning domain: ${data.domainId}", cause)
-          replyTo ! ProvisionDomainResponse(Left(()))
+          replyTo ! ProvisionDomainResponse(Left(UnknownError()))
       }
     }
     Behaviors.same
@@ -56,11 +57,11 @@ class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActo
     Future {
       provisioner.destroyDomain(databaseUri) map { _ =>
         val message = DomainLifecycleTopic.DomainDeleted(domainId)
-        replyTo ! DestroyDomainResponse(Right(()))
+        replyTo ! DestroyDomainResponse(Right(Ok()))
         domainLifecycleTopic ! Publish(message)
       } recover { cause =>
         error(s"Error destroying domain: $domainId", cause)
-        replyTo ! DestroyDomainResponse(Left(()))
+        replyTo ! DestroyDomainResponse(Left(UnknownError()))
       }
     }
 
@@ -81,11 +82,13 @@ object DomainProvisionerActor {
 
   sealed trait Message extends CborSerializable
 
-  case class ProvisionDomain(data: ProvisionRequest, replyTo: ActorRef[ProvisionDomainResponse]) extends Message
+  final case class ProvisionDomain(data: ProvisionRequest, replyTo: ActorRef[ProvisionDomainResponse]) extends Message
 
-  case class ProvisionDomainResponse(response: Either[Unit, Unit]) extends CborSerializable
+  final case class ProvisionDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
-  case class DestroyDomain(domainFqn: DomainId, databaseUri: String, replyTo: ActorRef[DestroyDomainResponse]) extends Message
+  final case class DestroyDomain(domainFqn: DomainId, databaseUri: String, replyTo: ActorRef[DestroyDomainResponse]) extends Message
 
-  case class DestroyDomainResponse(response: Either[Unit, Unit]) extends CborSerializable
+  final case class DestroyDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
+  
+  final case class UnknownError()
 }

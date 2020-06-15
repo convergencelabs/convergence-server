@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.DomainUserId
@@ -30,7 +31,7 @@ class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Mess
       case CreateUserGroupRequest(group, replyTo) =>
         groupStore
           .createUserGroup(group)
-          .map(_ => Right(()))
+          .map(_ => Right(Ok()))
           .recover {
             case _: DuplicateValueException =>
               Left(GroupAlreadyExistsError())
@@ -43,7 +44,7 @@ class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Mess
       case DeleteUserGroupRequest(id, replyTo) =>
         groupStore
           .deleteUserGroup(id)
-          .map(_ => Right(()))
+          .map(_ => Right(Ok()))
           .recover {
             case _: EntityNotFoundException =>
               Left(GroupNotFoundError())
@@ -111,7 +112,7 @@ class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Mess
       case UpdateUserGroupRequest(id, group, replyTo) =>
         groupStore
           .updateUserGroup(id, group)
-          .map(_ => Right(()))
+          .map(_ => Right(Ok()))
           .recover {
             case _: EntityNotFoundException =>
               Left(GroupNotFoundError())
@@ -124,7 +125,7 @@ class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Mess
       case UpdateUserGroupInfoRequest(id, info, replyTo) =>
         groupStore
           .updateUserGroupInfo(id, info)
-          .map(_ => Right(()))
+          .map(_ => Right(Ok()))
           .recover {
             case _: EntityNotFoundException =>
               Left(GroupNotFoundError())
@@ -137,7 +138,7 @@ class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Mess
       case AddUserToGroupRequest(id, userId, replyTo) =>
         groupStore
           .addUserToGroup(id, userId)
-          .map(_ => Right(()))
+          .map(_ => Right(Ok()))
           .recover {
             case _: EntityNotFoundException =>
               Left(UserNotFoundError())
@@ -150,7 +151,7 @@ class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Mess
       case RemoveUserFromGroupRequest(id, userId, replyTo) =>
         groupStore
           .removeUserFromGroup(id, userId)
-          .map(_ => Right(()))
+          .map(_ => Right(Ok()))
           .recover {
             case _: EntityNotFoundException =>
               Left(UserNotFoundError())
@@ -190,7 +191,7 @@ object UserGroupStoreActor {
   ))
   sealed trait AddUserToGroupError
 
-  final case class AddUserToGroupResponse(response: Either[AddUserToGroupError, Unit]) extends CborSerializable
+  final case class AddUserToGroupResponse(response: Either[AddUserToGroupError, Ok]) extends CborSerializable
 
 
   //
@@ -206,7 +207,7 @@ object UserGroupStoreActor {
   ))
   sealed trait RemoveUserFromGroupError
 
-  final case class RemoveUserFromGroupResponse(response: Either[RemoveUserFromGroupError, Unit]) extends CborSerializable
+  final case class RemoveUserFromGroupResponse(response: Either[RemoveUserFromGroupError, Ok]) extends CborSerializable
 
   //
   // CreateUserGroup
@@ -222,7 +223,7 @@ object UserGroupStoreActor {
 
   final case class GroupAlreadyExistsError() extends CreateUserGroupError
 
-  final case class CreateUserGroupResponse(response: Either[CreateUserGroupError, Unit]) extends CborSerializable
+  final case class CreateUserGroupResponse(response: Either[CreateUserGroupError, Ok]) extends CborSerializable
 
 
   //
@@ -237,7 +238,7 @@ object UserGroupStoreActor {
   ))
   sealed trait UpdateUserGroupError
 
-  final case class UpdateUserGroupResponse(response: Either[UpdateUserGroupError, Unit]) extends CborSerializable
+  final case class UpdateUserGroupResponse(response: Either[UpdateUserGroupError, Ok]) extends CborSerializable
 
   //
   // UpdateUserGroupInfo
@@ -251,7 +252,7 @@ object UserGroupStoreActor {
   ))
   sealed trait UpdateUserGroupInfoError
 
-  final case class UpdateUserGroupInfoResponse(response: Either[UpdateUserGroupInfoError, Unit]) extends CborSerializable
+  final case class UpdateUserGroupInfoResponse(response: Either[UpdateUserGroupInfoError, Ok]) extends CborSerializable
 
   //
   // DeleteUserGroup
@@ -265,7 +266,7 @@ object UserGroupStoreActor {
   ))
   sealed trait DeleteUserGroupError
 
-  final case class DeleteUserGroupResponse(response: Either[DeleteUserGroupError, Unit]) extends CborSerializable
+  final case class DeleteUserGroupResponse(response: Either[DeleteUserGroupError, Ok]) extends CborSerializable
 
   //
   // GetUserGroup
@@ -312,7 +313,10 @@ object UserGroupStoreActor {
   //
   // GetUserGroups
   //
-  final case class GetUserGroupsRequest(filter: Option[String], offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
+  final case class GetUserGroupsRequest(filter: Option[String],
+                                        offset: Option[Int],
+                                        limit: Option[Int],
+                                        replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

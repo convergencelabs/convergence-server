@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.db.data
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceProviderImpl
@@ -58,12 +59,12 @@ class ConvergenceImporterActor(context: ActorContext[ConvergenceImporterActor.Me
     importer.importData()
       .map { _ =>
         debug("Import completed successfully")
-        ConvergenceImportResponse(Right(()))
+        ConvergenceImportResponse(Right(Ok()))
       }
       .recover {
         case cause: Exception =>
           error("Data import failed", cause)
-          ConvergenceImportResponse(Left(()))
+          ConvergenceImportResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
   }
@@ -76,7 +77,7 @@ class ConvergenceImporterActor(context: ActorContext[ConvergenceImporterActor.Me
       .map(export => ConvergenceExportResponse(Right(export)))
       .recover { cause =>
         error("error exporting domain", cause)
-        ConvergenceExportResponse(Left(()))
+        ConvergenceExportResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
   }
@@ -94,7 +95,7 @@ class ConvergenceImporterActor(context: ActorContext[ConvergenceImporterActor.Me
     }
 
     // FIXME errors??
-    replyTo ! DomainImportResponse(Right(()))
+    replyTo ! DomainImportResponse(Right(Ok()))
   }
 
   private[this] def exportDomain(msg: DomainExportRequest): Unit = {
@@ -108,7 +109,7 @@ class ConvergenceImporterActor(context: ActorContext[ConvergenceImporterActor.Me
           .map(export => DomainExportResponse(Right(export)))
           .recover { cause =>
             error("error exporting domain", cause)
-            DomainExportResponse(Left(()))
+            DomainExportResponse(Left(UnknownError()))
           }
           .foreach(replyTo ! _)
 
@@ -130,29 +131,30 @@ object ConvergenceImporterActor {
   //
   // ConvergenceImport
   //
-  case class ConvergenceImportRequest(script: ConvergenceScript, replyTo: ActorRef[ConvergenceImportResponse]) extends Message
+  final case class ConvergenceImportRequest(script: ConvergenceScript, replyTo: ActorRef[ConvergenceImportResponse]) extends Message
 
-  case class ConvergenceImportResponse(response: Either[Unit, Unit]) extends CborSerializable
+  final case class ConvergenceImportResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
   //
   // DomainImport
   //
-  case class DomainImportRequest(domainFqn: DomainId, script: DomainScript, replyTo: ActorRef[DomainImportResponse]) extends Message
+  final case class DomainImportRequest(domainFqn: DomainId, script: DomainScript, replyTo: ActorRef[DomainImportResponse]) extends Message
 
-  case class DomainImportResponse(response: Either[Unit, Unit]) extends CborSerializable
+  final case class DomainImportResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
   //
   // ConvergenceExport
   //
-  case class ConvergenceExportRequest(username: String, replyTo: ActorRef[ConvergenceExportResponse]) extends Message
+  final case class ConvergenceExportRequest(username: String, replyTo: ActorRef[ConvergenceExportResponse]) extends Message
 
-  case class ConvergenceExportResponse(script: Either[Unit, ConvergenceScript]) extends CborSerializable
+  final case class ConvergenceExportResponse(script: Either[UnknownError, ConvergenceScript]) extends CborSerializable
 
   //
   // DomainExport
   //
-  case class DomainExportRequest(domainId: DomainId, replyTo: ActorRef[DomainExportResponse]) extends Message
+  final case class DomainExportRequest(domainId: DomainId, replyTo: ActorRef[DomainExportResponse]) extends Message
 
-  case class DomainExportResponse(script: Either[Unit, DomainScript]) extends CborSerializable
+  final case class DomainExportResponse(script: Either[UnknownError, DomainScript]) extends CborSerializable
 
+  final case class UnknownError()
 }

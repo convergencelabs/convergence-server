@@ -16,6 +16,7 @@ import java.time.{Duration, Instant}
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.security.AuthorizationProfileData
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
@@ -162,7 +163,7 @@ class AuthenticationActor private(context: ActorContext[AuthenticationActor.Mess
   private[this] def onInvalidateToken(msg: InvalidateSessionTokenRequest): Unit = {
     val InvalidateSessionTokenRequest(token, replyTo) = msg
     userSessionTokenStore.removeToken(token)
-      .map(_ => InvalidateSessionTokenResponse(Right(())))
+      .map(_ => InvalidateSessionTokenResponse(Right(Ok())))
       .recover { cause =>
         context.log.error("Unexpected error invalidating session token", cause)
         InvalidateSessionTokenResponse(Left(UnknownError()))
@@ -295,7 +296,7 @@ object AuthenticationActor {
   ))
   sealed trait InvalidateSessionTokenError
 
-  final case class InvalidateSessionTokenResponse(response: Either[InvalidateSessionTokenError, Unit]) extends CborSerializable
+  final case class InvalidateSessionTokenResponse(response: Either[InvalidateSessionTokenError, Ok]) extends CborSerializable
 
   //
   // Common Errors

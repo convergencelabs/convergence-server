@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatNameChangedEvent, ChatStore, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, SetChatNameRequest, SetChatNameResponse}
@@ -71,7 +72,7 @@ private[chat] object SetNameEventProcessor
                          state: ChatState): ReplyAndBroadcastTask[SetChatNameResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
-      SetChatNameResponse(Right(())),
+      SetChatNameResponse(Right(Ok())),
       Some(ChatClientActor.ChatNameChanged(event.id, event.eventNumber, event.timestamp, event.user, event.name))
     )
   }

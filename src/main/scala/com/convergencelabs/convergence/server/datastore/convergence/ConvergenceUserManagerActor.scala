@@ -16,6 +16,7 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
@@ -74,7 +75,7 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
     val user = User(username, email, firstName, lastName, displayName, None)
     userCreator
       .createUser(user, password, serverRole)
-      .map(_ => CreateConvergenceUserResponse(Right(())))
+      .map(_ => CreateConvergenceUserResponse(Right(Ok())))
       .recover {
         case InvalidValueException(_, message, _) =>
           CreateConvergenceUserResponse(Left(InvalidValueError(message)))
@@ -132,7 +133,7 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
     domainStoreActor
       .ask[DomainStoreActor.DeleteDomainsForUserResponse](ref => DomainStoreActor.DeleteDomainsForUserRequest(username, ref))
       .flatMap(_ => FutureUtils.tryToFuture(userStore.deleteUser(username)))
-      .map(_ => DeleteConvergenceUserResponse(Right(())))
+      .map(_ => DeleteConvergenceUserResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           DeleteConvergenceUserResponse(Left(UserNotFoundError()))
@@ -148,7 +149,7 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
     val update = User(username, email, firstName, lastName, displayName, None)
     userStore
       .updateUser(update)
-      .map(_ => UpdateConvergenceUserProfileResponse(Right(())))
+      .map(_ => UpdateConvergenceUserProfileResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateConvergenceUserProfileResponse(Left(UserNotFoundError()))
@@ -166,7 +167,7 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
       - <- userStore.updateUser(update)
       _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget(), Set(globalRole))
     } yield ())
-      .map(_ => UpdateConvergenceUserResponse(Right(())))
+      .map(_ => UpdateConvergenceUserResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateConvergenceUserResponse(Left(UserNotFoundError()))
@@ -181,7 +182,7 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
     val SetPasswordRequest(username, password, replyTo) = message
     userStore
       .setUserPassword(username, password)
-      .map(_ => SetPasswordResponse(Right(())))
+      .map(_ => SetPasswordResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           SetPasswordResponse(Left(UserNotFoundError()))
@@ -262,7 +263,7 @@ object ConvergenceUserManagerActor {
 
   final case class UserAlreadyExistsError(filed: String) extends CreateConvergenceUserError
 
-  final case class CreateConvergenceUserResponse(response: Either[CreateConvergenceUserError, Unit]) extends CborSerializable
+  final case class CreateConvergenceUserResponse(response: Either[CreateConvergenceUserError, Ok]) extends CborSerializable
 
   //
   //UpdateConvergenceUser
@@ -281,7 +282,7 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait UpdateConvergenceUserError
 
-  final case class UpdateConvergenceUserResponse(response: Either[UpdateConvergenceUserError, Unit]) extends CborSerializable
+  final case class UpdateConvergenceUserResponse(response: Either[UpdateConvergenceUserError, Ok]) extends CborSerializable
 
   //
   // UpdateConvergenceUserProfile
@@ -299,7 +300,7 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait UpdateConvergenceUserProfileError
 
-  final case class UpdateConvergenceUserProfileResponse(response: Either[UpdateConvergenceUserProfileError, Unit]) extends CborSerializable
+  final case class UpdateConvergenceUserProfileResponse(response: Either[UpdateConvergenceUserProfileError, Ok]) extends CborSerializable
 
   //
   // SetPassword
@@ -312,7 +313,7 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait SetPasswordError
 
-  final case class SetPasswordResponse(response: Either[SetPasswordError, Unit]) extends CborSerializable
+  final case class SetPasswordResponse(response: Either[SetPasswordError, Ok]) extends CborSerializable
 
   //
   // DeleteConvergenceUser
@@ -325,12 +326,15 @@ object ConvergenceUserManagerActor {
   ))
   sealed trait DeleteConvergenceUserError
 
-  final case class DeleteConvergenceUserResponse(response: Either[DeleteConvergenceUserError, Unit]) extends CborSerializable
+  final case class DeleteConvergenceUserResponse(response: Either[DeleteConvergenceUserError, Ok]) extends CborSerializable
 
   //
   // GetConvergenceUsers
   //
-  final case class GetConvergenceUsersRequest(filter: Option[String], limit: Option[Int], offset: Option[Int], replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
+  final case class GetConvergenceUsersRequest(filter: Option[String],
+                                              limit: Option[Int],
+                                              offset: Option[Int],
+                                              replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")

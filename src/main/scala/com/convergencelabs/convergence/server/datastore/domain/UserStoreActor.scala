@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.common.{Ok, PagedData}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
@@ -128,7 +128,7 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
     val domainUser = UpdateDomainUser(DomainUserId.normal(username), firstName, lastName, displayName, email, disabled)
     userStore
       .updateDomainUser(domainUser)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(UserNotFoundError())
@@ -143,7 +143,7 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
     val SetPasswordRequest(username, password, replyTo) = message
     userStore
       .setDomainUserPassword(username, password)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(UserNotFoundError())
@@ -158,7 +158,7 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
     val DeleteUserRequest(username, replyTo) = message
     userStore
       .deleteNormalDomainUser(username)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(UserNotFoundError())
@@ -263,7 +263,7 @@ object UserStoreActor {
   ))
   sealed trait DeleteUserError
 
-  final case class DeleteUserResponse(response: Either[DeleteUserError, Unit]) extends CborSerializable
+  final case class DeleteUserResponse(response: Either[DeleteUserError, Ok]) extends CborSerializable
 
   //
   // UpdateUser
@@ -283,7 +283,7 @@ object UserStoreActor {
   ))
   sealed trait UpdateUserError
 
-  final case class UpdateUserResponse(response: Either[UpdateUserError, Unit]) extends CborSerializable
+  final case class UpdateUserResponse(response: Either[UpdateUserError, Ok]) extends CborSerializable
 
   //
   // SetPassword
@@ -299,7 +299,7 @@ object UserStoreActor {
   ))
   sealed trait SetPasswordError
 
-  final case class SetPasswordResponse(response: Either[SetPasswordError, Unit]) extends CborSerializable
+  final case class SetPasswordResponse(response: Either[SetPasswordError, Ok]) extends CborSerializable
 
   //
   // Common Errors

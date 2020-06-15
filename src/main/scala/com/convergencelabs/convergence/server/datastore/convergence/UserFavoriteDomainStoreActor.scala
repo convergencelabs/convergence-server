@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.domain.{Domain, DomainId}
@@ -47,7 +48,7 @@ class UserFavoriteDomainStoreActor private(context: ActorContext[UserFavoriteDom
     val AddFavoriteDomainRequest(username, domain, replyTo) = message
     favoriteStore
       .addFavorite(username, domain)
-      .map(_ => AddFavoriteDomainResponse(Right(())))
+      .map(_ => AddFavoriteDomainResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           AddFavoriteDomainResponse(Left(UserNotFoundError()))
@@ -62,7 +63,7 @@ class UserFavoriteDomainStoreActor private(context: ActorContext[UserFavoriteDom
     val RemoveFavoriteDomainRequest(username, domain, replyTo) = message
     favoriteStore
       .removeFavorite(username, domain)
-      .map(_ => RemoveFavoriteDomainResponse(Right(())))
+      .map(_ => RemoveFavoriteDomainResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           RemoveFavoriteDomainResponse(Left(UserNotFoundError()))
@@ -105,7 +106,9 @@ object UserFavoriteDomainStoreActor {
   //
   // RemoveFavoriteDomain
   //
-  final case class AddFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
+  final case class AddFavoriteDomainRequest(username: String,
+                                            domain: DomainId,
+                                            replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -113,7 +116,7 @@ object UserFavoriteDomainStoreActor {
   ))
   sealed trait AddFavoriteDomainError
 
-  final case class AddFavoriteDomainResponse(response: Either[AddFavoriteDomainError,Unit]) extends CborSerializable
+  final case class AddFavoriteDomainResponse(response: Either[AddFavoriteDomainError, Ok]) extends CborSerializable
 
   //
   // RemoveFavoriteDomain
@@ -126,7 +129,7 @@ object UserFavoriteDomainStoreActor {
   ))
   sealed trait RemoveFavoriteDomainError
 
-  final case class RemoveFavoriteDomainResponse(response: Either[RemoveFavoriteDomainError,Unit]) extends CborSerializable
+  final case class RemoveFavoriteDomainResponse(response: Either[RemoveFavoriteDomainError, Ok]) extends CborSerializable
 
   //
   // GetFavoritesForUser
@@ -139,7 +142,7 @@ object UserFavoriteDomainStoreActor {
   ))
   sealed trait GetFavoritesForUserError
 
-  final case class GetFavoritesForUserResponse(domains: Either[GetFavoritesForUserError,Set[Domain]]) extends CborSerializable
+  final case class GetFavoritesForUserResponse(domains: Either[GetFavoritesForUserError, Set[Domain]]) extends CborSerializable
 
   //
   // Commons Errors
@@ -153,4 +156,5 @@ object UserFavoriteDomainStoreActor {
     with GetFavoritesForUserError
     with RemoveFavoriteDomainError
     with AddFavoriteDomainError
+
 }

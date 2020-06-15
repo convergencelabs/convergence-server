@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.{Role, UserRoles}
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
@@ -57,7 +58,7 @@ class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
   private[this] def onCreateRole(message: CreateRoleRequest): Unit = {
     val CreateRoleRequest(role, replyTo) = message
     roleStore.createRole(role)
-      .map(_ => CreateRoleResponse(Right(())))
+      .map(_ => CreateRoleResponse(Right(Ok())))
       .recover {
         case _: DuplicateValueException =>
           CreateRoleResponse(Left(RoleExistsError()))
@@ -72,7 +73,7 @@ class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
     val SetUsersRolesForTargetRequest(username, target, roles, replyTo) = message
     roleStore
       .setUserRolesForTarget(username, target, roles)
-      .map(_ => SetUsersRolesForTargetResponse(Right(())))
+      .map(_ => SetUsersRolesForTargetResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           SetUsersRolesForTargetResponse(Left(UserNotFoundError()))
@@ -86,7 +87,7 @@ class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
   private[this] def onUpdateRolesForTarget(message: UpdateRolesForTargetRequest): Unit = {
     val UpdateRolesForTargetRequest(target, userRoles, replyTo) = message
     roleStore.setUserRolesForTarget(target, userRoles)
-      .map(roles => UpdateRolesForTargetResponse(Right(roles)))
+      .map(_ => UpdateRolesForTargetResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateRolesForTargetResponse(Left(UserNotFoundError()))
@@ -105,7 +106,7 @@ class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
     } yield {
       ()
     })
-      .map(_ => SetAllUserRolesForTargetResponse(Right(())))
+      .map(_ => SetAllUserRolesForTargetResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           SetAllUserRolesForTargetResponse(Left(TargetNotFoundError()))
@@ -180,7 +181,7 @@ class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
     val RemoveUserFromTargetRequest(target, username, replyTo) = message
     roleStore
       .removeUserRoleFromTarget(target, username)
-      .map(_ => RemoveUserFromTargetResponse(Right(())))
+      .map(_ => RemoveUserFromTargetResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           RemoveUserFromTargetResponse(Left(UserNotFoundError()))
@@ -217,7 +218,7 @@ object RoleStoreActor {
 
   final case class RoleExistsError() extends CreateRoleError
 
-  final case class CreateRoleResponse(response: Either[CreateRoleError, Unit]) extends CborSerializable
+  final case class CreateRoleResponse(response: Either[CreateRoleError, Ok]) extends CborSerializable
 
   //
   // SetUsersRolesForTarget
@@ -230,7 +231,7 @@ object RoleStoreActor {
   ))
   sealed trait SetUsersRolesForTargetError
 
-  final case class SetUsersRolesForTargetResponse(response: Either[SetUsersRolesForTargetError, Unit]) extends CborSerializable
+  final case class SetUsersRolesForTargetResponse(response: Either[SetUsersRolesForTargetError, Ok]) extends CborSerializable
 
   //
   // GetRoleProfile
@@ -261,7 +262,9 @@ object RoleStoreActor {
   //
   // GetUserRolesForTarget
   //
-  final case class GetUserRolesForTargetRequest(username: String, target: RoleTarget, replyTo: ActorRef[GetUserRolesForTargetResponse]) extends Message
+  final case class GetUserRolesForTargetRequest(username: String,
+                                                target: RoleTarget,
+                                                replyTo: ActorRef[GetUserRolesForTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -282,7 +285,7 @@ object RoleStoreActor {
   ))
   sealed trait UpdateRolesForTargetError
 
-  final case class UpdateRolesForTargetResponse(response: Either[UpdateRolesForTargetError, Unit]) extends CborSerializable
+  final case class UpdateRolesForTargetResponse(response: Either[UpdateRolesForTargetError, Ok]) extends CborSerializable
 
   //
   // SetAllUserRolesForTarget
@@ -295,12 +298,14 @@ object RoleStoreActor {
   ))
   sealed trait SetAllUserRolesForTargetError
 
-  final case class SetAllUserRolesForTargetResponse(response: Either[SetAllUserRolesForTargetError, Unit]) extends CborSerializable
+  final case class SetAllUserRolesForTargetResponse(response: Either[SetAllUserRolesForTargetError, Ok]) extends CborSerializable
 
   //
   // RemoveUserFromTarget
   //
-  final case class RemoveUserFromTargetRequest(target: RoleTarget, username: String, replyTo: ActorRef[RemoveUserFromTargetResponse]) extends Message
+  final case class RemoveUserFromTargetRequest(target: RoleTarget,
+                                               username: String,
+                                               replyTo: ActorRef[RemoveUserFromTargetResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
@@ -308,7 +313,7 @@ object RoleStoreActor {
   ))
   sealed trait RemoveUserFromTargetError
 
-  final case class RemoveUserFromTargetResponse(response: Either[RemoveUserFromTargetError, Unit]) extends CborSerializable
+  final case class RemoveUserFromTargetResponse(response: Either[RemoveUserFromTargetError, Ok]) extends CborSerializable
 
   //
   // GetUserPermissions

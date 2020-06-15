@@ -30,7 +30,7 @@ import scala.language.postfixOps
  * Chat, Presence, Models, etc.).
  *
  * @param context               The Akka ActorContext to start Actors in.
- * @param convergenceDbProvider A [[com.convergencelabs.convergence.server.db.DatabaseProvider]] that is connected to the
+ * @param convergenceDbProvider A [[DatabaseProvider]] that is connected to the
  *                              main convergence database.
  */
 class BackendServices(context: ActorContext[_],

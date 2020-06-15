@@ -60,7 +60,10 @@ object ModelOperationStoreActor {
   //
   // GetOperations
   //
-  final case class GetOperationsRequest(modelId: String, first: Long, last: Long, replyTo: ActorRef[GetOperationsResponse]) extends Message
+  final case class GetOperationsRequest(modelId: String,
+                                        first: Long,
+                                        last: Long,
+                                        replyTo: ActorRef[GetOperationsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

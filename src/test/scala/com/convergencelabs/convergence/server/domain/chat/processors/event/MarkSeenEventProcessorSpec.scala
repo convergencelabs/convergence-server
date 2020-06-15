@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatStore, PermissionsStore}
@@ -48,7 +49,7 @@ class MarkSeenEventProcessorSpec extends ScalaTestWithActorTestKit
         response.newState shouldBe defined
         response.task.broadcast shouldBe defined
         response.task.reply.replyTo shouldBe message.replyTo
-        response.task.reply.response shouldBe MarkChatsEventsSeenResponse(Right(()))
+        response.task.reply.response shouldBe MarkChatsEventsSeenResponse(Right(Ok()))
       }
     }
 
@@ -122,7 +123,7 @@ class MarkSeenEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val task = MarkSeenEventProcessor.createSuccessReply(message, event, state)
         task.reply.replyTo shouldBe message.replyTo
-        task.reply.response shouldBe MarkChatsEventsSeenResponse(Right(()))
+        task.reply.response shouldBe MarkChatsEventsSeenResponse(Right(Ok()))
         task.broadcast shouldBe Some(ChatClientActor.EventsMarkedSeen(
           event.chatId, event.user, event.eventNumber))
       }

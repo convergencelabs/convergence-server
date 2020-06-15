@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.domain.DomainUserId
@@ -93,7 +94,7 @@ class ModelPermissionsStoreActor private(context: ActorContext[ModelPermissionsS
     val SetModelOverridesPermissionsRequest(modelId, overridePermissions, replyTo) = msg
     modelPermissionsStore
       .setOverrideCollectionPermissions(modelId, overridePermissions)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(ModelNotFoundError())
@@ -123,7 +124,7 @@ class ModelPermissionsStoreActor private(context: ActorContext[ModelPermissionsS
     val SetModelWorldPermissionsRequest(modelId, permissions, replyTo) = msg
     modelPermissionsStore
       .setModelWorldPermissions(modelId, permissions)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(ModelNotFoundError())
@@ -167,7 +168,7 @@ class ModelPermissionsStoreActor private(context: ActorContext[ModelPermissionsS
     val SetModelUserPermissionsRequest(modelId, userId, permissions: ModelPermissions, replyTo) = msg
     modelPermissionsStore
       .updateModelUserPermissions(modelId, userId, permissions)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(ModelNotFoundError())
@@ -182,7 +183,7 @@ class ModelPermissionsStoreActor private(context: ActorContext[ModelPermissionsS
     val RemoveModelUserPermissionsRequest(modelId, userId, replyTo) = msg
     modelPermissionsStore
       .removeModelUserPermissions(modelId, userId)
-      .map(_ => Right(()))
+      .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(ModelNotFoundError())
@@ -232,7 +233,7 @@ object ModelPermissionsStoreActor {
   ))
   sealed trait SetModelOverridesPermissionsError
 
-  final case class SetModelOverridesPermissionsResponse(response: Either[SetModelOverridesPermissionsError, Unit]) extends CborSerializable
+  final case class SetModelOverridesPermissionsResponse(response: Either[SetModelOverridesPermissionsError, Ok]) extends CborSerializable
 
   //
   // GetModelPermissions
@@ -274,7 +275,7 @@ object ModelPermissionsStoreActor {
   ))
   sealed trait SetModelWorldPermissionsError
 
-  final case class SetModelWorldPermissionsResponse(response: Either[SetModelWorldPermissionsError, Unit]) extends CborSerializable
+  final case class SetModelWorldPermissionsResponse(response: Either[SetModelWorldPermissionsError, Ok]) extends CborSerializable
 
   //
   // GetAllModelUserPermissions
@@ -317,7 +318,7 @@ object ModelPermissionsStoreActor {
   ))
   sealed trait SetModelUserPermissionsError
 
-  final case class SetModelUserPermissionsResponse(response: Either[SetModelUserPermissionsError, Unit]) extends CborSerializable
+  final case class SetModelUserPermissionsResponse(response: Either[SetModelUserPermissionsError, Ok]) extends CborSerializable
 
   //
   // SetModelUserPermissions
@@ -331,7 +332,7 @@ object ModelPermissionsStoreActor {
   ))
   sealed trait RemoveModelUserPermissionsError
 
-  final case class RemoveModelUserPermissionsResponse(response: Either[RemoveModelUserPermissionsError, Unit]) extends CborSerializable
+  final case class RemoveModelUserPermissionsResponse(response: Either[RemoveModelUserPermissionsError, Ok]) extends CborSerializable
 
   //
   // Common Errors

@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatStore, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.DomainUserId
@@ -79,7 +80,7 @@ private[chat] object MarkSeenEventProcessor
                          state: ChatState): ReplyAndBroadcastTask[MarkChatsEventsSeenResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
-      MarkChatsEventsSeenResponse(Right(())),
+      MarkChatsEventsSeenResponse(Right(Ok())),
       Some(ChatClientActor.EventsMarkedSeen(event.chatId, message.requester,  event.eventNumber))
     )
   }

@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{RemoveChatPermissionsRequest, RemoveChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
@@ -51,7 +52,7 @@ object RemoveChatPermissionsProcessor extends PermissionsMessageProcessor[Remove
         }
       }
     } yield {
-      RemoveChatPermissionsResponse(Right(()))
+      RemoveChatPermissionsResponse(Right(Ok()))
     }).recover { cause =>
       error("Unexpected error removing chat permissions", cause)
       RemoveChatPermissionsResponse(Left(UnknownError()))

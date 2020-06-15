@@ -60,11 +60,6 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
 
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = handleSignal orElse super.onSignal
 
-  private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
-    case Terminated(client) =>
-      handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
-  }
-
   override def receiveInitialized(msg: Message): Behavior[Message] = msg match {
     case message: HandshakeRequest =>
       onHandshakeRequest(message)
@@ -78,6 +73,11 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
       onStatusRequest(msg)
     case _: ReceiveTimeout =>
       onReceiveTimeout()
+  }
+
+  private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
+    case Terminated(client) =>
+      handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Behavior[Message] = {
@@ -143,7 +143,7 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
               error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
               Failure(cause)
           }
-          .getOrElse(AuthenticationResponse(Left(())))
+          .getOrElse(AuthenticationResponse(Left(AuthenticationFailed())))
       }
       .foreach(replyTo ! _)
 
@@ -355,7 +355,8 @@ object DomainActor {
                                          credentials: AuthenticationCredentials,
                                          replyTo: ActorRef[AuthenticationResponse]) extends Message
 
-  final case class AuthenticationResponse(response: Either[Unit, AuthenticationSuccess]) extends CborSerializable
+  final case class AuthenticationFailed()
+  final case class AuthenticationResponse(response: Either[AuthenticationFailed, AuthenticationSuccess]) extends CborSerializable
 
   final case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: Option[String])
 

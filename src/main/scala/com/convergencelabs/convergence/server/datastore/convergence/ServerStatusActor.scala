@@ -82,7 +82,11 @@ object ServerStatusActor {
 
   final case class UnknownError() extends GetStatusError
 
-  final case class ServerStatusResponse(version: String, distribution: String, status: String, namespaces: Long, domains: Long) extends CborSerializable
+  final case class ServerStatusResponse(version: String,
+                                        distribution: String,
+                                        status: String,
+                                        namespaces: Long,
+                                        domains: Long) extends CborSerializable
 
   final case class GetStatusResponse(status: Either[GetStatusError, ServerStatusResponse]) extends CborSerializable
 

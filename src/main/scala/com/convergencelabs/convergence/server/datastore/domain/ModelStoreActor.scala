@@ -155,7 +155,9 @@ object ModelStoreActor {
   //
   // GetModels
   //
-  final case class GetModelsRequest(offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsResponse]) extends Message
+  final case class GetModelsRequest(offset: Option[Int],
+                                    limit: Option[Int],
+                                    replyTo: ActorRef[GetModelsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -168,7 +170,10 @@ object ModelStoreActor {
   //
   // GetModelsInCollection
   //
-  final case class GetModelsInCollectionRequest(collectionId: String, offset: Option[Int], limit: Option[Int], replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
+  final case class GetModelsInCollectionRequest(collectionId: String,
+                                                offset: Option[Int],
+                                                limit: Option[Int],
+                                                replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

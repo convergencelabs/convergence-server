@@ -201,7 +201,7 @@ object PresenceServiceActor {
   //
   // GetPresences
   //
-  case class GetPresencesRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetPresencesResponse]) extends Message
+  final case class GetPresencesRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetPresencesResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -210,12 +210,12 @@ object PresenceServiceActor {
   ))
   sealed trait GetPresencesError
 
-  case class GetPresencesResponse(presence: Either[GetPresencesError, List[UserPresence]]) extends CborSerializable
+  final case class GetPresencesResponse(presence: Either[GetPresencesError, List[UserPresence]]) extends CborSerializable
 
   //
   // GetPresence
   //
-  case class GetPresenceRequest(userId: DomainUserId, replyTo: ActorRef[GetPresenceResponse]) extends Message
+  final case class GetPresenceRequest(userId: DomainUserId, replyTo: ActorRef[GetPresenceResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -224,12 +224,12 @@ object PresenceServiceActor {
   ))
   sealed trait GetPresenceError
 
-  case class GetPresenceResponse(presence: Either[GetPresenceError, UserPresence]) extends CborSerializable
+  final case class GetPresenceResponse(presence: Either[GetPresenceError, UserPresence]) extends CborSerializable
 
   //
   // SubscribePresence
   //
-  case class SubscribePresenceRequest(userIds: List[DomainUserId],
+  final case class SubscribePresenceRequest(userIds: List[DomainUserId],
                                       client: ActorRef[PresenceClientActor.OutgoingMessage],
                                       replyTo: ActorRef[SubscribePresenceResponse]) extends Message
 
@@ -240,45 +240,45 @@ object PresenceServiceActor {
   ))
   sealed trait SubscribePresenceError
 
-  case class SubscribePresenceResponse(presences: Either[SubscribePresenceError, List[UserPresence]]) extends CborSerializable
+  final case class SubscribePresenceResponse(presences: Either[SubscribePresenceError, List[UserPresence]]) extends CborSerializable
 
   //
   // Unsubscribe
   //
-  case class UnsubscribePresence(userIds: List[DomainUserId], client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
+  final case class UnsubscribePresence(userIds: List[DomainUserId], client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
 
 
   //
   // UserConnected
   //
-  case class UserConnected(userId: DomainUserId, client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
+  final case class UserConnected(userId: DomainUserId, client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
 
   //
   // SetUserPresenceState
   //
-  case class SetUserPresenceState(userId: DomainUserId, state: Map[String, JValue]) extends Message
+  final case class SetUserPresenceState(userId: DomainUserId, state: Map[String, JValue]) extends Message
 
   //
   // RemoveUserPresenceState
   //
-  case class RemoveUserPresenceState(userId: DomainUserId, keys: List[String]) extends Message
+  final case class RemoveUserPresenceState(userId: DomainUserId, keys: List[String]) extends Message
 
   //
   // ClearUserPresenceState
   //
-  case class ClearUserPresenceState(userId: DomainUserId) extends Message
+  final case class ClearUserPresenceState(userId: DomainUserId) extends Message
 
 
   //
   // Common Errors
   //
   @JsonTypeName("user_not_found")
-  case class UserNotFoundError(userId: DomainUserId) extends GetPresenceError
+  final case class UserNotFoundError(userId: DomainUserId) extends GetPresenceError
     with GetPresencesError
     with SubscribePresenceError
 
   @JsonTypeName("unknown")
-  case class UnknownError() extends GetPresenceError
+  final case class UnknownError() extends GetPresenceError
     with GetPresencesError
     with SubscribePresenceError
 }

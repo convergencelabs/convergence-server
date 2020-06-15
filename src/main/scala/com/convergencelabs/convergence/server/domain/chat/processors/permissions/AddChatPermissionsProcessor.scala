@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{AddChatPermissionsRequest, AddChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.processors.MessageReplyTask
@@ -52,7 +53,7 @@ object AddChatPermissionsProcessor extends PermissionsMessageProcessor[AddChatPe
         }
       }
     } yield {
-      AddChatPermissionsResponse(Right(()))
+      AddChatPermissionsResponse(Right(Ok()))
     }).recover { cause =>
       error("Unexpected error adding chat permissions", cause)
       AddChatPermissionsResponse(Left(UnknownError()))

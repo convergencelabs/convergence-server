@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatStore, ChatUserAddedEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{AddUserToChatRequest, AddUserToChatResponse, CommonErrors}
@@ -78,7 +79,7 @@ private[chat] object AddUserEventProcessor
                          state: ChatState): ReplyAndBroadcastTask[AddUserToChatResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
-      AddUserToChatResponse(Right(())),
+      AddUserToChatResponse(Right(Ok())),
       Some(ChatClientActor.UserAddedToChat(event.id, event.eventNumber, event.timestamp, event.user, event.userAdded))
     )
   }

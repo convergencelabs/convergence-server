@@ -16,6 +16,7 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.OutgoingMessage
@@ -42,12 +43,12 @@ import scala.util.{Failure, Success, Try}
 class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
                          shardRegion: ActorRef[RealtimeModelActor.Message],
                          shard: ActorRef[ClusterSharding.ShardCommand],
-                         private[this] val modelPermissionResolver: ModelPermissionResolver,
-                         private[this] val modelCreator: ModelCreator,
-                         private[this] val persistenceManager: DomainPersistenceManager,
-                         private[this] val clientDataResponseTimeout: FiniteDuration,
-                         private[this] val receiveTimeout: FiniteDuration,
-                         private[this] val resyncTimeout: FiniteDuration)
+                         modelPermissionResolver: ModelPermissionResolver,
+                         modelCreator: ModelCreator,
+                         persistenceManager: DomainPersistenceManager,
+                         clientDataResponseTimeout: FiniteDuration,
+                         receiveTimeout: FiniteDuration,
+                         resyncTimeout: FiniteDuration)
   extends ShardedActor(context, shardRegion, shard) {
 
   import RealtimeModelActor._
@@ -177,7 +178,7 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
               _ <- persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(modelId, users.toMap)
             } yield {
               this._modelManager.foreach { m => m.reloadModelPermissions() }
-              SetModelPermissionsResponse(Right(()))
+              SetModelPermissionsResponse(Right(Ok()))
             }
           } else {
             val message = "User must have 'manage' permissions on the model to set permissions"
@@ -348,7 +349,7 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
             // FIXME we really need to actually create a synthetic operation
             //   and use the model operation processor to apply it.
             persistenceProvider.modelStore.updateModel(modelId, data, worldPermissions)
-              .map(_ => CreateOrUpdateRealtimeModelResponse(Right(())))
+              .map(_ => CreateOrUpdateRealtimeModelResponse(Right(Ok())))
 
           // FIXME permissions
         }
@@ -362,7 +363,7 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
           overridePermissions,
           worldPermissions,
           userPermissions)
-          .map(_ => CreateOrUpdateRealtimeModelResponse(Right(())))
+          .map(_ => CreateOrUpdateRealtimeModelResponse(Right(Ok())))
       }
     } match {
       case Success(response) =>
@@ -421,7 +422,7 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
           if (canDelete) {
             this._modelManager.foreach(_.modelDeleted())
             persistenceProvider.modelStore.deleteModel(modelId)
-              .map(_ => DeleteRealtimeModelResponse(Right(())))
+              .map(_ => DeleteRealtimeModelResponse(Right(Ok())))
           } else {
             val message = "User must have 'remove' permissions on the model to remove it."
             Success(DeleteRealtimeModelResponse(Left(UnauthorizedError(message))))
@@ -532,7 +533,7 @@ object RealtimeModelActor {
 
   case class ModelOpenError() extends CreateOrUpdateRealtimeModelError
 
-  case class CreateOrUpdateRealtimeModelResponse(response: Either[CreateOrUpdateRealtimeModelError, Unit]) extends CborSerializable
+  case class CreateOrUpdateRealtimeModelResponse(response: Either[CreateOrUpdateRealtimeModelError, Ok]) extends CborSerializable
 
   //
   // CreateRealtimeModel
@@ -577,7 +578,7 @@ object RealtimeModelActor {
   ))
   sealed trait DeleteRealtimeModelError
 
-  case class DeleteRealtimeModelResponse(response: Either[DeleteRealtimeModelError, Unit]) extends CborSerializable
+  case class DeleteRealtimeModelResponse(response: Either[DeleteRealtimeModelError, Ok]) extends CborSerializable
 
   //
   // GetModelPermissions
@@ -624,7 +625,7 @@ object RealtimeModelActor {
   ))
   sealed trait SetModelPermissionsError
 
-  case class SetModelPermissionsResponse(response: Either[SetModelPermissionsError, Unit]) extends CborSerializable
+  case class SetModelPermissionsResponse(response: Either[SetModelPermissionsError, Ok]) extends CborSerializable
 
   //
   // Messages targeted specifically at "open" models.
@@ -682,7 +683,7 @@ object RealtimeModelActor {
   ))
   sealed trait CloseRealtimeModelError
 
-  case class CloseRealtimeModelResponse(response: Either[CloseRealtimeModelError, Unit]) extends CborSerializable
+  case class CloseRealtimeModelResponse(response: Either[CloseRealtimeModelError, Ok]) extends CborSerializable
 
 
   //

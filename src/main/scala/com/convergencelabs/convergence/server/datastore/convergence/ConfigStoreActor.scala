@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
@@ -51,7 +52,7 @@ class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
     val SetConfigsRequest(configs, replyTo) = setConfigs
     configStore
       .setConfigs(configs)
-      .map(_ => SetConfigsResponse(Right(())))
+      .map(_ => SetConfigsResponse(Right(Ok())))
       .recover { cause =>
         context.log.error("Unexpected exception setting configs", cause)
         SetConfigsResponse(Left(UnknownError()))
@@ -109,7 +110,7 @@ object ConfigStoreActor {
   ))
   sealed trait SetConfigsError
 
-  final case class SetConfigsResponse(response: Either[SetConfigsError, Unit]) extends CborSerializable
+  final case class SetConfigsResponse(response: Either[SetConfigsError, Ok]) extends CborSerializable
 
   //
   // GetConfigs

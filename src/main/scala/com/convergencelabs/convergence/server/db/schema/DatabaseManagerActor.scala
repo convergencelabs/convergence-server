@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.db.schema
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.domain.DomainId
 import grizzled.slf4j.Logging
@@ -31,18 +32,18 @@ class DatabaseManagerActor private(context: ActorContext[DatabaseManagerActor.Me
       case GetConvergenceVersionRequest(replyTo) =>
         databaseManager.getConvergenceVersion()
           .map(version => GetConvergenceVersionResponse(Right(version)))
-          .recover( _ => GetConvergenceVersionResponse(Left(())))
+          .recover( _ => GetConvergenceVersionResponse(Left(UnknownError())))
           .foreach(replyTo ! _)
 
       case GetDomainVersionRequest(fqn, replyTo) =>
         // TODO handle Domain Not Found in the get domain version
         databaseManager.getDomainVersion(fqn)
           .map(version => GetDomainVersionResponse(Right(version)))
-          .recover( _ => GetDomainVersionResponse(Left(())))
+          .recover( _ => GetDomainVersionResponse(Left(UnknownError())))
           .foreach(replyTo ! _)
 
       case UpgradeConvergenceRequest(version, preRelease, replyTo) =>
-        replyTo ! UpgradeConvergenceResponse(Right(()))
+        replyTo ! UpgradeConvergenceResponse(Right(Ok()))
 
         version match {
           case Some(v) =>
@@ -52,7 +53,7 @@ class DatabaseManagerActor private(context: ActorContext[DatabaseManagerActor.Me
         }
 
       case UpgradeDomainRequest(fqn, version, preRelease, replyTo) =>
-        replyTo ! UpgradeDomainResponse(Right(()))
+        replyTo ! UpgradeDomainResponse(Right(Ok()))
 
         version match {
           case Some(v) =>
@@ -62,7 +63,7 @@ class DatabaseManagerActor private(context: ActorContext[DatabaseManagerActor.Me
         }
 
       case UpgradeDomainsRequest(version, preRelease, replyTo) =>
-        replyTo ! UpgradeDomainsResponse(Right(()))
+        replyTo ! UpgradeDomainsResponse(Right(Ok()))
 
         version match {
           case Some(v) =>
@@ -92,37 +93,39 @@ object DatabaseManagerActor {
   //
   // GetConvergenceVersion
   //
-  case class GetConvergenceVersionRequest(replyTo: ActorRef[GetConvergenceVersionResponse]) extends Message
+  final case class GetConvergenceVersionRequest(replyTo: ActorRef[GetConvergenceVersionResponse]) extends Message
 
-  case class GetConvergenceVersionResponse(version: Either[Unit, Int]) extends CborSerializable
+  final case class GetConvergenceVersionResponse(version: Either[UnknownError, Int]) extends CborSerializable
 
-
-  //
-  // GetConvergenceVersion
-  //
-  case class GetDomainVersionRequest(domainId: DomainId, replyTo: ActorRef[GetDomainVersionResponse]) extends Message
-
-  case class GetDomainVersionResponse(version: Either[Unit, Int]) extends CborSerializable
 
   //
   // GetConvergenceVersion
   //
-  case class UpgradeConvergenceRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeConvergenceResponse]) extends Message
+  final case class GetDomainVersionRequest(domainId: DomainId, replyTo: ActorRef[GetDomainVersionResponse]) extends Message
 
-  case class UpgradeConvergenceResponse(response: Either[Unit, Unit]) extends CborSerializable
-
-  //
-  // GetConvergenceVersion
-  //
-  case class UpgradeDomainRequest(id: DomainId, version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainResponse]) extends Message
-
-  case class UpgradeDomainResponse(response: Either[Unit, Unit]) extends CborSerializable
+  final case class GetDomainVersionResponse(version: Either[UnknownError, Int]) extends CborSerializable
 
   //
   // GetConvergenceVersion
   //
-  case class UpgradeDomainsRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainsResponse]) extends Message
+  final case class UpgradeConvergenceRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeConvergenceResponse]) extends Message
 
-  case class UpgradeDomainsResponse(response: Either[Unit, Unit]) extends CborSerializable
+  final case class UpgradeConvergenceResponse(response: Either[UnknownError, Ok]) extends CborSerializable
+
+  //
+  // GetConvergenceVersion
+  //
+  final case class UpgradeDomainRequest(id: DomainId, version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainResponse]) extends Message
+
+  final case class UpgradeDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
+
+  //
+  // GetConvergenceVersion
+  //
+  final case class UpgradeDomainsRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainsResponse]) extends Message
+
+  final case class UpgradeDomainsResponse(response: Either[UnknownError, Ok]) extends CborSerializable
+  
+  final case class UnknownError()
 
 }

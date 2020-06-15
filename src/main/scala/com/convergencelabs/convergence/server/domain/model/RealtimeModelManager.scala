@@ -17,6 +17,7 @@ import akka.actor.Cancellable
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.util.Timeout
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.UnknownErrorResponse
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.ForceModelCloseReasonCode
@@ -711,7 +712,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
       replyTo ! CloseRealtimeModelResponse(Left(ModelNotOpenError()))
     } else {
       closeModel(session, notifyOthers = true)
-      replyTo ! CloseRealtimeModelResponse(Right(()))
+      replyTo ! CloseRealtimeModelResponse(Right(Ok()))
       checkForConnectionsAndClose()
     }
   }

@@ -277,7 +277,7 @@ object ChatActor {
   @JsonTypeName("already_member")
   final case class AlreadyAMemberError() extends AddUserToChatError
 
-  final case class AddUserToChatResponse(response: Either[AddUserToChatError, Unit]) extends CborSerializable
+  final case class AddUserToChatResponse(response: Either[AddUserToChatError, Ok]) extends CborSerializable
 
   //
   // RemoveUserFromChannel
@@ -306,7 +306,7 @@ object ChatActor {
   @JsonTypeName("remove_self")
   final case class CantRemoveSelfError() extends RemoveUserFromChatError
 
-  final case class RemoveUserFromChatResponse(response: Either[RemoveUserFromChatError, Unit]) extends CborSerializable
+  final case class RemoveUserFromChatResponse(response: Either[RemoveUserFromChatError, Ok]) extends CborSerializable
 
   //
   // SetChatName
@@ -326,7 +326,7 @@ object ChatActor {
   ))
   sealed trait SetChatNameError
 
-  final case class SetChatNameResponse(response: Either[SetChatNameError, Unit]) extends CborSerializable
+  final case class SetChatNameResponse(response: Either[SetChatNameError, Ok]) extends CborSerializable
 
   //
   // SetChatTopic
@@ -346,7 +346,7 @@ object ChatActor {
   ))
   sealed trait SetChatTopicError
 
-  final case class SetChatTopicResponse(response: Either[SetChatTopicError, Unit]) extends CborSerializable
+  final case class SetChatTopicResponse(response: Either[SetChatTopicError, Ok]) extends CborSerializable
 
   //
   // MarkChatsEventsSeenRequest
@@ -366,7 +366,7 @@ object ChatActor {
   ))
   sealed trait MarkChatsEventsSeenError
 
-  final case class MarkChatsEventsSeenResponse(response: Either[MarkChatsEventsSeenError, Unit]) extends CborSerializable
+  final case class MarkChatsEventsSeenResponse(response: Either[MarkChatsEventsSeenError, Ok]) extends CborSerializable
 
   //
   // PublishChatMessage
@@ -420,7 +420,7 @@ object ChatActor {
   ))
   sealed trait AddChatPermissionsError
 
-  final case class AddChatPermissionsResponse(response: Either[AddChatPermissionsError, Unit]) extends CborSerializable
+  final case class AddChatPermissionsResponse(response: Either[AddChatPermissionsError, Ok]) extends CborSerializable
 
   //
   // RemoveChatPermissions
@@ -442,7 +442,7 @@ object ChatActor {
   ))
   sealed trait RemoveChatPermissionsError
 
-  final case class RemoveChatPermissionsResponse(response: Either[RemoveChatPermissionsError, Unit]) extends CborSerializable
+  final case class RemoveChatPermissionsResponse(response: Either[RemoveChatPermissionsError, Ok]) extends CborSerializable
 
   //
   // SetChatPermissions
@@ -464,7 +464,7 @@ object ChatActor {
   ))
   sealed trait SetChatPermissionsError
 
-  final case class SetChatPermissionsResponse(response: Either[SetChatPermissionsError, Unit]) extends CborSerializable
+  final case class SetChatPermissionsResponse(response: Either[SetChatPermissionsError, Ok]) extends CborSerializable
 
   //
   // GetClientChatPermissions
@@ -627,7 +627,7 @@ object ChatActor {
   ))
   sealed trait RemoveChatError
 
-  final case class RemoveChatResponse(response: Either[RemoveChatError, Unit]) extends CborSerializable
+  final case class RemoveChatResponse(response: Either[RemoveChatError, Ok]) extends CborSerializable
 
 
   //

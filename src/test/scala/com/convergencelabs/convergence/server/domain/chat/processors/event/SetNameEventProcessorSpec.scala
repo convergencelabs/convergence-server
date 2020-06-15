@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 import java.time.Instant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatNameChangedEvent, ChatStore, PermissionsStore}
@@ -51,7 +52,7 @@ class SetNameEventProcessorSpec extends ScalaTestWithActorTestKit
         response.task.broadcast shouldBe defined
         response.task.reply.replyTo shouldBe message.replyTo
         val newState = response.newState.get
-        response.task.reply.response shouldBe SetChatNameResponse(Right(()))
+        response.task.reply.response shouldBe SetChatNameResponse(Right(Ok()))
       }
     }
 
@@ -133,7 +134,7 @@ class SetNameEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val task = SetNameEventProcessor.createSuccessReply(message, event, state)
         task.reply.replyTo shouldBe message.replyTo
-        task.reply.response shouldBe SetChatNameResponse(Right(()))
+        task.reply.response shouldBe SetChatNameResponse(Right(Ok()))
         task.broadcast shouldBe Some(ChatClientActor.ChatNameChanged(
           event.id, event.eventNumber, event.timestamp, event.user, event.name))
 

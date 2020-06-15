@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, ChatUserRemovedEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, RemoveUserFromChatRequest, RemoveUserFromChatResponse}
@@ -67,9 +68,7 @@ private[chat] object RemoveUserEventProcessor
       _ <- chatStore.addChatUserRemovedEvent(event)
       chatRid <- chatStore.getChatRid(event.id)
       _ <- permissionsStore.removeUserPermissions(ChatPermissions.AllExistingChatPermissions, event.userRemoved, Some(chatRid))
-    } yield {
-
-    }
+    } yield ()
   }
 
   def updateState(event: ChatUserRemovedEvent, state: ChatState): ChatState = {
@@ -82,7 +81,7 @@ private[chat] object RemoveUserEventProcessor
                          state: ChatState): ReplyAndBroadcastTask[RemoveUserFromChatResponse] = {
     replyAndBroadcastTask(
       message.replyTo,
-      RemoveUserFromChatResponse(Right(())),
+      RemoveUserFromChatResponse(Right(Ok())),
       Some(ChatClientActor.UserRemovedFromChat(event.id, event.eventNumber, event.timestamp, event.user, event.userRemoved))
     )
   }

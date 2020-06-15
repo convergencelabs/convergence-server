@@ -13,13 +13,21 @@ package com.convergencelabs.convergence.server.datastore.domain
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.common.{Ok, PagedData}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.model.Collection
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
+/**
+ * The [[CollectionStoreActor]] provides services to create, remove, and update
+ * model collections.
+ *
+ * @param context         The ActorContext for the behavior.
+ * @param collectionStore The [[CollectionStore]] to user for persistence of
+ *                        collections.
+ */
 class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Message],
                                    collectionStore: CollectionStore)
   extends AbstractBehavior[CollectionStoreActor.Message](context) {
@@ -88,7 +96,7 @@ class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Me
     val CreateCollectionRequest(collection, replyTo) = msg
     collectionStore
       .createCollection(collection)
-      .map(_ => CreateCollectionResponse(Right(())))
+      .map(_ => CreateCollectionResponse(Right(Ok())))
       .recover {
         case DuplicateValueException(field, _, _) =>
           CreateCollectionResponse(Left(CollectionExists(field)))
@@ -103,7 +111,7 @@ class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Me
     val UpdateCollectionRequest(collectionId, collection, replyTo) = msg
     collectionStore
       .updateCollection(collectionId, collection)
-      .map(_ => UpdateCollectionResponse(Right(())))
+      .map(_ => UpdateCollectionResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateCollectionResponse(Left(CollectionNotFoundError()))
@@ -118,7 +126,7 @@ class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Me
     val DeleteCollectionRequest(collectionId, replyTo) = msg
     collectionStore
       .deleteCollection(collectionId)
-      .map(_ => DeleteCollectionResponse(Right(())))
+      .map(_ => DeleteCollectionResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           DeleteCollectionResponse(Left(CollectionNotFoundError()))
@@ -128,9 +136,8 @@ class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Me
 }
 
 object CollectionStoreActor {
-  def apply(collectionStore: CollectionStore): Behavior[Message] = Behaviors.setup { context =>
-    new CollectionStoreActor(context, collectionStore)
-  }
+  def apply(collectionStore: CollectionStore): Behavior[Message] =
+    Behaviors.setup (new CollectionStoreActor(_, collectionStore))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -142,9 +149,9 @@ object CollectionStoreActor {
   // GetCollections
   //
   final case class GetCollectionsRequest(filter: Option[String],
-                                   offset: Option[Int],
-                                   limit: Option[Int],
-                                   replyTo: ActorRef[GetCollectionsResponse]) extends Message
+                                         offset: Option[Int],
+                                         limit: Option[Int],
+                                         replyTo: ActorRef[GetCollectionsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -159,9 +166,9 @@ object CollectionStoreActor {
   // GetCollectionSummaries
   //
   final case class GetCollectionSummariesRequest(filter: Option[String],
-                                           offset: Option[Int],
-                                           limit: Option[Int],
-                                           replyTo: ActorRef[GetCollectionSummariesResponse]) extends Message
+                                                 offset: Option[Int],
+                                                 limit: Option[Int],
+                                                 replyTo: ActorRef[GetCollectionSummariesResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -199,7 +206,7 @@ object CollectionStoreActor {
   ))
   sealed trait DeleteCollectionError
 
-  final case class DeleteCollectionResponse(response: Either[DeleteCollectionError, Unit]) extends CborSerializable
+  final case class DeleteCollectionResponse(response: Either[DeleteCollectionError, Ok]) extends CborSerializable
 
   //
   // CreateCollection
@@ -215,7 +222,7 @@ object CollectionStoreActor {
 
   final case class CollectionExists(field: String) extends CreateCollectionError
 
-  final case class CreateCollectionResponse(response: Either[CreateCollectionError, Unit]) extends CborSerializable
+  final case class CreateCollectionResponse(response: Either[CreateCollectionError, Ok]) extends CborSerializable
 
   //
   // UpdateCollection
@@ -229,7 +236,7 @@ object CollectionStoreActor {
   ))
   sealed trait UpdateCollectionError
 
-  final case class UpdateCollectionResponse(response: Either[UpdateCollectionError, Unit]) extends CborSerializable
+  final case class UpdateCollectionResponse(response: Either[UpdateCollectionError, Ok]) extends CborSerializable
 
 
   //
@@ -248,4 +255,5 @@ object CollectionStoreActor {
     with DeleteCollectionError
     with CreateCollectionError
     with UpdateCollectionError
+
 }

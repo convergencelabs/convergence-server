@@ -16,6 +16,7 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Scheduler}
 import akka.util.Timeout
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
@@ -95,7 +96,7 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
         case Some(domain) =>
           val updated = domain.copy(displayName = displayName)
           domainStore.updateDomain(updated)
-            .map(_ => UpdateDomainResponse(Right(())))
+            .map(_ => UpdateDomainResponse(Right(Ok())))
             .recover {
               case _: EntityNotFoundException =>
                 UpdateDomainResponse(Left(DomainNotFound()))
@@ -116,7 +117,7 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
     val DeleteDomainRequest(namespace, domainId, replyTo) = deleteRequest
     val domainFqn = DomainId(namespace, domainId)
     deleteDomain(domainFqn)
-      .map(_ => DeleteDomainResponse(Right(())))
+      .map(_ => DeleteDomainResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           DeleteDomainResponse(Left(DomainNotFound()))
@@ -186,7 +187,7 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
               error(s"Unable to delete domain '${domain.domainFqn}' while deleting user '$username'", cause)
           }
         }
-        DeleteDomainsForUserResponse(Right(()))
+        DeleteDomainsForUserResponse(Right(Ok()))
       }
       .recover {
         case cause: Exception =>
@@ -297,7 +298,7 @@ object DomainStoreActor {
   ))
   sealed trait UpdateDomainError
 
-  final case class UpdateDomainResponse(response: Either[UpdateDomainError, Unit]) extends CborSerializable
+  final case class UpdateDomainResponse(response: Either[UpdateDomainError, Ok]) extends CborSerializable
 
   //
   // DeleteDomain
@@ -310,7 +311,7 @@ object DomainStoreActor {
   ))
   sealed trait DeleteDomainError
 
-  final case class DeleteDomainResponse(response: Either[DeleteDomainError, Unit]) extends CborSerializable
+  final case class DeleteDomainResponse(response: Either[DeleteDomainError, Ok]) extends CborSerializable
 
   //
   // DeleteDomainsForUser
@@ -322,7 +323,7 @@ object DomainStoreActor {
   ))
   sealed trait DeleteDomainsForUserError
 
-  final case class DeleteDomainsForUserResponse(response: Either[DeleteDomainsForUserError, Unit]) extends CborSerializable
+  final case class DeleteDomainsForUserResponse(response: Either[DeleteDomainsForUserError, Ok]) extends CborSerializable
 
   //
   // GetDomain

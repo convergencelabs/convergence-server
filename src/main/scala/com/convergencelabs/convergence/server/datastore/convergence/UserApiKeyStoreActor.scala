@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
@@ -80,7 +81,7 @@ class UserApiKeyStoreActor private(context: ActorContext[UserApiKeyStoreActor.Me
     val key = UserApiKey(username, keyName, keyGen.nextString(), enabled.getOrElse(true), None)
     userApiKeyStore
       .createKey(key)
-      .map(_ => CreateUserApiKeyResponse(Right(())))
+      .map(_ => CreateUserApiKeyResponse(Right(Ok())))
       .recover {
         case _: DuplicateValueException =>
           CreateUserApiKeyResponse(Left(UserApiKeyExistsError()))
@@ -95,7 +96,7 @@ class UserApiKeyStoreActor private(context: ActorContext[UserApiKeyStoreActor.Me
     val DeleteUserApiKeyRequest(username, key, replyTo) = message
     userApiKeyStore
       .deleteKey(key, username)
-      .map(_ => DeleteUserApiKeyResponse(Right(())))
+      .map(_ => DeleteUserApiKeyResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           DeleteUserApiKeyResponse(Left(KeyNotFoundError()))
@@ -110,7 +111,7 @@ class UserApiKeyStoreActor private(context: ActorContext[UserApiKeyStoreActor.Me
     val UpdateUserApiKeyRequest(username, key, name, enabled, replyTo) = message
     userApiKeyStore
       .updateKeyKey(key, username, name, enabled)
-      .map(_ => UpdateUserApiKeyResponse(Right(())))
+      .map(_ => UpdateUserApiKeyResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>
           UpdateUserApiKeyResponse(Left(KeyNotFoundError()))
@@ -180,7 +181,7 @@ object UserApiKeyStoreActor {
 
   final case class UserApiKeyExistsError() extends CreateUserApiKeyError
 
-  final case class CreateUserApiKeyResponse(response: Either[CreateUserApiKeyError, Unit]) extends CborSerializable
+  final case class CreateUserApiKeyResponse(response: Either[CreateUserApiKeyError, Ok]) extends CborSerializable
 
   //
   // DeleteUserApiKey
@@ -193,7 +194,7 @@ object UserApiKeyStoreActor {
   ))
   trait DeleteUserApiKeyError
 
-  final case class DeleteUserApiKeyResponse(response: Either[DeleteUserApiKeyError, Unit]) extends CborSerializable
+  final case class DeleteUserApiKeyResponse(response: Either[DeleteUserApiKeyError, Ok]) extends CborSerializable
 
   //
   // UpdateUserApiKey
@@ -206,7 +207,7 @@ object UserApiKeyStoreActor {
   ))
   trait UpdateUserApiKeyError
 
-  final case class UpdateUserApiKeyResponse(response: Either[UpdateUserApiKeyError, Unit]) extends CborSerializable
+  final case class UpdateUserApiKeyResponse(response: Either[UpdateUserApiKeyError, Ok]) extends CborSerializable
 
   //
   // Commons Errors

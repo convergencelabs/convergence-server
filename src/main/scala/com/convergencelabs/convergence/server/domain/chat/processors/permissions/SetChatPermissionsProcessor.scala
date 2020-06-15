@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{SetChatPermissionsRequest, SetChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
@@ -51,7 +52,7 @@ object SetChatPermissionsProcessor extends PermissionsMessageProcessor[SetChatPe
         }
       }
     } yield {
-      SetChatPermissionsResponse(Right(()))
+      SetChatPermissionsResponse(Right(Ok()))
     }).recover { cause =>
       error("Unexpected error setting chat permissions", cause)
       SetChatPermissionsResponse(Left(UnknownError()))
