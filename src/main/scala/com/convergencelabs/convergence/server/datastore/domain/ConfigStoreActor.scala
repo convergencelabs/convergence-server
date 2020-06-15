@@ -15,7 +15,6 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
@@ -98,7 +97,7 @@ object ConfigStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
   //
   // GetAnonymousAuth

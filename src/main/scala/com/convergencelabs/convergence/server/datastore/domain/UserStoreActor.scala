@@ -17,7 +17,6 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
@@ -180,7 +179,7 @@ object UserStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
   //
   // GetUsers

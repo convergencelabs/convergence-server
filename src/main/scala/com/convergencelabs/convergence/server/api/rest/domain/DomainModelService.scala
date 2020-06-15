@@ -133,8 +133,8 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
   }
 
   private[this] def getModel(domain: DomainId, modelId: String, data: Boolean): Future[RestResponse] = {
-    domainRestActor.ask[RealtimeModelActor.GetRealtimeModelResponse](r =>
-      DomainRestMessage(domain, RealtimeModelActor.GetRealtimeModelRequest(domain, modelId, None, r)))
+    modelClusterRegion.ask[RealtimeModelActor.GetRealtimeModelResponse](r =>
+      RealtimeModelActor.GetRealtimeModelRequest(domain, modelId, None, r))
       .map(_.model.fold(
         {
           case RealtimeModelActor.ModelNotFoundError() =>
@@ -174,8 +174,8 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
       DomainUserId.normal(username) -> perms
     }
 
-    domainRestActor.ask[RealtimeModelActor.CreateRealtimeModelResponse](r => DomainRestMessage(domain,
-      RealtimeModelActor.CreateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r)))
+    modelClusterRegion.ask[RealtimeModelActor.CreateRealtimeModelResponse](r =>
+      RealtimeModelActor.CreateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r))
       .map(_.response.fold(
         {
           case RealtimeModelActor.ModelAlreadyExistsError() =>
@@ -200,8 +200,8 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
       DomainUserId.normal(username) -> perms
     }
 
-    domainRestActor.ask[RealtimeModelActor.CreateOrUpdateRealtimeModelResponse](r => DomainRestMessage(domain,
-      RealtimeModelActor.CreateOrUpdateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r)))
+    modelClusterRegion.ask[RealtimeModelActor.CreateOrUpdateRealtimeModelResponse](r =>
+      RealtimeModelActor.CreateOrUpdateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r))
       .map(_.response.fold(
         {
           case RealtimeModelActor.UnauthorizedError(_) =>
@@ -268,7 +268,7 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
   private[this] def getModelOverridesPermissions(domain: DomainId, modelId: String): Future[RestResponse] = {
     domainRestActor
       .ask[ModelPermissionsStoreActor.GetModelOverridesPermissionsResponse](
-      r => DomainRestMessage(domain, ModelPermissionsStoreActor.GetModelOverridesPermissionsRequest(modelId, r)))
+        r => DomainRestMessage(domain, ModelPermissionsStoreActor.GetModelOverridesPermissionsRequest(modelId, r)))
       .map(_.overrides.fold(
         {
           case ModelPermissionsStoreActor.ModelNotFoundError() =>

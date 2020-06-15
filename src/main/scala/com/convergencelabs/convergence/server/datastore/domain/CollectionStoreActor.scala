@@ -18,7 +18,6 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.model.Collection
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Message],
@@ -137,7 +136,7 @@ object CollectionStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
   //
   // GetCollections

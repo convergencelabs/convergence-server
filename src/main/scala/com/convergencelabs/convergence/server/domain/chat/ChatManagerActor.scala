@@ -22,7 +22,6 @@ import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
@@ -233,7 +232,7 @@ object ChatManagerActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
   //
   // ChatSearch

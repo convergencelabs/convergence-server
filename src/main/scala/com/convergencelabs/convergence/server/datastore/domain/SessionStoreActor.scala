@@ -16,7 +16,6 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessageBody
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class SessionStoreActor private(context: ActorContext[SessionStoreActor.Message],
@@ -67,7 +66,7 @@ object SessionStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message extends CborSerializable with DomainRestMessageBody
+  sealed trait Message extends CborSerializable
 
   //
   // GetSessions

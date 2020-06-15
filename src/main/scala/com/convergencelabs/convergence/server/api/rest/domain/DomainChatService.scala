@@ -144,9 +144,9 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
   }
 
   private[this] def deleteChat(authProfile: AuthorizationProfile, domain: DomainId, chatId: String): Future[RestResponse] = {
-    domainRestActor
+    chatSharding
       .ask[ChatActor.RemoveChatResponse](r =>
-        DomainRestMessage(domain, ChatActor.RemoveChatRequest(domain, chatId, DomainUserId.convergence(authProfile.username), r)))
+        ChatActor.RemoveChatRequest(domain, chatId, DomainUserId.convergence(authProfile.username), r))
       .map(_.response.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -159,9 +159,9 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
   private[this] def setName(authProfile: AuthorizationProfile, domain: DomainId, chatId: String, data: SetNameData): Future[RestResponse] = {
     val SetNameData(name) = data
     val userId = DomainUserId.convergence(authProfile.username)
-    domainRestActor
+    chatSharding
       .ask[ChatActor.SetChatNameResponse](r =>
-        DomainRestMessage(domain, ChatActor.SetChatNameRequest(domain, chatId, userId, name, r)))
+        ChatActor.SetChatNameRequest(domain, chatId, userId, name, r))
       .map(_.response.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -176,9 +176,9 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
   private[this] def setTopic(authProfile: AuthorizationProfile, domain: DomainId, chatId: String, data: SetTopicData): Future[RestResponse] = {
     val SetTopicData(topic) = data
     val userId = DomainUserId.convergence(authProfile.username)
-    domainRestActor
+    chatSharding
       .ask[ChatActor.SetChatTopicResponse](r =>
-        DomainRestMessage(domain, ChatActor.SetChatTopicRequest(domain, chatId, userId, topic, r)))
+        ChatActor.SetChatTopicRequest(domain, chatId, userId, topic, r))
       .map(_.response.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -199,9 +199,9 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
                                   limit: Option[Long],
                                   forward: Option[Boolean]): Future[RestResponse] = {
     val types = eventTypes.map(t => t.split(",").toSet)
-    domainRestActor
-      .ask[ChatActor.GetChatHistoryResponse](r => DomainRestMessage(domain,
-      ChatActor.GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, messageFilter, r)))
+    chatSharding
+      .ask[ChatActor.GetChatHistoryResponse](r =>
+      ChatActor.GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, messageFilter, r))
       .map(_.events.fold(
         {
           case error: ChatActor.CommonErrors =>

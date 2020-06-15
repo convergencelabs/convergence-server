@@ -20,7 +20,6 @@ import com.convergencelabs.convergence.server.datastore.domain
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.domain.{AuthenticationHandler, DomainId}
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
@@ -49,36 +48,43 @@ class DomainRestActor(context: ActorContext[DomainRestActor.Message],
 
   override def receiveInitialized(msg: Message): Behavior[Message] = {
     msg match {
+
       case DomainRestMessage(_, body) =>
         body match {
-          case msg: AdminTokenRequest =>
-            onGetAdminToken(msg)
-          case message: UserStoreActor.Message =>
-            userStoreActor ! message
-          case message: UserGroupStoreActor.Message =>
-            groupStoreActor ! message
-          case message: CollectionStoreActor.Message =>
-            collectionStoreActor ! message
-          case message: ModelStoreActor.Message =>
+          case DomainRestMessageBody.Domain(message) =>
+            onDomainMessage(message)
+          case DomainRestMessageBody.Model(message) =>
             modelStoreActor ! message
-          case message: ModelPermissionsStoreActor.Message =>
+          case DomainRestMessageBody.ModelPermission(message) =>
             modelPermissionsStoreActor ! message
-          case message: JwtAuthKeyStoreActor.Message =>
+          case DomainRestMessageBody.User(message) =>
+            userStoreActor ! message
+          case DomainRestMessageBody.Group(message) =>
+            groupStoreActor ! message
+          case DomainRestMessageBody.Collection(message) =>
+            collectionStoreActor ! message
+          case DomainRestMessageBody.JwtAuthKey(message) =>
             keyStoreActor ! message
-          case message: ConfigStoreActor.Message =>
+          case DomainRestMessageBody.Config(message) =>
             configStoreActor ! message
-          case message: DomainStatsActor.Message =>
+          case DomainRestMessageBody.Stats(message) =>
             statsActor ! message
-          case message: domain.SessionStoreActor.Message =>
+          case DomainRestMessageBody.Session(message) =>
             sessionStoreActor ! message
-          case message: ChatManagerActor.Message =>
+          case DomainRestMessageBody.Chat(message) =>
             chatActor ! message
         }
-
         Behaviors.same
 
       case ReceiveTimeout(_) =>
         this.passivate()
+    }
+  }
+
+  private[this] def onDomainMessage(message: DomainMessage): Unit = {
+    message match {
+      case msg: AdminTokenRequest =>
+        onGetAdminToken(msg)
     }
   }
 
@@ -149,18 +155,68 @@ object DomainRestActor {
     def domainId: DomainId
   }
 
-  private case class ReceiveTimeout(domainId: DomainId) extends Message
+  sealed trait DomainMessage
 
-  case class DomainRestMessage(domainId: DomainId, message: Any) extends Message
+  object DomainRestMessage {
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "type")
-  trait DomainRestMessageBody
+    def apply(domainId: DomainId, msg: DomainMessage): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Domain(msg))
+    }
+
+    def apply(domainId: DomainId, msg: ModelStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Model(msg))
+    }
+
+    def apply(domainId: DomainId, msg: domain.ModelPermissionsStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.ModelPermission(msg))
+    }
+
+    def apply(domainId: DomainId, msg: ChatManagerActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Chat(msg))
+    }
+
+    def apply(domainId: DomainId, msg: UserStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.User(msg))
+    }
+
+    def apply(domainId: DomainId, msg: UserGroupStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Group(msg))
+    }
+
+    def apply(domainId: DomainId, msg: CollectionStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Collection(msg))
+    }
+
+    def apply(domainId: DomainId, msg: SessionStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Session(msg))
+    }
+
+    def apply(domainId: DomainId, msg: DomainStatsActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Stats(msg))
+    }
+
+    def apply(domainId: DomainId, msg: JwtAuthKeyStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.JwtAuthKey(msg))
+    }
+
+    def apply(domainId: DomainId, msg: ConfigStoreActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Config(msg))
+    }
+  }
+
+  final case class DomainRestMessage(domainId: DomainId, message: DomainRestMessageBody) extends Message
+
+
+
 
   //
   // AdminToken
   //
-  case class AdminTokenRequest(convergenceUsername: String, replyTo: ActorRef[AdminTokenResponse]) extends DomainRestMessageBody
 
-  case class AdminTokenResponse(token: Either[Unit, String]) extends CborSerializable
+  final case class AdminTokenRequest(convergenceUsername: String, replyTo: ActorRef[AdminTokenResponse]) extends DomainMessage
+
+  final case class AdminTokenResponse(token: Either[Unit, String]) extends CborSerializable
+
+  private case class ReceiveTimeout(domainId: DomainId) extends Message
 
 }
