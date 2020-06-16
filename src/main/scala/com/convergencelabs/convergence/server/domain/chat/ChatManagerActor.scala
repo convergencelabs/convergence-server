@@ -22,6 +22,7 @@ import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
@@ -241,8 +242,8 @@ object ChatManagerActor {
                                       searchFields: Option[Set[String]],
                                       chatType: Option[Set[ChatType.Value]],
                                       membership: Option[ChatMembership.Value],
-                                      offset: Option[Long],
-                                      limit: Option[Long],
+                                      offset: QueryOffset,
+                                      limit: QueryLimit,
                                       replyTo: ActorRef[ChatsSearchResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

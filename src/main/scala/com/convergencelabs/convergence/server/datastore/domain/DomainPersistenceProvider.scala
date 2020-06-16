@@ -73,7 +73,7 @@ class DomainPersistenceProviderImpl(val domainId: DomainId, val dbProvider: Data
 
   val modelStore = new ModelStore(dbProvider, modelOperationStore, modelSnapshotStore)
 
-  val collectionStore = new CollectionStore(dbProvider, modelStore: ModelStore)
+  val collectionStore = new CollectionStore(dbProvider)
 
   val modelOperationProcessor = new ModelOperationProcessor(dbProvider, modelOperationStore, modelStore)
 

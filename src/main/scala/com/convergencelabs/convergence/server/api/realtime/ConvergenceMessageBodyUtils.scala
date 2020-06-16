@@ -105,6 +105,7 @@ object ConvergenceMessageBodyUtils {
       case Body.ActivityJoinRequest(message) => message
       case Body.ActivityJoinResponse(message) => message
       case Body.ActivityLeaveRequest(message) => message
+      case Body.ActivityLeaveResponse(message) => message
       case Body.ActivitySessionJoined(message) => message
       case Body.ActivitySessionLeft(message) => message
       case Body.ActivityUpdateState(message) => message
@@ -268,7 +269,8 @@ object ConvergenceMessageBodyUtils {
       case message: ActivityParticipantsResponseMessage => Body.ActivityParticipantsResponse(message)
       case message: ActivityJoinRequestMessage => Body.ActivityJoinRequest(message)
       case message: ActivityJoinResponseMessage => Body.ActivityJoinResponse(message)
-      case message: ActivityLeaveMessage => Body.ActivityLeaveRequest(message)
+      case message: ActivityLeaveRequestMessage => Body.ActivityLeaveRequest(message)
+      case message: ActivityLeaveResponseMessage => Body.ActivityLeaveResponse(message)
       case message: ActivitySessionJoinedMessage => Body.ActivitySessionJoined(message)
       case message: ActivitySessionLeftMessage => Body.ActivitySessionLeft(message)
       case message: ActivityUpdateStateMessage => Body.ActivityUpdateState(message)

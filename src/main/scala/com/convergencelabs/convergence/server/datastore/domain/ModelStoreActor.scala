@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
@@ -155,8 +156,8 @@ object ModelStoreActor {
   //
   // GetModels
   //
-  final case class GetModelsRequest(offset: Option[Int],
-                                    limit: Option[Int],
+  final case class GetModelsRequest(offset: QueryOffset,
+                                    limit: QueryLimit,
                                     replyTo: ActorRef[GetModelsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -171,8 +172,8 @@ object ModelStoreActor {
   // GetModelsInCollection
   //
   final case class GetModelsInCollectionRequest(collectionId: String,
-                                                offset: Option[Int],
-                                                limit: Option[Int],
+                                                offset: QueryOffset,
+                                                limit: QueryLimit,
                                                 replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

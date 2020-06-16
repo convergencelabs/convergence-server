@@ -23,12 +23,14 @@ import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions._
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.datastore.domain.ChatMembership.InvalidChatMembershipValue
 import com.convergencelabs.convergence.server.datastore.domain.ChatType.InvalidChatTypeValue
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor, GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.domain.chat._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.google.protobuf.timestamp.Timestamp
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
@@ -597,7 +599,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     val ChatHistoryRequestMessage(chatId, offset, limit, startEvent, forward, eventFilter, _) = message
     chatShardRegion
       .ask[ChatActor.GetChatHistoryResponse](
-        ChatActor.GetChatHistoryRequest(domainId, chatId, Some(session), offset, limit, startEvent, forward, Some(eventFilter.toSet), None, _))
+        ChatActor.GetChatHistoryRequest(
+          domainId, chatId, Some(session), QueryOffset(offset.map(_.intValue())), QueryLimit(limit.map(_.intValue())), startEvent, forward, Some(eventFilter.toSet), None, _))
       .map(_.events.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -630,7 +633,10 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       val chatTypes = if (types.isEmpty) None else Some(types.toSet)
 
       chatManagerActor
-        .ask[ChatManagerActor.ChatsSearchResponse](ChatsSearchRequest(searchTerm, searchFields, chatTypes, membership, offset, limit, _))
+        .ask[ChatManagerActor.ChatsSearchResponse](
+          ChatsSearchRequest(searchTerm, searchFields, chatTypes, membership,
+            QueryOffset(offset.map(_.intValue())),
+            QueryLimit(limit.map(_.intValue())), _))
         .map(_.chats.fold(
           {
             case UnknownError() =>

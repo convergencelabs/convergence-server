@@ -15,7 +15,6 @@ import java.time.Instant
 import java.util.Date
 
 import scala.util.Try
-
 import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
 import com.convergencelabs.convergence.server.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
@@ -23,12 +22,13 @@ import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectValu
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.model.ModelSnapshot
 import com.convergencelabs.convergence.server.domain.model.ModelSnapshotMetaData
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import grizzled.slf4j.Logging
 
 object ModelSnapshotStore {
+
   import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
 
   object Constants {
@@ -63,7 +63,7 @@ object ModelSnapshotStore {
       doc.getProperty(Classes.ModelSnapshot.Fields.Version),
       Instant.ofEpochMilli(timestamp.getTime))
   }
-  
+
   /**
    * Removes all snapshot for all models in a collection.
    *
@@ -82,10 +82,10 @@ object ModelSnapshotStore {
  * @constructor Creates a new ModelSnapshotStore using the provided database pool.
  * @param dbProvider The database pool to use for connections.
  */
-class ModelSnapshotStore private[domain] (
-  private[this] val dbProvider: DatabaseProvider)
+class ModelSnapshotStore private[domain](
+                                          private[this] val dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import ModelSnapshotStore._
   import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
@@ -110,11 +110,10 @@ class ModelSnapshotStore private[domain] (
   /**
    * Gets a snapshot for the specified model and version.
    *
-   * @param id The model id of the snapshot to get.
+   * @param id      The model id of the snapshot to get.
    * @param version The version of the snapshot to get.
-   *
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
-   * version if it exists, or None if it does not.
+   *         version if it exists, or None if it does not.
    */
   def getSnapshot(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
     val query = s"SELECT $AllFields FROM ModelSnapshot WHERE model.id = :modelId AND version = :version"
@@ -126,9 +125,8 @@ class ModelSnapshotStore private[domain] (
    * Gets snapshots for the specified model.
    *
    * @param id The model id of the snapshot to get.
-   *
    * @return Some(SnapshotData) if a snapshot corresponding to the model and
-   * version if it exists, or None if it does not.
+   *         version if it exists, or None if it does not.
    */
   def getSnapshots(id: String): Try[List[ModelSnapshot]] = withDb { db =>
     val query = s"SELECT $AllFields FROM ModelSnapshot WHERE model.id = :modelId"
@@ -144,22 +142,20 @@ class ModelSnapshotStore private[domain] (
    * Gets a listing of all snapshot meta data for a given model.  The results
    * are sorted in ascending order by version.
    *
-   * @param id The id of the model to get the meta data for.
-   * @param limit The maximum number of results to return.  If None, then all results are returned.
+   * @param id     The id of the model to get the meta data for.
    * @param offset The offset into the result list.  If None, the default is 0.
-   *
+   * @param limit  The maximum number of results to return.  If None, then all results are returned.
    * @return A list of (paged) meta data for the specified model.
    */
-  def getSnapshotMetaDataForModel(
-    id: String,
-    limit: Option[Int],
-    offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = withDb { db =>
+  def getSnapshotMetaDataForModel(id: String,
+                                  offset: QueryOffset,
+                                  limit: QueryLimit): Try[List[ModelSnapshotMetaData]] = withDb { db =>
     val baseQuery =
       s"""SELECT $MetaDataFields
-        |FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId
-        |ORDER BY version ASC""".stripMargin
+         |FROM ModelSnapshot
+         |WHERE
+         |  model.id = :modelId
+         |ORDER BY version ASC""".stripMargin
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(Constants.ModelId -> id)
     OrientDBUtil.queryAndMap(db, query, params)(docToModelSnapshotMetaData)
@@ -169,27 +165,25 @@ class ModelSnapshotStore private[domain] (
    * Gets a listing of all snapshot meta data for a given model within time bounds.  The results
    * are sorted in ascending order by version.
    *
-   * @param id The id of the model to get the meta data for.
+   * @param id        The id of the model to get the meta data for.
    * @param startTime The lower time bound (defaults to the unix epoc)
-   * @param endTime The upper time bound (defaults to now)
-   * @param limit The maximum number of results to return.  If None, then all results are returned.
-   * @param offset The offset into the result list.  If None, the default is 0.
-   *
+   * @param endTime   The upper time bound (defaults to now)
+   * @param offset    The offset into the result list.  If None, the default is 0.
+   * @param limit     The maximum number of results to return.  If None, then all results are returned.
    * @return A list of (paged) meta data for the specified model.
    */
-  def getSnapshotMetaDataForModelByTime(
-    id: String,
-    startTime: Option[Long],
-    endTime: Option[Long],
-    limit: Option[Int],
-    offset: Option[Int]): Try[List[ModelSnapshotMetaData]] = withDb { db =>
+  def getSnapshotMetaDataForModelByTime(id: String,
+                                        startTime: Option[Long],
+                                        endTime: Option[Long],
+                                        offset: QueryOffset,
+                                        limit: QueryLimit): Try[List[ModelSnapshotMetaData]] = withDb { db =>
     val baseQuery =
       s"""SELECT $MetaDataFields
-        |FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId AND
-        |  timestamp BETWEEN :startTime AND :endTime
-        |ORDER BY version ASC""".stripMargin
+         |FROM ModelSnapshot
+         |WHERE
+         |  model.id = :modelId AND
+         |  timestamp BETWEEN :startTime AND :endTime
+         |ORDER BY version ASC""".stripMargin
 
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(
@@ -203,17 +197,16 @@ class ModelSnapshotStore private[domain] (
    * Returns the most recent snapshot meta data for the specified model.
    *
    * @param id The id of the model to get the latest snapshot meta data for.
-   *
    * @return the latest snapshot (by version) of the specified model, or None
-   * if no snapshots for that model exist.
+   *         if no snapshots for that model exist.
    */
   def getLatestSnapshotMetaDataForModel(id: String): Try[Option[ModelSnapshotMetaData]] = withDb { db =>
     val query =
       s"""SELECT $MetaDataFields
-        |FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId
-        |ORDER BY version DESC LIMIT 1""".stripMargin
+         |FROM ModelSnapshot
+         |WHERE
+         |  model.id = :modelId
+         |ORDER BY version DESC LIMIT 1""".stripMargin
     val params = Map(Constants.ModelId -> id)
     OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshotMetaData)
   }
@@ -221,16 +214,16 @@ class ModelSnapshotStore private[domain] (
   def getClosestSnapshotByVersion(id: String, version: Long): Try[Option[ModelSnapshot]] = withDb { db =>
     val query =
       s"""SELECT
-        |  abs($$current.version - $version) as abs_delta,
-        |  $$current.version - $version as delta,
-        |  $AllFields
-        |FROM ModelSnapshot
-        |WHERE
-        |  model.id = :modelId
-        |ORDER BY
-        |  abs_delta ASC,
-        |  delta DESC
-        |LIMIT 1""".stripMargin
+         |  abs($$current.version - $version) as abs_delta,
+         |  $$current.version - $version as delta,
+         |  $AllFields
+         |FROM ModelSnapshot
+         |WHERE
+         |  model.id = :modelId
+         |ORDER BY
+         |  abs_delta ASC,
+         |  delta DESC
+         |LIMIT 1""".stripMargin
     val params = Map(Constants.ModelId -> id, Classes.ModelSnapshot.Fields.Version -> version)
     OrientDBUtil.findDocumentAndMap(db, query, params)(docToModelSnapshot)
   }
@@ -242,7 +235,7 @@ class ModelSnapshotStore private[domain] (
   /**
    * Removes a snapshot for a model at a specific version.
    *
-   * @param id The id of the model to delete the snapshot for.
+   * @param id      The id of the model to delete the snapshot for.
    * @param version The version of the snapshot to delete.
    */
   def removeSnapshot(id: String, version: Long): Try[Unit] = withDb { db =>
@@ -261,11 +254,11 @@ class ModelSnapshotStore private[domain] (
     val params = Map(Constants.ModelId -> id)
     OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
-  
+
   /**
-   * Removes all snapshots for a model.
+   * Removes all snapshots for all models in a collection
    *
-   * @param id The id of the model to delete all snapshots for.
+   * @param collectionId The id of the collection to delete all snapshots for.
    */
   def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = withDb { db =>
     ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)

@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSche
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -49,7 +50,7 @@ object SessionStore {
     DomainUserStore.getUserRid(sl.userId, db).recoverWith {
       case cause: Throwable =>
         Failure(new IllegalArgumentException(
-          s"Could not create/update session because the user could not be found: ${sl.userId}"))
+          s"Could not create/update session because the user could not be found: ${sl.userId}", cause))
     }.map { userLink =>
       val doc: ODocument = db.newInstance(ClassName)
       doc.setProperty(Fields.Id, sl.id)
@@ -123,7 +124,7 @@ class SessionStore(dbProvider: DatabaseProvider)
     OrientDBUtil.findDocumentAndMap(db, query, params)(SessionStore.docToSession)
   }
 
-  def getAllSessions(limit: Option[Int], offset: Option[Int]): Try[List[DomainSession]] = withDb { db =>
+  def getAllSessions(offset: QueryOffset, limit: QueryLimit): Try[List[DomainSession]] = withDb { db =>
     val baseQuery = s"SELECT * FROM DomainSession ORDER BY connected DESC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     OrientDBUtil.queryAndMap(db, query, Map())(SessionStore.docToSession)
@@ -136,15 +137,15 @@ class SessionStore(dbProvider: DatabaseProvider)
     OrientDBUtil.queryAndMap(db, GetSessionsQuery, params)(SessionStore.docToSession)
   }
 
-  def getSessions(
-                   sessionId: Option[String],
-                   username: Option[String],
-                   remoteHost: Option[String],
-                   authMethod: Option[String],
-                   excludeDisconnected: Boolean,
-                   sessionType: SessionQueryType.Value,
-                   limit: Option[Int],
-                   offset: Option[Int]): Try[PagedData[DomainSession]] = withDb { db =>
+  def getSessions(sessionId: Option[String],
+                  username: Option[String],
+                  remoteHost: Option[String],
+                  authMethod: Option[String],
+                  excludeDisconnected: Boolean,
+                  sessionType: SessionQueryType.Value,
+                  offset: QueryOffset,
+                  limit: QueryLimit
+                 ): Try[PagedData[DomainSession]] = withDb { db =>
     var params = Map[String, Any]()
     var terms = List[String]()
 
@@ -195,7 +196,7 @@ class SessionStore(dbProvider: DatabaseProvider)
         .map(_.field("count").asInstanceOf[Long])
       sessions <- OrientDBUtil.queryAndMap(db, query, params)(SessionStore.docToSession)
     } yield {
-      PagedData(sessions, offset.getOrElse(0).longValue(), count)
+      PagedData(sessions, offset.getOrZero, count)
     }
 
   }

@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.model.data.{ObjectValue, StringValue}
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -37,7 +38,7 @@ class ModelStoreSpec
 
   def createStore(dbProvider: DatabaseProvider): ModelStoreSpecStores = {
     val modelStore = new ModelStore(dbProvider, new ModelOperationStore(dbProvider), new ModelSnapshotStore(dbProvider))
-    val collectionStore = new CollectionStore(dbProvider, modelStore)
+    val collectionStore = new CollectionStore(dbProvider)
     val permissionsStore = new ModelPermissionsStore(dbProvider)
     ModelStoreSpecStores(collectionStore, modelStore, permissionsStore)
   }
@@ -170,7 +171,7 @@ class ModelStoreSpec
       "return all meta data when no limit or offset are provided" in withPersistenceStore { stores =>
         createAllPersonModels(stores)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, None, None).get
+        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(), QueryLimit()).get
         list shouldBe List(
           person1MetaData,
           person2MetaData,
@@ -180,14 +181,14 @@ class ModelStoreSpec
       "return only the limited number of meta data when limit provided" in withPersistenceStore { stores =>
         createAllPersonModels(stores)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, None, Some(1)).get
+        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(), QueryLimit(1)).get
         list shouldBe List(person1MetaData)
       }
 
-      "return only the limited number of meta data when offset provided" in withPersistenceStore { stores =>
+      "return only the the correct number of meta data when an offset is provided" in withPersistenceStore { stores =>
         createAllPersonModels(stores)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, Some(1), None).get
+        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(1), QueryLimit()).get
         list.length shouldBe 2
         list.head shouldBe person2MetaData
         list(1) shouldBe person3MetaData
@@ -196,7 +197,7 @@ class ModelStoreSpec
       "return only the limited number of meta data when limit and offset provided" in withPersistenceStore { stores =>
         createAllPersonModels(stores)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, Some(1), Some(1)).get
+        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(1), QueryLimit(1)).get
         list shouldBe List(person2MetaData)
       }
 
@@ -206,7 +207,7 @@ class ModelStoreSpec
       "return all meta data when no limit or offset are provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.getAllModelMetaData(None, None).get
+        val list = stores.model.getAllModelMetaData(QueryOffset(), QueryLimit()).get
         list shouldBe List(
           company1MetaData,
           person1MetaData,
@@ -217,7 +218,7 @@ class ModelStoreSpec
       "return correct meta data when a limit is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.getAllModelMetaData(None, Some(2)).get
+        val list = stores.model.getAllModelMetaData(QueryOffset(), QueryLimit(2)).get
         list shouldBe List(
           company1MetaData,
           person1MetaData)
@@ -226,7 +227,7 @@ class ModelStoreSpec
       "return correct meta data when an offset is provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.getAllModelMetaData(Some(2), None).get
+        val list = stores.model.getAllModelMetaData(QueryOffset(2), QueryLimit()).get
         list shouldBe List(
           person2MetaData,
           person3MetaData)
@@ -235,7 +236,7 @@ class ModelStoreSpec
       "return correct meta data when an offset and limit are provided" in withPersistenceStore { stores =>
         createAllModels(stores)
 
-        val list = stores.model.getAllModelMetaData(Some(1), Some(2)).get
+        val list = stores.model.getAllModelMetaData(QueryOffset(1), QueryLimit(2)).get
         list shouldBe List(
           person1MetaData,
           person2MetaData)

@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.domain.model.Collection
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -30,12 +31,7 @@ class CollectionStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
-  def createStore(dbProvider: DatabaseProvider): CollectionStore = new CollectionStore(
-    dbProvider,
-    new ModelStore(
-      dbProvider,
-      new ModelOperationStore(dbProvider),
-      new ModelSnapshotStore(dbProvider)))
+  def createStore(dbProvider: DatabaseProvider): CollectionStore = new CollectionStore(dbProvider)
 
   private val companyCollectionId = "company"
   private val peopleCollectionId = "people"
@@ -144,7 +140,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None, None, None).get
+        val list = store.getAllCollections(None, QueryOffset(), QueryLimit()).get
         list shouldBe PagedData(List(
           companyCollection,
           peopleCollection,
@@ -156,7 +152,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None, None, Some(1)).get
+        val list = store.getAllCollections(None, QueryOffset(), QueryLimit(1)).get
         list shouldBe PagedData(List(companyCollection), 0, 3)
       }
 
@@ -165,7 +161,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None, Some(1), None).get
+        val list = store.getAllCollections(None, QueryOffset(1), QueryLimit()).get
         list shouldBe PagedData(List(peopleCollection, teamCollection), 1, 3)
       }
 
@@ -174,7 +170,7 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        val list = store.getAllCollections(None, Some(1), Some(1)).get
+        val list = store.getAllCollections(None, QueryOffset(1), QueryLimit(1)).get
         list shouldBe PagedData(List(peopleCollection), 1, 3)
       }
     }

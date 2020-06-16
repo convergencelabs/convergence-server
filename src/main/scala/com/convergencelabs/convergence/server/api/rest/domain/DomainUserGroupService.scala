@@ -26,6 +26,7 @@ import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -99,7 +100,8 @@ class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
     resultType.getOrElse("all") match {
       case "all" =>
         domainRestActor
-          .ask[GetUserGroupsResponse](r => DomainRestMessage(domain, GetUserGroupsRequest(filter, offset, limit, r)))
+          .ask[GetUserGroupsResponse](r =>
+            DomainRestMessage(domain, GetUserGroupsRequest(filter, QueryOffset(offset), QueryLimit(limit), r)))
           .map(_.userGroups.fold(
             {
               case UnknownError() =>
@@ -110,7 +112,8 @@ class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
       case "summary" =>
         // FIXME what about the filter?
         domainRestActor
-          .ask[GetUserGroupSummariesResponse](r => DomainRestMessage(domain, GetUserGroupSummariesRequest(None, offset, limit, r)))
+          .ask[GetUserGroupSummariesResponse](r =>
+            DomainRestMessage(domain, GetUserGroupSummariesRequest(None, QueryOffset(offset), QueryLimit(limit), r)))
           .map(_.summaries.fold(
             {
               case UnknownError() =>

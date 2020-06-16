@@ -30,6 +30,7 @@ import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -80,7 +81,7 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
   private[this] def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     domainRestActor
       .ask[GetCollectionsResponse](
-        r => DomainRestMessage(domain, GetCollectionsRequest(filter, offset, limit, r)))
+        r => DomainRestMessage(domain, GetCollectionsRequest(filter, QueryOffset(offset), QueryLimit(limit), r)))
       .map(_.collections.fold(
         {
           case UnknownError() =>
@@ -170,7 +171,7 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
   private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     domainRestActor
       .ask[GetCollectionSummariesResponse](r =>
-        DomainRestMessage(domain, GetCollectionSummariesRequest(filter, offset, limit, r)))
+        DomainRestMessage(domain, GetCollectionSummariesRequest(filter, QueryOffset(offset), QueryLimit(limit), r)))
       .map(_.collections.fold(
         {
           case UnknownError() =>

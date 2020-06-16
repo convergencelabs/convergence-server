@@ -16,6 +16,7 @@ import com.convergencelabs.convergence.server.datastore.domain.SessionStore.Sess
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -91,7 +92,7 @@ class SessionStoreSpec
         provider.sessionStore.createSession(session1).get
         provider.sessionStore.createSession(session2).get
         provider.sessionStore.createSession(session3).get
-        
+
         val connected = provider.sessionStore.getSessions(
           None,
           None,
@@ -99,8 +100,8 @@ class SessionStoreSpec
           None,
           excludeDisconnected = true,
           SessionQueryType.All,
-          None,
-          None).get
+          QueryOffset(),
+          QueryLimit()).get
 
         connected.data.toSet shouldBe Set(session1, session3)
       }

@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.presence._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.userPresenceToMessage
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.domain.presence._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 import grizzled.slf4j.Logging
@@ -26,7 +27,6 @@ import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 //  TODO: Add connect / disconnect logic
@@ -183,11 +183,11 @@ object PresenceClientActor {
 
   type IncomingNormalMessage = GeneratedMessage with NormalMessage with PresenceMessage with ClientMessage
 
-  case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
+  final case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
 
   type IncomingRequestMessage = GeneratedMessage with RequestMessage with PresenceMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
+  final case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
 
 
   //
@@ -195,12 +195,12 @@ object PresenceClientActor {
   //
   sealed trait OutgoingMessage extends Message with CborSerializable
 
-  case class UserPresenceStateSet(userId: DomainUserId, state: Map[String, JValue]) extends OutgoingMessage
+  final case class UserPresenceStateSet(userId: DomainUserId, state: Map[String, JValue]) extends OutgoingMessage
 
-  case class UserPresenceStateRemoved(userId: DomainUserId, keys: List[String]) extends OutgoingMessage
+  final case class UserPresenceStateRemoved(userId: DomainUserId, keys: List[String]) extends OutgoingMessage
 
-  case class UserPresenceStateCleared(userId: DomainUserId) extends OutgoingMessage
+  final case class UserPresenceStateCleared(userId: DomainUserId) extends OutgoingMessage
 
-  case class UserPresenceAvailabilityChanged(userId: DomainUserId, available: Boolean) extends OutgoingMessage
+  final case class UserPresenceAvailabilityChanged(userId: DomainUserId, available: Boolean) extends OutgoingMessage
 
 }

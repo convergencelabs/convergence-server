@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.Error
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
 import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain._

@@ -11,10 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.DomainClass
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{Domain, DomainDatabase, DomainId, DomainStatus}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -131,7 +132,7 @@ class DomainStore(dbProvider: DatabaseProvider)
     OrientDBUtil.query(db, GetDomainsByNamespaceQuery, params).map(_.map(docToDomain))
   }
 
-  def getDomains(namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
+  def getDomains(namespace: Option[String], filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[Domain]] = withDb { db =>
     val baseQuery = "SELECT FROM Domain"
     val (filterWhere, filterParams) = filter.map(filter => {
       val where = " (id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
@@ -161,7 +162,7 @@ class DomainStore(dbProvider: DatabaseProvider)
     OrientDBUtil.query(db, query, params).map(_.map(DomainStore.docToDomain))
   }
 
-  def getDomainsByAccess(username: String, namespace: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[Domain]] = withDb { db =>
+  def getDomainsByAccess(username: String, namespace: Option[String], filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[Domain]] = withDb { db =>
     val accessQuery = """LET namespaces = SELECT set(target) FROM UserRole WHERE user.username = :username AND (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace');
                         |LET domainsInNamespaces = SELECT FROM Domain WHERE namespace IN $namespaces;
                         |LET roleAccess = SELECT expand(set(target)) FROM UserRole WHERE user.username = :username AND role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain';

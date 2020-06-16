@@ -26,6 +26,7 @@ import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -63,7 +64,7 @@ class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
 
   private[this] def getKeys(domain: DomainId): Future[RestResponse] = {
     domainRestActor
-      .ask[GetJwtAuthKeysResponse](r => DomainRestMessage(domain, GetJwtAuthKeysRequest(None, None, r)))
+      .ask[GetJwtAuthKeysResponse](r => DomainRestMessage(domain, GetJwtAuthKeysRequest(QueryOffset(), QueryLimit(), r)))
       .map(_.keys.fold(
         {
           case UnknownError() =>

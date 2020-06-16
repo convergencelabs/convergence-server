@@ -29,6 +29,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, ModelStoreActor}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue

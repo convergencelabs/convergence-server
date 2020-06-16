@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
@@ -109,7 +110,7 @@ class IdentityServiceActor private[domain](context: ActorContext[IdentityService
     val SearchUsersRequest(fields, searchValue, offset, limit, order, sort, replyTo) = msg
     val f = fields.map(convertField)
     val o = order.map(convertField)
-    persistenceProvider.userStore.searchUsersByFields(f, searchValue, o, sort, limit, offset)
+    persistenceProvider.userStore.searchUsersByFields(f, searchValue, o, sort, offset, limit)
       .map(users => SearchUsersResponse(Right(users)))
       .recover { cause =>
         logRequestError(msg, cause)
@@ -124,7 +125,7 @@ class IdentityServiceActor private[domain](context: ActorContext[IdentityService
       case Some(idList) =>
         persistenceProvider.userGroupStore.getUserGroupsById(idList)
       case None =>
-        persistenceProvider.userGroupStore.getUserGroups(None, None, None)
+        persistenceProvider.userGroupStore.getUserGroups(None, QueryOffset(), QueryLimit())
     })
       .map(groups => GetUserGroupsResponse(Right(groups)))
       .recover {
@@ -182,8 +183,8 @@ object IdentityServiceActor {
   //
   final case class SearchUsersRequest(fields: List[UserLookUpField.Value],
                                 searchValue: String,
-                                offset: Option[Int],
-                                limit: Option[Int],
+                                offset: QueryOffset,
+                                limit: QueryLimit,
                                 order: Option[UserLookUpField.Value],
                                 sort: Option[SortOrder.Value],
                                 replyTo: ActorRef[SearchUsersResponse]) extends Message

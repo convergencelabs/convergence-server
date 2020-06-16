@@ -12,10 +12,9 @@
 package com.convergencelabs.convergence.server.datastore
 
 import com.convergencelabs.convergence.server.util.TryWithResource
-import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import com.orientechnologies.orient.core.record.OElement
-import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -26,18 +25,12 @@ class OrientDBUtilSpec
     with Matchers
     with BeforeAndAfterAll {
 
-  
-  private val Field = "key"
-  private val Value = "value"
-  private val SampleDoc = new ODocument().field(Field, Value)
-
   private val ClassName = "TestClass"
   private val Key1 = "key1"
-  private val Key2 = "key2"
 
-  private val orientDB: OrientDB = new OrientDB("memory:target/orientdb/OrientDBUtilSpec", OrientDBConfig.defaultConfig());
+  private val orientDB: OrientDB = new OrientDB("memory:target/orientdb/OrientDBUtilSpec", OrientDBConfig.defaultConfig())
   
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     orientDB.close()
   }
   
@@ -53,7 +46,7 @@ class OrientDBUtilSpec
          element2.setProperty(Key1, "test2")
          element2.save()
          
-         val query = s"SELECT FROM ${ClassName} WHERE ${Key1} = 'test1'"
+         val query = s"SELECT FROM $ClassName WHERE $Key1 = 'test1'"
          val docs = OrientDBUtil.query(db, query).get
          
          docs.size shouldBe 1
@@ -63,9 +56,9 @@ class OrientDBUtilSpec
     }
   }
   
-  def withDatabase(testCode: ODatabaseDocument => Any) = {
+  def withDatabase(testCode: ODatabaseDocument => Any): Any = {
     val dbName = "test-" + System.currentTimeMillis()
-    orientDB.create(dbName, ODatabaseType.MEMORY);
+    orientDB.create(dbName, ODatabaseType.MEMORY)
     TryWithResource(orientDB.open(dbName,"admin","admin")) { db =>
       testCode(db)
     }.get

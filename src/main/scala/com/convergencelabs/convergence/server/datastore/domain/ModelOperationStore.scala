@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersist
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.model.{ModelOperation, NewModelOperation}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -135,7 +136,7 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
       |ORDER BY version ASC""".stripMargin
 
   def getOperationsAfterVersion(id: String, version: Long, limit: Option[Int] = None): Try[List[ModelOperation]] = withDb { db =>
-    val query = OrientDBUtil.buildPagedQuery(GetOperationsAfterVersionQuery, limit, None)
+    val query = OrientDBUtil.buildPagedQuery(GetOperationsAfterVersionQuery, QueryLimit(limit), QueryOffset())
     val params = Map(Constants.ModelId -> id, Fields.Version -> version)
     OrientDBUtil
       .query(db, query, params)

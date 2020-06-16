@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.activity._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import grizzled.slf4j.Logging
@@ -79,10 +80,8 @@ class ActivityClientActor private(context: ActorContext[Message],
   }
 
 
-  private[this] def onMessageReceived(message: NormalMessage with ActivityMessage): Unit = {
+  private[this] def onMessageReceived(message: IncomingNormalMessage): Unit = {
     message match {
-      case leave: ActivityLeaveMessage =>
-        onActivityLeave(leave)
       case setState: ActivityUpdateStateMessage =>
         onActivityUpdateState(setState)
     }
@@ -95,10 +94,12 @@ class ActivityClientActor private(context: ActorContext[Message],
     this.activityShardRegion ! updateMessage
   }
 
-  private[this] def onRequestReceived(message: RequestMessage with ActivityMessage, replyCallback: ReplyCallback): Unit = {
+  private[this] def onRequestReceived(message: IncomingRequestMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case join: ActivityJoinRequestMessage =>
         onActivityJoin(join, replyCallback)
+      case leave: ActivityLeaveRequestMessage =>
+        onActivityLeave(leave, replyCallback)
       case participant: ActivityParticipantsRequestMessage =>
         onParticipantsRequest(participant, replyCallback)
     }
@@ -132,23 +133,20 @@ class ActivityClientActor private(context: ActorContext[Message],
       .recoverWith(handleAskFailure(_, cb))
   }
 
-  private[this] def onActivityLeave(message: ActivityLeaveMessage): Unit = {
-    val ActivityLeaveMessage(activityId, _) = message
+  private[this] def onActivityLeave(message: ActivityLeaveRequestMessage, cb: ReplyCallback): Unit = {
+    val ActivityLeaveRequestMessage(activityId, _) = message
     activityShardRegion
       .ask[ActivityActor.LeaveResponse](
         ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _))
       .map(_.response.fold({
         case ActivityActor.NotJoinedError() =>
-        // cb.expectedError("not_joined", s"The session is already joined to activity '$activityId'.")
+         cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity '$activityId'.")
       }, { _ =>
+        cb.reply(ActivityLeaveResponseMessage())
         // todo reply
       }))
-      .recover {
-        case cause =>
-          val message = s"Could not leave activity '$activityId'"
-          error(message, cause)
-        // cb.expectedError("timeout", message)
-      }
+      .recoverWith(handleAskFailure(_, cb))
+
   }
 
   //

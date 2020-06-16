@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -114,9 +115,9 @@ class DomainUserStoreSpec
     "retrieving all users" must {
       "order correctly by username" in withPersistenceStore { store =>
         initUsers(store)
-        val allUsers = store.getAllDomainUsers(None, None, None, None).get
-        val orderedDescending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None).success.get
-        val orderedAscending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), None, None).success.get
+        val allUsers = store.getAllDomainUsers(None, None, QueryOffset(), QueryLimit()).get
+        val orderedDescending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), QueryOffset(), QueryLimit()).success.get
+        val orderedAscending = store.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), QueryOffset(), QueryLimit()).success.get
 
         orderedDescending.data shouldBe allUsers.data.sortWith(_.username > _.username)
         orderedAscending.data shouldBe orderedDescending.data.reverse
@@ -124,8 +125,8 @@ class DomainUserStoreSpec
 
       "limit results to the correct number" in withPersistenceStore { store =>
         initUsers(store)
-        val allUser = store.getAllDomainUsers(None, None, None, None).get
-        store.getAllDomainUsers(None, None, Some(2), None).success.get.data shouldBe allUser.data.slice(0, 2)
+        val allUser = store.getAllDomainUsers(None, None, QueryOffset(), QueryLimit()).get
+        store.getAllDomainUsers(None, None, QueryOffset(), QueryLimit(2)).success.get.data shouldBe allUser.data.slice(0, 2)
       }
     }
 
@@ -134,7 +135,7 @@ class DomainUserStoreSpec
         initUsers(store)
         val fields = List(DomainUserField.Username)
         val searchString = "test"
-        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).get
+        val users = store.searchUsersByFields(fields, searchString, None, None, QueryOffset(), QueryLimit()).get
         users.data.length shouldBe 2
       }
 
@@ -142,7 +143,7 @@ class DomainUserStoreSpec
         initUsers(store)
         val fields = List(DomainUserField.Username)
         val searchString = "test1"
-        val users = store.searchUsersByFields(fields, searchString, None, None, None, None).get
+        val users = store.searchUsersByFields(fields, searchString, None, None, QueryOffset(), QueryLimit()).get
         users.data.length shouldBe 1
         users.data.head shouldBe User1
       }

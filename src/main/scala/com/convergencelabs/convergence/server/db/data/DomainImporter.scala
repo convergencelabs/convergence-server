@@ -11,10 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.data
 
+import java.time.Duration
 import java.time.temporal.ChronoUnit
-import java.time.{Duration}
 
-import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProvider, DomainSession, ModelPermissions}
+import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, DomainSession, ModelPermissions}
 import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.domain.model._
 import com.convergencelabs.convergence.server.domain.model.data._
@@ -24,18 +24,7 @@ import grizzled.slf4j.Logging
 import scala.util.Try
 
 object DomainImporter {
-  // FIXME we actually need to import / export this.
-  //  right now we are not exporting it, and hard coding this on the way in.
-  val DefaultSnapshotConfig = ModelSnapshotConfig(
-    snapshotsEnabled = false,
-    triggerByVersion = false,
-    limitedByVersion = false,
-    1000,
-    1000,
-    triggerByTime = false,
-    limitedByTime = false,
-    Duration.ofMillis(600000),
-    Duration.ofMillis(600000))
+
 }
 
 class DomainImporter(
@@ -126,7 +115,7 @@ class DomainImporter(
   }
 
   def createSessions(): Try[Unit] = Try {
-    logger.debug("Importting domain sessions")
+    logger.debug("Importing domain sessions")
     data.sessions foreach (_.foreach { sessionData =>
       val CreateDomainSession(id, username, userType, connected, disconnected,
         authMethod, client, clientVersion, clientMetaData, remoteHost) = sessionData
@@ -136,16 +125,15 @@ class DomainImporter(
     })
   }
 
-  //FIXME: import permissions
   def createCollections(): Try[Unit] = Try {
-    logger.debug("Importting collections")
+    logger.debug("Importing collections")
     data.collections foreach (_.foreach { collectionData =>
       val collection = Collection(
         collectionData.id,
         collectionData.name,
         overrideSnapshotConfig = false,
-        DomainImporter.DefaultSnapshotConfig,
-        CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true))
+        collectionData.snapshotConfig,
+        collectionData.worldPermissions)
       persistence.collectionStore.createCollection(collection).get
     })
   }

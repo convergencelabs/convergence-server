@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSche
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -249,7 +250,7 @@ class UserGroupStore private[domain](private[this] val dbProvider: DatabaseProvi
     }
   }
 
-  def getUserGroupSummaries(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroupSummary]] = withDb { db =>
+  def getUserGroupSummaries(filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[UserGroupSummary]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     val where = filter.map { f =>
       params("filter") = s"%${f}%"
@@ -267,7 +268,7 @@ class UserGroupStore private[domain](private[this] val dbProvider: DatabaseProvi
       }
   }
 
-  def getUserGroups(filter: Option[String], offset: Option[Int], limit: Option[Int]): Try[List[UserGroup]] = withDb { db =>
+  def getUserGroups(filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[UserGroup]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]()
     val where = filter.map { f =>
       params("filter") = s"%${f}%"

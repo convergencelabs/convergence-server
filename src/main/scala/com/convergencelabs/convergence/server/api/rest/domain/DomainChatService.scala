@@ -29,6 +29,7 @@ import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -47,7 +48,7 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
     pathPrefix("chats") {
       pathEnd {
         get {
-          parameters("filter".?, "offset".as[Long].?, "limit".as[Long].?) { (filter, offset, limit) =>
+          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
             complete(getChats(domain, filter, offset, limit))
           }
         } ~ post {
@@ -75,8 +76,8 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
             "eventTypes".?,
             "messageFilter".?,
             "startEvent".as[Long].?,
-            "offset".as[Long].?,
-            "limit".as[Long].?,
+            "offset".as[Int].?,
+            "limit".as[Int].?,
             "forward".as[Boolean].?) { (eventTypes, messageFilter, startEvent, offset, limit, forward) =>
             complete(getChatEvents(domain, chatId, eventTypes, messageFilter, startEvent, offset, limit, forward))
           }
@@ -85,10 +86,10 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
     }
   }
 
-  private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
+  private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     domainRestActor
       .ask[ChatsSearchResponse](r =>
-        DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, offset, limit, r)))
+        DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, QueryOffset(offset), QueryLimit(limit), r)))
       .map(_.chats.fold(
         {
           case UnknownError() =>
@@ -195,13 +196,13 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
                                   eventTypes: Option[String],
                                   messageFilter: Option[String],
                                   startEvent: Option[Long],
-                                  offset: Option[Long],
-                                  limit: Option[Long],
+                                  offset: Option[Int],
+                                  limit: Option[Int],
                                   forward: Option[Boolean]): Future[RestResponse] = {
     val types = eventTypes.map(t => t.split(",").toSet)
     chatSharding
       .ask[ChatActor.GetChatHistoryResponse](r =>
-      ChatActor.GetChatHistoryRequest(domain, chatId, None, offset, limit, startEvent, forward, types, messageFilter, r))
+      ChatActor.GetChatHistoryRequest(domain, chatId, None, QueryOffset(offset), QueryLimit(limit), startEvent, forward, types, messageFilter, r))
       .map(_.events.fold(
         {
           case error: ChatActor.CommonErrors =>

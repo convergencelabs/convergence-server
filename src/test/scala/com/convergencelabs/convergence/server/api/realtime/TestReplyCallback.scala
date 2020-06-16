@@ -11,18 +11,19 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import com.convergencelabs.convergence.proto.ResponseMessage
+import com.convergencelabs.convergence.proto.{ResponseMessage, ServerMessage}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
 
 import scala.concurrent.{Future, Promise}
 
 class TestReplyCallback() extends ReplyCallback {
-  private[this] val p = Promise[GeneratedMessage with ResponseMessage]
+  private[this] val p = Promise[GeneratedMessage with ResponseMessage with ServerMessage]
 
-  def result: Future[GeneratedMessage with ResponseMessage] = p.future
+  def result: Future[GeneratedMessage with ResponseMessage with ServerMessage] = p.future
 
-  def reply(message: GeneratedMessage with ResponseMessage): Unit = {
+  def reply(message: GeneratedMessage with ResponseMessage with ServerMessage): Unit = {
     p.success(message)
   }
 

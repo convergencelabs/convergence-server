@@ -11,9 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import java.time.Instant
+import java.time.{Duration, Instant}
 
-import com.convergencelabs.convergence.server.domain.DomainUserType
+import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.convergence.server.domain.{DomainUserType, ModelSnapshotConfig}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -41,7 +42,7 @@ class DomainScriptSerializerSpec extends AnyWordSpecLike with Matchers {
           CreateDomainSession(
             "84hf",
             "test1",
-            DomainUserType.Normal.toString, 
+            DomainUserType.Normal.toString,
             Instant.parse("2016-11-16T17:49:14.233Z"),
             Some(Instant.parse("2016-11-16T17:49:15.233Z")),
             "password",
@@ -50,7 +51,19 @@ class DomainScriptSerializerSpec extends AnyWordSpecLike with Matchers {
             "",
             "unknown"))
 
-        collections.value shouldBe List(CreateCollection("collection1", "Collection 1", overrideSnapshotConfig = false))
+        collections.value shouldBe List(
+          CreateCollection("collection1", "Collection 1", overrideSnapshotConfig = false,
+            ModelSnapshotConfig(
+              snapshotsEnabled = false,
+              triggerByVersion = false,
+              limitedByVersion = false,
+              1000,
+              1000,
+              triggerByTime = false,
+              limitedByTime = false,
+              Duration.ofMillis(600000),
+              Duration.ofMillis(600000)),
+            CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)))
 
         models.value shouldBe List(
           CreateModel(

@@ -30,6 +30,7 @@ import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.json4s.JsonAST.JObject
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -125,7 +126,8 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
   // FIXME need to use offset and limit
 
   private[this] def getModels(domain: DomainId): Future[RestResponse] = {
-    domainRestActor.ask[GetModelsResponse](r => DomainRestMessage(domain, GetModelsRequest(None, None, r)))
+    domainRestActor
+      .ask[GetModelsResponse](r => DomainRestMessage(domain, GetModelsRequest(QueryOffset(), QueryLimit(), r)))
       .map(_.models.fold(
         _ => InternalServerError,
         models => okResponse(models.map(mapMetaData))
@@ -133,8 +135,8 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
   }
 
   private[this] def getModel(domain: DomainId, modelId: String, data: Boolean): Future[RestResponse] = {
-    modelClusterRegion.ask[RealtimeModelActor.GetRealtimeModelResponse](r =>
-      RealtimeModelActor.GetRealtimeModelRequest(domain, modelId, None, r))
+    modelClusterRegion
+      .ask[RealtimeModelActor.GetRealtimeModelResponse](r => RealtimeModelActor.GetRealtimeModelRequest(domain, modelId, None, r))
       .map(_.model.fold(
         {
           case RealtimeModelActor.ModelNotFoundError() =>

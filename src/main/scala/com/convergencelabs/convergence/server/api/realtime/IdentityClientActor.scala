@@ -18,9 +18,11 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.datastore.SortOrder
 import com.convergencelabs.convergence.server.datastore.domain.UserGroup
 import com.convergencelabs.convergence.server.domain.IdentityServiceActor
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JString
 import scalapb.GeneratedMessage
@@ -84,7 +86,7 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
       }
 
       identityServiceActor.ask[IdentityServiceActor.SearchUsersResponse](
-        IdentityServiceActor.SearchUsersRequest(fields.toList, value, offset, limit, Some(orderBy), Some(sort), _))
+        IdentityServiceActor.SearchUsersRequest(fields.toList, value, QueryOffset(offset), QueryLimit(limit), Some(orderBy), Some(sort), _))
         .map(_.users.fold({ _ =>
           cb.unexpectedError("Unexpected error searching users.")
         }, { users =>

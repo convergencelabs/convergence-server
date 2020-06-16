@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -182,7 +183,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatMessageEvent(ChatMessageEvent(1, id, user2Id, Instant.now(), "some message")).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
 
@@ -190,7 +191,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatNameChangedEvent(ChatNameChangedEvent(2, id, user2Id, Instant.now(), "new name")).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
 
@@ -198,7 +199,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatTopicChangedEvent(ChatTopicChangedEvent(3, id, user2Id, Instant.now(), "new topic")).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
 
@@ -206,7 +207,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatUserLeftEvent(ChatUserLeftEvent(4, id, user2Id, Instant.now())).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
 
@@ -214,7 +215,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatUserJoinedEvent(ChatUserJoinedEvent(5, id, user3Id, Instant.now())).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
 
@@ -222,7 +223,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatUserRemovedEvent(ChatUserRemovedEvent(6, id, user2Id, Instant.now(), user1Id)).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
 
@@ -230,7 +231,7 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "testName", "testTopic", Some(Set(user1Id, user2Id)), user1Id).get
         provider.chatStore.addChatUserAddedEvent(ChatUserAddedEvent(7, id, user1Id, Instant.now(), user3Id)).get
-        val events = provider.chatStore.getChatEvents(id, None, None, None, None, None, None).get
+        val events = provider.chatStore.getChatEvents(id, None, None, QueryOffset(), QueryLimit(), None, None).get
         events.data.size shouldEqual 2
       }
     }

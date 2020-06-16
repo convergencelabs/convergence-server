@@ -15,13 +15,14 @@ import java.time.Duration
 import java.util
 
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.domain.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.datastore.domain.schema.CollectionClass.{ClassName, Fields, Indices}
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.domain.model.Collection
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -34,7 +35,7 @@ import scala.util.{Failure, Success, Try}
 
 object CollectionStore {
 
-  val DefaultSnapshotConfig = ModelSnapshotConfig(
+  private val DefaultSnapshotConfig = ModelSnapshotConfig(
     snapshotsEnabled = false,
     triggerByVersion = false,
     limitedByVersion = false,
@@ -45,7 +46,7 @@ object CollectionStore {
     Duration.ofMillis(600000),
     Duration.ofMillis(600000))
 
-  val DefaultWorldPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
+  private val DefaultWorldPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
 
   def collectionToDoc(collection: Collection): ODocument = {
     val doc = new ODocument(ClassName)
@@ -80,7 +81,7 @@ object CollectionStore {
 
 }
 
-class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: ModelStore)
+class CollectionStore private[domain](dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider) {
 
   def collectionExists(id: String): Try[Boolean] = withDb { db =>
@@ -106,7 +107,6 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
   } recoverWith handleDuplicateValue
 
   def updateCollection(collectionId: String, collection: Collection): Try[Unit] = withDb { db =>
-    val params = Map(Fields.Id -> collectionId)
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, Indices.Id, collectionId)
       .map { existingDoc =>
@@ -141,8 +141,8 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
   }
 
   def getAllCollections(idFilter: Option[String],
-                        offset: Option[Int],
-                        limit: Option[Int]): Try[PagedData[Collection]] = withDb { db =>
+                        offset: QueryOffset,
+                        limit: QueryLimit): Try[PagedData[Collection]] = withDb { db =>
     val (whereClause, whereParams) = idFilter match {
       case Some(filter) =>
         val w = " WHERE id.toLowerCase() LIKE :filter"
@@ -160,13 +160,13 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
         .query(db, query, whereParams)
         .map(_.map(CollectionStore.docToCollection))
     } yield {
-      PagedData[Collection](collections, offset.getOrElse(0).asInstanceOf[Long], count)
+      PagedData[Collection](collections, offset.getOrZero, count)
     }
   }
 
   def getCollectionSummaries(filter: Option[String],
-                             offset: Option[Int],
-                             limit: Option[Int]): Try[PagedData[CollectionSummary]] = withDb { db =>
+                             offset: QueryOffset,
+                             limit: QueryLimit): Try[PagedData[CollectionSummary]] = withDb { db =>
     val (whereClause, whereParams) = filter match {
       case Some(filter) =>
         val w = " WHERE id.toLowerCase() LIKE :filter OR description.toLowerCase() LIKE :filter"
@@ -196,11 +196,11 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider, modelStore: 
         CollectionSummary(id, description, count.toInt)
       }
 
-      PagedData[CollectionSummary](summaries, offset.getOrElse(0).asInstanceOf[Long], collectionCount)
+      PagedData[CollectionSummary](summaries, offset.getOrZero, collectionCount)
     }
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case Indices.Id =>

@@ -23,6 +23,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor._
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -81,7 +82,7 @@ private[rest] class UserService(userManagerActor: ActorRef[Message],
 
   private[this] def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int], authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
     userManagerActor
-      .ask[GetConvergenceUsersResponse](GetConvergenceUsersRequest(filter, limit, offset, _))
+      .ask[GetConvergenceUsersResponse](GetConvergenceUsersRequest(filter, QueryOffset(offset), QueryLimit(limit), _))
       .map(_.users.fold(
         {
           case UnknownError() =>

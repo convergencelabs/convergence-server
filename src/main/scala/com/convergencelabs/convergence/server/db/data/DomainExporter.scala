@@ -12,11 +12,12 @@
 package com.convergencelabs.convergence.server.db.data
 
 import com.convergencelabs.convergence.server.datastore.SortOrder
-import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProvider, DomainSession, DomainUserField}
-import com.convergencelabs.convergence.server.domain.{DomainUser, JwtAuthKey}
-import com.convergencelabs.convergence.server.domain.model.{Collection, ModelOperation, ModelSnapshot}
+import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, DomainSession, DomainUserField}
 import com.convergencelabs.convergence.server.domain.model.data._
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.{Collection, ModelOperation, ModelSnapshot}
+import com.convergencelabs.convergence.server.domain.{DomainUser, JwtAuthKey}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -52,7 +53,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
 
   private[this] def exportJwtAuthKeys(): Try[List[CreateJwtAuthKey]] = {
     logger.debug("Exporting JWT Auth Keys")
-    persistence.jwtAuthKeyStore.getKeys(None, None) map {
+    persistence.jwtAuthKeyStore.getKeys(QueryOffset(), QueryLimit()) map {
       _.map { jwtKey =>
         val JwtAuthKey(id, desc, updated, key, enabled) = jwtKey
         CreateJwtAuthKey(id, Some(desc), updated, key, enabled)
@@ -62,7 +63,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
 
   private[this] def exportUsers(): Try[List[CreateDomainUser]] = {
     logger.debug("Exporting domain users")
-    persistence.userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), None, None) map {
+    persistence.userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Descending), QueryOffset(), QueryLimit()) map {
       _.data.map { domainUser =>
         // FIXME better error handling here
         val pwHash = persistence.userStore.getDomainUserPasswordHash(domainUser.username).get map { hash =>
@@ -76,7 +77,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
   
   private[this] def exportSessions(): Try[List[CreateDomainSession]] = {
     logger.debug("Exporting domain sessions")
-    persistence.sessionStore.getAllSessions(None, None) map {
+    persistence.sessionStore.getAllSessions(QueryOffset(), QueryLimit()) map {
       _.map { domainSession =>
         // FIXME better error handling here
         val DomainSession(id, userId, connected, disconnected, 
@@ -87,20 +88,19 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
     }
   }
 
-  //FIXME: export permissions
   private[this] def exportCollections(): Try[List[CreateCollection]] = {
     logger.debug("exporting collections")
-    persistence.collectionStore.getAllCollections(None, None, None) map {
+    persistence.collectionStore.getAllCollections(None, QueryOffset(), QueryLimit()) map {
       _.data.map { col =>
-        val Collection(collectionId, name, overrideSnapshot, snapshotConfig, CollectionPermissions(true, true, true, true, true)) = col
-        CreateCollection(collectionId, name, overrideSnapshot)
+        val Collection(collectionId, name, overrideSnapshot, snapshotConfig, worldPermissions) = col
+        CreateCollection(collectionId, name, overrideSnapshot, snapshotConfig, worldPermissions)
       }
     }
   }
 
   private[this] def exportModels(): Try[List[CreateModel]] = Try {
     logger.debug("exporting models")
-    persistence.modelStore.getAllModelMetaData(None, None).map {
+    persistence.modelStore.getAllModelMetaData(QueryOffset(), QueryLimit()).map {
       modelList =>
         modelList.map(metaData => exportModel(metaData.id).get)
     }.get
@@ -135,7 +135,7 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         val converted = children map { case (k, v) => (k, exportDataValue(v)) }
         CreateObjectValue(vId, converted)
       case ArrayValue(vId, children) =>
-        val converted = children map (exportDataValue(_))
+        val converted = children map exportDataValue
         CreateArrayValue(vId, converted)
       case DoubleValue(vId, value) =>
         CreateDoubleValue(vId, value)
@@ -185,13 +185,13 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         CreateStringSetOperation(vId, noOp, value, oldValue)
 
       case AppliedObjectSetPropertyOperation(vId, noOp, property, value, oldValue) =>
-        CreateObjectSetPropertyOperation(vId, noOp, property, exportDataValue(value), oldValue map (exportDataValue(_)))
+        CreateObjectSetPropertyOperation(vId, noOp, property, exportDataValue(value), oldValue map exportDataValue)
 
       case AppliedObjectAddPropertyOperation(vId, noOp, property, value) =>
         CreateObjectAddPropertyOperation(vId, noOp, property, exportDataValue(value))
 
       case AppliedObjectRemovePropertyOperation(vId, noOp, property, oldValue) =>
-        CreateObjectRemovePropertyOperation(vId, noOp, property, oldValue map (exportDataValue(_)))
+        CreateObjectRemovePropertyOperation(vId, noOp, property, oldValue map exportDataValue)
 
       case AppliedObjectSetOperation(vId, noOp, value, oldValue) =>
         val convertedValue = value map (x => (x._1, exportDataValue(x._2)))
@@ -211,16 +211,16 @@ class DomainExporter(private[this] val persistence: DomainPersistenceProvider) e
         CreateArrayInsertOperation(vId, noOp, index, exportDataValue(value))
 
       case AppliedArrayRemoveOperation(vId, noOp, index, oldValue) =>
-        CreateArrayRemoveOperation(vId, noOp, index, oldValue map (exportDataValue(_)))
+        CreateArrayRemoveOperation(vId, noOp, index, oldValue map exportDataValue)
 
       case AppliedArrayReplaceOperation(vId, noOp, index, value, oldValue) =>
-        CreateArrayReplaceOperation(vId, noOp, index, exportDataValue(value), oldValue map (exportDataValue(_)))
+        CreateArrayReplaceOperation(vId, noOp, index, exportDataValue(value), oldValue map exportDataValue)
 
       case AppliedArrayMoveOperation(vId, noOp, fromIndex, toIndex) =>
         CreateArrayReorderOperation(vId, noOp, fromIndex, toIndex)
 
       case AppliedArraySetOperation(vId, noOp, value, oldValue) =>
-        CreateArraySetOperation(vId, noOp, value map (exportDataValue(_)), oldValue map (_.map(exportDataValue(_))))
+        CreateArraySetOperation(vId, noOp, value map exportDataValue, oldValue map (_.map(exportDataValue)))
         
       case AppliedDateSetOperation(vId, noOp, value, oldValue) =>
         CreateDateSetOperation(vId, noOp, value, oldValue)

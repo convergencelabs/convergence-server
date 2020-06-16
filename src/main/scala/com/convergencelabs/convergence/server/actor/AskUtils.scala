@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.actor
 
 import java.util.concurrent.TimeoutException
 
-import com.convergencelabs.convergence.server.api.realtime.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import grizzled.slf4j.Logging
 
 import scala.concurrent.Future

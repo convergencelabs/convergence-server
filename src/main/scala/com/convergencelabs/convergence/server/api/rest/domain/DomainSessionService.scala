@@ -28,6 +28,7 @@ import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -111,8 +112,8 @@ class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
       authMethod,
       excludeDisconnected.getOrElse(false),
       st,
-      limit,
-      offset,
+      QueryOffset(offset),
+      QueryLimit(limit),
       r)))
       .map(_.sessions.fold(
         {

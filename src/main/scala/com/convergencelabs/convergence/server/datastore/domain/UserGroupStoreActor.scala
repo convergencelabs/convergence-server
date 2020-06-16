@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Message],
@@ -314,8 +315,8 @@ object UserGroupStoreActor {
   // GetUserGroups
   //
   final case class GetUserGroupsRequest(filter: Option[String],
-                                        offset: Option[Int],
-                                        limit: Option[Int],
+                                        offset: QueryOffset,
+                                        limit: QueryLimit,
                                         replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -330,9 +331,9 @@ object UserGroupStoreActor {
   // GetUserGroupSummaries
   //
   final case class GetUserGroupSummariesRequest(filter: Option[String],
-                                          offset: Option[Int],
-                                          limit: Option[Int],
-                                          replyTo: ActorRef[GetUserGroupSummariesResponse]) extends Message
+                                                offset: QueryOffset,
+                                                limit: QueryLimit,
+                                                replyTo: ActorRef[GetUserGroupSummariesResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

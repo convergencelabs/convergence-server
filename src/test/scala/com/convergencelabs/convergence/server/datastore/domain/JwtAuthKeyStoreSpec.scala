@@ -17,6 +17,7 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -43,7 +44,7 @@ class JwtAuthKeyStoreSpec
     "retrieving domain keys" must {
       "return the correct list of all keys" in withPersistenceStore { store =>
         store.importKey(jwtAuthKey)
-        store.getKeys(None, None).success.get shouldBe List(jwtAuthKey)
+        store.getKeys(QueryOffset(), QueryLimit()).success.get shouldBe List(jwtAuthKey)
       }
 
       "return the correct key by id" in withPersistenceStore { store =>

@@ -26,7 +26,25 @@ domains:
         - {id: "84hf", username: "test1", userType: "normal", connected: "2016-11-16T17:49:14.233Z", disconnected: "2016-11-16T17:49:15.233Z", authMethod: "password", client: "javascript", clientVersion: "1.0", clientMetaData: "", remoteHost: "unknown"}
       
       collections:
-        - {id: collection1, name: "Collection 1", overrideSnapshotConfig: false}
+        - id: collection1
+          name: "Collection 1"
+          overrideSnapshotConfig: false
+          snapshotConfig:
+            snapshotsEnabled: false
+            triggerByVersion: false
+            limitedByVersion: false
+            minimumVersionInterval: 1000
+            maximumVersionInterval: 1000
+            triggerByTime: false
+            limitedByTime: false
+            minimumTimeInterval: 600000
+            maximumTimeInterval: 600000
+          worldPermissions:
+            create: true
+            read: true
+            write: true
+            remove: true
+            manage: true
         
       models:
         - id: someId 

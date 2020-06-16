@@ -14,10 +14,11 @@ package com.convergencelabs.convergence.server.datastore.domain
 import java.time.Instant
 import java.util.Date
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.domain.schema.JwtAuthKeyClass.{ClassName, Fields, Indices}
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
@@ -57,7 +58,7 @@ class JwtAuthKeyStore private[datastore] (
   import JwtAuthKeyStore._
 
   val GetKeysQuery = "SELECT * FROM JwtAuthKey ORDER BY id ASC"
-  def getKeys(offset: Option[Int], limit: Option[Int]): Try[List[JwtAuthKey]] = withDb { db =>
+  def getKeys(offset: QueryOffset, limit: QueryLimit): Try[List[JwtAuthKey]] = withDb { db =>
     val query = OrientDBUtil.buildPagedQuery(GetKeysQuery, limit, offset)
     OrientDBUtil
       .query(db, query)

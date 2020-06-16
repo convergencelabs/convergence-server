@@ -17,13 +17,14 @@ import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetChatHistoryRequest, GetChatHistoryResponse, UnauthorizedError, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
 
 object GetHistoryMessageProcessor extends Logging {
 
-  type GetChatHistory = (String, Option[Set[String]], Option[Long], Option[Long], Option[Long], Option[Boolean], Option[String]) => Try[PagedData[ChatEvent]]
+  type GetChatHistory = (String, Option[Set[String]], Option[Long], QueryOffset, QueryLimit, Option[Boolean], Option[String]) => Try[PagedData[ChatEvent]]
 
   def execute(message: GetChatHistoryRequest,
               getHistory: GetChatHistory,

@@ -12,7 +12,9 @@
 package com.convergencelabs.convergence.server.db.data
 
 import java.time.Instant
-import com.convergencelabs.convergence.server.domain.DomainUserId
+
+import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 
 case class DomainScript(
   config: SetDomainConfig,
@@ -64,7 +66,11 @@ case class CreateJwtAuthKey(
   key: String,
   enabled: Boolean)
 
-case class CreateCollection(id: String, name: String, overrideSnapshotConfig: Boolean)
+case class CreateCollection(id: String,
+                            name: String,
+                            overrideSnapshotConfig: Boolean,
+                            snapshotConfig: ModelSnapshotConfig,
+                            worldPermissions: CollectionPermissions)
 
 case class CreateModel(
   id: String,

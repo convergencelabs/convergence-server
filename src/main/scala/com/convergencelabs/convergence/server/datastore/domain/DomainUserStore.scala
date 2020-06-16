@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.datastore._
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
-import com.convergencelabs.convergence.server.util.RandomStringGenerator
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset, RandomStringGenerator}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.index.OCompositeKey
@@ -298,13 +298,13 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
    *
    * @param orderBy   The property of the domain user to order by. Defaults to username.
    * @param sortOrder The order (ascending or descending) of the ordering. Defaults to descending.
-   * @param limit     maximum number of users to return.  Defaults to unlimited.
    * @param offset    The offset into the ordering to start returning entries.  Defaults to 0.
+   * @param limit     maximum number of users to return.  Defaults to unlimited.
    */
   def getAllDomainUsers(orderBy: Option[DomainUserField.Field],
                         sortOrder: Option[SortOrder.Value],
-                        limit: Option[Int],
-                        offset: Option[Int]): Try[PagedData[DomainUser]] = withDb { db =>
+                        offset: QueryOffset,
+                        limit:QueryLimit): Try[PagedData[DomainUser]] = withDb { db =>
     val countQuery = s"SELECT count(*) as count FROM User WHERE deleted != true AND userType = 'normal'"
 
     val order = orderBy.getOrElse(DomainUserField.Username)
@@ -321,7 +321,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
         .query(db, query)
         .map(_.map(DomainUserStore.docToDomainUser))
     } yield {
-      PagedData(users, offset.getOrElse(0).longValue(), count)
+      PagedData(users, offset.getOrZero, count)
     }
   }
 
@@ -329,8 +329,8 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
                           searchString: String,
                           orderBy: Option[DomainUserField.Field],
                           sortOrder: Option[SortOrder.Value],
-                          offset: Option[Int],
-                          limit: Option[Int]): Try[PagedData[DomainUser]] = withDb { db =>
+                          offset: QueryOffset,
+                          limit: QueryLimit): Try[PagedData[DomainUser]] = withDb { db =>
 
     val baseQuery = "SELECT * FROM User"
     val whereTerms = ListBuffer[String]()
@@ -356,7 +356,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
         .query(db, query, Map("searchString" -> s"%$searchString%"))
         .map(_.map(DomainUserStore.docToDomainUser))
     } yield {
-      PagedData(users, offset.getOrElse(0).longValue(), count)
+      PagedData(users, offset.getOrZero, count)
     }
   }
 
@@ -398,7 +398,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
           |FROM User
           |$whereClause
           |ORDER BY size ASC, username ASC""".stripMargin
-      val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit - explicitResults.size), Some(offset))
+      val query = OrientDBUtil.buildPagedQuery(baseQuery, QueryLimit(limit - explicitResults.size), QueryOffset(offset))
       val countQuery =
         s"""
            |SELECT count(*) as count

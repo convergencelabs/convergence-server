@@ -35,7 +35,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
 
   def createStore(dbProvider: DatabaseProvider): ModelStoreQuerySpecStores = {
     val modelStore = new ModelStore(dbProvider, new ModelOperationStore(dbProvider), new ModelSnapshotStore(dbProvider))
-    val collectionStore = new CollectionStore(dbProvider, modelStore)
+    val collectionStore = new CollectionStore(dbProvider)
     val userStore = new DomainUserStore(dbProvider)
     val modelPermissionsStore = new ModelPermissionsStore(dbProvider)
     ModelStoreQuerySpecStores(collectionStore, modelStore, userStore, modelPermissionsStore)

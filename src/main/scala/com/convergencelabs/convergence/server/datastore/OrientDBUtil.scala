@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.datastore
 
-import com.convergencelabs.convergence.server.util.TryWithResource
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset, TryWithResource}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -310,8 +310,8 @@ object OrientDBUtil {
   // Helpers Methods
   /////////////////////////////////////////////////////////////////////////////
 
-  def buildPagedQuery(baseQuery: String, limit: Option[Int], offset: Option[Int]): String = {
-    val limitOffsetString = (limit, offset) match {
+  def buildPagedQuery(baseQuery: String, limit: QueryLimit, offset: QueryOffset): String = {
+    val limitOffsetString = (limit.value, offset.value) match {
       case (None, None) => ""
       case (Some(lim), None) => s" LIMIT $lim"
       case (None, Some(off)) => s" SKIP $off"

@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Message],
@@ -126,8 +127,8 @@ object JwtAuthKeyStoreActor {
   //
   // GetJwtAuthKeys
   //
-  final case class GetJwtAuthKeysRequest(offset: Option[Int],
-                                         limit: Option[Int],
+  final case class GetJwtAuthKeysRequest(offset: QueryOffset,
+                                         limit: QueryLimit,
                                          replyTo: ActorRef[GetJwtAuthKeysResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

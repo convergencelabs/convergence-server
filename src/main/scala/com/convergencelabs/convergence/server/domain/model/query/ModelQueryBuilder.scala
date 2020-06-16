@@ -15,6 +15,7 @@ import com.convergencelabs.convergence.server.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.model.query.Ast._
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.jdk.CollectionConverters._
 import scala.collection.mutable
@@ -63,7 +64,7 @@ object ModelQueryBuilder {
 
     val projectionString = "count(*) as count "
     val queryString = buildSelectString(select, userId, projectionString, params)
-    ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, None, None), params.toMap, Map())
+    ModelQueryParameters(OrientDBUtil.buildPagedQuery(queryString, QueryLimit(), QueryOffset()), params.toMap, Map())
   }
 
   private[this] def buildSelectString(select: SelectStatement, userId: Option[DomainUserId], projectionString: String, params: mutable.Map[String, Any]): String = {

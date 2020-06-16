@@ -25,6 +25,7 @@ import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.domain.model.query.Ast.SelectStatement
 import com.convergencelabs.convergence.server.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -274,8 +275,8 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   }
 
   def getAllModelMetaDataInCollection(collectionId: String,
-                                      offset: Option[Int],
-                                      limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
+                                      offset: QueryOffset,
+                                      limit: QueryLimit): Try[List[ModelMetaData]] = withDb { db =>
 
     val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
@@ -285,8 +286,8 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
 
   // TODO implement orderBy and ascending / descending
   // FIXME Paged Data
-  def getAllModelMetaData(offset: Option[Int],
-                          limit: Option[Int]): Try[List[ModelMetaData]] = withDb { db =>
+  def getAllModelMetaData(offset: QueryOffset,
+                          limit: QueryLimit): Try[List[ModelMetaData]] = withDb { db =>
 
     val baseQuery = "SELECT FROM Model ORDER BY collection.id ASC, id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
@@ -303,8 +304,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
       count <- this.modelCountQuery(select, userId, db)
       results <- this.modelDataQuery(select, userId, db)
     } yield {
-      val offset = select.offset.getOrElse(0)
-      PagedData[ModelQueryResult](results, offset, count)
+      PagedData[ModelQueryResult](results, select.offset.getOrZero, count)
     }
   }
 

@@ -18,6 +18,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}

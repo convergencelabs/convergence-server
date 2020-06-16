@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import java.time.Instant
+import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.datastore.SortOrder
 import com.convergencelabs.convergence.server.datastore.domain.{CollectionPermissions, DomainPersistenceProviderImpl, DomainUserField, ModelPermissions}
@@ -21,6 +21,7 @@ import com.convergencelabs.convergence.server.domain._
 import com.convergencelabs.convergence.server.domain.model._
 import com.convergencelabs.convergence.server.domain.model.data.{ObjectValue, StringValue}
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -62,7 +63,7 @@ class DomainImporterSpec extends AnyWordSpecLike with Matchers {
         provider.configStore.isAnonymousAuthEnabled().get shouldBe true
         provider.configStore.getAdminKeyPair().get shouldBe JwtKeyPair("Public Key", "Private Key")
 
-        val keys = provider.jwtAuthKeyStore.getKeys(None, None).get
+        val keys = provider.jwtAuthKeyStore.getKeys(QueryOffset(), QueryLimit()).get
         keys.size shouldBe 1
         keys.head shouldBe JwtAuthKey(
           "test-key",
@@ -74,7 +75,8 @@ class DomainImporterSpec extends AnyWordSpecLike with Matchers {
         val users = provider.userStore.getAllDomainUsers(
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
-          None, None).get
+          QueryOffset(),
+          QueryLimit()).get
         users.data.size shouldBe 2
 
         users.data.head shouldBe DomainUser(DomainUserType.Normal, "test1", Some("Test"), Some("One"), Some("Test One"), Some("test1@example.com"), None)
@@ -83,13 +85,22 @@ class DomainImporterSpec extends AnyWordSpecLike with Matchers {
         provider.userStore.validateCredentials("test1", "somePassword").get shouldBe true
         provider.userStore.getDomainUserPasswordHash("test2").get.value shouldBe "someHash"
 
-        val collections = provider.collectionStore.getAllCollections(None, None, None).get.data
+        val collections = provider.collectionStore.getAllCollections(None, QueryOffset(), QueryLimit()).get.data
         collections.size shouldBe 1
         collections.head shouldBe Collection(
           "collection1",
           "Collection 1",
           overrideSnapshotConfig = false,
-          DomainImporter.DefaultSnapshotConfig,
+          ModelSnapshotConfig(
+            snapshotsEnabled = false,
+            triggerByVersion = false,
+            limitedByVersion = false,
+            1000,
+            1000,
+            triggerByTime = false,
+            limitedByTime = false,
+            Duration.ofMillis(600000),
+            Duration.ofMillis(600000)),
           CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true))
 
         val collectionId = "collection1"

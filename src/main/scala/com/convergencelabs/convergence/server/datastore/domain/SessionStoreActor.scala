@@ -16,10 +16,11 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class SessionStoreActor private(context: ActorContext[SessionStoreActor.Message],
-                                           sessionStore: SessionStore)
+                                sessionStore: SessionStore)
   extends AbstractBehavior[SessionStoreActor.Message](context) {
 
   import SessionStoreActor._
@@ -36,9 +37,9 @@ class SessionStoreActor private(context: ActorContext[SessionStoreActor.Message]
   }
 
   private[this] def onGetSessions(message: GetSessionsRequest): Unit = {
-    val GetSessionsRequest(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset, replyTo) = message
+    val GetSessionsRequest(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, offset, limit, replyTo) = message
     sessionStore
-      .getSessions(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, limit, offset)
+      .getSessions(sessionId, username, remoteHost, authMethod, excludeDisconnected, st, offset, limit)
       .map(sessions => GetSessionsResponse(Right(sessions)))
       .recover { _ =>
         GetSessionsResponse(Left(UnknownError()))
@@ -72,14 +73,14 @@ object SessionStoreActor {
   // GetSessions
   //
   final case class GetSessionsRequest(sessionId: Option[String],
-                                username: Option[String],
-                                remoteHost: Option[String],
-                                authMethod: Option[String],
-                                excludeDisconnected: Boolean,
-                                sessionType: SessionQueryType.Value,
-                                limit: Option[Int],
-                                offset: Option[Int],
-                                replyTo: ActorRef[GetSessionsResponse]) extends Message
+                                      username: Option[String],
+                                      remoteHost: Option[String],
+                                      authMethod: Option[String],
+                                      excludeDisconnected: Boolean,
+                                      sessionType: SessionQueryType.Value,
+                                      offset: QueryOffset,
+                                      limit: QueryLimit,
+                                      replyTo: ActorRef[GetSessionsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

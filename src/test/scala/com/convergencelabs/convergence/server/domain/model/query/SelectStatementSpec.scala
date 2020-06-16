@@ -11,12 +11,11 @@
 
 package com.convergencelabs.convergence.server.domain.model.query
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
-
-import Ast._
-import scala.reflect.macros.ParseException
+import com.convergencelabs.convergence.server.domain.model.query.Ast._
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.parboiled2.ParseError
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class SelectStatementSpec
     extends AnyWordSpec
@@ -258,11 +257,11 @@ class SelectStatementSpec
 
     "parsing a SELECT Statement" must {
       "parse SELECT FROM collection" in {
-        QueryParser.parse("SELECT FROM collection").get shouldBe SelectStatement(List(), "collection", None, List(), None, None)
+        QueryParser.parse("SELECT FROM collection").get shouldBe SelectStatement(List(), "collection", None, List(), QueryLimit(), QueryOffset())
       }
 
       "parse SELECT * FROM collection" in {
-        QueryParser.parse("SELECT * FROM collection").get shouldBe SelectStatement(List(), "collection", None, List(), None, None)
+        QueryParser.parse("SELECT * FROM collection").get shouldBe SelectStatement(List(), "collection", None, List(), QueryLimit(), QueryOffset())
       }
 
       "parse SELECT * FROM collection WHERE foo = 1" in {
@@ -271,8 +270,8 @@ class SelectStatementSpec
           "collection",
           Some(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))),
           List(),
-          None,
-          None)
+          QueryLimit(),
+          QueryOffset())
       }
 
       "parse SELECT * FROM collection WHERE foo = 1 LIMIT 3 OFFSET 10" in {
@@ -281,8 +280,8 @@ class SelectStatementSpec
           "collection",
           Some(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))),
           List(),
-          Some(3),
-          Some(10))
+          QueryLimit(3),
+          QueryOffset(10))
       }
 
       "parse SELECT * FROM collection WHERE foo = 1 ORDER BY bar LIMIT 3 OFFSET 10" in {
@@ -291,8 +290,8 @@ class SelectStatementSpec
           "collection",
           Some(Equals(FieldTerm(PropertyPathElement("foo")), LongTerm(1))),
           List(OrderBy(FieldTerm(PropertyPathElement("bar")), None)),
-          Some(3),
-          Some(10))
+          QueryLimit(3),
+          QueryOffset(10))
       }
       
       "fail if select doesn't have a space after it" in {

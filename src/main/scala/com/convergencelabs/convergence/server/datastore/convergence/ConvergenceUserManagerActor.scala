@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.fasterxml.jackson.annotation.JsonSubTypes
 
@@ -110,9 +111,9 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
   }
 
   private[this] def onGetConvergenceUsers(message: GetConvergenceUsersRequest): Unit = {
-    val GetConvergenceUsersRequest(filter, limit, offset, replyTo) = message
+    val GetConvergenceUsersRequest(filter, offset, limit, replyTo) = message
     (for {
-      users <- userStore.getUsers(filter, limit, offset)
+      users <- userStore.getUsers(filter, offset, limit)
       roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget())
     } yield {
       users.map { user =>
@@ -332,8 +333,8 @@ object ConvergenceUserManagerActor {
   // GetConvergenceUsers
   //
   final case class GetConvergenceUsersRequest(filter: Option[String],
-                                              limit: Option[Int],
-                                              offset: Option[Int],
+                                              offset: QueryOffset,
+                                              limit: QueryLimit,
                                               replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
 
   @JsonSubTypes(Array(

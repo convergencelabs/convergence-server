@@ -42,6 +42,8 @@ object ErrorCodes extends Enumeration {
   //
   val ActivityAlreadyJoined: ErrorCode = Value("activity_already_joined")
 
+  val ActivityNotJoined: ErrorCode = Value("activity_not_joined")
+
   //
   // Model Errors
   //

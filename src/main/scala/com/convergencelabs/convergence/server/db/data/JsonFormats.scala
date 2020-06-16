@@ -12,17 +12,12 @@
 package com.convergencelabs.convergence.server.db.data
 
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.util.Date
-import java.util.TimeZone
+import java.time.{Duration, Instant}
+import java.util.{Date, TimeZone}
 
-import org.json4s.{CustomSerializer, DefaultFormats, Formats}
-import org.json4s.JsonAST.JDecimal
-import org.json4s.JsonAST.JDouble
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JLong
-import org.json4s.JsonAST.JString
 import com.convergencelabs.convergence.server.util.MappedTypeHits
+import org.json4s.JsonAST._
+import org.json4s.{CustomSerializer, DefaultFormats, Formats}
 
 object JsonFormats {
   private[this] val jsonTypeHints = MappedTypeHits(
@@ -81,7 +76,22 @@ object JsonFormats {
       JString(df.format(Date.from(x)))
   }))
 
+  private[this] val durationSerializer = new CustomSerializer[Duration](formats => ({
+    case JInt(millis) =>
+      Duration.ofMillis(millis.longValue)
+    case JLong(millis) =>
+      Duration.ofMillis(millis)
+    case JDouble(millis) =>
+      Duration.ofMillis(millis.longValue)
+    case JDecimal(millis) =>
+      Duration.ofMillis(millis.longValue)
+  }, {
+    case x: Duration =>
+      JLong(x.toMillis)
+  }))
+
   val format: Formats = DefaultFormats.withTypeHintFieldName("type") +
     jsonTypeHints  + 
-    instantSerializer 
+    instantSerializer +
+    durationSerializer
 }

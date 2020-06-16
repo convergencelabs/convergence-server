@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.server.datastore.convergence.schema.UserC
 import com.convergencelabs.convergence.server.datastore.domain.PasswordUtil
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -79,7 +80,7 @@ class UserStore(dbProvider: DatabaseProvider)
   }
 
   // TODO add an ordering ability.
-  def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int]): Try[List[User]] = withDb { db =>
+  def getUsers(filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[User]] = withDb { db =>
     val where = " WHERE username.toLowerCase() LIKE :searchString OR displayName.toLowerCase() LIKE :searchString OR email.toLowerCase() LIKE :searchString"
     val baseQuery = "SELECT FROM User" + filter.map(_ => where).getOrElse("") + " ORDER BY username"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)

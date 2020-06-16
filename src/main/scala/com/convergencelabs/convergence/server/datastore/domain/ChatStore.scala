@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSche
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -286,8 +287,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
                   searchFields: Option[Set[String]],
                   types: Option[Set[ChatType.Value]],
                   membership: Option[ChatMembership.Value],
-                  offset: Option[Long],
-                  limit: Option[Long]): Try[PagedData[ChatInfo]] = withDb { db =>
+                  offset: QueryOffset,
+                  limit: QueryLimit): Try[PagedData[ChatInfo]] = withDb { db =>
     val chatTypes: Set[String] = types.getOrElse(Set(ChatType.Channel, ChatType.Room, ChatType.Direct)).map(_.toString.toLowerCase)
 
     val whereClauses = mutable.ListBuffer("chat.type IN :chatTypes")
@@ -337,14 +338,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           |  $whereClause
           |GROUP BY (chat)
           |ORDER BY chat""".stripMargin
-    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit.map(_.intValue()), offset.map(_.intValue()))
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
 
     val params = whereParams.toMap
     for {
       count <- OrientDBUtil.getDocument(db, countQuery, params).map(doc => doc.getProperty("count").asInstanceOf[Long])
       data <- OrientDBUtil.queryAndMap(db, query, params) { doc => toChatInfo(doc) }
     } yield {
-      PagedData(data, offset.getOrElse(0L).longValue(), count)
+      PagedData(data, offset.getOrZero, count)
     }
   }
 
@@ -819,8 +820,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
   def getChatEvents(chatId: String,
                     eventTypes: Option[Set[String]],
                     startEvent: Option[Long],
-                    offset: Option[Long],
-                    limit: Option[Long],
+                    offset: QueryOffset,
+                    limit: QueryLimit,
                     forward: Option[Boolean],
                     messageFilter: Option[String]): Try[PagedData[ChatEvent]] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
@@ -856,7 +857,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
 
     val baseQuery = s"SELECT FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause $filterClause ORDER BY eventNo $orderBy"
-    val query = OrientDBUtil.buildPagedQuery(baseQuery, Some(limit.getOrElse(50L)).map(_.intValue()), offset.map(_.intValue()))
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit.getOrElse(50), offset)
 
     val countQuery = s"SELECT count(*) as count FROM ChatEvent WHERE chat.id = :chatId $eventTypesClause $eventNoClause $filterClause"
 
@@ -872,7 +873,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           }
         }))
     } yield {
-      PagedData(events, offset.getOrElse(0L), count)
+      PagedData(events, offset.getOrZero, count)
     }
   }
 

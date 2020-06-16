@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.model.data.{DoubleValue, ObjectValue, StringValue}
 import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelSnapshot, ModelSnapshotMetaData}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -113,7 +114,7 @@ class ModelSnapshotStoreSpec
     "when getting all snapshot meta data" must {
       "return all meta data in proper order when no limit or offest is provided" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get
         metaData.length shouldBe 3
         metaData.head.version shouldBe p1Snapshot1Version
         metaData(1).version shouldBe p1Snapshot10Version
@@ -122,7 +123,7 @@ class ModelSnapshotStoreSpec
 
       "correctly limit the number of results with no offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), None).get
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit(2)).get
         metaData.length shouldBe 2
         metaData.head.version shouldBe p1Snapshot1Version
         metaData(1).version shouldBe p1Snapshot10Version
@@ -130,7 +131,7 @@ class ModelSnapshotStoreSpec
 
       "correctly limit the number of results with an offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, Some(2), Some(1)).get
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(1), QueryLimit(2)).get
         metaData.length shouldBe 2
         metaData.head.version shouldBe p1Snapshot10Version
         metaData(1).version shouldBe p1Snapshot20Version
@@ -138,7 +139,7 @@ class ModelSnapshotStoreSpec
 
       "correctly offset the results with no limit" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, Some(1)).get
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(1), QueryLimit()).get
         metaData.length shouldBe 2
         metaData.head.version shouldBe p1Snapshot10Version
         metaData(1).version shouldBe p1Snapshot20Version
@@ -146,7 +147,7 @@ class ModelSnapshotStoreSpec
 
       "return an empty list for a non-existent model" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(noPersonId, None, None).get
+        val metaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(noPersonId, QueryOffset(), QueryLimit()).get
         metaData shouldBe List()
       }
     }
@@ -154,7 +155,7 @@ class ModelSnapshotStoreSpec
     "when getting snapshots by time" must {
       "return all snapshots if no time or limit-offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(person1Id, None, None, None, None).get
+        val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(person1Id, None, None, QueryOffset(), QueryLimit()).get
         metaDataList.length shouldBe 3
         metaDataList.head.version shouldBe p1Snapshot1Version
         metaDataList(1).version shouldBe p1Snapshot10Version
@@ -164,7 +165,7 @@ class ModelSnapshotStoreSpec
       "return all snapshots with all encopmasing time bounds and no limit-offset" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val metaDataList = provider.modelSnapshotStore.getSnapshotMetaDataForModelByTime(
-          person1Id, Some(p1Snapshot1Date.toEpochMilli), Some(p1Snapshot20Date.toEpochMilli), None, None).get
+          person1Id, Some(p1Snapshot1Date.toEpochMilli), Some(p1Snapshot20Date.toEpochMilli), QueryOffset(), QueryLimit()).get
         metaDataList.length shouldBe 3
         metaDataList.head.version shouldBe p1Snapshot1Version
         metaDataList(1).version shouldBe p1Snapshot10Version
@@ -214,14 +215,14 @@ class ModelSnapshotStoreSpec
         provider.modelSnapshotStore.getSnapshot(person1Id, p1Snapshot1Version).get shouldBe None
 
         // Ensure no others were deleted from the desired model
-        val person1MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get
+        val person1MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get
         person1MetaData.length shouldBe 2
 
         person1MetaData.head.version shouldBe p1Snapshot10Version
         person1MetaData(1).version shouldBe p1Snapshot20Version
 
         // Ensure no others were deleted from the other model
-        val person2MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get
+        val person2MetaData = provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get
         person2MetaData.length shouldBe 1
       }
     }
@@ -229,12 +230,12 @@ class ModelSnapshotStoreSpec
     "when removing all snapshots by model and version" must {
       "remove the snapshots for the specified model and no others" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 3
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 3
         provider.modelSnapshotStore.removeAllSnapshotsForModel(person1Id)
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 0
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 0
 
         // Ensure no others were deleted from the other model
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 1
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get.length shouldBe 1
       }
     }
 
@@ -242,13 +243,13 @@ class ModelSnapshotStoreSpec
       "remove all snapshots for all models in a collection" in withPersistenceStore { provider =>
         createSnapshots(provider)
         
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 3
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 1
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 3
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get.length shouldBe 1
 
         provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
 
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, None, None).get.length shouldBe 0
-        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, None, None).get.length shouldBe 0
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 0
+        provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get.length shouldBe 0
       }
     }
   }

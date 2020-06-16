@@ -11,9 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.data
 
-import java.time.Instant
+import java.time.{Duration, Instant}
 
-import com.convergencelabs.convergence.server.domain.DomainUserType
+import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.convergence.server.domain.{DomainUserType, ModelSnapshotConfig}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -69,7 +70,22 @@ class ConvergenceScriptSerializerSpec extends AnyWordSpecLike with Matchers {
             "",
             "unknown"))
         
-        collections.value shouldBe List(CreateCollection("collection1", "Collection 1", overrideSnapshotConfig = false))
+        collections.value shouldBe List(
+          CreateCollection(
+            "collection1",
+            "Collection 1",
+            overrideSnapshotConfig = false,
+            ModelSnapshotConfig(
+              snapshotsEnabled = false,
+              triggerByVersion = false,
+              limitedByVersion = false,
+              1000,
+              1000,
+              triggerByTime = false,
+              limitedByTime = false,
+              Duration.ofMillis(600000),
+              Duration.ofMillis(600000)),
+            CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)))
 
         models.value shouldBe List(
           CreateModel(

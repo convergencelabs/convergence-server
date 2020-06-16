@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.domain.model.Collection
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 /**
@@ -137,7 +138,7 @@ class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Me
 
 object CollectionStoreActor {
   def apply(collectionStore: CollectionStore): Behavior[Message] =
-    Behaviors.setup (new CollectionStoreActor(_, collectionStore))
+    Behaviors.setup(new CollectionStoreActor(_, collectionStore))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -149,8 +150,8 @@ object CollectionStoreActor {
   // GetCollections
   //
   final case class GetCollectionsRequest(filter: Option[String],
-                                         offset: Option[Int],
-                                         limit: Option[Int],
+                                         offset: QueryOffset,
+                                         limit: QueryLimit,
                                          replyTo: ActorRef[GetCollectionsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -166,8 +167,8 @@ object CollectionStoreActor {
   // GetCollectionSummaries
   //
   final case class GetCollectionSummariesRequest(filter: Option[String],
-                                                 offset: Option[Int],
-                                                 limit: Option[Int],
+                                                 offset: QueryOffset,
+                                                 limit: QueryLimit,
                                                  replyTo: ActorRef[GetCollectionSummariesResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

@@ -25,6 +25,7 @@ import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActo
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.{DestroyDomain, DestroyDomainResponse, ProvisionDomain, ProvisionDomainResponse}
 import com.convergencelabs.convergence.server.domain.{Domain, DomainDatabase, DomainId, DomainStatus}
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
@@ -219,9 +220,9 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
     val GetDomainsRequest(authProfileData, namespace, filter, offset, limit, replyTo) = listRequest
     val authProfile = AuthorizationProfile(authProfileData)
     if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
-      domainStore.getDomains(namespace, filter, offset, limit)
+      domainStore.getDomains(namespace, filter, QueryOffset(offset), QueryLimit(limit))
     } else {
-      domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit)
+      domainStore.getDomainsByAccess(authProfile.username, namespace, filter, QueryOffset(offset), QueryLimit(limit))
     }
       .map(domains => GetDomainsResponse(Right(domains)))
       .recover { cause =>

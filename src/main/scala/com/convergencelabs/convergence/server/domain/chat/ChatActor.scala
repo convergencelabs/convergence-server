@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.processors._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import grizzled.slf4j.Logging
 
@@ -591,8 +592,8 @@ object ChatActor {
   final case class GetChatHistoryRequest(domainId: DomainId,
                                          chatId: String,
                                          requester: Option[DomainUserSessionId],
-                                         offset: Option[Long],
-                                         limit: Option[Long],
+                                         offset: QueryOffset,
+                                         limit: QueryLimit,
                                          startEvent: Option[Long],
                                          forward: Option[Boolean],
                                          eventTypes: Option[Set[String]],

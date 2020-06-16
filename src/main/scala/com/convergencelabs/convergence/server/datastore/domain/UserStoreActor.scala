@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.util.Success
@@ -59,10 +60,10 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
           filterString,
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
-          offset,
-          limit)
+          QueryOffset(offset),
+          QueryLimit(limit))
       case None =>
-        userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), limit, offset)
+        userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), QueryOffset(offset), QueryLimit(limit))
     })
       .map(Right(_))
       .recover { cause =>
