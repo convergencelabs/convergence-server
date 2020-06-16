@@ -154,7 +154,7 @@ class ConvergenceRestApi(interface: String,
       .handle {
         case MalformedRequestContentRejection(message, _) =>
           cors(corsSettings) {
-            complete(ErrorResponse(ErrorCodes.MalformedRequestContent.toString, Some(message)))
+            complete(badRequest(message))
           }
         case AuthorizationFailedRejection =>
           cors(corsSettings) {
