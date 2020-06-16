@@ -19,7 +19,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor._
-import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,20 +42,22 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
       pathEnd {
         get {
           parameters(_string2NR("keys").*) { keys =>
-            complete(getAllConfigs(authProfile, keys))
+            complete(handleGetAllConfigs(keys))
           }
         } ~ post {
-          entity(as[Map[String, Any]]) { configs =>
-            complete(setConfigs(authProfile, configs))
+          authorize(canManageSettings(authProfile)) {
+            entity(as[Map[String, Any]]) { configs =>
+              complete(handleSetConfigs(configs))
+            }
           }
         }
       } ~ path("app") {
-        complete(getAppConfigs(authProfile))
+        complete(handleGetAppConfigs())
       }
     }
   }
 
-  private[this] def getAllConfigs(authProfile: AuthorizationProfile, keys: Iterable[String]): Future[RestResponse] = {
+  private[this] def handleGetAllConfigs(keys: Iterable[String]): Future[RestResponse] = {
     val keyFilter = keys.toList match {
       case Nil => None
       case k => Some(k)
@@ -73,7 +75,7 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
       )
   }
 
-  private[this] def getAppConfigs(authProfile: AuthorizationProfile): Future[RestResponse] = {
+  private[this] def handleGetAppConfigs(): Future[RestResponse] = {
     // FIXME request specific keys
     configActor
       .ask[GetConfigsResponse](GetConfigsRequest(None, _))
@@ -88,7 +90,7 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
       )
   }
 
-  private[this] def setConfigs(authProfile: AuthorizationProfile, configs: Map[String, Any]): Future[RestResponse] = {
+  private[this] def handleSetConfigs(configs: Map[String, Any]): Future[RestResponse] = {
     configActor.ask[SetConfigsResponse](SetConfigsRequest(configs, _))
       .map(_.response.fold(
         {
@@ -99,5 +101,9 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
           okResponse(configs)
         })
       )
+  }
+
+  private[this] def canManageSettings(authProfile: AuthorizationProfile): Boolean = {
+    authProfile.hasGlobalPermission(Permissions.Global.ManageSettings)
   }
 }
