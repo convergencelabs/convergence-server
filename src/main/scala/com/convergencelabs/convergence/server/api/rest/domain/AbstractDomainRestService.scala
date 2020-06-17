@@ -11,10 +11,10 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import akka.actor.typed.{ActorSystem, Scheduler}
+import akka.actor.typed.Scheduler
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.actor.AskUtils
-import com.convergencelabs.convergence.server.api.rest.JsonSupport
+import com.convergencelabs.convergence.server.api.rest.{JsonSupport, PermissionChecks}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 
@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext
 class AbstractDomainRestService(scheduler: Scheduler,
                                 executionContext: ExecutionContext,
                                 defaultTimeout: Timeout)
-  extends JsonSupport with AskUtils {
+  extends JsonSupport with AskUtils with PermissionChecks {
 
   protected implicit val ec: ExecutionContext = executionContext
   protected implicit val t: Timeout = defaultTimeout
@@ -31,25 +31,11 @@ class AbstractDomainRestService(scheduler: Scheduler,
 
   // Permission Checks
 
-  def canAccessDomain(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
-    checkPermission(domainFqn, authProfile, Set(Permissions.Domain.Access))
+  protected def canManageDomainSettings(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
+    checkDomainPermission(domainFqn, authProfile, Set(Permissions.Domain.ManageSettings))
   }
 
-  def canManageSettings(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
-    checkPermission(domainFqn, authProfile, Set(Permissions.Domain.ManageSettings))
-  }
-
-  def canManageUsers(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
-    checkPermission(domainFqn, authProfile, Set(Permissions.Domain.ManageUsers))
-  }
-
-  def checkPermission(domainFqn: DomainId, authProfile: AuthorizationProfile, permission: Set[String]): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
-      authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, domainFqn.namespace) ||
-      permission.forall(p => authProfile.hasDomainPermission(p, domainFqn))
-  }
-
-  def canManageDomains(namespace: String, authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, namespace)
+  protected def canManageDomainUsers(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
+    checkDomainPermission(domainFqn, authProfile, Set(Permissions.Domain.ManageUsers))
   }
 }

@@ -20,15 +20,11 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.DatabaseManagerRestService.{UpgradeRequest, VersionResponse}
-import com.convergencelabs.convergence.server.db.data.JsonFormats
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor._
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
-import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import grizzled.slf4j.Logging
-import org.json4s.Formats
-import org.json4s.jackson.Serialization
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -44,33 +40,39 @@ private[rest] class DatabaseManagerRestService(executionContext: ExecutionContex
                                                scheduler: Scheduler,
                                                databaseManager: ActorRef[DatabaseManagerActor.Message],
                                                defaultTimeout: Timeout)
-  extends Json4sSupport with Logging {
-
-  private[this] implicit val serialization: Serialization.type = Serialization
-  private[this] implicit val formats: Formats = JsonFormats.format
+  extends JsonSupport with Logging with PermissionChecks {
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
   private[this] implicit val s: Scheduler = scheduler
 
-  // FIXME need to check permissions
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("schema") {
       (post & pathPrefix("upgrade")) {
         path("convergence") {
-          handleWith(upgradeConvergence)
+          authorize(isServerAdmin(authProfile)) {
+            handleWith(upgradeConvergence)
+          }
         } ~ path("domains") {
-          handleWith(upgradeDomains)
+          authorize(isServerAdmin(authProfile)) {
+            handleWith(upgradeDomains)
+          }
         } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
-          entity(as[UpgradeRequest]) { request =>
-            complete(upgradeDomain(namespace, domainId, request))
+          authorize(canManageDomain(DomainId(namespace, domainId), authProfile)) {
+            entity(as[UpgradeRequest]) { request =>
+              complete(upgradeDomain(namespace, domainId, request))
+            }
           }
         }
       } ~ (get & pathPrefix("version")) {
         path("convergence") {
-          complete(onGetConvergenceVersion())
+          authorize(isServerAdmin(authProfile)) {
+            complete(onGetConvergenceVersion())
+          }
         } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
-          complete(onGetDomainVersion(namespace, domainId))
+          authorize(canAccessDomain(DomainId(namespace, domainId), authProfile)) {
+            complete(onGetDomainVersion(namespace, domainId))
+          }
         }
       }
     }

@@ -40,7 +40,7 @@ class DomainConfigService(domainRestActor: ActorRef[Message],
     pathPrefix("config") {
       path("anonymousAuth") {
         get {
-          authorize(canManageSettings(domain, authProfile)) {
+          authorize(canManageDomainSettings(domain, authProfile)) {
             complete(getAnonymousAuthEnabled(domain))
           }
         } ~ put {
@@ -54,7 +54,7 @@ class DomainConfigService(domainRestActor: ActorRef[Message],
             complete(getModelSnapshotPolicy(domain))
           } ~ put {
             entity(as[ModelSnapshotPolicyData]) { policyData =>
-              authorize(canManageSettings(domain, authProfile)) {
+              authorize(canManageDomainSettings(domain, authProfile)) {
                 complete(setModelSnapshotPolicy(domain, policyData))
               }
             }

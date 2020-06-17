@@ -26,10 +26,8 @@ import akka.stream.Materializer
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
-import com.convergencelabs.convergence.server.api.realtime.ErrorCodes
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
 import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.db.data.ConvergenceImporterActor
 import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
 import com.convergencelabs.convergence.server.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
@@ -95,8 +93,6 @@ class ConvergenceRestApi(interface: String,
     routers += namespaceActor
     val databaseManagerActor = createBackendRouter(context, DatabaseManagerActor.Key, "databaseManagerActor")
     routers += databaseManagerActor
-    val importerActor = createBackendRouter(context, ConvergenceImporterActor.Key, "importerActor")
-    routers += importerActor
     val roleActor = createBackendRouter(context, RoleStoreActor.Key, "roleActor")
     routers += roleActor
     val userApiKeyActor = createBackendRouter(context, UserApiKeyStoreActor.Key, "userApiKeyActor")

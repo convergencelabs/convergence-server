@@ -43,17 +43,17 @@ private[rest] class ServerStatusService(statusActor: ActorRef[Message],
   private[this] implicit val s: Scheduler = scheduler
 
 
-  val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
+  val route: AuthorizationProfile => Route = { _ =>
     pathPrefix("status") {
       pathEnd {
         get {
-          complete(getServerStatus(authProfile))
+          complete(getServerStatus())
         }
       }
     }
   }
 
-  private[this] def getServerStatus(authProfile: AuthorizationProfile): Future[RestResponse] = {
+  private[this] def getServerStatus(): Future[RestResponse] = {
     statusActor.ask[GetStatusResponse](GetStatusRequest)
       .map(_.status.fold(
         {

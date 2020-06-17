@@ -40,7 +40,7 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
         get {
           complete(getAllMembers(domain))
         } ~ post {
-          authorize(canManageUsers(domain, authProfile)) {
+          authorize(canManageDomainUsers(domain, authProfile)) {
             entity(as[Map[String, String]]) { members =>
               complete(setAllMembers(domain, members, authProfile))
             }
@@ -50,13 +50,13 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
         get {
           complete(getRoleForUser(domain, username))
         } ~ put {
-          authorize(canManageUsers(domain, authProfile)) {
+          authorize(canManageDomainUsers(domain, authProfile)) {
             entity(as[SetUserRole]) { memberRole =>
               complete(setRoleForUser(domain, username, memberRole.role, authProfile))
             }
           }
         } ~ delete {
-          authorize(canManageUsers(domain, authProfile)) {
+          authorize(canManageDomainUsers(domain, authProfile)) {
             complete(removeUserRole(domain, username, authProfile))
           }
         }

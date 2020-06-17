@@ -62,7 +62,7 @@ class DomainService(schedule: Scheduler,
           }
         } ~ post {
           entity(as[CreateDomainRestRequestData]) { request =>
-            authorize(canManageDomains(request.namespace, authProfile)) {
+            authorize(canManageDomainsInNamespace(request.namespace, authProfile)) {
               complete(createDomain(request, authProfile))
             }
           }
