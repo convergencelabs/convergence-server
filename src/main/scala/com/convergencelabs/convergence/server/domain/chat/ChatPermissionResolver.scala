@@ -11,30 +11,27 @@
 
 package com.convergencelabs.convergence.server.domain.chat
 
-import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
-import com.orientechnologies.orient.core.id.ORID
 
 import scala.util.{Success, Try}
 
 object ChatPermissionResolver {
 
-  def hasPermissions(chatStore: ChatStore,
-                     permissionsStore: PermissionsStore,
+  def hasPermissions(permissionsStore: PermissionsStore,
                      chatId: String)(userId: DomainUserId, permission: ChatPermission): Try[Boolean] = {
-    hasChatPermissions(chatStore, permissionsStore, chatId, permission, userId)
+    hasChatPermissions(permissionsStore, chatId, permission, userId)
   }
 
-  def hasPermissions(chatStore: ChatStore,
-                     permissionsStore: PermissionsStore,
+  def hasPermissions(permissionsStore: PermissionsStore,
                      chatId: String,
                      permission: ChatPermission)(userId: DomainUserId): Try[Boolean] = {
-    hasChatPermissions(chatStore, permissionsStore, chatId, permission, userId)
+    hasChatPermissions(permissionsStore, chatId, permission, userId)
   }
 
-  def hasChatPermissions(chatStore: ChatStore,
-                         permissionsStore: PermissionsStore,
+  def hasChatPermissions(permissionsStore: PermissionsStore,
                          chatId: String,
                          permission: ChatPermission,
                          userId: DomainUserId): Try[Boolean] = {
@@ -42,17 +39,13 @@ object ChatPermissionResolver {
       Success(true)
     } else {
       for {
-        chatRid <- chatStore.getChatRid(chatId)
-        hasPermission <- permissionsStore.hasPermissionForRecord(userId, chatRid, permission.p)
+        hasPermission <- permissionsStore.userHasPermissionForTarget(userId, ChatPermissionTarget(chatId), permission.p)
       } yield hasPermission
     }
   }
 
-  def hasPermissions(getChatRid: String => Try[ORID],
-                     hasPermission: (DomainUserId, ORID, String) => Try[Boolean]
-                    )
-                    (
-                      userId: DomainUserId,
+  def hasPermissions(hasPermission: (DomainUserId, ChatPermissionTarget, String) => Try[Boolean])
+                    ( userId: DomainUserId,
                       chatId: String,
                       permission: ChatPermission
                     ): Try[Boolean] = {
@@ -60,8 +53,7 @@ object ChatPermissionResolver {
       Success(true)
     } else {
       for {
-        chatRid <- getChatRid(chatId)
-        hasPermission <- hasPermission(userId, chatRid, permission.p)
+        hasPermission <- hasPermission(userId, ChatPermissionTarget(chatId), permission.p)
       } yield hasPermission
     }
   }

@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.domain.chat.processors.permission
 
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{SetChatPermissionsRequest, SetChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -23,32 +23,30 @@ import scala.util.Try
 object SetChatPermissionsProcessor extends PermissionsMessageProcessor[SetChatPermissionsRequest, SetChatPermissionsResponse] with Logging {
 
   def execute(message: SetChatPermissionsRequest,
-              getChatRid: String => Try[ORID],
               permissionsStore: PermissionsStore): SetChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      getChatRid= getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
       handleRequest = updatePermissions(permissionsStore),
       createErrorReply = v => SetChatPermissionsResponse(Left(v))
     )
   }
 
-  def updatePermissions(permissionsStore: PermissionsStore)(message: SetChatPermissionsRequest, chatRid: ORID): Try[SetChatPermissionsResponse] = {
+  def updatePermissions(permissionsStore: PermissionsStore)(message: SetChatPermissionsRequest, chatId: String): Try[SetChatPermissionsResponse] = {
     val SetChatPermissionsRequest(_, _, _, world, user, group, _) = message
     (for {
       _ <- toTry(world) {
-        permissionsStore.setWorldPermissions(_, Some(chatRid))
+        permissionsStore.setPermissionsForWorld(_, ChatPermissionTarget(chatId))
       }
       _ <- unsafeToTry(user) {
         _.foreach { case UserPermissions(userId, permissions) =>
-          permissionsStore.setUserPermissions(permissions, userId, Some(chatRid)).get
+          permissionsStore.setPermissionsForUser(permissions, userId, ChatPermissionTarget(chatId)).get
         }
       }
       _ <- unsafeToTry(group) {
         _.foreach { case GroupPermissions(group, permissions) =>
-          permissionsStore.setGroupPermissions(permissions, group, Some(chatRid)).get
+          permissionsStore.setPermissionsForGroup(permissions, group, ChatPermissionTarget(chatId)).get
         }
       }
     } yield {

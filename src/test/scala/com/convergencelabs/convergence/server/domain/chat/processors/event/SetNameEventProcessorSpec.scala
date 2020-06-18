@@ -21,7 +21,6 @@ import com.convergencelabs.convergence.server.datastore.domain.{ChatNameChangedE
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.domain.chat.ChatActor._
-import com.orientechnologies.orient.core.id.ORecordId
 import org.mockito.{Matchers, Mockito}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
@@ -41,17 +40,15 @@ class SetNameEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val chatStore = mock[ChatStore]
         Mockito.when(chatStore.addChatNameChangedEvent(Matchers.any())).thenReturn(Success(()))
-        Mockito.when(chatStore.getChatRid(Matchers.any())).thenReturn(Success(ORecordId.EMPTY_RECORD_ID))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.hasPermissionForRecord(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.userHasPermissionForTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
         val response = SetNameEventProcessor.execute(message, state, chatStore, permissionsStore)
         response.newState shouldBe defined
         response.task.broadcast shouldBe defined
         response.task.reply.replyTo shouldBe message.replyTo
-        val newState = response.newState.get
         response.task.reply.response shouldBe SetChatNameResponse(Right(Ok()))
       }
     }

@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.event
 
-import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
@@ -55,7 +55,7 @@ private[chat] object JoinEventProcessor
     if (state.membership == ChatMembership.Public) {
       Success(true)
     } else {
-      hasPermissions(chatStore, permissionsStore, state.id, RequiredPermission)(userId)
+      hasPermissions(permissionsStore, state.id, RequiredPermission)(userId)
     }
   }
 
@@ -73,8 +73,7 @@ private[chat] object JoinEventProcessor
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserJoinedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserJoinedEvent(event)
-      chatRid <- chatStore.getChatRid(event.id)
-      _ <- permissionsStore.addUserPermissions(ChatPermissions.DefaultChatPermissions, event.user, Some(chatRid))
+      _ <- permissionsStore.addPermissionsForUser(ChatPermissions.DefaultChatPermissions, event.user, ChatPermissionTarget(event.id))
     } yield ()
   }
 

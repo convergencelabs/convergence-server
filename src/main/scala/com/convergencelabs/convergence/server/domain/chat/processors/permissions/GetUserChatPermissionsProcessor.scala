@@ -12,10 +12,9 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetUserChatPermissionsRequest, GetUserChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -23,20 +22,18 @@ import scala.util.Try
 object GetUserChatPermissionsProcessor extends PermissionsMessageProcessor[GetUserChatPermissionsRequest, GetUserChatPermissionsResponse] with Logging {
 
   def execute(message: GetUserChatPermissionsRequest,
-              getChatRid: String => Try[ORID],
               permissionsStore: PermissionsStore): GetUserChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      getChatRid = getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
       handleRequest = getPermissions(permissionsStore),
       createErrorReply = v => GetUserChatPermissionsResponse(Left(v))
     )
   }
 
-  def getPermissions(permissionsStore: PermissionsStore)(message: GetUserChatPermissionsRequest, chatRid: ORID): Try[GetUserChatPermissionsResponse] = {
-    permissionsStore.getUserPermissions(message.userId, Some(chatRid))
+  def getPermissions(permissionsStore: PermissionsStore)(message: GetUserChatPermissionsRequest, chatId: String): Try[GetUserChatPermissionsResponse] = {
+    permissionsStore.getPermissionsForUser(message.userId, ChatPermissionTarget(chatId))
       .map(permissions => GetUserChatPermissionsResponse(Right(permissions)))
       .recover { cause =>
         error("Unexpected error getting chat user permissions", cause)

@@ -12,9 +12,9 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetClientChatPermissionsRequest, GetClientChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -22,22 +22,20 @@ import scala.util.Try
 object GetClientChatPermissionsProcessor extends PermissionsMessageProcessor[GetClientChatPermissionsRequest, GetClientChatPermissionsResponse] with Logging {
 
   def execute(message: GetClientChatPermissionsRequest,
-              getChatRid: String => Try[ORID],
               permissionsStore: PermissionsStore): GetClientChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      getChatRid = getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
       handleRequest = getPermissions(permissionsStore),
       createErrorReply = v => GetClientChatPermissionsResponse(Left(v))
     )
   }
 
-  def getPermissions(permissionsStore: PermissionsStore)(message: GetClientChatPermissionsRequest, chatRid: ORID): Try[GetClientChatPermissionsResponse] = {
+  def getPermissions(permissionsStore: PermissionsStore)(message: GetClientChatPermissionsRequest, chatId: String): Try[GetClientChatPermissionsResponse] = {
     val GetClientChatPermissionsRequest(_, _, requester, _) = message
     permissionsStore
-      .getAggregateUserPermissions(requester.userId, chatRid, ChatPermissions.AllExistingChatPermissions)
+      .getAggregateUserPermissionsForTarget(requester.userId, ChatPermissionTarget(chatId), ChatPermissions.AllExistingChatPermissions)
       .map(p => GetClientChatPermissionsResponse(Right(p)))
       .recover { cause =>
         error("Unexpected error getting client chat permissions", cause)

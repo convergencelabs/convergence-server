@@ -14,7 +14,6 @@ package com.convergencelabs.convergence.server.domain.chat.processors.permission
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{ChatPermissionsRequest, CommonErrors, UnauthorizedError, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
@@ -31,15 +30,13 @@ trait PermissionsMessageProcessor[M <: ChatPermissionsRequest[R], R] extends Log
   def process(hasPermission: (DomainUserId, String, ChatPermission) => Try[Boolean],
               requiredPermission: ChatPermission,
               message: M,
-              getChatRid: String => Try[ORID],
-              handleRequest: (M, ORID) => Try[R],
+              handleRequest: (M, String) => Try[R],
               createErrorReply: CommonErrors => R
              ): R = {
     hasPermission(message.requester.userId, message.chatId, requiredPermission).flatMap {
       case true =>
         for {
-          chatRid <- getChatRid(message.chatId)
-          response <- handleRequest(message, chatRid)
+          response <- handleRequest(message, message.chatId)
         } yield {
           response
         }

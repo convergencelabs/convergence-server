@@ -11,12 +11,19 @@
 
 package com.convergencelabs.convergence.server.datastore
 
-import scala.util.Try
-
+import scala.util.{Failure, Try}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import grizzled.slf4j.Logging
 
-abstract class AbstractDatabasePersistence(dbProvider: DatabaseProvider) {
+/**
+ * The [[AbstractDatabasePersistence]] class provides help utilities for the
+ * various persistence stores.
+ *
+ * @param dbProvider The DatabaseProvider that provides a connection to
+ *                   the database.
+ */
+abstract class AbstractDatabasePersistence(dbProvider: DatabaseProvider) extends Logging {
   protected def tryWithDb[B](block: ODatabaseDocument => B): Try[B] =
     dbProvider.tryWithDatabase(block)
 
@@ -30,4 +37,22 @@ abstract class AbstractDatabasePersistence(dbProvider: DatabaseProvider) {
       case None =>
         dbProvider.withDatabase(block)
     }
+
+  protected def withDbTransaction[B](block: ODatabaseDocument => Try[B]): Try[B] = {
+    dbProvider.withDatabase(db =>
+      (for {
+        _ <- Try(db.begin())
+        result <- block(db)
+        _ <- Try(db.commit())
+      } yield result)
+        .recoverWith(rollback(db))
+    )
+  }
+
+  protected def rollback[U](db: ODatabaseDocument): PartialFunction[Throwable, Try[U]] = { cause =>
+    Try(db.rollback()).recover { cause =>
+      error("Failed to rollback transaction.", cause)
+    }
+    Failure(cause)
+  }
 }

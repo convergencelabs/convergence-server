@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatMembership, ChatType}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 import com.convergencelabs.convergence.server.domain.chat.ChatState
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
 
 trait TestConstants {
   val domainId: DomainId = DomainId("ns", "d")

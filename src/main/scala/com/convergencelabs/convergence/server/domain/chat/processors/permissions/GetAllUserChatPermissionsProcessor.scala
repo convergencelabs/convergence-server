@@ -12,10 +12,10 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetAllUserChatPermissionsRequest, GetAllUserChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -23,20 +23,18 @@ import scala.util.Try
 object GetAllUserChatPermissionsProcessor extends PermissionsMessageProcessor[GetAllUserChatPermissionsRequest, GetAllUserChatPermissionsResponse] with Logging {
 
   def execute(message: GetAllUserChatPermissionsRequest,
-              getChatRid: String => Try[ORID],
               permissionsStore: PermissionsStore): GetAllUserChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      getChatRid = getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
       handleRequest = getPermissions(permissionsStore),
       createErrorReply = v => GetAllUserChatPermissionsResponse(Left(v))
     )
   }
 
-  def getPermissions(permissionsStore: PermissionsStore)(message: GetAllUserChatPermissionsRequest, chatRid: ORID): Try[GetAllUserChatPermissionsResponse] = {
-    permissionsStore.getAllUserPermissions(Some(chatRid))
+  def getPermissions(permissionsStore: PermissionsStore)(message: GetAllUserChatPermissionsRequest, chatId: String): Try[GetAllUserChatPermissionsResponse] = {
+    permissionsStore.getUserPermissionsForTarget(ChatPermissionTarget(chatId))
       .map { permissions =>
         val map = permissions.groupBy { _.user } map { case (user, userPermissions) => DomainUserId(user.userType, user.username) -> userPermissions.map { _.permission } }
         GetAllUserChatPermissionsResponse(Right(map))

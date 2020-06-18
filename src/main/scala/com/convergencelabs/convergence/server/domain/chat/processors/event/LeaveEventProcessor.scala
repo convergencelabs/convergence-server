@@ -40,7 +40,7 @@ private[chat] object LeaveEventProcessor
     process(
       message = message,
       state = state,
-      checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
+      checkPermissions = hasPermissions(permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
       persistEvent = persistEvent(chatStore, permissionsStore),

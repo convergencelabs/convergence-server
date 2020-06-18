@@ -95,15 +95,15 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
   private[this] def onChatPermissionsRequest(message: ChatPermissionsRequest[_]): NextBehavior = {
     val result = message match {
       case msg: AddChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, AddChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore))
+        MessageReplyTask(msg.replyTo, AddChatPermissionsProcessor.execute(msg, permissionsStore))
       case msg: RemoveChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, RemoveChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore))
+        MessageReplyTask(msg.replyTo, RemoveChatPermissionsProcessor.execute(msg, permissionsStore))
       case msg: SetChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, SetChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore))
+        MessageReplyTask(msg.replyTo, SetChatPermissionsProcessor.execute(msg, permissionsStore))
       case msg: GetClientChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, GetClientChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore))
+        MessageReplyTask(msg.replyTo, GetClientChatPermissionsProcessor.execute(msg, permissionsStore))
       case msg: GetWorldChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, GetWorldChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore))
+        MessageReplyTask(msg.replyTo, GetWorldChatPermissionsProcessor.execute(msg, permissionsStore))
       case msg: GetAllUserChatPermissionsRequest =>
         MessageReplyTask(msg.replyTo, onGetAllUserChatPermissionsRequest(msg))
       case msg: GetAllGroupChatPermissionsRequest =>
@@ -120,25 +120,26 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
   }
 
   protected def onGetWorldChatPermissionsRequest(msg: GetWorldChatPermissionsRequest): GetWorldChatPermissionsResponse =
-    GetWorldChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore)
+    GetWorldChatPermissionsProcessor.execute(msg, permissionsStore)
 
   protected def onGetAllUserChatPermissionsRequest(msg: GetAllUserChatPermissionsRequest): GetAllUserChatPermissionsResponse =
-    GetAllUserChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore)
+    GetAllUserChatPermissionsProcessor.execute(msg, permissionsStore)
 
   protected def onGetAllGroupChatPermissionsRequest(msg: GetAllGroupChatPermissionsRequest): GetAllGroupChatPermissionsResponse =
-    GetAllGroupChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore)
+    GetAllGroupChatPermissionsProcessor.execute(msg, permissionsStore)
 
   protected def onGetUserChatPermissionsRequest(msg: GetUserChatPermissionsRequest): GetUserChatPermissionsResponse =
-    GetUserChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore)
+    GetUserChatPermissionsProcessor.execute(msg, permissionsStore)
 
   protected def onGetGroupChatPermissionsRequest(msg: GetGroupChatPermissionsRequest): GetGroupChatPermissionsResponse =
-    GetGroupChatPermissionsProcessor.execute(msg, chatStore.getChatRid, permissionsStore)
+    GetGroupChatPermissionsProcessor.execute(msg, permissionsStore)
 
   protected def onRemoveChatRequest(message: RemoveChatRequest): NextBehavior = {
     val response = RemoveChatMessageProcessor.execute(
       message = message,
-      removeChat = chatStore.removeChat,
-      checkPermissions = ChatPermissionResolver.hasPermissions(chatStore, permissionsStore, message.chatId)
+      checkPermissions = ChatPermissionResolver.hasPermissions(permissionsStore, message.chatId),
+      chatStore = chatStore,
+      permissionsStore = permissionsStore
     )
 
     replyAndBroadcast(response)
@@ -150,7 +151,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
     val response = GetHistoryMessageProcessor.execute(
       message = message,
       getHistory = chatStore.getChatEvents,
-      checkPermissions = ChatPermissionResolver.hasPermissions(chatStore, permissionsStore, message.chatId)
+      checkPermissions = ChatPermissionResolver.hasPermissions(permissionsStore, message.chatId)
     )
 
     message.replyTo ! response

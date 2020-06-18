@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatStore, ChatUserAddedEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{AddUserToChatRequest, AddUserToChatResponse, CommonErrors}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
@@ -39,7 +40,7 @@ private[chat] object AddUserEventProcessor
     process(
       message = message,
       state = state,
-      checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
+      checkPermissions = hasPermissions(permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
       persistEvent = persistEvent(chatStore, permissionsStore),
@@ -64,8 +65,7 @@ private[chat] object AddUserEventProcessor
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserAddedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserAddedEvent(event)
-      chatRid <- chatStore.getChatRid(event.id)
-      _ <- permissionsStore.addUserPermissions(ChatPermissions.DefaultChatPermissions, event.userAdded, Some(chatRid))
+      _ <- permissionsStore.addPermissionsForUser(ChatPermissions.DefaultChatPermissions, event.userAdded, ChatPermissionTarget(event.id))
     } yield ()
   }
 

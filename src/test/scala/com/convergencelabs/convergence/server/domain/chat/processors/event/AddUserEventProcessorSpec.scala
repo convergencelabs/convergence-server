@@ -17,11 +17,11 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, ChatStore, ChatUserAddedEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatPermissions}
-import com.orientechnologies.orient.core.id.ORecordId
 import org.mockito.{Matchers, Mockito}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
@@ -41,13 +41,12 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val chatStore = mock[ChatStore]
         Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success(()))
-        Mockito.when(chatStore.getChatRid(Matchers.any())).thenReturn(Success(ORecordId.EMPTY_RECORD_ID))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.hasPermissionForRecord(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.userHasPermissionForTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
-        Mockito.when(permissionsStore.addUserPermissions(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val response = AddUserEventProcessor.execute(message, state, chatStore, permissionsStore)
@@ -95,10 +94,9 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
       "succeed when the persistence operations succeed" in {
         val chatStore = mock[ChatStore]
         Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success(()))
-        Mockito.when(chatStore.getChatRid(Matchers.any())).thenReturn(Success(ORecordId.EMPTY_RECORD_ID))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.addUserPermissions(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val timestamp = Instant.now()
@@ -107,9 +105,8 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
         val result = AddUserEventProcessor.persistEvent(chatStore, permissionsStore)(event)
         result shouldBe Success(())
 
-        Mockito.verify(chatStore).getChatRid(state.id)
         Mockito.verify(chatStore).addChatUserAddedEvent(event)
-        Mockito.verify(permissionsStore).addUserPermissions(ChatPermissions.DefaultChatPermissions, event.userAdded, Some(ORecordId.EMPTY_RECORD_ID))
+        Mockito.verify(permissionsStore).addPermissionsForUser(ChatPermissions.DefaultChatPermissions, event.userAdded, ChatPermissionTarget(state.id))
       }
 
       "fail when the persistence operations fail" in {

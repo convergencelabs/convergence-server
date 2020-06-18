@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.domain.chat.processors.permission
 
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{RemoveChatPermissionsRequest, RemoveChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -23,32 +23,30 @@ import scala.util.Try
 object RemoveChatPermissionsProcessor extends PermissionsMessageProcessor[RemoveChatPermissionsRequest, RemoveChatPermissionsResponse] with Logging {
 
   def execute(message: RemoveChatPermissionsRequest,
-              getChatRid: String => Try[ORID],
               permissionsStore: PermissionsStore): RemoveChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      getChatRid= getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
       handleRequest = updatePermissions(permissionsStore),
       createErrorReply = v => RemoveChatPermissionsResponse(Left(v))
     )
   }
 
-  def updatePermissions(permissionsStore: PermissionsStore)(message: RemoveChatPermissionsRequest, chatRid: ORID): Try[RemoveChatPermissionsResponse] = {
+  def updatePermissions(permissionsStore: PermissionsStore)(message: RemoveChatPermissionsRequest, chatId: String): Try[RemoveChatPermissionsResponse] = {
     val RemoveChatPermissionsRequest(_, _, _, world, user, group, _) = message
     (for {
       _ <- toTry(world) {
-        permissionsStore.removeWorldPermissions(_, Some(chatRid))
+        permissionsStore.removePermissionsForWorld(_, ChatPermissionTarget(chatId))
       }
       _ <- unsafeToTry(user) {
         _.foreach { case UserPermissions(userId, permissions) =>
-          permissionsStore.removeUserPermissions(permissions, userId, Some(chatRid)).get
+          permissionsStore.removePermissionsForUser(permissions, userId, ChatPermissionTarget(chatId)).get
         }
       }
       _ <- unsafeToTry(group) {
         _.foreach { case GroupPermissions(group, permissions) =>
-          permissionsStore.removeGroupPermissions(permissions, group, Some(chatRid)).get
+          permissionsStore.removePermissionsForGroup(permissions, group, ChatPermissionTarget(chatId)).get
         }
       }
     } yield {

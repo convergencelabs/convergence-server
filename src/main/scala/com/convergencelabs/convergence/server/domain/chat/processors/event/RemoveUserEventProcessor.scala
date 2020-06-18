@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.event
 
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, ChatUserRemovedEvent, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{CommonErrors, RemoveUserFromChatRequest, RemoveUserFromChatResponse}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissionResolver.hasPermissions
@@ -39,7 +40,7 @@ private[chat] object RemoveUserEventProcessor
     process(
       message = message,
       state = state,
-      checkPermissions = hasPermissions(chatStore, permissionsStore, message.chatId, RequiredPermission),
+      checkPermissions = hasPermissions(permissionsStore, message.chatId, RequiredPermission),
       validateMessage = validateMessage,
       createEvent = createEvent,
       persistEvent = persistEvent(chatStore, permissionsStore),
@@ -66,8 +67,7 @@ private[chat] object RemoveUserEventProcessor
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserRemovedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserRemovedEvent(event)
-      chatRid <- chatStore.getChatRid(event.id)
-      _ <- permissionsStore.removeUserPermissions(ChatPermissions.AllExistingChatPermissions, event.userRemoved, Some(chatRid))
+      _ <- permissionsStore.removePermissionsForUser(ChatPermissions.AllExistingChatPermissions, event.userRemoved, ChatPermissionTarget(event.id))
     } yield ()
   }
 

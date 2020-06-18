@@ -12,9 +12,9 @@
 package com.convergencelabs.convergence.server.domain.chat.processors.permissions
 
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetWorldChatPermissionsRequest, GetWorldChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
-import com.orientechnologies.orient.core.id.ORID
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -22,20 +22,18 @@ import scala.util.Try
 object GetWorldChatPermissionsProcessor extends PermissionsMessageProcessor[GetWorldChatPermissionsRequest, GetWorldChatPermissionsResponse] with Logging {
 
   def execute(message: GetWorldChatPermissionsRequest,
-              getChatRid: String => Try[ORID],
               permissionsStore: PermissionsStore): GetWorldChatPermissionsResponse = {
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      getChatRid = getChatRid,
-      hasPermission = ChatPermissionResolver.hasPermissions(getChatRid, permissionsStore.hasPermissionForRecord _),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget _),
       handleRequest = getPermissions(permissionsStore),
       createErrorReply = v => GetWorldChatPermissionsResponse(Left(v))
     )
   }
 
-  def getPermissions(permissionsStore: PermissionsStore)(message: GetWorldChatPermissionsRequest, chatRid: ORID): Try[GetWorldChatPermissionsResponse] = {
-    permissionsStore.getWorldPermissions(Some(chatRid))
+  def getPermissions(permissionsStore: PermissionsStore)(message: GetWorldChatPermissionsRequest, chatId: String): Try[GetWorldChatPermissionsResponse] = {
+    permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chatId))
       .map(p => p.map(_.permission))
       .map(p => GetWorldChatPermissionsResponse(Right(p)))
       .recover { cause =>

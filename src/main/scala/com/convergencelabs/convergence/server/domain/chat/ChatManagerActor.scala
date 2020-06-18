@@ -18,6 +18,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
@@ -61,8 +62,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
     hasPermission(createdBy, ChatPermissions.Permissions.CreateChat).map { _ =>
       (for {
         id <- createChat(chatId, chatType, membership, name, topic, members, createdBy)
-        forRecord <- chatStore.getChatRid(id)
-        _ <- permissionsStore.addUserPermissions(ChatPermissions.AllExistingChatPermissions, createdBy, Some(forRecord))
+        _ <- permissionsStore.addPermissionsForUser(ChatPermissions.AllExistingChatPermissions, createdBy, ChatPermissionTarget(id))
       } yield {
         CreateChatResponse(Right(id))
       })
@@ -107,7 +107,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
       filtered <- Try {
         chatInfos.collect {
           case Some(chatInfo) if chatInfo.membership == ChatMembership.Public ||
-            ChatPermissionResolver.hasChatPermissions(chatStore, permissionsStore, chatInfo.id, ChatPermissions.Permissions.JoinChat, user).get =>
+            ChatPermissionResolver.hasChatPermissions(permissionsStore, chatInfo.id, ChatPermissions.Permissions.JoinChat, user).get =>
             chatInfo
         }
       }
@@ -127,7 +127,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
         chatInfos.map {
           case Some(chatInfo) =>
             chatInfo.membership == ChatMembership.Public ||
-              ChatPermissionResolver.hasChatPermissions(chatStore, permissionsStore, chatInfo.id, ChatPermissions.Permissions.JoinChat, user).get
+              ChatPermissionResolver.hasChatPermissions(permissionsStore, chatInfo.id, ChatPermissions.Permissions.JoinChat, user).get
           case None =>
             false
         }
@@ -217,7 +217,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
     if (userId.isConvergence) {
       Success(true)
     } else {
-      permissionsStore.hasPermission(userId, permission.p)
+      permissionsStore.userHasGlobalPermission(userId, permission.p)
     }
   }
 }

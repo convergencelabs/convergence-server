@@ -19,7 +19,6 @@ import com.convergencelabs.convergence.server.datastore.domain.{ChatMember, Chat
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.domain.chat.ChatActor._
-import com.orientechnologies.orient.core.id.ORecordId
 import org.mockito.{Matchers, Mockito}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
@@ -39,10 +38,9 @@ class MarkSeenEventProcessorSpec extends ScalaTestWithActorTestKit
 
         val chatStore = mock[ChatStore]
         Mockito.when(chatStore.markSeen(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(()))
-        Mockito.when(chatStore.getChatRid(Matchers.any())).thenReturn(Success(ORecordId.EMPTY_RECORD_ID))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.hasPermissionForRecord(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.userHasPermissionForTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
         val response = MarkSeenEventProcessor.execute(message, state, chatStore, permissionsStore)

@@ -137,13 +137,7 @@ object ChatStore {
 
   import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema._
 
-  def chatTypeString(chatType: ChatType.Value): String = chatType match {
-    case ChatType.Channel => "channel"
-    case ChatType.Room => "room"
-    case ChatType.Direct => "direct"
-  }
-
-  object Params {
+  private object Params {
     val Id = "id"
     val Type = "type"
     val Created = "created"
@@ -165,7 +159,7 @@ object ChatStore {
     val Username = "username"
   }
 
-  def docToChat(doc: ODocument): Chat = {
+  private def docToChat(doc: ODocument): Chat = {
     val created: Date = doc.getProperty(Classes.Chat.Fields.Created)
     Chat(
       doc.getProperty(Classes.Chat.Fields.Id),
@@ -180,7 +174,7 @@ object ChatStore {
       doc.getProperty(Classes.Chat.Fields.Topic))
   }
 
-  def chatToDoc(chat: Chat): ODocument = {
+  private def chatToDoc(chat: Chat): ODocument = {
     val doc = new ODocument(Classes.Chat.ClassName)
     doc.setProperty(Classes.Chat.Fields.Id, chat.id)
     doc.setProperty(Classes.Chat.Fields.Type, chat.chatType.toString.toLowerCase)
@@ -192,7 +186,7 @@ object ChatStore {
     doc
   }
 
-  def docToChatEvent(doc: ODocument): ChatEvent = {
+  private def docToChatEvent(doc: ODocument): ChatEvent = {
     val eventNo: Long = doc.getProperty(Classes.ChatEvent.Fields.EventNo)
     val chatId = doc.eval("chat.id").asInstanceOf[String]
     val username = doc.eval("user.username").asInstanceOf[String]
@@ -239,7 +233,7 @@ object ChatStore {
     }
   }
 
-  def toChatInfo(doc: ODocument): ChatInfo = {
+  private def toChatInfo(doc: ODocument): ChatInfo = {
     val id: String = doc.getProperty(Classes.Chat.Fields.Id)
     val chatType: String = doc.getProperty(Classes.Chat.Fields.Type)
     val created: Instant = doc.getProperty(Classes.Chat.Fields.Created).asInstanceOf[Date].toInstant
@@ -273,7 +267,7 @@ object ChatStore {
       chatMembers)
   }
 
-  def getChatRid(chatId: String, db: ODatabaseDocument): Try[ORID] = {
+  private[domain] def getChatRid(chatId: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, chatId)
   }
 }
@@ -535,13 +529,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
 
   def removeChat(id: String): Try[Unit] = withDb { db =>
     val params = Map("chatId" -> id)
-    db.begin()
-    for {
+    (for {
+      _ <- Try(db.begin())
       _ <- OrientDBUtil.commandReturningCount(db, DeleteChatEventsCommand, params)
       _ <- OrientDBUtil.commandReturningCount(db, DeleteChatMembersCommand, params)
       _ <- OrientDBUtil.deleteFromSingleValueIndex(db, Classes.Chat.Indices.Id, id)
       _ <- Try(db.commit())
-    } yield ()
+    } yield ())
+      .recoverWith(this.rollback(db))
   }
 
   // TODO: All of the events are very similar, need to abstract some of each of these methods
@@ -571,8 +566,6 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           "topic" -> topic,
           "members" -> users.asJava)
 
-        // FIXME we need a way to make sure that the event actually got saved. The result should be the
-        // created ODocument we need to make sure.
         OrientDBUtil
           .commandReturningCount(db, query, params)
           .map(_ => ())
@@ -600,9 +593,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       .map(_ => ())
   }
 
-  def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = withDb { db =>
+  def addChatUserJoinedEvent(event: ChatUserJoinedEvent): Try[Unit] = withDbTransaction { db =>
     val ChatUserJoinedEvent(eventNo, chatId, user, timestamp) = event
-    // FIXME add a transaction
     val query =
       """INSERT INTO ChatUserJoinedEvent SET
         |  eventNo = :eventNo,
@@ -620,13 +612,11 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       chatRid <- ChatStore.getChatRid(chatId, db)
       userRid <- DomainUserStore.getUserRid(user, db)
       _ <- addChatMember(db, chatRid, userRid, None)
-      _ <- OrientDBUtil
-        .commandReturningCount(db, query, params)
-        .map(_ => ())
+      _ <- OrientDBUtil.commandReturningCount(db, query, params)
     } yield ()
   }
 
-  def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = withDb { db =>
+  def addChatUserLeftEvent(event: ChatUserLeftEvent): Try[Unit] = withDbTransaction { db =>
     val ChatUserLeftEvent(eventNo, chatId, user, timestamp) = event
     val query =
       """INSERT INTO ChatUserLeftEvent SET
@@ -641,11 +631,9 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "userType" -> user.userType.toString.toLowerCase,
       "timestamp" -> Date.from(timestamp))
 
-    // FIXME transaction
     for {
-      _ <- this.removeChatMember(chatId, user, Some(db))
-      _ <- OrientDBUtil
-        .commandReturningCount(db, query, params)
+      _ <- removeChatMember(chatId, user, Some(db))
+      _ <- OrientDBUtil.commandReturningCount(db, query, params)
     } yield ()
   }
 
@@ -676,7 +664,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     } yield ()
   }
 
-  def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = withDb { db =>
+  def addChatUserRemovedEvent(event: ChatUserRemovedEvent): Try[Unit] = withDbTransaction { db =>
     val ChatUserRemovedEvent(eventNo, chatId, user, timestamp, userRemoved) = event
     val query =
       """INSERT INTO ChatUserRemovedEvent SET
@@ -694,15 +682,13 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
       "removedUsername" -> userRemoved.username,
       "removedUserType" -> userRemoved.userType.toString.toLowerCase)
 
-    // FIXME transaction
     for {
-      _ <- this.removeChatMember(chatId, user, Some(db))
-      _ <- OrientDBUtil
-        .commandReturningCount(db, query, params)
+      _ <- removeChatMember(chatId, user, Some(db))
+      _ <- OrientDBUtil.commandReturningCount(db, query, params)
     } yield ()
   }
 
-  def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = withDb { db =>
+  def addChatNameChangedEvent(event: ChatNameChangedEvent): Try[Unit] = withDbTransaction { db =>
     val ChatNameChangedEvent(eventNo, chatId, user, timestamp, name) = event
     val query =
       """INSERT INTO ChatNameChangedEvent SET
@@ -724,7 +710,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     } yield ()
   }
 
-  def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = withDb { db =>
+  def addChatTopicChangedEvent(event: ChatTopicChangedEvent): Try[Unit] = withDbTransaction { db =>
     val ChatTopicChangedEvent(eventNo, chatId, user, timestamp, topic) = event
     val query =
       """INSERT INTO ChatTopicChangedEvent SET
@@ -752,7 +738,8 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     val params = Map("chatId" -> chatId)
 
     OrientDBUtil
-      .queryAndMap(db, query, params)(d => DomainUserId(d.getProperty("userType").asInstanceOf[String], d.getProperty("username")))
+      .queryAndMap(db, query, params)(d =>
+        DomainUserId(d.getProperty("userType").asInstanceOf[String], d.getProperty("username")))
       .map(_.toSet)
   }
 
@@ -877,18 +864,14 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
     }
   }
 
-  def getChatRid(chatId: String): Try[ORID] = withDb { db =>
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, chatId)
-  }
-
-  def getChatMemberRid(chatId: String, userId: DomainUserId, db: Option[ODatabaseDocument] = None): Try[ORID] = withDb(db) { db =>
+  private def getChatMemberRid(chatId: String, userId: DomainUserId, db: Option[ODatabaseDocument] = None): Try[ORID] = withDb(db) { db =>
     val channelRID = ChatStore.getChatRid(chatId, db).get
     val userRID = DomainUserStore.getUserRid(userId, db).get
     val key = List(channelRID, userRID)
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.ChatMember.Indices.Chat_User, key)
   }
 
-  def getClassName: PartialFunction[String, Option[String]] = {
+  private def getClassName: PartialFunction[String, Option[String]] = {
     case "message" => Some(Classes.ChatMessageEvent.ClassName)
     case "created" => Some(Classes.ChatCreatedEvent.ClassName)
     case "user_joined" => Some(Classes.ChatUserJoinedEvent.ClassName)

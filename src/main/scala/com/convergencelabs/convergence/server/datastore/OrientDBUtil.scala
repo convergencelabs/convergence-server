@@ -140,7 +140,8 @@ object OrientDBUtil {
       Success(List())
     } else {
       val processedKeys = keys.map({
-        // FIXME https://github.com/orientechnologies/orientdb/issues/8751
+        // Note we do this because of this
+        //   https://github.com/orientechnologies/orientdb/issues/8751
         case oc: OCompositeKey => oc.getKeys
         case l: List[_] => l.asJava
         case v: Any => v
@@ -152,13 +153,6 @@ object OrientDBUtil {
         val rid = doc.eval("rid").asInstanceOf[ORID]
         rid
       }
-
-      //      val oIndex = db.getMetadata.getIndexManager.getIndex(index)
-      //      Try(oIndex.iterateEntries(processedKeys.asJava, false)).map { cursor =>
-      //        cursor.toEntries().asScala.toList.map { entry =>
-      //          entry.getValue.getIdentity
-      //        }
-      //      }
     }
   }
 
