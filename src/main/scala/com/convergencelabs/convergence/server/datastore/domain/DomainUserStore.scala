@@ -260,6 +260,13 @@ class DomainUserStore private[domain](dbProvider: DatabaseProvider)
       .map(_.map(DomainUserStore.docToDomainUser))
   }
 
+  /**
+   * Gets a list of domain users based on user ids.
+   *
+   * @param userIds The user ids of the users to get.
+   *
+   * @return The set of users corresponding to the ids.
+   */
   def getDomainUsers(userIds: List[DomainUserId]): Try[List[DomainUser]] = withDb { db =>
     val keys = userIds.map(userId => new OCompositeKey(userId.username, userId.userType.toString.toLowerCase))
     OrientDBUtil
@@ -353,67 +360,6 @@ class DomainUserStore private[domain](dbProvider: DatabaseProvider)
         .map(_.map(DomainUserStore.docToDomainUser))
     } yield {
       PagedData(users, offset.getOrZero, count)
-    }
-  }
-
-  def findUser(search: String,
-               exclude: List[DomainUserId],
-               offset: Int,
-               limit: Int): Try[PagedData[DomainUser]] = withDb { db =>
-
-    // This is a bit hacky, there is a more idiomatic way to do this
-    Try {
-      var explicitResults = List[DomainUser]()
-
-      if (!exclude.map(_.username).contains(search)) {
-        this.getDomainUser(DomainUserId(DomainUserType.Normal, search)).get foreach { user =>
-          explicitResults = user :: explicitResults
-        }
-      }
-
-      explicitResults
-    } flatMap { explicitResults =>
-
-      val params = Map[String, Any](
-        "search" -> ("%" + search + "%"),
-        "exclude" -> exclude.asJava)
-
-      val whereClause =
-        """
-          |WHERE
-          |  deleted != true AND
-          |  userType = 'normal' AND
-          |  username NOT IN :exclude AND
-          |  (username LIKE :search OR
-          |  email LIKE :search OR
-          |  displayName LIKE :search)""".stripMargin
-
-      val baseQuery =
-        s"""
-          |SELECT *, username.length() as size
-          |FROM User
-          |$whereClause
-          |ORDER BY size ASC, username ASC""".stripMargin
-      val query = OrientDBUtil.buildPagedQuery(baseQuery, QueryLimit(limit - explicitResults.size), QueryOffset(offset))
-      val countQuery =
-        s"""
-           |SELECT count(*) as count
-           |FROM User
-           |$whereClause""".stripMargin
-
-
-      for {
-        count <- OrientDBUtil
-          .getDocument(db, countQuery)
-          .map(_.field("count").asInstanceOf[Long])
-        users <- OrientDBUtil
-          .query(db, query, params)
-          .map(_.map(DomainUserStore.docToDomainUser))
-          .map(users => users.filterNot(explicitResults.contains(_)))
-          .map(explicitResults ::: _)
-      } yield {
-        PagedData(users, offset.longValue(), count)
-      }
     }
   }
 

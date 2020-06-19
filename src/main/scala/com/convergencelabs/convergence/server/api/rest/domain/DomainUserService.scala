@@ -71,14 +71,6 @@ class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
           }
         }
       }
-    } ~ pathPrefix("user-lookup") {
-      pathEnd {
-        post {
-          entity(as[UserLookupRequest]) { request =>
-            complete(findUser(domain, request))
-          }
-        }
-      }
     }
   }
 
@@ -86,22 +78,6 @@ class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
     domainRestActor
       .ask[GetUsersResponse](
         r => DomainRestMessage(domain, GetUsersRequest(filter, offset, limit, r)))
-      .map(_.users.fold(
-        {
-          case UnknownError() =>
-            InternalServerError
-        },
-        // FIXME paged data
-        users => okResponse(users.data.map(toUserData))
-      ))
-  }
-
-  private[this] def findUser(domain: DomainId, request: UserLookupRequest): Future[RestResponse] = {
-    val UserLookupRequest(filter, excludes, offset, limit) = request
-    val excludedUsers = excludes.map(_.map(DomainUserId(DomainUserType.Normal, _)))
-    domainRestActor
-      .ask[FindUsersResponse](
-        r => DomainRestMessage(domain, FindUsersRequest(filter, excludedUsers, offset, limit, r)))
       .map(_.users.fold(
         {
           case UnknownError() =>
@@ -215,8 +191,6 @@ object DomainUserService {
                                    disabled: Option[Boolean])
 
   case class SetPasswordRequestData(password: String)
-
-  case class UserLookupRequest(filter: String, exclude: Option[List[String]], offset: Option[Int], limit: Option[Int])
 
   case class DomainUserData(username: String,
                             firstName: Option[String],

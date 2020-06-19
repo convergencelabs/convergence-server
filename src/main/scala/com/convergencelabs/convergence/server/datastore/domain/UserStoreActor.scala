@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.util.Success
 
-
 class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
                              userStore: DomainUserStore)
   extends AbstractBehavior[UserStoreActor.Message](context) {
@@ -44,8 +43,6 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
         onSetPassword(message)
       case message: GetUsersRequest =>
         onGetUsers(message)
-      case message: FindUsersRequest =>
-        onFindUser(message)
     }
 
     Behaviors.same
@@ -83,18 +80,6 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
         Left(UnknownError())
       }
       .foreach(replyTo ! GetUserResponse(_))
-  }
-
-  private[this] def onFindUser(message: FindUsersRequest): Unit = {
-    val FindUsersRequest(search, exclude, limit, offset, replyTo) = message
-    userStore
-      .findUser(search, exclude.getOrElse(List()), offset.getOrElse(0), limit.getOrElse(10))
-      .map(Right(_))
-      .recover { cause =>
-        context.log.error("Unexpected error finding users", cause)
-        Left(UnknownError())
-      }
-      .foreach(replyTo ! FindUsersResponse(_))
   }
 
   private[this] def onCreateUser(message: CreateUserRequest): Unit = {
@@ -213,23 +198,6 @@ object UserStoreActor {
   final case class GetUserResponse(user: Either[GetUserError, DomainUser]) extends CborSerializable
 
   //
-  // FindUsers
-  //
-  case class FindUsersRequest(filter: String,
-                              exclude: Option[List[DomainUserId]],
-                              offset: Option[Int],
-                              limit: Option[Int],
-                              replyTo: ActorRef[FindUsersResponse]) extends Message
-
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-  @JsonSubTypes(Array(
-    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
-  ))
-  sealed trait FindUsersError
-
-  final case class FindUsersResponse(users: Either[FindUsersError, PagedData[DomainUser]]) extends CborSerializable
-
-  //
   // CreateUser
   //
 
@@ -315,7 +283,6 @@ object UserStoreActor {
   final case class UnknownError() extends AnyRef
     with GetUsersError
     with GetUserError
-    with FindUsersError
     with CreateUserError
     with UpdateUserError
     with DeleteUserError

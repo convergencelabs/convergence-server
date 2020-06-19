@@ -27,9 +27,7 @@ object UserFavoriteDomainStore {
   }
 }
 
-class UserFavoriteDomainStore(private[this] val dbProvider: DatabaseProvider)
-  extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+class UserFavoriteDomainStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import UserFavoriteDomainStore._
 
