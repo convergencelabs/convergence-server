@@ -36,7 +36,7 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
   def getDomainAdminDatabasePool(fqn: DomainId): Try[DatabaseProvider] = {
     for {
       domainInfo <- getDomainInfo(fqn)
-      dbProvider <- Success(new PooledDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.adminUsername, domainInfo.adminPassword))
+      dbProvider <- Success(new PooledDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.adminUsername, domainInfo.adminPassword, 0, 100))
       _ <- dbProvider.connect()
     } yield(dbProvider)
   }
@@ -52,7 +52,7 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
   def getDomainDatabasePool(fqn: DomainId): Try[DatabaseProvider] = {
     for {
       domainInfo <- getDomainInfo(fqn)
-      dbProvider <- Success(new PooledDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.username, domainInfo.password))
+      dbProvider <- Success(new PooledDatabaseProvider(orientDbUrl, domainInfo.database, domainInfo.username, domainInfo.password, 0, 100))
       _ <- dbProvider.connect()
     } yield(dbProvider)
   }

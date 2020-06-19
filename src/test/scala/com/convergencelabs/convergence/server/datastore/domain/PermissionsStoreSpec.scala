@@ -16,6 +16,7 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore._
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.domain.chat.{GroupPermissions, UserPermissions}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -50,7 +51,7 @@ class PermissionsStoreSpec
     new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A PermissionsStore" when {
-    "creating a permission" must {
+    "creating adding permissions" must {
       "succeed when creating global permission" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForWorld(Set(permission1), GlobalPermissionTarget).get
       }
@@ -78,7 +79,7 @@ class PermissionsStoreSpec
 
     "checking if user has global permission" must {
       "return false when no permissions are set" in withTestData { provider =>
-        val hasPermission = provider.permissionsStore.userHasGlobalPermission(user1, permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, GlobalPermissionTarget, permission1).get
         hasPermission shouldBe false
       }
 
@@ -88,38 +89,38 @@ class PermissionsStoreSpec
         provider.permissionsStore.addPermissionsForUser(Set(permission2), user1, GlobalPermissionTarget).get
         provider.permissionsStore.addPermissionsForGroup(Set(permission2), group1, GlobalPermissionTarget).get
 
-        val hasPermission = provider.permissionsStore.userHasGlobalPermission(user1, permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, GlobalPermissionTarget, permission1).get
         hasPermission shouldBe false
       }
 
       "return true when global world permission is set" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForWorld(Set(permission1), GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe true
       }
 
       "return false when group permission is set, but user is not in group" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1), group1, GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasGlobalPermission(user3, permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user3, GlobalPermissionTarget, permission1).get
         hasPermission shouldBe false
       }
 
       "return true when group permission is set and user is in group" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1), group1, GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasGlobalPermission(user1, permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, GlobalPermissionTarget, permission1).get
         hasPermission shouldBe true
       }
 
       "return true when user permission is set globally" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForUser(Set(permission1), user1, GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasGlobalPermission(user1, permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, GlobalPermissionTarget, permission1).get
         hasPermission shouldBe true
       }
     }
 
-    "checking if user has permission for target" must {
+    "checking if user has permission for a target" must {
       "return false when no permissions are set " in withTestData { provider =>
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe false
       }
 
@@ -131,7 +132,7 @@ class PermissionsStoreSpec
         provider.permissionsStore.addPermissionsForGroup(Set(permission2), group1, ChatPermissionTarget(chat1Id)).get
         provider.permissionsStore.addPermissionsForGroup(Set(permission2), group1, GlobalPermissionTarget).get
 
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe false
       }
 
@@ -140,19 +141,19 @@ class PermissionsStoreSpec
       //
       "return true when permission is set globally for the user " in withTestData { provider =>
         provider.permissionsStore.addPermissionsForUser(Set(permission1), user1, GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe true
       }
 
       "return true when permission is set globally for a group the user is in " in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1), group1, GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe true
       }
 
       "return true when permission is set globally for a group the user is not in " in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1), group1, GlobalPermissionTarget).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user3, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user3, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe false
       }
 
@@ -161,7 +162,7 @@ class PermissionsStoreSpec
       //
       "return true when world permission for chat is set" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForWorld(Set(permission1), ChatPermissionTarget(chat1Id)).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe true
       }
 
@@ -170,13 +171,13 @@ class PermissionsStoreSpec
       //
       "return true when group permission is set and the user is in the group" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1), group1, ChatPermissionTarget(chat1Id)).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe true
       }
 
       "return false when group permission is set and the user is not in the group" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1), group1, ChatPermissionTarget(chat1Id)).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user3, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user3, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe false
       }
 
@@ -186,14 +187,126 @@ class PermissionsStoreSpec
 
       "return true when user permission is set for the user" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForUser(Set(permission1), user1, ChatPermissionTarget(chat1Id)).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe true
       }
 
       "return false when user permission is set for another user" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForUser(Set(permission1), user2, ChatPermissionTarget(chat1Id)).get
-        val hasPermission = provider.permissionsStore.userHasPermissionForTarget(user1, ChatPermissionTarget(chat1Id), permission1).get
+        val hasPermission = provider.permissionsStore.userHasPermission(user1, ChatPermissionTarget(chat1Id), permission1).get
         hasPermission shouldBe false
+      }
+    }
+
+    "managing all permissions for a target" must {
+      "correctly add all world, user, and group permissions" in withTestData { provider =>
+        val target = ChatPermissionTarget(chat1Id)
+
+        val user1Permissions = Set(permission1, permission2)
+        val user2Permissions = Set(permission3)
+        val user = Set(UserPermissions(user1, user1Permissions), UserPermissions(user2, user2Permissions))
+
+        val group1Permissions =  Set(permission2)
+        val group2Permissions =  Set(permission3)
+        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+
+        val world = Set(permission1, permission2)
+
+        provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
+
+        provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe user1Permissions
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
+
+        provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe group1Permissions
+        provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
+
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world.map(WorldPermission)
+      }
+
+      "correctly remove all world, user, and group permissions" in withTestData { provider =>
+        val target = ChatPermissionTarget(chat1Id)
+
+        val user1Permissions = Set(permission1, permission2)
+        val user2Permissions = Set(permission3)
+        val user = Set(UserPermissions(user1, user1Permissions), UserPermissions(user2, user2Permissions))
+
+        val group1Permissions =  Set(permission2)
+        val group2Permissions =  Set(permission3)
+        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+
+        val world = Set(permission1, permission2)
+
+        provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
+
+
+        val userRemove = Set(UserPermissions(user1, Set(permission1)))
+        val groupRemove = Set(GroupPermissions(group1, Set(permission2)))
+        val worldRemove = Set(permission2)
+        provider.permissionsStore.removePermissionsForTarget(target, userRemove, groupRemove, worldRemove)
+
+        provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe Set(permission2)
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
+
+        provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe Set()
+        provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
+
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(WorldPermission(permission1))
+      }
+
+      "correctly set all world, user, and group permissions" in withTestData { provider =>
+        val target = ChatPermissionTarget(chat1Id)
+
+        val user1Permissions = Set(permission1, permission2)
+        val user2Permissions = Set(permission3)
+        val user = Set(UserPermissions(user1, user1Permissions), UserPermissions(user2, user2Permissions))
+
+        val group1Permissions =  Set(permission2)
+        val group2Permissions =  Set(permission3)
+        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+
+        val world = Set(permission1, permission2)
+
+        provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
+
+
+        val userSet = Some(Set(UserPermissions(user1, Set(permission1))))
+        val groupSet = Some(Set(GroupPermissions(group1, Set(permission2))))
+        val worldSet = Some(Set(permission2))
+        provider.permissionsStore.setPermissionsForTarget(target, userSet, groupSet, worldSet)
+
+        provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe Set(permission1)
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
+
+        provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe Set(permission2)
+        provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
+
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(WorldPermission(permission2))
+      }
+
+      "correctly set all world, user, and group permissions when Nones are supplied" in withTestData { provider =>
+        val target = ChatPermissionTarget(chat1Id)
+
+        val user1Permissions = Set(permission1, permission2)
+        val user2Permissions = Set(permission3)
+        val user = Set(UserPermissions(user1, user1Permissions), UserPermissions(user2, user2Permissions))
+
+        val group1Permissions =  Set(permission2)
+        val group2Permissions =  Set(permission3)
+        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+
+        val world = Set(permission1, permission2)
+
+        provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
+
+        provider.permissionsStore.setPermissionsForTarget(target, None, None, None).get
+
+        provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe user1Permissions
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
+
+        provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe group1Permissions
+        provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
+
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world.map(WorldPermission)
       }
     }
 
@@ -310,7 +423,7 @@ class PermissionsStoreSpec
         // Channel 1 permissions properly set.
         provider.permissionsStore.getPermissionsForUser(user1, ChatPermissionTarget(chat1Id)).get shouldBe Set(permission2, permission3)
 
-        // Userr 1's permissions for channel 2 not changed.
+        // User 1's permissions for channel 2 not changed.
         provider.permissionsStore.getPermissionsForUser(user1, ChatPermissionTarget(chat2Id)).get shouldBe Set(permission1, permission2)
 
         // User 2's permissions for channel 1 not changed.
@@ -318,22 +431,26 @@ class PermissionsStoreSpec
       }
 
       "set the correct permissions for a group and target" in withTestData { provider =>
-        provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, ChatPermissionTarget(chat1Id)).get
-        provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, ChatPermissionTarget(chat2Id)).get
-        provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group2, ChatPermissionTarget(chat1Id)).get
+        val permissionsStore = provider.permissionsStore
+        val target1 = ChatPermissionTarget(chat1Id)
+        val target2 = ChatPermissionTarget(chat2Id)
 
-        provider.permissionsStore.getPermissionsForGroup(group1, ChatPermissionTarget(chat1Id)).get shouldBe Set(permission1, permission2)
+        permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, target1).get
+        permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, target2).get
+        permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group2, target1).get
 
-        provider.permissionsStore.setPermissionsForGroup(Set(permission2, permission3), group1, ChatPermissionTarget(chat1Id)).get
+        permissionsStore.getPermissionsForGroup(group1, target1).get shouldBe Set(permission1, permission2)
+
+        permissionsStore.setPermissionsForGroup(Set(permission2, permission3), group1, target1).get
 
         // Channel 1 permissions properly set.
-        provider.permissionsStore.getPermissionsForGroup(group1, ChatPermissionTarget(chat1Id)).get shouldBe Set(permission2, permission3)
+        permissionsStore.getPermissionsForGroup(group1, target1).get shouldBe Set(permission2, permission3)
 
         // Group 1's permissions for channel 2 not changed.
-        provider.permissionsStore.getPermissionsForGroup(group1, ChatPermissionTarget(chat2Id)).get shouldBe Set(permission1, permission2)
+        permissionsStore.getPermissionsForGroup(group1, target2).get shouldBe Set(permission1, permission2)
 
         // Group 2's permissions for channel 1 not changed.
-        provider.permissionsStore.getPermissionsForGroup(group2, ChatPermissionTarget(chat1Id)).get shouldBe Set(permission1, permission2)
+        permissionsStore.getPermissionsForGroup(group2, target1).get shouldBe Set(permission1, permission2)
       }
 
       "set the correct permissions for a world and target" in withTestData { provider =>
@@ -377,8 +494,8 @@ class PermissionsStoreSpec
 
       "remove the correct permissions for a group and target" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, ChatPermissionTarget(chat1Id)).get
-        provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, ChatPermissionTarget(chat2Id)).get
         provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group2, ChatPermissionTarget(chat1Id)).get
+        provider.permissionsStore.addPermissionsForGroup(Set(permission1, permission2), group1, ChatPermissionTarget(chat2Id)).get
 
         provider.permissionsStore.getPermissionsForGroup(group1, ChatPermissionTarget(chat1Id)).get shouldBe Set(permission1, permission2)
 

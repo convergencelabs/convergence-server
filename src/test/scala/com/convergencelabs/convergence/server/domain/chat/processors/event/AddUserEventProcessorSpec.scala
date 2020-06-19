@@ -43,7 +43,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success(()))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.userHasPermissionForTarget(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.userHasPermission(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
         Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))

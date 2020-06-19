@@ -26,7 +26,7 @@ object GetClientChatPermissionsProcessor extends PermissionsMessageProcessor[Get
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermission),
       handleRequest = getPermissions(permissionsStore),
       createErrorReply = v => GetClientChatPermissionsResponse(Left(v))
     )

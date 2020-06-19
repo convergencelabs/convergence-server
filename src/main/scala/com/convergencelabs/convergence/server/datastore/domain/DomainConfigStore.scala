@@ -20,6 +20,7 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
+import scala.concurrent.duration.Duration
 import scala.util.Try
 
 object DomainConfigStore {

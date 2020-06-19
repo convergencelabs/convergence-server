@@ -135,7 +135,7 @@ class AuthenticationHandlerSpec()
 
     val reconnectToken = "123"
 
-    Mockito.when(userStore.createReconnectToken(MockitoMatchers.any())).thenReturn(Success(reconnectToken))
+    Mockito.when(userStore.createReconnectToken(MockitoMatchers.any(), MockitoMatchers.any())).thenReturn(Success(reconnectToken))
 
     Mockito.when(userStore.domainUserExists(existingUserName)).thenReturn(Success(true))
     Mockito.when(userStore.convergenceUserExists(existingUserName)).thenReturn(Success(true))

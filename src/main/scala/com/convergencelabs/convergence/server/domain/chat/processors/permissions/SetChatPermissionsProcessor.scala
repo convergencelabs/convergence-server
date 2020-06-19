@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{SetChatPermissionsRequest, SetChatPermissionsResponse, UnknownError}
-import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -27,7 +27,7 @@ object SetChatPermissionsProcessor extends PermissionsMessageProcessor[SetChatPe
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermission),
       handleRequest = updatePermissions(permissionsStore),
       createErrorReply = v => SetChatPermissionsResponse(Left(v))
     )
@@ -35,25 +35,13 @@ object SetChatPermissionsProcessor extends PermissionsMessageProcessor[SetChatPe
 
   def updatePermissions(permissionsStore: PermissionsStore)(message: SetChatPermissionsRequest, chatId: String): Try[SetChatPermissionsResponse] = {
     val SetChatPermissionsRequest(_, _, _, world, user, group, _) = message
-    (for {
-      _ <- toTry(world) {
-        permissionsStore.setPermissionsForWorld(_, ChatPermissionTarget(chatId))
+    val target = ChatPermissionTarget(chatId)
+    permissionsStore
+      .setPermissionsForTarget(target, user, group, world)
+      .map(_ => SetChatPermissionsResponse(Right(Ok())))
+      .recover { cause =>
+        error("Unexpected error setting chat permissions", cause)
+        SetChatPermissionsResponse(Left(UnknownError()))
       }
-      _ <- unsafeToTry(user) {
-        _.foreach { case UserPermissions(userId, permissions) =>
-          permissionsStore.setPermissionsForUser(permissions, userId, ChatPermissionTarget(chatId)).get
-        }
-      }
-      _ <- unsafeToTry(group) {
-        _.foreach { case GroupPermissions(group, permissions) =>
-          permissionsStore.setPermissionsForGroup(permissions, group, ChatPermissionTarget(chatId)).get
-        }
-      }
-    } yield {
-      SetChatPermissionsResponse(Right(Ok()))
-    }).recover { cause =>
-      error("Unexpected error setting chat permissions", cause)
-      SetChatPermissionsResponse(Left(UnknownError()))
-    }
   }
 }

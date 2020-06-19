@@ -18,7 +18,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
+import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.{ChatPermissionTarget, GlobalPermissionTarget}
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.domain.DomainUserId
@@ -217,7 +217,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
     if (userId.isConvergence) {
       Success(true)
     } else {
-      permissionsStore.userHasGlobalPermission(userId, permission.p)
+      permissionsStore.userHasPermission(userId, GlobalPermissionTarget,permission.p)
     }
   }
 }

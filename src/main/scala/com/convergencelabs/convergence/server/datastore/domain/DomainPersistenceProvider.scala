@@ -53,7 +53,8 @@ trait DomainPersistenceProvider {
   def shutdown(): Unit
 }
 
-class DomainPersistenceProviderImpl(val domainId: DomainId, val dbProvider: DatabaseProvider)
+class DomainPersistenceProviderImpl(val domainId: DomainId,
+                                    val dbProvider: DatabaseProvider)
     extends AbstractPersistenceProvider(dbProvider)
     with DomainPersistenceProvider {
 

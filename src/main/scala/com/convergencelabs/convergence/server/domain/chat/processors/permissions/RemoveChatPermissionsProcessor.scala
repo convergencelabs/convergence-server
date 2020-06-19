@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore
 import com.convergencelabs.convergence.server.datastore.domain.PermissionsStore.ChatPermissionTarget
 import com.convergencelabs.convergence.server.domain.chat.ChatActor.{RemoveChatPermissionsRequest, RemoveChatPermissionsResponse, UnknownError}
-import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions, GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.domain.chat.{ChatPermissionResolver, ChatPermissions}
 import grizzled.slf4j.Logging
 
 import scala.util.Try
@@ -27,7 +27,7 @@ object RemoveChatPermissionsProcessor extends PermissionsMessageProcessor[Remove
     process(
       message = message,
       requiredPermission = ChatPermissions.Permissions.Manage,
-      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermissionForTarget),
+      hasPermission = ChatPermissionResolver.hasPermissions(permissionsStore.userHasPermission),
       handleRequest = updatePermissions(permissionsStore),
       createErrorReply = v => RemoveChatPermissionsResponse(Left(v))
     )
@@ -35,25 +35,13 @@ object RemoveChatPermissionsProcessor extends PermissionsMessageProcessor[Remove
 
   def updatePermissions(permissionsStore: PermissionsStore)(message: RemoveChatPermissionsRequest, chatId: String): Try[RemoveChatPermissionsResponse] = {
     val RemoveChatPermissionsRequest(_, _, _, world, user, group, _) = message
-    (for {
-      _ <- toTry(world) {
-        permissionsStore.removePermissionsForWorld(_, ChatPermissionTarget(chatId))
+    val target = ChatPermissionTarget(chatId)
+    permissionsStore
+      .removePermissionsForTarget(target, user.getOrElse(Set.empty), group.getOrElse(Set.empty), world.getOrElse(Set.empty))
+      .map(_ => RemoveChatPermissionsResponse(Right(Ok())))
+      .recover { cause =>
+        error("Unexpected error removing chat permissions", cause)
+        RemoveChatPermissionsResponse(Left(UnknownError()))
       }
-      _ <- unsafeToTry(user) {
-        _.foreach { case UserPermissions(userId, permissions) =>
-          permissionsStore.removePermissionsForUser(permissions, userId, ChatPermissionTarget(chatId)).get
-        }
-      }
-      _ <- unsafeToTry(group) {
-        _.foreach { case GroupPermissions(group, permissions) =>
-          permissionsStore.removePermissionsForGroup(permissions, group, ChatPermissionTarget(chatId)).get
-        }
-      }
-    } yield {
-      RemoveChatPermissionsResponse(Right(Ok()))
-    }).recover { cause =>
-      error("Unexpected error removing chat permissions", cause)
-      RemoveChatPermissionsResponse(Left(UnknownError()))
-    }
   }
 }

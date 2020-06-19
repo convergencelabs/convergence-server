@@ -40,7 +40,7 @@ class TryWithResource[A <: AutoCloseable](r: => A) {
       val resource: A = r
       // Once the resource is resolved, then actually try
       // the code block that was passed in.
-      tryWithResolvedResoruce(resource, block)
+      tryWithResolvedResource(resource, block)
     } catch {
       case NonFatal(e) => Failure(e)
     }
@@ -50,7 +50,7 @@ class TryWithResource[A <: AutoCloseable](r: => A) {
    * This method is called once the resource is resolved and implements the
    * bulk of the try-with-resources logic.
    */
-  private[this] def tryWithResolvedResoruce[B](resource: A, block: A => B): Try[B] = {
+  private[this] def tryWithResolvedResource[B](resource: A, block: A => B): Try[B] = {
     var result: Try[B] = null
     var t: Throwable = null
     try {

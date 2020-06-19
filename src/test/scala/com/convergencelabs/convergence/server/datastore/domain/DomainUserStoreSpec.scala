@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.datastore.domain
 
-import java.time.Instant
+import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
@@ -214,12 +214,12 @@ class DomainUserStoreSpec
       "correctly create a valid token" in withPersistenceStore { store =>
         initUsers(store)
         
-        val token = store.createReconnectToken(User1.toUserId).get
-        store.validateReconnectToken(token).get.value shouldBe User1.toUserId
+        val token = store.createReconnectToken(User1.toUserId, Duration.ofHours(24)).get
+        store.validateReconnectToken(token, Duration.ofHours(24)).get.value shouldBe User1.toUserId
       }
 
       "throw exception if user does not exist" in withPersistenceStore { store =>
-        store.createReconnectToken(DomainUserId.normal("DoesNotExist")).failure.exception shouldBe a[EntityNotFoundException]
+        store.createReconnectToken(DomainUserId.normal("DoesNotExist"), Duration.ofHours(24)).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
   }

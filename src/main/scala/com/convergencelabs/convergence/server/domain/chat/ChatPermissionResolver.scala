@@ -39,7 +39,7 @@ object ChatPermissionResolver {
       Success(true)
     } else {
       for {
-        hasPermission <- permissionsStore.userHasPermissionForTarget(userId, ChatPermissionTarget(chatId), permission.p)
+        hasPermission <- permissionsStore.userHasPermission(userId, ChatPermissionTarget(chatId), permission.p)
       } yield hasPermission
     }
   }

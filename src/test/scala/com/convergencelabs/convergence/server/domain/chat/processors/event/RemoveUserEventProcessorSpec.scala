@@ -43,7 +43,7 @@ class RemoveUserEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(chatStore.addChatUserRemovedEvent(Matchers.any())).thenReturn(Success(()))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.userHasPermissionForTarget(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.userHasPermission(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
         Mockito.when(permissionsStore.removePermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))

@@ -140,13 +140,15 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     val baseUri = dbServerConfig.getString("uri")
     orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
 
-    // TODO make the pool size configurable
     val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
     val convergenceDatabase = convergenceDbConfig.getString("database")
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
 
-    val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password)
+    val poolMin = convergenceDbConfig.getInt("pool.db-pool-min")
+    val poolMax = convergenceDbConfig.getInt("pool.db-pool-max")
+
+    val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password, poolMin, poolMax)
     dbProvider.connect().get
 
     val domainStore = new DomainStore(dbProvider)

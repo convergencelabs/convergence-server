@@ -93,11 +93,11 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
           Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId))
 
       case UserAddedToChat(chatId, eventNumber, timestamp, userId, addedUser) =>
-        UserAddedToChatChannelMessage(chatId, eventNumber,
+        UserAddedToChatMessage(chatId, eventNumber,
           Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId), Some(addedUser))
 
       case UserRemovedFromChat(chatId, eventNumber, timestamp, userId, removedUser) =>
-        UserRemovedFromChatChannelMessage(chatId, eventNumber,
+        UserRemovedFromChatMessage(chatId, eventNumber,
           Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId), Some(removedUser))
 
       case ChatRemoved(chatId) =>
@@ -122,27 +122,27 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
   def onRequestReceived(message: RequestMessage with ChatMessage, replyCallback: ReplyCallback): Unit = {
     message match {
       case message: CreateChatRequestMessage =>
-        onCreateChannel(message, replyCallback)
+        onCreateChatRequest(message, replyCallback)
       case message: RemoveChatRequestMessage =>
-        onRemoveChannel(message, replyCallback)
+        onRemoveChatRequest(message, replyCallback)
       case message: JoinChatRequestMessage =>
         onJoinChatRequest(message, replyCallback)
       case message: LeaveChatRequestMessage =>
         onLeaveChatRequest(message, replyCallback)
-      case message: AddUserToChatChannelRequestMessage =>
-        onAddUserToChannel(message, replyCallback)
-      case message: RemoveUserFromChatChannelRequestMessage =>
-        onRemoveUserFromChannel(message, replyCallback)
+      case message: AddUserToChatRequestMessage =>
+        onAddUserToChatRequest(message, replyCallback)
+      case message: RemoveUserFromChatRequestMessage =>
+        onRemoveUserFromChatRequest(message, replyCallback)
       case message: SetChatNameRequestMessage =>
-        onSetChatChannelName(message, replyCallback)
+        onSetChatChatName(message, replyCallback)
       case message: SetChatTopicRequestMessage =>
-        onSetChatChannelTopic(message, replyCallback)
+        onSetChatChatTopic(message, replyCallback)
       case message: MarkChatEventsSeenRequestMessage =>
         onMarkEventsSeen(message, replyCallback)
       case message: GetChatsRequestMessage =>
-        onGetChannels(message, replyCallback)
+        onGetChat(message, replyCallback)
       case _: GetJoinedChatsRequestMessage =>
-        onGetJoinedChannels(replyCallback)
+        onGetJoinedChats(replyCallback)
       case message: GetDirectChatsRequestMessage =>
         onGetDirect(message, replyCallback)
       case message: ChatHistoryRequestMessage =>
@@ -150,7 +150,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       case message: PublishChatRequestMessage =>
         onPublishMessage(message, replyCallback)
       case message: ChatsExistRequestMessage =>
-        onChannelsExist(message, replyCallback)
+        onChatsExist(message, replyCallback)
       case message: ChatsSearchRequestMessage =>
         onChatsSearch(message, replyCallback)
     }
@@ -179,7 +179,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     }
   }
 
-  private[this] def onCreateChannel(message: CreateChatRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onCreateChatRequest(message: CreateChatRequestMessage, cb: ReplyCallback): Unit = {
     val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData, _) = message
     val members = memberData.toSet.map(ImplicitMessageConversions.dataToDomainUserId)
     (for {
@@ -209,7 +209,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     }
   }
 
-  private[this] def onRemoveChannel(message: RemoveChatRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onRemoveChatRequest(message: RemoveChatRequestMessage, cb: ReplyCallback): Unit = {
     val RemoveChatRequestMessage(chatId, _) = message
     chatShardRegion
       .ask[ChatActor.RemoveChatResponse](ChatActor.RemoveChatRequest(domainId, chatId, session.userId, _))
@@ -261,8 +261,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onAddUserToChannel(message: AddUserToChatChannelRequestMessage, cb: ReplyCallback): Unit = {
-    val AddUserToChatChannelRequestMessage(chatId, userToAdd, _) = message
+  private[this] def onAddUserToChatRequest(message: AddUserToChatRequestMessage, cb: ReplyCallback): Unit = {
+    val AddUserToChatRequestMessage(chatId, userToAdd, _) = message
     chatShardRegion
       .ask[ChatActor.AddUserToChatResponse](ChatActor.AddUserToChatRequest(domainId, chatId, session.userId, ImplicitMessageConversions.dataToDomainUserId(userToAdd.get), _))
       .map(_.response.fold(
@@ -276,13 +276,13 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
           case ChatActor.ChatOperationNotSupported(reason) =>
             cb.expectedError(ErrorCodes.NotSupported, reason)
         },
-        _ => AddUserToChatChannelResponseMessage())
+        _ => AddUserToChatResponseMessage())
       )
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onRemoveUserFromChannel(message: RemoveUserFromChatChannelRequestMessage, cb: ReplyCallback): Unit = {
-    val RemoveUserFromChatChannelRequestMessage(chatId, userToRemove, _) = message
+  private[this] def onRemoveUserFromChatRequest(message: RemoveUserFromChatRequestMessage, cb: ReplyCallback): Unit = {
+    val RemoveUserFromChatRequestMessage(chatId, userToRemove, _) = message
     chatShardRegion
       .ask[ChatActor.RemoveUserFromChatResponse](
         ChatActor.RemoveUserFromChatRequest(domainId, chatId, session.userId, ImplicitMessageConversions.dataToDomainUserId(userToRemove.get), _))
@@ -299,12 +299,12 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
           case ChatActor.ChatOperationNotSupported(reason) =>
             cb.expectedError(ErrorCodes.NotSupported, reason)
         },
-        _ => RemoveUserFromChatChannelResponseMessage())
+        _ => RemoveUserFromChatResponseMessage())
       )
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onSetChatChannelName(message: SetChatNameRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onSetChatChatName(message: SetChatNameRequestMessage, cb: ReplyCallback): Unit = {
     val SetChatNameRequestMessage(chatId, name, _) = message
     chatShardRegion
       .ask[ChatActor.SetChatNameResponse](ChatActor.SetChatNameRequest(domainId, chatId, session.userId, name, _))
@@ -321,7 +321,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   }
 
-  private[this] def onSetChatChannelTopic(message: SetChatTopicRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onSetChatChatTopic(message: SetChatTopicRequestMessage, cb: ReplyCallback): Unit = {
     val SetChatTopicRequestMessage(chatId, topic, _) = message
     chatShardRegion.
       ask[ChatActor.SetChatTopicResponse](ChatActor.SetChatTopicRequest(domainId, chatId, session.userId, topic, _))
@@ -532,7 +532,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onChannelsExist(message: ChatsExistRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onChatsExist(message: ChatsExistRequestMessage, cb: ReplyCallback): Unit = {
     val ChatsExistRequestMessage(chatIds, _) = message
     chatManagerActor
       .ask[ChatManagerActor.ChatsExistsResponse](ChatsExistsRequest(session.userId, chatIds.toList, _))
@@ -547,7 +547,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onGetChannels(message: GetChatsRequestMessage, cb: ReplyCallback): Unit = {
+  private[this] def onGetChat(message: GetChatsRequestMessage, cb: ReplyCallback): Unit = {
     val GetChatsRequestMessage(ids, _) = message
     chatManagerActor
       .ask[ChatManagerActor.GetChatsResponse](GetChatsRequest(session.userId, ids.toSet, _))
@@ -580,7 +580,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       .recover(_ => cb.timeoutError())
   }
 
-  private[this] def onGetJoinedChannels(cb: ReplyCallback): Unit = {
+  private[this] def onGetJoinedChats(cb: ReplyCallback): Unit = {
     chatManagerActor
       .ask[ChatManagerActor.GetJoinedChatsResponse](GetJoinedChatsRequest(session.userId, _))
       .map(_.chatInfo.fold(

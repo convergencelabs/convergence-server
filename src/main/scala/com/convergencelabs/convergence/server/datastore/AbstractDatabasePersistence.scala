@@ -39,11 +39,13 @@ abstract class AbstractDatabasePersistence(dbProvider: DatabaseProvider) extends
     }
 
   protected def withDbTransaction[B](block: ODatabaseDocument => Try[B]): Try[B] = {
+    // FIXME uncomment the transactions when this is fixed:
+    //  https://github.com/orientechnologies/orientdb/issues/9305
     dbProvider.withDatabase(db =>
       (for {
-        _ <- Try(db.begin())
+//        _ <- Try(db.begin())
         result <- block(db)
-        _ <- Try(db.commit())
+//        _ <- Try(db.commit())
       } yield result)
         .recoverWith(rollback(db))
     )

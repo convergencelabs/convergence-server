@@ -161,8 +161,11 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
       case Some(domainInfo) =>
         debug(s"$domainId: Creating new connection pool: $baseDbUri/${domainInfo.database}")
 
-        // FIXME need to figure out how to configure pool sizes.
-        val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password)
+        val poolMin = context.system.settings.config.getInt("convergence.persistence.domain-databases.pool.db-pool-min")
+        val poolMax = context.system.settings.config.getInt("convergence.persistence.domain-databases.pool.db-pool-max")
+
+        val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password, poolMin, poolMax)
+
         val provider = new DomainPersistenceProviderImpl(domainId, dbProvider)
         dbProvider.connect()
           .flatMap(_ => provider.validateConnection())

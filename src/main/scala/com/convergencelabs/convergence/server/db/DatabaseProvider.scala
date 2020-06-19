@@ -12,8 +12,9 @@
 package com.convergencelabs.convergence.server.db
 
 import com.convergencelabs.convergence.server.util.TryWithResource
-import com.orientechnologies.orient.core.db.{ODatabasePool, OrientDB, OrientDBConfig}
+import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.{ODatabasePool, OrientDB, OrientDBConfig}
 
 import scala.util.{Failure, Success, Try}
 
@@ -101,13 +102,24 @@ class ConnectedSingleDatabaseProvider(db: ODatabaseDocument) extends DatabasePro
   }
 }
 
-// FIXME figure out how to configure the pool.
-class PooledDatabaseProvider(serverUrl: String, database: String, username: String, password: String) extends DatabaseProvider {
+class PooledDatabaseProvider(serverUrl: String,
+                             database: String,
+                             username: String,
+                             password: String,
+                             poolMin: Int,
+                             poolMax: Int
+                            ) extends DatabaseProvider {
   var orientDb: Option[OrientDB] = None
   var dbPool: Option[ODatabasePool] = None
 
   def connect(): Try[Unit] = Try {
-    val orientDb = new OrientDB(serverUrl, OrientDBConfig.defaultConfig())
+
+    val poolCfg = OrientDBConfig.builder
+    poolCfg.addConfig(OGlobalConfiguration.DB_POOL_MIN, poolMin)
+    poolCfg.addConfig(OGlobalConfiguration.DB_POOL_MAX, poolMax)
+
+    val orientDb = new OrientDB(serverUrl, poolCfg.build())
+
     this.dbPool = Some(new ODatabasePool(orientDb, database, username, password))
     this.orientDb = Some(orientDb)
   }

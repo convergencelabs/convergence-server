@@ -130,7 +130,7 @@ object DomainUserStore {
  *              connect to the database
  * @param dbProvider The database pool to use.
  */
-class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProvider)
+class DomainUserStore private[domain](dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -139,10 +139,6 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
   import schema.UserClass._
 
   private[this] val Password = "password"
-
-  // TODO make this configurable.
-  private[this] val reconnectTokenDuration = Duration.ofHours(24)
-
   private[this] val reconnectTokenGenerator = new RandomStringGenerator(32)
 
   /**
@@ -487,11 +483,10 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
       })
   }
 
-  def createReconnectToken(userId: DomainUserId): Try[String] = withDb { db =>
+  def createReconnectToken(userId: DomainUserId, reconnectTokenDuration: Duration): Try[String] = withDb { db =>
     OrientDBUtil
       .findIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
       .flatMap {
-
         case Some(userORID) =>
           val expiration = Instant.now().plus(reconnectTokenDuration)
           val token = reconnectTokenGenerator.nextString()
@@ -518,7 +513,7 @@ class DomainUserStore private[domain](private[this] val dbProvider: DatabaseProv
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
-  def validateReconnectToken(token: String): Try[Option[DomainUserId]] = withDb { db =>
+  def validateReconnectToken(token: String, reconnectTokenDuration: Duration): Try[Option[DomainUserId]] = withDb { db =>
     OrientDBUtil
       .findDocumentFromSingleValueIndex(db, Classes.UserReconnectToken.Indices.Token, token)
       .map(_.flatMap { record =>

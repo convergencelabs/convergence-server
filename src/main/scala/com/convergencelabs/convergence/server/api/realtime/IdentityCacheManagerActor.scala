@@ -122,9 +122,9 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
         processMessage(message, Set(), Set(body.user.get))
       case Body.UserLeftChat(body) =>
         processMessage(message, Set(), Set(body.user.get))
-      case Body.UserAddedToChatChannel(body) =>
+      case Body.UserAddedToChat(body) =>
         processMessage(message, Set(), Set(body.user.get, body.addedUser.get))
-      case Body.UserRemovedFromChatChannel(body) =>
+      case Body.UserRemovedFromChat(body) =>
         processMessage(message, Set(), Set(body.user.get, body.removedUser.get))
       case Body.ChatNameChanged(body) =>
         processMessage(message, Set(), Set(body.user.get))

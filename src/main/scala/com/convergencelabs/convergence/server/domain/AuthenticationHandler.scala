@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.domain
 import java.io.StringReader
 import java.security.spec.X509EncodedKeySpec
 import java.security.{KeyFactory, PublicKey}
-import java.time.Instant
+import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.datastore.domain.DomainUserStore.{CreateNormalDomainUser, UpdateDomainUser}
 import com.convergencelabs.convergence.server.datastore.domain._
@@ -62,7 +62,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
 
   private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Either[Unit, DomainActor.AuthenticationSuccess] = {
     userStore
-      .validateReconnectToken(reconnectRequest.token)
+      .validateReconnectToken(reconnectRequest.token, Duration.ofHours(24L))
       .flatMap {
         case Some(userId) =>
           authSuccess(userId, Some(reconnectRequest.token)).map(Right(_))
@@ -282,7 +282,7 @@ class AuthenticationHandler(private[this] val domainFqn: DomainId,
           Success(DomainActor.AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(reconnectToken)))
         case None =>
           logger.debug(s"$domainFqn: Creating reconnect token.")
-          userStore.createReconnectToken(userId) map { token =>
+          userStore.createReconnectToken(userId, Duration.ofHours(24L)) map { token =>
             logger.debug(s"$domainFqn: Returning auth success.")
             DomainActor.AuthenticationSuccess(DomainUserSessionId(sessionId, userId), Some(token))
           } recover {

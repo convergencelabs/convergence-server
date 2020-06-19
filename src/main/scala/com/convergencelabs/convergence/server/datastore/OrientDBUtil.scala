@@ -68,7 +68,8 @@ object OrientDBUtil {
   }
 
   def executeMutation(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[Long] = {
-    Try(db.execute("sql", script, params.asJava)).flatMap(getMutationCount)
+    Try(db.execute("sql", script, params.asJava))
+      .flatMap((rs: OResultSet) => TryWithResource(rs)(rs => getMutationCount(rs).get))
   }
 
   def execute(db: ODatabaseDocument, script: String, params: Map[String, Any] = Map()): Try[List[ODocument]] = {
@@ -338,7 +339,6 @@ object OrientDBUtil {
 
   private[this] def getMutationCount(rs: OResultSet): Try[Long] = Try {
     val count: Long = rs.next().getProperty(CountField)
-    rs.close()
     count
   }
 
