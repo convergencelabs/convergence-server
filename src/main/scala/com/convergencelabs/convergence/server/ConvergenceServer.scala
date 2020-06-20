@@ -124,7 +124,6 @@ object ConvergenceServer extends Logging {
    * Helper method that will shut down the server, if it was started.
    */
   private[this] def stop(): Unit = {
-    // TODO convert this to an ask.
     this.system.foreach(s => {
       implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
       implicit val sys: Scheduler = s.scheduler

@@ -246,10 +246,10 @@ class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnectio
     serializeAndSend(ConvergenceMessage().withPong(PongMessage()))
   }
 
-  private[this] def handleHeartbeat: PartialFunction[HeartbeatEvent, Unit] = {
-    case PingRequest =>
+  private[this] def handleHeartbeat: PartialFunction[HeartbeatHelper.HeartbeatEvent, Unit] = {
+    case HeartbeatHelper.PingRequest =>
       serializeAndSend(ConvergenceMessage().withPing(PingMessage()))
-    case PongTimeout =>
+    case HeartbeatHelper.PongTimeout =>
       clientActor ! ClientActor.PongTimeout
   }
 
@@ -292,7 +292,6 @@ class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnectio
       expectedError(ErrorCodes.Timeout, "An internal server timeout occurred")
     }
   }
-
 }
 
 object ProtocolConnection {

@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.testkit
+package com.convergencelabs.convergence.server.dev
 
 import java.io.File
 

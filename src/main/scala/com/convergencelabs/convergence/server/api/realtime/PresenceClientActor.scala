@@ -21,7 +21,7 @@ import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.userPresenceToMessage
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.domain.presence._
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
@@ -31,16 +31,14 @@ import scala.language.postfixOps
 
 //  TODO: Add connect / disconnect logic
 class PresenceClientActor private(context: ActorContext[PresenceClientActor.Message],
-                                  domain: DomainId,
                                   session: DomainUserSessionId,
                                   clientActor: ActorRef[ClientActor.SendServerMessage],
                                   presenceServiceActor: ActorRef[PresenceServiceActor.Message],
-                                  defaultTimeout: Timeout)
+                                  private[this] implicit val defaultTimeout: Timeout)
   extends AbstractBehavior[PresenceClientActor.Message](context) with Logging with AskUtils {
 
   import PresenceClientActor._
 
-  private[this] implicit val timeout: Timeout = defaultTimeout
   private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
 
@@ -162,13 +160,12 @@ class PresenceClientActor private(context: ActorContext[PresenceClientActor.Mess
 }
 
 object PresenceClientActor {
-  def apply(domain: DomainId,
-            session: DomainUserSessionId,
+  private[realtime] def apply(session: DomainUserSessionId,
             clientActor: ActorRef[ClientActor.SendServerMessage],
             presenceServiceActor: ActorRef[PresenceServiceActor.Message],
             defaultTimeout: Timeout
            ): Behavior[Message] =
-    Behaviors.setup(context => new PresenceClientActor(context, domain, session, clientActor, presenceServiceActor, defaultTimeout))
+    Behaviors.setup(context => new PresenceClientActor(context, session, clientActor, presenceServiceActor, defaultTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -179,15 +176,15 @@ object PresenceClientActor {
   //
   // Messages from the client
   //
-  sealed trait IncomingMessage extends Message
+  private[realtime] sealed trait IncomingMessage extends Message
 
-  type IncomingNormalMessage = GeneratedMessage with NormalMessage with PresenceMessage with ClientMessage
+  private[realtime] type IncomingNormalMessage = GeneratedMessage with NormalMessage with PresenceMessage with ClientMessage
 
-  final case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
 
-  type IncomingRequestMessage = GeneratedMessage with RequestMessage with PresenceMessage with ClientMessage
+  private[realtime] type IncomingRequestMessage = GeneratedMessage with RequestMessage with PresenceMessage with ClientMessage
 
-  final case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
 
 
   //

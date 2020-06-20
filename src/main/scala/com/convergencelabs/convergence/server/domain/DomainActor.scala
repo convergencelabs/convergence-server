@@ -41,7 +41,6 @@ import scala.util.{Failure, Success, Try}
 class DomainActor private(context: ActorContext[DomainActor.Message],
                           shardRegion: ActorRef[DomainActor.Message],
                           shard: ActorRef[ClusterSharding.ShardCommand],
-                          protocolConfig: ProtocolConfiguration, // FIXME is this needed?
                           domainPersistenceManager: DomainPersistenceManager,
                           receiveTimeout: FiniteDuration,
                           domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
@@ -291,7 +290,6 @@ object DomainActor {
 
   def apply(shardRegion: ActorRef[Message],
             shard: ActorRef[ClusterSharding.ShardCommand],
-            protocolConfig: ProtocolConfiguration,
             domainPersistenceManager: DomainPersistenceManager,
             receiveTimeout: FiniteDuration,
             domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] = Behaviors.setup { context =>
@@ -299,13 +297,11 @@ object DomainActor {
       context,
       shardRegion,
       shard,
-      protocolConfig,
       domainPersistenceManager,
       receiveTimeout,
       domainLifecycleTopic)
   }
 
-  // TODO evaluate a better supervision strategy.
   private[this] val ChildSupervisionStrategy = SupervisorStrategy.resume
 
   private def supervise[T](child: Behavior[T]): Behavior[T] = {

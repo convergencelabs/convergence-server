@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-object OperationType extends Enumeration {
+private[realtime] object OperationType extends Enumeration {
   val Compound = 0
   val ArrayInsert = 1
   val ArrayReorder = 2

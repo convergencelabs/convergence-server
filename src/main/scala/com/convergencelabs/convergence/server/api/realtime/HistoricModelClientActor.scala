@@ -19,9 +19,9 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
-import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
+import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor
+import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
@@ -30,9 +30,6 @@ import scala.language.postfixOps
 
 class HistoricModelClientActor private(context: ActorContext[HistoricModelClientActor.Message],
                                        domain: DomainId,
-                                       session: DomainUserSessionId,
-                                       clientActor: ActorRef[ClientActor.SendServerMessage],
-                                       modelStoreActor: ActorRef[ModelStoreActor.Message],
                                        operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
                                        modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                        defaultTimeout: Timeout)
@@ -104,15 +101,12 @@ class HistoricModelClientActor private(context: ActorContext[HistoricModelClient
 }
 
 object HistoricModelClientActor {
-  def apply(domain: DomainId,
-            session: DomainUserSessionId,
-            clientActor: ActorRef[ClientActor.SendServerMessage],
-            modelStoreActor: ActorRef[ModelStoreActor.Message],
+  private[realtime] def apply(domain: DomainId,
             operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
             modelShardRegion: ActorRef[RealtimeModelActor.Message],
             defaultTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new HistoricModelClientActor(
-      context, domain, session, clientActor, modelStoreActor, operationStoreActor, modelShardRegion, defaultTimeout))
+      context, domain, operationStoreActor, modelShardRegion, defaultTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -124,6 +118,6 @@ object HistoricModelClientActor {
 
   type IncomingRequest = GeneratedMessage with RequestMessage with HistoricalModelMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends IncomingMessage
+  final case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends IncomingMessage
 
 }

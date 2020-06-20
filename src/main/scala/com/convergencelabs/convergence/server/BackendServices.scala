@@ -95,11 +95,6 @@ class BackendServices(context: ActorContext[_],
 
     val domainStoreActor = context.spawn(DomainStoreActor(
       domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor), "DomainStore")
-    // FIXME enable importer
-    //    context.spawn(ConvergenceImporterActor.props(
-    //      dbServerConfig.getString("uri"),
-    //      convergenceDbProvider,
-    //      domainStoreActor),"ConvergenceImporter")
 
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")

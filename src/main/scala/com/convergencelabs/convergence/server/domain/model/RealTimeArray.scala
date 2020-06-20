@@ -83,19 +83,22 @@ class RealTimeArray(private[this] val value: ArrayValue,
   }
 
   private[this] def processInsertOperation(op: ArrayInsertOperation): Try[AppliedArrayInsertOperation] = {
-    // FIXME: validate index
     val ArrayInsertOperation(id, noOp, index, value) = op
-    val child = this.valueFactory.createValue(value, Some(this), Some(parentField))
-    childValues = childValues.patch(index, List(child), 0)
-    this.updateIndices(index + 1, childValues.length - 1)
+    if (index > childValues.size) {
+      Failure(new IllegalArgumentException(s"The insert index ($index) was greater than than the length of the array (${childValues.length}"))
+    } else {
+      val child = this.valueFactory.createValue(value, Some(this), Some(parentField))
+      childValues = childValues.patch(index, List(child), 0)
+      this.updateIndices(index + 1, childValues.length - 1)
 
-    Success(AppliedArrayInsertOperation(id, noOp, index, value))
+      Success(AppliedArrayInsertOperation(id, noOp, index, value))
+    }
   }
 
   private[this] def processRemoveOperation(op: ArrayRemoveOperation): Try[AppliedArrayRemoveOperation] = {
     val ArrayRemoveOperation(id, noOp, index) = op
     if (index >= childValues.size) {
-      Failure(new IllegalArgumentException("Index out of bounds"))
+      Failure(new IllegalArgumentException(s"The remove index ($index) was greater than or equal to the length of the array (${childValues.length}"))
     } else {
       val oldChild = childValues(index)
       childValues = childValues.patch(index, List(), 1)
@@ -110,7 +113,7 @@ class RealTimeArray(private[this] val value: ArrayValue,
   private[this] def processReplaceOperation(op: ArrayReplaceOperation): Try[AppliedArrayReplaceOperation] = {
     val ArrayReplaceOperation(id, noOp, index, value) = op
     if (index >= childValues.size) {
-      Failure(new IllegalArgumentException("Index out of bounds"))
+      Failure(new IllegalArgumentException(s"The replace index ($index) was greater than or equal to the length of the array (${childValues.length}"))
     } else {
       val oldChild = childValues(index)
       val child = this.valueFactory.createValue(value, Some(this), Some(parentField))
@@ -124,9 +127,10 @@ class RealTimeArray(private[this] val value: ArrayValue,
 
   private[this] def processReorderOperation(op: ArrayMoveOperation): Try[AppliedArrayMoveOperation] = {
     val ArrayMoveOperation(id, noOp, fromIndex, toIndex) = op
-    // FIXME validate toIndex
     if (fromIndex >= childValues.size) {
-      Failure(new IllegalArgumentException("fromIndex out of bounds"))
+      Failure(new IllegalArgumentException(s"The move fromIndex ($fromIndex) was greater than or equal to the length of the array (${childValues.length}"))
+    } else if (toIndex >= childValues.size) {
+      Failure(new IllegalArgumentException(s"The move toIndex ($fromIndex) was greater than or equal to the length of the array (${childValues.length}"))
     } else {
       val child = childValues(fromIndex)
       childValues = childValues.patch(fromIndex, List(), 1)

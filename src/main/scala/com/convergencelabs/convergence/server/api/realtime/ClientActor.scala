@@ -67,7 +67,6 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
 
   type MessageHandler = PartialFunction[ProtocolMessageEvent, Behavior[Message]]
 
-  // FIXME hard-coded (used for auth and handshake)
   private[this] implicit val requestTimeout: Timeout = Timeout(protocolConfig.defaultRequestTimeout)
   private[this] implicit val ec: ExecutionContext = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
@@ -131,7 +130,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         context.executionContext)
       this.messageHandler = handleHandshakeMessage
       Behaviors.receiveMessage(receiveWhileHandshaking)
-        .receiveSignal{x => onSignal.apply(x._2)}
+        .receiveSignal { x => onSignal.apply(x._2) }
   }
 
   private[this] def receiveCommon: PartialFunction[Message, Behavior[Message]] = {
@@ -274,20 +273,15 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
           this.disconnect()
         }
       Behaviors.receiveMessage(this.receiveWhileHandshaking)
-        .receiveSignal{x => onSignal.apply(x._2)}
+        .receiveSignal { x => onSignal.apply(x._2) }
     } else {
       debug(s"$domainId: Not handshaking with domain because handshake timeout occurred")
       Behaviors.same
     }
   }
 
-  // TODO add an optional message to send to the client.
   private[this] def disconnect(): Behavior[Message] = {
-    // TODO we do this to allow outgoing messages to be flushed
-    //   What we SHOULD do is send a message to the protocol connection and then have it shut down
-    //   when it processes that message. That would cause it to flush any messages in the queue
-    //   before shutting down.
-    timers.startSingleTimer(Disconnect(), 10 seconds)
+    context.self ! Disconnect()
     Behaviors.same
   }
 
@@ -324,7 +318,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
 
     this.messageHandler = handleAuthenticationMessage
     Behaviors.receiveMessage(receiveWhileAuthenticating)
-      .receiveSignal{x => onSignal.apply(x._2)}
+      .receiveSignal { x => onSignal.apply(x._2) }
   }
 
   //
@@ -349,16 +343,16 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         //  and or shut down the connection?
         domainRegion
           .ask[DomainActor.AuthenticationResponse](DomainActor.AuthenticationRequest(
-          domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _))
-            .map(_.response.fold(
-              { _ =>
-                cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
-              },
-              { case DomainActor.AuthenticationSuccess(session, reconnectToken) =>
-                obtainPresenceAfterAuth(session, reconnectToken, cb)
-              }
-            ))
-            .recover(_ => cb.timeoutError())
+            domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _))
+          .map(_.response.fold(
+            { _ =>
+              cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
+            },
+            { case DomainActor.AuthenticationSuccess(session, reconnectToken) =>
+              obtainPresenceAfterAuth(session, reconnectToken, cb)
+            }
+          ))
+          .recover(_ => cb.timeoutError())
       case None =>
         error(s"Invalid authentication message: $requestMessage")
         cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
@@ -391,11 +385,11 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     this.sessionId = session.sessionId
     this.reconnectToken = reconnectToken
     this.modelClient = context.spawn(ModelClientActor(domainId, session, narrowedSelf, modelStoreActor, modelShardRegion, requestTimeout, modelSyncInterval), "ModelClient")
-    this.identityClient = context.spawn(IdentityClientActor(identityServiceActor), "IdentityClient")
+    this.identityClient = context.spawn(IdentityClientActor(identityServiceActor, requestTimeout), "IdentityClient")
     this.chatClient = context.spawn(ChatClientActor(domainId, session, narrowedSelf, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, requestTimeout), "ChatClient")
     this.activityClient = context.spawn(ActivityClientActor(domainId, session, narrowedSelf, activityShardRegion, requestTimeout), "ActivityClient")
-    this.presenceClient = context.spawn(PresenceClientActor(domainId, session, narrowedSelf, presenceServiceActor, requestTimeout), "PresenceClient")
-    this.historyClient = context.spawn(HistoricModelClientActor(domainId, session, narrowedSelf, modelStoreActor, operationStoreActor, modelShardRegion, requestTimeout), "ModelHistoryClient")
+    this.presenceClient = context.spawn(PresenceClientActor(session, narrowedSelf, presenceServiceActor, requestTimeout), "PresenceClient")
+    this.historyClient = context.spawn(HistoricModelClientActor(domainId, operationStoreActor, modelShardRegion, requestTimeout), "ModelHistoryClient")
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccessData(
@@ -406,7 +400,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     cb.reply(response)
 
     Behaviors.receiveMessage(receiveWhileAuthenticated)
-      .receiveSignal{x => onSignal.apply(x._2)}
+      .receiveSignal { x => onSignal.apply(x._2) }
   }
 
   //
@@ -536,7 +530,7 @@ object ClientActor {
     ))
   }
 
-  private case object HandshakeTimerKey
+  private final case object HandshakeTimerKey
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -544,65 +538,64 @@ object ClientActor {
 
   sealed trait Message
 
-  private case object HandshakeTimeout extends Message
+  private final case object HandshakeTimeout extends Message
 
-  type IncomingMessage = GeneratedMessage with NormalMessage with ClientMessage
+  private[realtime] type IncomingMessage = GeneratedMessage with NormalMessage with ClientMessage
 
-  case class IncomingProtocolMessage(message: IncomingMessage) extends Message
+  private[realtime] final case class IncomingProtocolMessage(message: IncomingMessage) extends Message
 
-  type IncomingRequest = GeneratedMessage with RequestMessage with ClientMessage
+  private[realtime] type IncomingRequest = GeneratedMessage with RequestMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends Message
+  private[realtime] final case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends Message
 
-  sealed trait ConnectionMessage extends Message
+  private[realtime] sealed trait ConnectionMessage extends Message
 
-  case class ConnectionOpened(connectionActor: ActorRef[ConnectionActor.ClientMessage]) extends ConnectionMessage
+  private[realtime] final case class ConnectionOpened(connectionActor: ActorRef[ConnectionActor.ClientMessage]) extends ConnectionMessage
 
-  case object ConnectionClosed extends ConnectionMessage
+  private[realtime] case object ConnectionClosed extends ConnectionMessage
 
-  case class ConnectionError(cause: Throwable) extends ConnectionMessage
+  private[realtime] final case class ConnectionError(cause: Throwable) extends ConnectionMessage
 
 
-  sealed trait SendToClient extends Message
+  private[realtime] sealed trait SendToClient extends Message
 
-  case class SendServerMessage(message: GeneratedMessage with NormalMessage with ServerMessage) extends SendToClient
+  private[realtime] final case class SendServerMessage(message: GeneratedMessage with NormalMessage with ServerMessage) extends SendToClient
 
-  case class SendServerRequest(message: GeneratedMessage with RequestMessage with ServerMessage, replyTo: ActorRef[Any]) extends SendToClient
+  private[realtime] final case class SendServerRequest(message: GeneratedMessage with RequestMessage with ServerMessage, replyTo: ActorRef[Any]) extends SendToClient
 
   /**
    * Represents an incoming binary message from the client.
    *
    * @param data The incoming binary web socket message data.
    */
-  case class IncomingBinaryMessage(data: Array[Byte]) extends ConnectionMessage
+  private[realtime] final case class IncomingBinaryMessage(data: Array[Byte]) extends ConnectionMessage
 
+  private[realtime] sealed trait FromProtocolConnection extends Message
 
-  sealed trait FromProtocolConnection extends Message
+  private[realtime] final case object PongTimeout extends FromProtocolConnection
 
-  case object PongTimeout extends FromProtocolConnection
+  private[realtime] final case class SendUnprocessedMessage(message: ConvergenceMessage) extends FromProtocolConnection
 
-  case class SendUnprocessedMessage(message: ConvergenceMessage) extends FromProtocolConnection
+  private[realtime] sealed trait FromIdentityResolver extends Message
 
-  sealed trait FromIdentityResolver extends Message
+  private[realtime] final case class SendProcessedMessage(message: ConvergenceMessage) extends FromIdentityResolver
 
-  case class SendProcessedMessage(message: ConvergenceMessage) extends FromIdentityResolver
+  private[realtime] final case class IdentityResolutionError() extends FromIdentityResolver
 
-  case class IdentityResolutionError() extends FromIdentityResolver
+  private final case class InternalAuthSuccess(user: DomainUser,
+                                       session: DomainUserSessionId,
+                                       reconnectToken: Option[String],
+                                       presence: UserPresence,
+                                       cb: ReplyCallback) extends Message
 
-  case class InternalAuthSuccess(user: DomainUser,
-                                 session: DomainUserSessionId,
-                                 reconnectToken: Option[String],
-                                 presence: UserPresence,
-                                 cb: ReplyCallback) extends Message
+  private final case class InternalHandshakeSuccess(client: String,
+                                            clientVersion: String,
+                                            handshakeSuccess: DomainActor.HandshakeSuccess,
+                                            cb: ReplyCallback) extends Message
 
-  case class InternalHandshakeSuccess(client: String,
-                                      clientVersion: String,
-                                      handshakeSuccess: DomainActor.HandshakeSuccess,
-                                      cb: ReplyCallback) extends Message
+  final case class Disconnect() extends Message
 
-  case class Disconnect() extends Message
-
-  case class DomainDeleted(domainId: DomainId) extends Message
+  private final case class DomainDeleted(domainId: DomainId) extends Message
 
 }
 

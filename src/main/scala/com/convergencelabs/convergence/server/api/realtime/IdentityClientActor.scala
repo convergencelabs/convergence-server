@@ -28,7 +28,6 @@ import org.json4s.JsonAST.JString
 import scalapb.GeneratedMessage
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -38,13 +37,13 @@ import scala.util.{Failure, Success, Try}
  * @param identityServiceActor The actor to use to resolve user identity requests.
  */
 class IdentityClientActor private(context: ActorContext[IdentityClientActor.Message],
-                                  identityServiceActor: ActorRef[IdentityServiceActor.Message])
+                                  identityServiceActor: ActorRef[IdentityServiceActor.Message],
+                                  private[this] implicit val requestTimeout: Timeout)
   extends AbstractBehavior[IdentityClientActor.Message](context) with Logging with AskUtils {
 
   import IdentityClientActor._
 
-  implicit val timeout: Timeout = Timeout(5 seconds)
-  implicit val ec: ExecutionContextExecutor = context.executionContext
+  private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
 
   override def onMessage(msg: Message): Behavior[Message] = {
@@ -172,9 +171,10 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
   }
 }
 
-private[realtime] object IdentityClientActor {
-  def apply(identityServiceActor: ActorRef[IdentityServiceActor.Message]): Behavior[Message] =
-    Behaviors.setup(context => new IdentityClientActor(context, identityServiceActor))
+object IdentityClientActor {
+   private[realtime] def apply(identityServiceActor: ActorRef[IdentityServiceActor.Message],
+            requestTimeout: Timeout): Behavior[Message] =
+    Behaviors.setup(context => new IdentityClientActor(context, identityServiceActor, requestTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -182,10 +182,9 @@ private[realtime] object IdentityClientActor {
 
   sealed trait Message extends CborSerializable
 
-  sealed trait IncomingMessage extends Message
+  private[realtime] sealed trait IncomingMessage extends Message
 
-  type IncomingRequest = GeneratedMessage with RequestMessage with IdentityMessage with ClientMessage
+  private[realtime] type IncomingRequest = GeneratedMessage with RequestMessage with IdentityMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends IncomingMessage
-
+  private[realtime] final case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends IncomingMessage
 }

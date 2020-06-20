@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.realtime
 import java.util.concurrent.TimeUnit
 
 import akka.actor.testkit.typed.scaladsl.{ManualTime, ScalaTestWithActorTestKit}
-import com.miguno.akka.testing.VirtualTime
+import com.convergencelabs.convergence.server.api.realtime.HeartbeatHelper._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

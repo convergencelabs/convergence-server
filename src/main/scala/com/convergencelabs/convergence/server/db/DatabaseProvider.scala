@@ -14,15 +14,19 @@ package com.convergencelabs.convergence.server.db
 import com.convergencelabs.convergence.server.util.TryWithResource
 import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.db.{ODatabasePool, OrientDB, OrientDBConfig}
+import com.orientechnologies.orient.core.db.{ODatabase, ODatabasePool, OrientDB, OrientDBConfig}
 
 import scala.util.{Failure, Success, Try}
 
 trait DatabaseProvider {
   def connect(): Try[Unit]
+
   def tryWithDatabase[B](f: ODatabaseDocument => B): Try[B]
+
   def withDatabase[B](f: ODatabaseDocument => Try[B]): Try[B]
+
   def validateConnection(): Try[Unit]
+
   def shutdown(): Unit
 
   protected[db] val NotConnected = "Orient DB is not connected."
@@ -56,7 +60,7 @@ class SingleDatabaseProvider(serverUrl: String, database: String, username: Stri
   }
 
   def validateConnection(): Try[Unit] = Try {
-    // FIXME what do to here
+    this.assertConnected().map(_ => ())
   }
 
   def shutdown(): Unit = {
@@ -66,12 +70,21 @@ class SingleDatabaseProvider(serverUrl: String, database: String, username: Stri
     }
 
     orientDb.foreach(_.close())
+
+    orientDb = None
+    db = None
   }
 
   protected[this] def assertConnected(): Try[ODatabaseDocument] = {
-    this.db match {
-      case Some(db) => Success(db)
-      case None => Failure(new IllegalStateException(this.NotConnected))
+    db match {
+      case Some(connection) =>
+        if (connection.getStatus == ODatabase.STATUS.OPEN) {
+          Success(connection)
+        } else {
+          Failure(new IllegalStateException(s"The database state was: ${connection.getStatus}"))
+        }
+      case None =>
+        Failure(new IllegalStateException(this.NotConnected))
     }
   }
 }
@@ -93,7 +106,11 @@ class ConnectedSingleDatabaseProvider(db: ODatabaseDocument) extends DatabasePro
   }
 
   def validateConnection(): Try[Unit] = Try {
-    // FIXME what do to here
+    if (db.getStatus == ODatabase.STATUS.OPEN) {
+      Success(())
+    } else {
+      Failure(new IllegalStateException(s"The database state was: ${db.getStatus}"))
+    }
   }
 
   def shutdown(): Unit = {

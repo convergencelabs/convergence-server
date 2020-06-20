@@ -39,8 +39,8 @@ import scala.util.{Failure, Success}
  * @param timeout              The timeout to user for identity resolution requests.
  */
 class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManagerActor.Message],
-                                        private[this] val clientActor: ActorRef[ClientActor.FromIdentityResolver],
-                                        private[this] val identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
+                                        clientActor: ActorRef[ClientActor.FromIdentityResolver],
+                                        identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
                                         private[this] implicit val timeout: Timeout)
   extends AbstractBehavior[IdentityCacheManagerActor.Message](context) with Logging {
 
@@ -241,14 +241,14 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
   }
 }
 
-object IdentityCacheManagerActor {
+private[realtime] object IdentityCacheManagerActor {
 
-  def apply(clientActor: ActorRef[ClientActor.FromIdentityResolver],
+  private[realtime] def apply(clientActor: ActorRef[ClientActor.FromIdentityResolver],
             identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
             timeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new IdentityCacheManagerActor(context, clientActor, identityServiceActor, timeout))
 
-  case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
+  private final case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

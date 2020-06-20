@@ -20,13 +20,12 @@ import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain.DomainActor.Message
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
-import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.typesafe.config.ConfigFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 
 class DomainActorSpec
@@ -56,14 +55,6 @@ class DomainActorSpec
     val provider = new MockDomainPersistenceProvider(domainId)
     val persistenceManager = new MockDomainPersistenceManager(Map(domainId -> provider))
 
-    val protocolConfig: ProtocolConfiguration = ProtocolConfiguration(
-      2 seconds,
-      2 seconds,
-      HeartbeatConfiguration(
-        enabled = false,
-        0 seconds,
-        0 seconds))
-
     val shardRegion: TestProbe[Message] = testKit.createTestProbe[Message]()
     val shard: TestProbe[ClusterSharding.ShardCommand] = testKit.createTestProbe[ClusterSharding.ShardCommand]()
     val domainLifecycleTopic: TestProbe[DomainLifecycleTopic.TopicMessage] =
@@ -73,7 +64,6 @@ class DomainActorSpec
     private val behavior: Behavior[DomainActor.Message] = DomainActor(
       shardRegion.ref,
       shard.ref,
-      protocolConfig,
       persistenceManager,
       FiniteDuration(10, TimeUnit.SECONDS),
       domainLifecycleTopic.ref)

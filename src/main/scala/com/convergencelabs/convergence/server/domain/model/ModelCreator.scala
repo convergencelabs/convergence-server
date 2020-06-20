@@ -91,7 +91,7 @@ class ModelCreator {
         }
       } else {
         // TODO Eventually we need some sort of domain wide configuration to allow / disallow auto creation of
-        //  collections.
+        //  collections. see https://github.com/convergencelabs/convergence-project/issues/139
         if (true) {
           Success(())
         } else {

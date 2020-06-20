@@ -25,7 +25,7 @@ import org.json4s.reflect.Reflector
  * @param formats   The json4s formats object to use.
  * @tparam A The super type of the polymorphic class hierarchy o serialize.
  */
-class TypeMapSerializer[A: Manifest](typeField: String, typeMap: Map[Int, Class[_ <: A]], formats: Formats = DefaultFormats) extends Serializer[A] {
+private[realtime] class TypeMapSerializer[A: Manifest](typeField: String, typeMap: Map[Int, Class[_ <: A]], formats: Formats = DefaultFormats) extends Serializer[A] {
   private val Class = implicitly[Manifest[A]].runtimeClass
   private val reverseTypeMap = typeMap map (_.swap)
 

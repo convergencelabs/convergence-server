@@ -691,7 +691,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 }
 
 object ChatClientActor {
-  def apply(domain: DomainId,
+  private[realtime]  def apply(domain: DomainId,
             session: DomainUserSessionId,
             clientActor: ActorRef[ClientActor.SendServerMessage],
             chatShardRegion: ActorRef[ChatActor.Message],
@@ -709,13 +709,13 @@ object ChatClientActor {
   //
   // Messages from the client
   //
-  sealed trait IncomingMessage extends Message
+  private[realtime] sealed trait IncomingMessage extends Message
 
-  type IncomingRequestMessage = GeneratedMessage with RequestMessage with ChatMessage with ClientMessage
+  private[realtime] type IncomingRequestMessage = GeneratedMessage with RequestMessage with ChatMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
 
-  case class IncomingProtocolPermissionsRequest(message: GeneratedMessage with RequestMessage with PermissionsMessage with ClientMessage, replyCallback: ReplyCallback) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolPermissionsRequest(message: GeneratedMessage with RequestMessage with PermissionsMessage with ClientMessage, replyCallback: ReplyCallback) extends IncomingMessage
 
 
   //
@@ -725,22 +725,22 @@ object ChatClientActor {
     val chatId: String
   }
 
-  case class UserJoinedChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends OutgoingMessage
+  final case class UserJoinedChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends OutgoingMessage
 
-  case class UserLeftChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends OutgoingMessage
+  final case class UserLeftChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId) extends OutgoingMessage
 
-  case class UserAddedToChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, addedUserId: DomainUserId) extends OutgoingMessage
+  final case class UserAddedToChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, addedUserId: DomainUserId) extends OutgoingMessage
 
-  case class UserRemovedFromChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, removedUserId: DomainUserId) extends OutgoingMessage
+  final case class UserRemovedFromChat(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, removedUserId: DomainUserId) extends OutgoingMessage
 
-  case class ChatNameChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, name: String) extends OutgoingMessage
+  final case class ChatNameChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, name: String) extends OutgoingMessage
 
-  case class ChatTopicChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, topic: String) extends OutgoingMessage
+  final case class ChatTopicChanged(chatId: String, eventNumber: Long, timestamp: Instant, userId: DomainUserId, topic: String) extends OutgoingMessage
 
-  case class ChatRemoved(chatId: String) extends OutgoingMessage
+  final case class ChatRemoved(chatId: String) extends OutgoingMessage
 
-  case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, user: DomainUserId, message: String) extends OutgoingMessage
+  final case class RemoteChatMessage(chatId: String, eventNumber: Long, timestamp: Instant, user: DomainUserId, message: String) extends OutgoingMessage
 
-  case class EventsMarkedSeen(chatId: String, user: DomainUserId, eventNumber: Long) extends OutgoingMessage
+  final case class EventsMarkedSeen(chatId: String, user: DomainUserId, eventNumber: Long) extends OutgoingMessage
 
 }

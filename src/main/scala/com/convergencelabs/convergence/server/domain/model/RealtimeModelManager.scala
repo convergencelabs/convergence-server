@@ -637,7 +637,6 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   }
 
   private[this] def createResyncTimeout(session: DomainUserSessionId, clientActor: ActorRef[ModelClientActor.OutgoingMessage]): Cancellable = {
-    // FIXME use timers
     system.scheduler.scheduleOnce(resyncTimeout, ()=> {
       workQueue.schedule {
         warn("A timeout occurred waiting for the client to complete the resynchronization request")

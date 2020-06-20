@@ -19,23 +19,6 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
 /**
- * A sealed trait that represents the events that the heartbeat helper
- * can generate.
- */
-sealed trait HeartbeatEvent
-
-/**
- * Signifies that the a ping should be sent to the client.
- */
-case object PingRequest extends HeartbeatEvent
-
-/**
- * Signifies that a message was not received before the pong
- * timeout occurred.
- */
-case object PongTimeout extends HeartbeatEvent
-
-/**
  * A helper class that will generate and consume the ping-pong heartbeat
  * messages that keep the web socket open and detect disconnections.
  *
@@ -51,8 +34,10 @@ private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDu
                                         private[this] val pongTimeout: FiniteDuration,
                                         private[this] val scheduler: Scheduler,
                                         private[this] val ec: ExecutionContext,
-                                        private[this] val handler: PartialFunction[HeartbeatEvent, Unit])
+                                        private[this] val handler: PartialFunction[HeartbeatHelper.HeartbeatEvent, Unit])
   extends Logging {
+
+  import HeartbeatHelper._
 
   private[this] var pingFuture: Option[Cancellable] = None
   private[this] var timeoutFuture: Option[Cancellable] = None
@@ -144,4 +129,23 @@ private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDu
     stopPingTimer()
     pingFuture = Some(scheduler.scheduleOnce(pingInterval, () => sendPing())(ec))
   }
+}
+
+private[realtime] object HeartbeatHelper {
+  /**
+   * A sealed trait that represents the events that the heartbeat helper
+   * can generate.
+   */
+  sealed trait HeartbeatEvent
+
+  /**
+   * Signifies that the a ping should be sent to the client.
+   */
+  final case object PingRequest extends HeartbeatEvent
+
+  /**
+   * Signifies that a message was not received before the pong
+   * timeout occurred.
+   */
+  final case object PongTimeout extends HeartbeatEvent
 }

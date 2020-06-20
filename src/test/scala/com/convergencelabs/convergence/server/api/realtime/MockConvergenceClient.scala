@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.testkit
+package com.convergencelabs.convergence.server.api.realtime
 
 import java.net.URI
 import java.nio.ByteBuffer
@@ -17,7 +17,6 @@ import java.util.concurrent.LinkedBlockingDeque
 
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
-import com.convergencelabs.convergence.server.api.realtime.ConvergenceMessageBodyUtils
 import grizzled.slf4j.Logging
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.drafts.Draft_17

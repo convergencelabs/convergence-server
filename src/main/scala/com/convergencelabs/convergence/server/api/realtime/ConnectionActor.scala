@@ -27,42 +27,42 @@ import akka.actor.typed.{ActorRef, Behavior, Terminated}
  * the connection is completed.
  *
  */
-object ConnectionActor {
+private[realtime] object ConnectionActor {
 
   /**
    * @param clientActor The client actor this connection is owned by.
    */
-  def apply(clientActor: ActorRef[ClientActor.ConnectionMessage],
+  private[realtime] def apply(clientActor: ActorRef[ClientActor.ConnectionMessage],
             socketActor: Option[ActorRef[WebSocketService.WebSocketMessage]]): Behavior[Message] =
-      Behaviors.receive[Message] { (context, message: Message) =>
-        message match {
-          case IncomingBinaryMessage(data) =>
-            clientActor ! ClientActor.IncomingBinaryMessage(data)
-            Behaviors.same
+    Behaviors.receive[Message] { (context, message: Message) =>
+      message match {
+        case IncomingBinaryMessage(data) =>
+          clientActor ! ClientActor.IncomingBinaryMessage(data)
+          Behaviors.same
 
-          case OutgoingBinaryMessage(data) =>
-            socketActor.foreach(_ ! WebSocketService.OutgoingBinaryMessage(data))
-            Behaviors.same
+        case OutgoingBinaryMessage(data) =>
+          socketActor.foreach(_ ! WebSocketService.OutgoingBinaryMessage(data))
+          Behaviors.same
 
-          case WebSocketOpened(actor) =>
-            clientActor ! ClientActor.ConnectionOpened(context.self.narrow[ConnectionActor.ClientMessage])
-            ConnectionActor(clientActor, Some(actor))
+        case WebSocketOpened(actor) =>
+          clientActor ! ClientActor.ConnectionOpened(context.self.narrow[ConnectionActor.ClientMessage])
+          ConnectionActor(clientActor, Some(actor))
 
-          case WebSocketClosed =>
-            clientActor !  ClientActor.ConnectionClosed
-            Behaviors.stopped
+        case WebSocketClosed =>
+          clientActor ! ClientActor.ConnectionClosed
+          Behaviors.stopped
 
-          case WebSocketError(cause) =>
-            clientActor ! ClientActor.ConnectionError(cause)
-            Behaviors.stopped
+        case WebSocketError(cause) =>
+          clientActor ! ClientActor.ConnectionError(cause)
+          Behaviors.stopped
 
-          case CloseConnection =>
-            disconnect(socketActor)
-        }
-      }.receiveSignal {
-        case (_, Terminated(actor)) if actor == clientActor =>
+        case CloseConnection =>
           disconnect(socketActor)
       }
+    }.receiveSignal {
+      case (_, Terminated(actor)) if actor == clientActor =>
+        disconnect(socketActor)
+    }
 
   private[this] def disconnect(socketActor: Option[ActorRef[WebSocketService.WebSocketMessage]]): Behavior[Message] = {
     socketActor.foreach(_ ! WebSocketService.CloseSocket)
@@ -73,9 +73,9 @@ object ConnectionActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
-  sealed trait Message
+  private[realtime] sealed trait Message
 
-  sealed trait WebSocketMessage extends Message
+  private[realtime] sealed trait WebSocketMessage extends Message
 
   /**
    * Indicates that the connection should now be open and use he supplied
@@ -122,4 +122,5 @@ object ConnectionActor {
    * @param data The outgoing binary web socket message data.
    */
   private[realtime] case class OutgoingBinaryMessage(data: Array[Byte]) extends ClientMessage
+
 }

@@ -14,6 +14,8 @@ package com.convergencelabs.convergence.server.domain.model.ot.xform
 import com.convergencelabs.convergence.server.domain.model.ReferenceValue
 import com.convergencelabs.convergence.server.domain.model.ot.{CompoundOperation, DiscreteOperation, Operation, TransformationFunctionRegistry}
 
+import scala.util.control.Breaks._
+
 class ReferenceTransformer(private[this] val tfr: TransformationFunctionRegistry) {
 
   def transform(op: Operation, setReference: ReferenceValue): Option[ReferenceValue] = {
@@ -27,11 +29,16 @@ class ReferenceTransformer(private[this] val tfr: TransformationFunctionRegistry
 
   private[this] def transform(op: CompoundOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
     var result: Option[ReferenceValue] = Some(setReference)
-    // TODO this could be more efficient if we could break the loop the first time we
-    //   get none back.
-    op.operations.foreach { op =>
-      result = result.flatMap { reference => transform(op, reference) }
+
+    breakable {
+      op.operations.foreach { op =>
+        if (result.isEmpty) {
+          break()
+        }
+        result = result.flatMap { reference => transform(op, reference) }
+      }
     }
+
     result
   }
 

@@ -19,7 +19,7 @@ import com.convergencelabs.convergence.server.domain.model.data._
 import com.convergencelabs.convergence.server.domain.model.ot.OTFTestHarnessSpec._
 import org.json4s.JsonAST._
 import org.json4s.jackson.Serialization.read
-import org.json4s.{DefaultFormats, JArray, JBool, JInt, JString, jvalue2monadic}
+import org.json4s.{DefaultFormats, JArray, JBool, JInt, JString, JsonAST, jvalue2monadic}
 import org.scalatest.funspec.AnyFunSpec
 
 import scala.language.implicitConversions
@@ -107,7 +107,7 @@ class OTFTestHarnessSpec extends AnyFunSpec {
         ArrayReplaceOperation(valueId, noOp, index.intValue, mapToDataValue(value))
       case JObject(List((Type, JString("ArrayMove")), (NoOp, JBool(noOp)), ("fromIndex", JInt(fromIndex)), ("toIndex", JInt(toIndex)))) =>
         ArrayMoveOperation(valueId, noOp, fromIndex.intValue, toIndex.intValue)
-      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, value@JArray(values)))) =>
+      case JObject(List((Type, JString("ArraySet")), (NoOp, JBool(noOp)), (Value, JArray(values)))) =>
         ArraySetOperation(valueId, noOp, values.map { v => mapToDataValue(v) })
 
       case JObject(List((Type, JString("ObjectAddProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)), (Value, value))) =>
@@ -116,7 +116,7 @@ class OTFTestHarnessSpec extends AnyFunSpec {
         ObjectSetPropertyOperation(valueId, noOp, prop, mapToDataValue(value))
       case JObject(List((Type, JString("ObjectRemoveProperty")), (NoOp, JBool(noOp)), (Prop, JString(prop)))) =>
         ObjectRemovePropertyOperation(valueId, noOp, prop)
-      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, value@JObject(fields)))) =>
+      case JObject(List((Type, JString("ObjectSet")), (NoOp, JBool(noOp)), (Value, JObject(fields)))) =>
         ObjectSetOperation(valueId, noOp, fields.toMap.transform((_, v) => mapToDataValue(v)))
 
       case JObject(List((Type, JString("BooleanSet")), (NoOp, JBool(noOp)), (Value, JBool(value)))) =>
@@ -125,16 +125,23 @@ class OTFTestHarnessSpec extends AnyFunSpec {
       case JObject(List((Type, JString("DateSet")), (NoOp, JBool(noOp)), (Value, value))) =>
         DateSetOperation(valueId, noOp, Instant.ofEpochMilli(value.values.toString.toLong))
 
-      // FIXME this is a bit of a hack due to number types.
-      case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberAddOperation(valueId, noOp, value.values.toString.toDouble)
 
-      case JObject(List((Type, JString("NumberSet")), (NoOp, JBool(noOp)), (Value, value))) =>
-        NumberSetOperation(valueId, noOp, value.values.toString.toDouble)
+      case JObject(List((Type, JString("NumberAdd")), (NoOp, JBool(noOp)), (Value, value: JNumber))) =>
+        NumberAddOperation(valueId, noOp, jNumberToDouble(value))
+
+      case JObject(List((Type, JString("NumberSet")), (NoOp, JBool(noOp)), (Value, value: JNumber))) =>
+        NumberSetOperation(valueId, noOp, jNumberToDouble(value))
 
       case _ =>
         throw new IllegalArgumentException(s"Invalid operation definition: $obj")
     }
+  }
+
+  private def jNumberToDouble(num: JNumber): Double =  num  match {
+    case JDouble(num) => num.doubleValue
+    case JDecimal(num) => num.doubleValue
+    case JLong(num) => num.doubleValue
+    case JsonAST.JInt(num) => num.doubleValue
   }
 
   // scalastyle:on cyclomatic.complexity

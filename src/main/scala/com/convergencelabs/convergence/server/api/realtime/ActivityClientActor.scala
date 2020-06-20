@@ -171,7 +171,7 @@ class ActivityClientActor private(context: ActorContext[Message],
 }
 
 object ActivityClientActor {
-  def apply(domain: DomainId,
+  private[realtime] def apply(domain: DomainId,
             session: DomainUserSessionId,
             clientActor: ActorRef[ClientActor.SendServerMessage],
             activityServiceActor: ActorRef[ActivityActor.Message],
@@ -188,15 +188,15 @@ object ActivityClientActor {
   //
   // Messages from the client
   //
-  sealed trait IncomingMessage extends Message
+  private[realtime] sealed trait IncomingMessage extends Message
 
-  type IncomingNormalMessage = GeneratedMessage with NormalMessage with ActivityMessage with ClientMessage
+  private[realtime] type IncomingNormalMessage = GeneratedMessage with NormalMessage with ActivityMessage with ClientMessage
 
-  case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
 
-  type IncomingRequestMessage = GeneratedMessage with RequestMessage with ActivityMessage with ClientMessage
+  private[realtime] type IncomingRequestMessage = GeneratedMessage with RequestMessage with ActivityMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
 
 
   //
@@ -204,11 +204,11 @@ object ActivityClientActor {
   //
   sealed trait OutgoingMessage extends Message with CborSerializable
 
-  case class ActivitySessionJoined(activityId: String, sessionId: String, state: Map[String, JValue]) extends OutgoingMessage
+  final case class ActivitySessionJoined(activityId: String, sessionId: String, state: Map[String, JValue]) extends OutgoingMessage
 
-  case class ActivitySessionLeft(activityId: String, sessionId: String) extends OutgoingMessage
+  final case class ActivitySessionLeft(activityId: String, sessionId: String) extends OutgoingMessage
 
-  case class ActivityStateUpdated(activityId: String,
+  final case class ActivityStateUpdated(activityId: String,
                                   sessionId: String,
                                   state: Map[String, JValue],
                                   complete: Boolean,

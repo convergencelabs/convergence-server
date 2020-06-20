@@ -894,7 +894,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 }
 
 object ModelClientActor {
-  def apply(domain: DomainId,
+  private[realtime] def apply(domain: DomainId,
             session: DomainUserSessionId,
             clientActor: ActorRef[ClientActor.SendToClient],
             modelStoreActor: ActorRef[ModelStoreActor.Message],
@@ -907,7 +907,7 @@ object ModelClientActor {
       }
     }
 
-  private case object SyncTaskTimer
+  private final case object SyncTaskTimer
 
   private def modelNotFoundError(cb: ReplyCallback, id: String): Unit = {
     val details = Map("id" -> JString(id))
@@ -944,11 +944,11 @@ object ModelClientActor {
     cb.expectedError(ErrorCodes.ModelDeleted, message, details)
   }
 
-  private case object SyncOfflineModels extends Message
+  private final case object SyncOfflineModels extends Message
 
-  private case class OfflineModelState(currentVersion: Long, currentPermissions: ModelPermissions)
+  private final case class OfflineModelState(currentVersion: Long, currentPermissions: ModelPermissions)
 
-  private case class UpdateOfflineModel(modelId: String, action: ModelStoreActor.ModelUpdateResult) extends Message
+  private final case class UpdateOfflineModel(modelId: String, action: ModelStoreActor.ModelUpdateResult) extends Message
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -960,15 +960,15 @@ object ModelClientActor {
   //
   // Messages from the client
   //
-  sealed trait IncomingMessage extends Message
+  private[realtime] sealed trait IncomingMessage extends Message
 
-  type IncomingNormalMessage = GeneratedMessage with NormalMessage with ModelMessage with ClientMessage
+  private[realtime] type IncomingNormalMessage = GeneratedMessage with NormalMessage with ModelMessage with ClientMessage
 
-  case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolMessage(message: IncomingNormalMessage) extends IncomingMessage
 
-  type IncomingRequestMessage = GeneratedMessage with RequestMessage with ModelMessage with ClientMessage
+  private[realtime] type IncomingRequestMessage = GeneratedMessage with RequestMessage with ModelMessage with ClientMessage
 
-  case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
+  private[realtime] final case class IncomingProtocolRequest(message: IncomingRequestMessage, replyCallback: ReplyCallback) extends IncomingMessage
 
 
   //
@@ -979,25 +979,25 @@ object ModelClientActor {
   }
 
 
-  case class ServerError(modelId: String, expectedError: ExpectedError) extends OutgoingMessage
+  final case class ServerError(modelId: String, expectedError: ExpectedError) extends OutgoingMessage
 
-  case class OperationAcknowledgement(modelId: String, seqNo: Int, contextVersion: Long, timestamp: Instant) extends OutgoingMessage
+  final case class OperationAcknowledgement(modelId: String, seqNo: Int, contextVersion: Long, timestamp: Instant) extends OutgoingMessage
 
-  case class OutgoingOperation(modelId: String,
+  final case class OutgoingOperation(modelId: String,
                                session: DomainUserSessionId,
                                contextVersion: Long,
                                timestamp: Instant,
                                operation: Operation) extends OutgoingMessage
 
-  case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
 
-  case class RemoteClientOpened(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientOpened(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
 
-  case class RemoteClientResyncStarted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientResyncStarted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
 
-  case class RemoteClientResyncCompleted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientResyncCompleted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
 
-  case class ModelResyncServerComplete(modelId: String,
+  final case class ModelResyncServerComplete(modelId: String,
                                        connectedClients: Set[DomainUserSessionId],
                                        resyncingClients: Set[DomainUserSessionId],
                                        references: Set[ReferenceState]) extends OutgoingMessage
@@ -1006,23 +1006,23 @@ object ModelClientActor {
     val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
   }
 
-  case class ModelForceClose(modelId: String, reason: String, reasonCode: ForceModelCloseReasonCode.Value) extends OutgoingMessage
+  final case class ModelForceClose(modelId: String, reason: String, reasonCode: ForceModelCloseReasonCode.Value) extends OutgoingMessage
 
-  case class ModelPermissionsChanged(modelId: String, permissions: ModelPermissions) extends OutgoingMessage
+  final case class ModelPermissionsChanged(modelId: String, permissions: ModelPermissions) extends OutgoingMessage
 
-  case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Int, replyTo: ActorRef[ClientAutoCreateModelConfigResponse]) extends OutgoingMessage
+  final case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Int, replyTo: ActorRef[ClientAutoCreateModelConfigResponse]) extends OutgoingMessage
 
   sealed trait ClientAutoCreateModelConfigError
 
-  case class ClientAutoCreateModelConfigTimeout() extends ClientAutoCreateModelConfigError
+  final case class ClientAutoCreateModelConfigTimeout() extends ClientAutoCreateModelConfigError
 
-  case class ClientAutoCreateModelConfigInvalid() extends ClientAutoCreateModelConfigError
+  final case class ClientAutoCreateModelConfigInvalid() extends ClientAutoCreateModelConfigError
 
-  case class UnknownError() extends ClientAutoCreateModelConfigError
+  final case class UnknownError() extends ClientAutoCreateModelConfigError
 
-  case class ClientAutoCreateModelConfigResponse(config: Either[ClientAutoCreateModelConfigError, ClientAutoCreateModelConfig])
+  final case class ClientAutoCreateModelConfigResponse(config: Either[ClientAutoCreateModelConfigError, ClientAutoCreateModelConfig])
 
-  case class ClientAutoCreateModelConfig(collectionId: String,
+  final case class ClientAutoCreateModelConfig(collectionId: String,
                                          modelData: Option[ObjectValue],
                                          overridePermissions: Option[Boolean],
                                          worldPermissions: Option[ModelPermissions],
@@ -1031,15 +1031,15 @@ object ModelClientActor {
 
   sealed trait RemoteReferenceEvent extends OutgoingMessage
 
-  case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
+  final case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
                                    referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
 
-  case class RemoteReferenceSet(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
+  final case class RemoteReferenceSet(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
                                 referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
 
-  case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
+  final case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
 
-  case class RemoteReferenceUnshared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
+  final case class RemoteReferenceUnshared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
 
 }
 

@@ -162,7 +162,7 @@ private[realtime] class WebSocketService(protocolConfig: ProtocolConfiguration,
   }
 }
 
-object WebSocketService {
+private[realtime] object WebSocketService {
 
   sealed trait WebSocketMessage
 

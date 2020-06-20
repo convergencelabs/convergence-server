@@ -121,22 +121,24 @@ class RealtimeModelPersistenceStream(private[this] val handler: PersistenceEvent
   }
 
   private[this] def onExecuteSnapshot(): Unit = {
-    Try {
-      // FIXME: Handle Failure from try and None from option.
-      val modelData = modelStore.getModel(this.modelId).get.get
-      val snapshotMetaData = ModelSnapshotMetaData(
-        modelId,
-        modelData.metaData.version,
-        modelData.metaData.modifiedTime)
+    (for {
+      maybeModel <- modelStore.getModel(this.modelId)
+      modelData <- maybeModel.map(Success(_))
+        .getOrElse(Failure(new IllegalStateException("The model was not found when taking a snapshot")))
+      snapshotMetaData <- Try {
+        val snapshotMetaData = ModelSnapshotMetaData(
+          modelId,
+          modelData.metaData.version,
+          modelData.metaData.modifiedTime)
 
-      val snapshot = ModelSnapshot(snapshotMetaData, modelData.data)
-      modelSnapshotStore.createSnapshot(snapshot)
-      snapshotMetaData
-    } map { snapshotMetaData =>
+        val snapshot = ModelSnapshot(snapshotMetaData, modelData.data)
+        modelSnapshotStore.createSnapshot(snapshot)
+        snapshotMetaData
+      }
+    } yield {
       logger.debug(s"$domainId/$modelId: Snapshot successfully taken for model " +
         s"at version: ${snapshotMetaData.version}, timestamp: ${snapshotMetaData.timestamp}")
-    } recover {
-
+    }).recover {
       case cause: Throwable =>
         logger.error(s"$domainId/$modelId: Error taking snapshot of model.", cause)
     }
@@ -144,11 +146,11 @@ class RealtimeModelPersistenceStream(private[this] val handler: PersistenceEvent
 }
 
 class RealtimeModelPersistenceStreamFactory(private[this] val domainFqn: DomainId,
-                                             private[this] val modelId: String,
-                                             private[this] implicit val system: ActorSystem,
-                                             private[this] val modelStore: ModelStore,
-                                             private[this] val modelSnapshotStore: ModelSnapshotStore,
-                                             private[this] val modelOperationProcessor: ModelOperationProcessor)
+                                            private[this] val modelId: String,
+                                            private[this] implicit val system: ActorSystem,
+                                            private[this] val modelStore: ModelStore,
+                                            private[this] val modelSnapshotStore: ModelSnapshotStore,
+                                            private[this] val modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistenceFactory {
 
   def create(handler: PersistenceEventHandler): RealtimeModelPersistence = {

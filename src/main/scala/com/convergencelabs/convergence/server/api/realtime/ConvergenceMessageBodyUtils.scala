@@ -24,7 +24,7 @@ import scalapb.GeneratedMessage
  * A helper class that wraps and unwraps the ConvergenceMessage Body
  * which is the container for all protocol messages.
  */
-object ConvergenceMessageBodyUtils {
+private[realtime] object ConvergenceMessageBodyUtils {
   /**
    * Extracts the protocol buffer messages from the ConvergenceMessage
    * Body.
