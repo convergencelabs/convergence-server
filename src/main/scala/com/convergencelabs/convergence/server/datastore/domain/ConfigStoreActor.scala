@@ -98,6 +98,13 @@ object ConfigStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GetAnonymousAuthRequest], name = "get_anonymous_auth"),
+    new JsonSubTypes.Type(value = classOf[GetModelSnapshotPolicyRequest], name = "get_model_snapshot_config"),
+    new JsonSubTypes.Type(value = classOf[SetAnonymousAuthRequest], name = "set_anonymous_auth"),
+    new JsonSubTypes.Type(value = classOf[SetModelSnapshotPolicyRequest], name = "set_model_snapshot_config"),
+  ))
   sealed trait Message extends CborSerializable
 
   //

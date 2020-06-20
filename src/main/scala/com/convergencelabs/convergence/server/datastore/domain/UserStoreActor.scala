@@ -165,6 +165,15 @@ object UserStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[CreateUserRequest], name = "add_user"),
+    new JsonSubTypes.Type(value = classOf[DeleteUserRequest], name = "delete_user"),
+    new JsonSubTypes.Type(value = classOf[GetUserRequest], name = "get_user"),
+    new JsonSubTypes.Type(value = classOf[GetUsersRequest], name = "get_users"),
+    new JsonSubTypes.Type(value = classOf[SetPasswordRequest], name = "set_password"),
+    new JsonSubTypes.Type(value = classOf[UpdateUserRequest], name = "update_user")
+  ))
   sealed trait Message extends CborSerializable
 
   //

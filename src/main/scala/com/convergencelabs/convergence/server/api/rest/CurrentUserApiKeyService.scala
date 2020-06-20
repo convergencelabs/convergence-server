@@ -101,7 +101,7 @@ private[rest] class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Mess
         },
         {
           case UserApiKey(_, name, keyId, enabled, lastUsed) =>
-          okResponse(UserApiKeyData(name, keyId, enabled, lastUsed))
+            okResponse(UserApiKeyData(name, keyId, enabled, lastUsed))
         })
       )
   }
@@ -116,10 +116,8 @@ private[rest] class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Mess
           case UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          CreatedResponse
-        })
-      )
+        _ => CreatedResponse
+      ))
   }
 
   private[this] def updateApiKey(authProfile: AuthorizationProfile, keyId: String, updateData: UpdateKeyData): Future[RestResponse] = {
@@ -132,10 +130,8 @@ private[rest] class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Mess
           case UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          DeletedResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def deleteApiKey(authProfile: AuthorizationProfile, keyId: String): Future[RestResponse] = {
@@ -148,10 +144,8 @@ private[rest] class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Mess
           case UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          DeletedResponse
-        })
-      )
+        _ => DeletedResponse
+      ))
   }
 }
 

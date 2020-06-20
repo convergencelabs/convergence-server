@@ -43,13 +43,12 @@ private[rest] class KeyGenService(executionContext: ExecutionContext) extends Js
 
   private[this] def createKey(): Future[RestResponse] = {
     Future {
-      JwtUtil.createKey().flatMap { rsaJsonWebKey =>
-        for {
-          publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
-          privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
-        } yield {
-          okResponse(CreateTokenResponse(publicKey, privateKey))
-        }
+      for {
+        rsaJsonWebKey <- JwtUtil.createKey()
+        publicKey <- JwtUtil.getPublicCertificatePEM(rsaJsonWebKey)
+        privateKey <- JwtUtil.getPrivateKeyPEM(rsaJsonWebKey)
+      } yield {
+        okResponse(CreateTokenResponse(publicKey, privateKey))
       }
     }.flatMap {
       case Success(s) => Future.successful(s)

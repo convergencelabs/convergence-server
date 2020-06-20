@@ -100,9 +100,8 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { namespace =>
-          okResponse(namespace)
-        })
+         namespace =>okResponse(namespace)
+        )
       )
   }
 

@@ -69,6 +69,10 @@ object DomainStatsActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GetStatsRequest], name = "get_stats")
+  ))
   sealed trait Message extends CborSerializable
 
   //

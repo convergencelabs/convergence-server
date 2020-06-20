@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.domain
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.domain.{AuthenticationHandler, DomainId}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
@@ -155,9 +156,7 @@ object DomainRestActor {
     def domainId: DomainId
   }
 
-  sealed trait DomainMessage
-
-  object DomainRestMessage {
+  final object DomainRestMessage {
 
     def apply(domainId: DomainId, msg: DomainMessage): DomainRestMessage = {
       DomainRestMessage(domainId, DomainRestMessageBody.Domain(msg))
@@ -212,6 +211,12 @@ object DomainRestActor {
   //
   // AdminToken
   //
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[AdminTokenRequest], name = "admin_token")
+  ))
+  sealed trait DomainMessage
 
   final case class AdminTokenRequest(convergenceUsername: String, replyTo: ActorRef[AdminTokenResponse]) extends DomainMessage
 

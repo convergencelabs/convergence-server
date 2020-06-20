@@ -147,7 +147,7 @@ class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
           case UnknownError() =>
             InternalServerError
         },
-        _ => okResponse(toUserData(_))
+        user => okResponse(toUserData(user))
       ))
   }
 

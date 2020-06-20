@@ -204,6 +204,18 @@ object ModelPermissionsStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GetAllModelUserPermissionsRequest], name = "get_all_user_permissions"),
+    new JsonSubTypes.Type(value = classOf[GetModelOverridesPermissionsRequest], name = "get_model_overrides_collection"),
+    new JsonSubTypes.Type(value = classOf[GetModelPermissionsRequest], name = "get_permissions"),
+    new JsonSubTypes.Type(value = classOf[GetModelUserPermissionsRequest], name = "get_user_permissions"),
+    new JsonSubTypes.Type(value = classOf[GetModelWorldPermissionsRequest], name = "get_world_permissions"),
+    new JsonSubTypes.Type(value = classOf[RemoveModelUserPermissionsRequest], name = "remove_user_permissions"),
+    new JsonSubTypes.Type(value = classOf[SetModelOverridesPermissionsRequest], name = "set_override_collection"),
+    new JsonSubTypes.Type(value = classOf[SetModelUserPermissionsRequest], name = "set_user_permissions"),
+    new JsonSubTypes.Type(value = classOf[SetModelWorldPermissionsRequest], name = "set_world_permissions")
+  ))
   sealed trait Message extends CborSerializable
 
   //

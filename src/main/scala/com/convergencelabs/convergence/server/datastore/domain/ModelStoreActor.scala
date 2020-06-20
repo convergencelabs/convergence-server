@@ -151,6 +151,13 @@ object ModelStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GetModelsRequest], name = "get_models"),
+    new JsonSubTypes.Type(value = classOf[GetModelUpdateRequest], name = "get_model_update"),
+    new JsonSubTypes.Type(value = classOf[GetModelsInCollectionRequest], name = "get_models_in_collection"),
+    new JsonSubTypes.Type(value = classOf[QueryModelsRequest], name = "query_models"),
+  ))
   sealed trait Message extends CborSerializable
 
   //
@@ -204,10 +211,10 @@ object ModelStoreActor {
   // GetModelUpdate
   //
   final case class GetModelUpdateRequest(modelId: String,
-                                   currentVersion: Long,
-                                   currentPermissions: ModelPermissions,
-                                   userId: DomainUserId,
-                                   replyTo: ActorRef[GetModelUpdateResponse]) extends Message
+                                         currentVersion: Long,
+                                         currentPermissions: ModelPermissions,
+                                         userId: DomainUserId,
+                                         replyTo: ActorRef[GetModelUpdateResponse]) extends Message
 
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

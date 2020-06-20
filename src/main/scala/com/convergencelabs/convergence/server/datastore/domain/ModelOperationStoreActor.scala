@@ -55,6 +55,10 @@ object ModelOperationStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GetOperationsRequest], name = "get_ops")
+  ))
   sealed trait Message extends CborSerializable
 
   //

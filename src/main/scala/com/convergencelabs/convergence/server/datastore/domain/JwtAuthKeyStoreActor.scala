@@ -122,6 +122,14 @@ object JwtAuthKeyStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DeleteJwtAuthKeyRequest], name = "delete_key"),
+    new JsonSubTypes.Type(value = classOf[CreateJwtAuthKeyRequest], name = "create_key"),
+    new JsonSubTypes.Type(value = classOf[GetJwtAuthKeyRequest], name = "get_key"),
+    new JsonSubTypes.Type(value = classOf[GetJwtAuthKeysRequest], name = "get_keys"),
+    new JsonSubTypes.Type(value = classOf[UpdateJwtAuthKeyRequest], name = "update_key")
+  ))
   sealed trait Message extends CborSerializable
 
   //

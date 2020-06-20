@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 

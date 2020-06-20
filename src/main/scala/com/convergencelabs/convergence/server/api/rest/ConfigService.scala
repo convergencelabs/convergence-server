@@ -69,10 +69,8 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { configs =>
-          okResponse(configs)
-        })
-      )
+        configs => okResponse(configs)
+      ))
   }
 
   private[this] def handleGetAppConfigs(): Future[RestResponse] = {
@@ -84,10 +82,8 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { configs =>
-          okResponse(configs)
-        })
-      )
+        configs => okResponse(configs)
+      ))
   }
 
   private[this] def handleSetConfigs(configs: Map[String, Any]): Future[RestResponse] = {
@@ -97,10 +93,8 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { configs =>
-          okResponse(configs)
-        })
-      )
+        configs => okResponse(configs)
+      ))
   }
 
   private[this] def canManageSettings(authProfile: AuthorizationProfile): Boolean = {

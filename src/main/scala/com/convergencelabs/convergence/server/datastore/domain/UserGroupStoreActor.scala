@@ -177,6 +177,20 @@ object UserGroupStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[AddUserToGroupRequest], name = "add_user"),
+    new JsonSubTypes.Type(value = classOf[CreateUserGroupRequest], name = "create_group"),
+    new JsonSubTypes.Type(value = classOf[DeleteUserGroupRequest], name = "delete_group"),
+    new JsonSubTypes.Type(value = classOf[GetUserGroupInfoRequest], name = "get_group_info"),
+    new JsonSubTypes.Type(value = classOf[GetUserGroupRequest], name = "get_group"),
+    new JsonSubTypes.Type(value = classOf[GetUserGroupSummariesRequest], name = "get_group_summaries"),
+    new JsonSubTypes.Type(value = classOf[GetUserGroupSummaryRequest], name = "get_group_summary"),
+    new JsonSubTypes.Type(value = classOf[GetUserGroupsRequest], name = "get_groups"),
+    new JsonSubTypes.Type(value = classOf[RemoveUserFromGroupRequest], name = "remove_user"),
+    new JsonSubTypes.Type(value = classOf[UpdateUserGroupInfoRequest], name = "update_group_info"),
+    new JsonSubTypes.Type(value = classOf[UpdateUserGroupRequest], name = "update_group")
+  ))
   sealed trait Message extends CborSerializable
 
   //

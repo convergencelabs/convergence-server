@@ -67,6 +67,12 @@ object SessionStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[GetSessionRequest], name = "get_session"),
+    new JsonSubTypes.Type(value = classOf[GetSessionsRequest], name = "get_sessions")
+  ))
   sealed trait Message extends CborSerializable
 
   //

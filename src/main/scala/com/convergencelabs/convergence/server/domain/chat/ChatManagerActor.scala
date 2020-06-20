@@ -233,6 +233,16 @@ object ChatManagerActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ChatsExistsRequest], name = "chats_exist"),
+    new JsonSubTypes.Type(value = classOf[ChatsSearchRequest], name = "search"),
+    new JsonSubTypes.Type(value = classOf[CreateChatRequest], name = "create_chat"),
+    new JsonSubTypes.Type(value = classOf[GetChatInfoRequest], name = "get_chat_info"),
+    new JsonSubTypes.Type(value = classOf[GetChatsRequest], name = "get_chats"),
+    new JsonSubTypes.Type(value = classOf[GetDirectChatsRequest], name = "get_direct"),
+    new JsonSubTypes.Type(value = classOf[GetJoinedChatsRequest], name = "get_joined"),
+  ))
   sealed trait Message extends CborSerializable
 
   //

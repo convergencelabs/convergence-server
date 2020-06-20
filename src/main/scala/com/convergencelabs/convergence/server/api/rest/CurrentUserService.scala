@@ -86,10 +86,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
           case UserStoreActor.UnknownError() =>
             InternalServerError
         },
-        { token =>
-          okResponse(token)
-        })
-      )
+        token => okResponse(token)
+      ))
   }
 
   private[this] def regenerateBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
@@ -103,10 +101,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
           case UserStoreActor.UnknownError() =>
             InternalServerError
         },
-        { token =>
-          okResponse(token)
-        })
-      )
+        token => okResponse(token)
+      ))
   }
 
   private[this] def setPassword(authProfile: AuthorizationProfile, request: PasswordSetRequest): Future[RestResponse] = {
@@ -121,10 +117,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
           case UserStoreActor.UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          OkResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
@@ -157,10 +151,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
           case UserStoreActor.UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          OkResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def getFavoriteDomains(authProfile: AuthorizationProfile): Future[RestResponse] = {
@@ -195,10 +187,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
           case UserFavoriteDomainStoreActor.UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          OkResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def removeFavoriteDomain(authProfile: AuthorizationProfile, namespace: String, domain: String): Future[RestResponse] = {
@@ -212,10 +202,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
           case UserFavoriteDomainStoreActor.UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          OkResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def userNotFound() =

@@ -77,7 +77,7 @@ class ConvergenceDevServer() extends Logging {
   private[this] val seed: ActorSystem[Unit] = ActorSystem(
     Behaviors.ignore[Unit],
     ActorSystemName,
-    createConfig(ConfigFile, 2551, List("seed")))
+    createConfig(ConfigFile, 25520, List("seed")))
 
 
   /**
@@ -86,7 +86,7 @@ class ConvergenceDevServer() extends Logging {
   private[this] val backend: ActorSystem[Message] = ActorSystem(
     ConvergenceServerActor(),
     ActorSystemName,
-    createConfig(ConfigFile, 2552, List(ServerClusterRoles.Backend)))
+    createConfig(ConfigFile, 25521, List(ServerClusterRoles.Backend)))
 
   /**
    * This [[ConvergenceServer]] instance  will run the Rest API and the
@@ -95,7 +95,7 @@ class ConvergenceDevServer() extends Logging {
   private[this] val frontend: ActorSystem[Message] = ActorSystem(
     ConvergenceServerActor(),
     ActorSystemName,
-    createConfig(ConfigFile, 2553, List(ServerClusterRoles.RealtimeApi, ServerClusterRoles.RestApi)))
+    createConfig(ConfigFile, 25522, List(ServerClusterRoles.RealtimeApi, ServerClusterRoles.RestApi)))
 
   /**
    * An embedded instance of OrientDB that will be run in process in this JVM

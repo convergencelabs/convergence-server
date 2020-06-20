@@ -19,16 +19,23 @@ import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedAc
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor.Message
-import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 
 import scala.util.{Success, Try}
 
-class ActivityActor(context: ActorContext[Message],
-                    shardRegion: ActorRef[Message],
-                    shard: ActorRef[ClusterSharding.ShardCommand])
-  extends ShardedActor[Message](context, shardRegion, shard)
-    with Logging {
+/**
+ * The [[ActivityActor]] represents a single activity in the system. Activities
+ * are generally used for sharing collaborative cues and presence in sub
+ * sections of a collaborative application.
+ *
+ * @param context     The ActorContext this actor is created in.
+ * @param shardRegion The shard region ActivityActors are created in.
+ * @param shard       The specific shard this actor resides in.
+ */
+class ActivityActor private(context: ActorContext[Message],
+                            shardRegion: ActorRef[Message],
+                            shard: ActorRef[ClusterSharding.ShardCommand])
+  extends ShardedActor[Message](context, shardRegion, shard) {
 
   import ActivityActor._
 
@@ -190,54 +197,54 @@ object ActivityActor {
   //
   // Join
   //
-  case class JoinRequest(domain: DomainId,
-                         activityId: String,
-                         sessionId: String,
-                         state: Map[String, JValue],
-                         client: ActorRef[OutgoingMessage],
-                         replyTo: ActorRef[JoinResponse]) extends Message
+  final case class JoinRequest(domain: DomainId,
+                               activityId: String,
+                               sessionId: String,
+                               state: Map[String, JValue],
+                               client: ActorRef[OutgoingMessage],
+                               replyTo: ActorRef[JoinResponse]) extends Message
 
   sealed trait JoinError
 
-  case class AlreadyJoined() extends JoinError
+  final case class AlreadyJoined() extends JoinError
 
-  case class JoinResponse(response: Either[JoinError, Joined]) extends CborSerializable
+  final case class JoinResponse(response: Either[JoinError, Joined]) extends CborSerializable
 
-  case class Joined(state: Map[String, Map[String, JValue]])
+  final case class Joined(state: Map[String, Map[String, JValue]])
 
 
   //
   // Leave
   //
-  case class LeaveRequest(domain: DomainId,
-                          activityId: String,
-                          sessionId: String,
-                          replyTo: ActorRef[LeaveResponse]) extends Message
+  final case class LeaveRequest(domain: DomainId,
+                                activityId: String,
+                                sessionId: String,
+                                replyTo: ActorRef[LeaveResponse]) extends Message
 
   sealed trait LeaveError
 
-  case class NotJoinedError() extends LeaveError
+  final case class NotJoinedError() extends LeaveError
 
-  case class LeaveResponse(response: Either[LeaveError, Ok]) extends CborSerializable
+  final case class LeaveResponse(response: Either[LeaveError, Ok]) extends CborSerializable
 
 
   //
   // Update State
   //
-  case class UpdateState(domain: DomainId,
-                         activityId: String,
-                         sessionId: String,
-                         state: Map[String, JValue],
-                         complete: Boolean,
-                         removed: List[String]) extends Message
+  final case class UpdateState(domain: DomainId,
+                               activityId: String,
+                               sessionId: String,
+                               state: Map[String, JValue],
+                               complete: Boolean,
+                               removed: List[String]) extends Message
 
   //
   // GetParticipants
   //
-  case class GetParticipantsRequest(domain: DomainId,
-                                    activityId: String,
-                                    replyTo: ActorRef[GetParticipantsResponse]) extends Message
+  final case class GetParticipantsRequest(domain: DomainId,
+                                          activityId: String,
+                                          replyTo: ActorRef[GetParticipantsResponse]) extends Message
 
-  case class GetParticipantsResponse(state: Map[String, Map[String, JValue]]) extends CborSerializable
+  final case class GetParticipantsResponse(state: Map[String, Map[String, JValue]]) extends CborSerializable
 
 }

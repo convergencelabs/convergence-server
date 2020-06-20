@@ -50,7 +50,7 @@ package object rest {
   val OkResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val NotFoundResponse: RestResponse = (StatusCodes.NotFound, ErrorResponse("not_found", None))
   val CreatedResponse: RestResponse = (StatusCodes.Created, SuccessRestResponse())
-  val DeletedResponse: RestResponse = (StatusCodes.Gone, SuccessRestResponse())
+  val DeletedResponse: RestResponse = (StatusCodes.OK, SuccessRestResponse())
   val InternalServerError: RestResponse = (StatusCodes.InternalServerError, ErrorResponse("internal_server_error"))
   val AuthFailureError: RestResponse = (StatusCodes.Unauthorized, ErrorResponse("unauthorized"))
   val ForbiddenError: RestResponse = (StatusCodes.Forbidden, ErrorResponse("forbidden"))

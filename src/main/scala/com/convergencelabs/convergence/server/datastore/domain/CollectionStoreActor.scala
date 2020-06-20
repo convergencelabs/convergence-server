@@ -144,6 +144,14 @@ object CollectionStoreActor {
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[CreateCollectionRequest], name = "create_collections"),
+    new JsonSubTypes.Type(value = classOf[DeleteCollectionRequest], name = "delete_collections"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionsRequest], name = "get_collections"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionSummariesRequest], name = "get_collection_summaries"),
+    new JsonSubTypes.Type(value = classOf[UpdateCollectionRequest], name = "update_collection")
+  ))
   sealed trait Message extends CborSerializable
 
   //

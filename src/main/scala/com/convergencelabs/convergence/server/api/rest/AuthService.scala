@@ -101,12 +101,13 @@ class AuthService(authActor: ActorRef[AuthenticationActor.Message],
   private[this] def logout(req: LogoutRequestData): Future[RestResponse] = {
     val LogoutRequestData(token) = req
     authActor.ask[AuthenticationActor.InvalidateSessionTokenResponse](AuthenticationActor.InvalidateSessionTokenRequest(token, _))
-      .map(_.response.fold({
-        case AuthenticationActor.UnknownError() =>
-          InternalServerError
-      }, { _ =>
-        OkResponse
-      }))
+      .map(_.response.fold(
+        {
+          case AuthenticationActor.UnknownError() =>
+            InternalServerError
+        },
+        _ => OkResponse
+      ))
   }
 }
 
