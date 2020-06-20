@@ -54,7 +54,7 @@ By default, when the Convergence Dev Server successfully starts, it will provide
 ### Running the Convergence Dev Server
 The Convergence Dev Server can be run from your IDE of choice by executing the following main class:
 ```
-com.convergencelabs.server.testkit.ConvergenceDevServer
+com.convergencelabs.server.dev.ConvergenceDevServer
 ```
 
 ### Persistent Data
