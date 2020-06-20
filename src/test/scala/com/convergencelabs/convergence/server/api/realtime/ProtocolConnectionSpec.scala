@@ -16,7 +16,7 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model._
-import com.convergencelabs.convergence.server.api.realtime.ClientActor.SendUnprocessedMessage
+import com.convergencelabs.convergence.server.api.realtime.ClientActor.{PongTimeout, SendUnprocessedMessage}
 import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.OutgoingBinaryMessage
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, RequestReceived}
 import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
@@ -241,39 +241,51 @@ class ProtocolConnectionSpec
 
     "set to ping" must {
       "ping within the specified interval" in {
-        // FIXME this test doesn't do anything.
-//        val clientActor = testKit.createTestProbe[ClientActor.Message]()
-//        val connectionActor = testKit.createTestProbe[ConnectionActor.Message]()
-//
-//        val protoConfig = ProtocolConfiguration(
-//          100 millis,
-//          100 millis,
-//          HeartbeatConfiguration(
-//            enabled = true,
-//            10 millis,
-//            10 seconds))
-//
-//        val OutgoingBinaryMessage(replyMessage) = connectionActor.expectMessageType[OutgoingBinaryMessage](100 millis)
-//        val convergenceMessage = ConvergenceMessage.parseFrom(replyMessage)
-//
-//        val expected = ConvergenceMessage().withPing(PingMessage())
-//        convergenceMessage shouldBe expected
+        val clientActor = testKit.createTestProbe[ClientActor.Message]()
+        val connectionActor = testKit.createTestProbe[ConnectionActor.Message]()
+
+        val protoConfig = ProtocolConfiguration(
+          100 millis,
+          100 millis,
+          HeartbeatConfiguration(
+            enabled = true,
+            10 millis,
+            10 seconds))
+
+        new ProtocolConnection(
+          clientActor.ref,
+          connectionActor.ref,
+          protoConfig,
+          system.scheduler,
+          system.executionContext)
+
+        val OutgoingBinaryMessage(outgoing) = connectionActor.expectMessageType[OutgoingBinaryMessage](1000 millis)
+        val convergenceMessage = ConvergenceMessage.parseFrom(outgoing)
+
+        val expected = ConvergenceMessage().withPing(PingMessage())
+        convergenceMessage shouldBe expected
       }
 
       "timeout within the specified interval" in {
-        // FIXME this test doesn't do anything.
-//        val clientActor = testKit.createTestProbe[ClientActor.Message]()
-//        val connectionActor = testKit.createTestProbe[ConnectionActor.Message]()
-//
-//        val protoConfig = ProtocolConfiguration(
-//          100 millis,
-//          100 millis,
-//          HeartbeatConfiguration(
-//            enabled = true,
-//            10 millis,
-//            10 millis))
-//
-//        clientActor.expectMessage(PongTimeout)
+        val clientActor = testKit.createTestProbe[ClientActor.Message]()
+        val connectionActor = testKit.createTestProbe[ConnectionActor.Message]()
+
+        val protoConfig = ProtocolConfiguration(
+          100 millis,
+          100 millis,
+          HeartbeatConfiguration(
+            enabled = true,
+            10 millis,
+            10 millis))
+
+        new ProtocolConnection(
+          clientActor.ref,
+          connectionActor.ref,
+          protoConfig,
+          system.scheduler,
+          system.executionContext)
+
+        clientActor.expectMessage(1000 millis, PongTimeout)
       }
     }
 

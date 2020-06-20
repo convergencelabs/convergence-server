@@ -71,7 +71,7 @@ class OperationMapperSpec extends AnyWordSpec with Matchers {
         operations.foreach { op =>
           val data = OperationMapper.mapOutgoing(op)
           val reverted = OperationMapper.mapIncoming(data)
-          reverted shouldBe op
+          reverted shouldBe Right(op)
         }
       }
     }

@@ -87,7 +87,7 @@ class ConvergenceRestApi(interface: String,
     // Routers to backend services. We add them to a list so we can shut them down.
     val authenticationActor = createBackendRouter(context, AuthenticationActor.Key, "authActor")
     routers += authenticationActor
-    val convergenceUserActor = createBackendRouter(context, ConvergenceUserManagerActor.Key, "convergenceUserActor")
+    val convergenceUserActor = createBackendRouter(context, UserStoreActor.Key, "convergenceUserActor")
     routers += convergenceUserActor
     val namespaceActor = createBackendRouter(context, NamespaceStoreActor.Key, "namespaceActor")
     routers += namespaceActor
@@ -117,10 +117,7 @@ class ConvergenceRestApi(interface: String,
     val statusService = new ServerStatusService(statusActor, system.scheduler, ec, defaultRequestTimeout)
     val keyGenService = new KeyGenService(ec)
     val convergenceUserService = new UserService(convergenceUserActor, system.scheduler, ec, defaultRequestTimeout)
-
-    // TODO re-enable these when permissions are handled properly.
-    //    val convergenceImportService = new ConvergenceImportService(ec, importerActor, defaultRequestTimeout)
-    //    val databaseManagerService = new DatabaseManagerRestService(ec, databaseManagerActor, defaultRequestTimeout)
+    val databaseManagerService = new DatabaseManagerRestService(ec, system.scheduler, databaseManagerActor, defaultRequestTimeout)
 
     val domainService = new DomainService(
       system.scheduler,
@@ -187,9 +184,8 @@ class ConvergenceRestApi(interface: String,
                 roleService.route(authProfile),
                 configService.route(authProfile),
                 userApiKeyService.route(authProfile),
-                keyGenService.route())
-              //                convergenceImportService.route(authProfile),
-              //                databaseManagerService.route(authProfile))
+                keyGenService.route(),
+                databaseManagerService.route(authProfile))
             }
           }
       }

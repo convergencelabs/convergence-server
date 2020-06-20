@@ -143,7 +143,6 @@ class ActivityClientActor private(context: ActorContext[Message],
          cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity '$activityId'.")
       }, { _ =>
         cb.reply(ActivityLeaveResponseMessage())
-        // todo reply
       }))
       .recoverWith(handleAskFailure(_, cb))
 

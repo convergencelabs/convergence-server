@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.AskPattern._
@@ -65,11 +67,20 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
 
   import ClientActor._
 
-  type MessageHandler = PartialFunction[ProtocolMessageEvent, Behavior[Message]]
-
-  private[this] implicit val requestTimeout: Timeout = Timeout(protocolConfig.defaultRequestTimeout)
   private[this] implicit val ec: ExecutionContext = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
+
+  private[this] val presenceAfterAuthTimeout =
+    getTimeoutFromConfig("convergence.realtime.client.auth-presence-timeout")
+
+  private[this] val domainHandshakeTimeout =
+    getTimeoutFromConfig("convergence.realtime.client.domain-handshake-timeout")
+
+  private[this] val domainAuthTimeout =
+    getTimeoutFromConfig("convergence.realtime.client.domain-authentication-timeout")
+
+  private[this] val identityResolutionTimeout =
+    getTimeoutFromConfig("convergence.realtime.client.identity-resolution-timeout")
 
   private[this] var connectionActor: ActorRef[ConnectionActor.ClientMessage] = _
 
@@ -242,6 +253,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   //
 
   private[this] def handshake(request: HandshakeRequestMessage, cb: ReplyCallback): Behavior[Message] = {
+    implicit val t: Timeout = domainHandshakeTimeout
     if (timers.isTimerActive(HandshakeTimerKey)) {
       timers.cancel(HandshakeTimerKey)
       debug(s"$domainId: Handshaking with DomainActor")
@@ -309,11 +321,10 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     this.identityCacheManager = context.spawn(IdentityCacheManagerActor(
       context.self.narrow[FromIdentityResolver],
       identityActor,
-      requestTimeout),
+      identityResolutionTimeout),
       "IdentityCacheManager"
     )
 
-    // FIXME Protocol Config??
     cb.reply(HandshakeResponseMessage(success = true, None, retryOk = true, this.domainId.namespace, this.domainId.domainId, None))
 
     this.messageHandler = handleAuthenticationMessage
@@ -339,14 +350,18 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         None
     }) match {
       case Some(authCredentials) =>
-        // FIXME if authentication fails we should probably stop the actor
-        //  and or shut down the connection?
+        implicit val t: Timeout = domainAuthTimeout
         domainRegion
           .ask[DomainActor.AuthenticationResponse](DomainActor.AuthenticationRequest(
             domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _))
           .map(_.response.fold(
             { _ =>
               cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
+              // TODO we should probably disconnect here. There is a bit of complexity
+              //  where we want to disconnect AFTER this message goes out. The issue
+              //  is that there are a few steps to sending a message and we don't
+              //  really have a way to know here when tha is done.
+              //  see: https://github.com/convergencelabs/convergence-project/issues/140
             },
             { case DomainActor.AuthenticationSuccess(session, reconnectToken) =>
               obtainPresenceAfterAuth(session, reconnectToken, cb)
@@ -362,13 +377,24 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   }
 
   private[this] def obtainPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback): Unit = {
+    // Note these are created outside of the for comprehension so that they
+    // can execute in parallel.
+
+    implicit val t: Timeout = presenceAfterAuthTimeout
+
+    val presenceFuture = presenceServiceActor
+      .ask[PresenceServiceActor.GetPresenceResponse](PresenceServiceActor.GetPresenceRequest(session.userId, _))
+      .map(_.presence)
+      .handleError(_ => UnexpectedErrorException())
+
+    val userFuture = identityServiceActor
+      .ask[IdentityServiceActor.GetUserResponse](IdentityServiceActor.GetUserRequest(session.userId, _))
+      .map(_.user)
+      .handleError(_ => UnexpectedErrorException())
+
     (for {
-      presence <- presenceServiceActor.ask[PresenceServiceActor.GetPresenceResponse](PresenceServiceActor.GetPresenceRequest(session.userId, _))
-        .map(_.presence)
-        .handleError(_ => UnexpectedErrorException())
-      user <- identityServiceActor.ask[IdentityServiceActor.GetUserResponse](IdentityServiceActor.GetUserRequest(session.userId, _))
-        .map(_.user)
-        .handleError(_ => UnexpectedErrorException())
+      presence <- presenceFuture
+      user <- userFuture
     } yield {
       context.self ! InternalAuthSuccess(user, session, reconnectToken, presence, cb)
     }).recover {
@@ -381,6 +407,8 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   private[this] def handleAuthenticationSuccess(message: InternalAuthSuccess): Behavior[Message] = {
     val InternalAuthSuccess(user, session, reconnectToken, presence, cb) = message
     val narrowedSelf = context.self.narrow[SendToClient]
+
+    val requestTimeout: Timeout = Timeout(protocolConfig.defaultRequestTimeout)
 
     this.sessionId = session.sessionId
     this.reconnectToken = reconnectToken
@@ -419,8 +447,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         replyTo ! response
       case Failure(cause) =>
         error("Error processing a response message", cause)
-        this.protocolConnection.send(ErrorMessage("invalid_response", "Error processing a response", Map()))
-        this.connectionActor ! ConnectionActor.CloseConnection
+        this.protocolConnection.serializeAndSend(ErrorMessage("invalid_response", "Error processing a response", Map()))
         context.self ! Disconnect()
     }
 
@@ -435,8 +462,9 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         activityClient ! ActivityClientActor.IncomingProtocolMessage(msg)
       case MessageReceived(msg: PresenceClientActor.IncomingNormalMessage) =>
         presenceClient ! PresenceClientActor.IncomingProtocolMessage(msg)
-      case _: Any =>
-      // TODO send an error back
+      case MessageReceived(msg) =>
+        val errorMessage = ErrorMessage("invalid_message", "An invalid message was received: " + msg.toString)
+        protocolConnection.send(errorMessage)
     }
     Behaviors.same
   }
@@ -460,8 +488,8 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
         if (idType == PermissionType.CHAT) {
           chatClient ! ChatClientActor.IncomingProtocolPermissionsRequest(msg, cb)
         }
-      case _: Any =>
-      // TODO send an error back
+      case RequestReceived(msg, cb) =>
+        cb.expectedError(ErrorCodes.InvalidMessage, "An invalid request was received: " + msg.toString)
     }
 
     Behaviors.same
@@ -498,6 +526,10 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
       Behaviors.same
     }
   }
+
+  private[this] def getTimeoutFromConfig(path: String): Timeout = {
+    Timeout(system.settings.config.getDuration(path).toNanos, TimeUnit.NANOSECONDS)
+  }
 }
 
 object ClientActor {
@@ -529,6 +561,8 @@ object ClientActor {
         modelSyncInterval)
     ))
   }
+
+  private type MessageHandler = PartialFunction[ProtocolMessageEvent, Behavior[Message]]
 
   private final case object HandshakeTimerKey
 
@@ -583,15 +617,15 @@ object ClientActor {
   private[realtime] final case class IdentityResolutionError() extends FromIdentityResolver
 
   private final case class InternalAuthSuccess(user: DomainUser,
-                                       session: DomainUserSessionId,
-                                       reconnectToken: Option[String],
-                                       presence: UserPresence,
-                                       cb: ReplyCallback) extends Message
+                                               session: DomainUserSessionId,
+                                               reconnectToken: Option[String],
+                                               presence: UserPresence,
+                                               cb: ReplyCallback) extends Message
 
   private final case class InternalHandshakeSuccess(client: String,
-                                            clientVersion: String,
-                                            handshakeSuccess: DomainActor.HandshakeSuccess,
-                                            cb: ReplyCallback) extends Message
+                                                    clientVersion: String,
+                                                    handshakeSuccess: DomainActor.HandshakeSuccess,
+                                                    cb: ReplyCallback) extends Message
 
   final case class Disconnect() extends Message
 

@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
@@ -20,30 +22,29 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
-import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.concurrent.ExecutionContextExecutor
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserManagerActor.Message],
-                                          userStore: UserStore,
-                                          roleStore: RoleStore,
-                                          userCreator: UserCreator,
-                                          domainStoreActor: ActorRef[DomainStoreActor.Message])
-  extends AbstractBehavior[ConvergenceUserManagerActor.Message](context) {
+class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
+                             userStore: UserStore,
+                             roleStore: RoleStore,
+                             userCreator: UserCreator,
+                             domainStoreActor: ActorRef[DomainStoreActor.Message])
+  extends AbstractBehavior[UserStoreActor.Message](context) {
 
-  import ConvergenceUserManagerActor._
+  import UserStoreActor._
 
   context.system.receptionist ! Receptionist.Register(Key, context.self)
 
-  // FIXME: Read this from configuration
-  private[this] implicit val requestTimeout: Timeout = Timeout(5 seconds)
   private[this] implicit val executionContext: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
 
+  private[this] val domainDeletionTimeout = Timeout(system.settings.config.getDuration(
+    "convergence.user-manager.domain-deletion-timeout", TimeUnit.MILLISECONDS), TimeUnit.MICROSECONDS)
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
@@ -130,6 +131,7 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
   }
 
   private[this] def onDeleteConvergenceUser(message: DeleteConvergenceUserRequest): Unit = {
+    implicit val requestTimeout: Timeout = domainDeletionTimeout
     val DeleteConvergenceUserRequest(username, replyTo) = message
     domainStoreActor
       .ask[DomainStoreActor.DeleteDomainsForUserResponse](ref => DomainStoreActor.DeleteDomainsForUserRequest(username, ref))
@@ -224,14 +226,14 @@ class ConvergenceUserManagerActor private(context: ActorContext[ConvergenceUserM
 }
 
 
-object ConvergenceUserManagerActor {
+object UserStoreActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("ConvergenceUserManagerActor")
 
   def apply(userStore: UserStore,
             roleStore: RoleStore,
             userCreator: UserCreator,
             domainStoreActor: ActorRef[DomainStoreActor.Message]): Behavior[Message] =
-    Behaviors.setup(context => new ConvergenceUserManagerActor(context, userStore, roleStore, userCreator, domainStoreActor))
+    Behaviors.setup(context => new UserStoreActor(context, userStore, roleStore, userCreator, domainStoreActor))
 
   final case class ConvergenceUserInfo(user: User, globalRole: String)
 

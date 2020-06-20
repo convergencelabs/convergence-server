@@ -20,7 +20,7 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, _string2NR, as, authorize, complete, delete, entity, get, parameters, path, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceUserManagerActor._
+import com.convergencelabs.convergence.server.datastore.convergence.UserStoreActor._
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}

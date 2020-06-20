@@ -98,7 +98,7 @@ class BackendServices(context: ActorContext[_],
 
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
-    context.spawn(ConvergenceUserManagerActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")
+    context.spawn(UserStoreActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")
     context.spawn(NamespaceStoreActor(namespaceStore, roleStore, configStore), "NamespaceStore")
     context.spawn(RoleStoreActor(roleStore), "RoleStore")
     context.spawn(UserApiKeyStoreActor(userApiKeyStore), "UserApiKeyStore")

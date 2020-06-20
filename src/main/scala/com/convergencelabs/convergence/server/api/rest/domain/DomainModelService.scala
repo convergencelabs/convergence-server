@@ -49,7 +49,9 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
     pathPrefix("models") {
       pathEnd {
         get {
-          complete(getModels(domain))
+          parameters("offset".as[Int].?, "limit".as[Int].?) { (offset, limit) =>
+            complete(getModels(domain, offset, limit))
+          }
         } ~ post {
           entity(as[ModelPost]) { modelPost =>
             complete(postModel(domain, modelPost))
@@ -123,11 +125,10 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
     }
   }
 
-  // FIXME need to use offset and limit
-
-  private[this] def getModels(domain: DomainId): Future[RestResponse] = {
+  private[this] def getModels(domain: DomainId, offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     domainRestActor
-      .ask[GetModelsResponse](r => DomainRestMessage(domain, GetModelsRequest(QueryOffset(), QueryLimit(), r)))
+      .ask[GetModelsResponse](r => DomainRestMessage(domain,
+        GetModelsRequest(QueryOffset(offset.getOrElse(0)), QueryLimit(limit.getOrElse(10)), r)))
       .map(_.models.fold(
         _ => InternalServerError,
         models => okResponse(models.map(mapMetaData))
@@ -218,8 +219,7 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
   }
 
   private[this] def queryModels(authProfile: AuthorizationProfile, domain: DomainId, queryPost: ModelQueryPost): Future[RestResponse] = {
-    // FIXME do we need this offset and limit?
-    val ModelQueryPost(query, offset, limit) = queryPost
+    val ModelQueryPost(query) = queryPost
     val userId = DomainUserId.convergence(authProfile.username)
     domainRestActor.ask[ModelStoreActor.QueryModelsResponse](r =>
       DomainRestMessage(domain, ModelStoreActor.QueryModelsRequest(userId, query, r)))
@@ -463,6 +463,6 @@ object DomainModelService {
 
   final case class SetOverrideWorldRequest(overrideWorld: Boolean)
 
-  final case class ModelQueryPost(query: String, offset: Option[Int], limit: Option[Int])
+  final case class ModelQueryPost(query: String)
 
 }

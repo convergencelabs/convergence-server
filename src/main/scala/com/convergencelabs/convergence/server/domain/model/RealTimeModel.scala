@@ -28,10 +28,10 @@ import scala.util.{Failure, Success, Try}
  * @param cc       the server side concurrency control that will transform operations.
  * @param root     The root value of this model.
  */
-class RealTimeModel(private[this] val domainId: DomainId,
-                    private[this] val modelId: String,
-                    private[this] val cc: ServerConcurrencyControl,
-                    private val root: ObjectValue) extends RealTimeValueFactory {
+private[model] class RealTimeModel(domainId: DomainId,
+                    modelId: String,
+                    cc: ServerConcurrencyControl,
+                    root: ObjectValue) extends RealTimeValueFactory {
 
   val idToValue: collection.mutable.HashMap[String, RealTimeValue] = collection.mutable.HashMap[String, RealTimeValue]()
   private val elementReferenceManager = new ElementReferenceManager(this, List(ReferenceType.Element))
@@ -66,8 +66,8 @@ class RealTimeModel(private[this] val domainId: DomainId,
     val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
     val processed = cc.processRemoteOperation(preprocessed)
     // FIXME this isn't quite right, if applying the operation fails, just rolling back
-    // the CC may not be enough, especially in the case of a compound operation,
-    // we may have partially mutated the model.
+    //  the CC may not be enough, especially in the case of a compound operation,
+    //  we may have partially mutated the model.
     applyOperation(processed.operation) match {
       case Success(appliedOperation) =>
         cc.commit()
@@ -152,7 +152,7 @@ class RealTimeModel(private[this] val domainId: DomainId,
 
           case unshare: UnshareReference =>
             realTimeValue.processReferenceEvent(unshare, session).map { _ =>
-              val UnshareReference(_, modelId, _,  id, key) = unshare
+              val UnshareReference(_, modelId, _, id, key) = unshare
               Some(RemoteReferenceUnshared(modelId, session, id, key))
 
             }
@@ -161,7 +161,7 @@ class RealTimeModel(private[this] val domainId: DomainId,
             val refVal: ReferenceValue = ReferenceValue(set.valueId, set.key, set.referenceType, set.values, set.contextVersion)
             this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
               case Some(xformed) =>
-                val setRef: SetReference = SetReference(domainId, modelId, session,  xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
+                val setRef: SetReference = SetReference(domainId, modelId, session, xformed.id, xformed.key, xformed.referenceType, xformed.values, xformed.contextVersion.toInt)
                 realTimeValue.processReferenceEvent(setRef, session).map { _ =>
                   Some(RemoteReferenceSet(modelId, session, setRef.valueId, setRef.key, setRef.referenceType, setRef.values))
                 }

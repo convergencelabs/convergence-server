@@ -161,6 +161,17 @@ class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnectio
   /**
    * Serializes and sends a message to the connection actor.
    *
+   * @param message The message to send.
+   */
+  def serializeAndSend(message: ServerNormalMessage): Unit = {
+    val body = ConvergenceMessageBodyUtils.toBody(message)
+    val convergenceMessage = ConvergenceMessage().withBody(body)
+    serializeAndSend(convergenceMessage)
+  }
+
+  /**
+   * Serializes and sends a message to the connection actor.
+   *
    * @param convergenceMessage The message to serialize and send.
    */
   def serializeAndSend(convergenceMessage: ConvergenceMessage): Unit = {

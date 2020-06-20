@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
@@ -56,8 +56,11 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
   private[this] var domainId: DomainId = _
   private[this] var chatId: String = _
 
-  // Here None signifies that the channel does not exist.
+  // Here None signifies that the chat is not initialized, or it doesn't exist
   private[this] var messageProcessor: Option[ChatMessageProcessor] = None
+
+  private[this] val receiveTimeout = Duration.fromNanos(
+    context.system.settings.config.getDuration("convergence.realtime.chat.passivation-timeout").toNanos)
 
   protected def setIdentityData(message: Message): Try[String] = {
     this.domainId = message.domainId
@@ -88,7 +91,7 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
           mp.removeAllMembers()
           this.messageProcessor = Some(mp)
         case ChatType.Channel =>
-          context.setReceiveTimeout(120.seconds, ReceiveTimeout(this.domainId, this.chatId))
+          context.setReceiveTimeout(receiveTimeout, ReceiveTimeout(this.domainId, this.chatId))
           state.membership match {
             case ChatMembership.Private =>
               this.messageProcessor = Some(new PrivateChannelMessageProcessor(
@@ -106,7 +109,7 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
                 chatDeliveryRegion))
           }
         case ChatType.Direct =>
-          context.setReceiveTimeout(120.seconds, ReceiveTimeout(this.domainId, this.chatId))
+          context.setReceiveTimeout(receiveTimeout, ReceiveTimeout(this.domainId, this.chatId))
           this.messageProcessor = Some(new DirectChatMessageProcessor(
             state,
             provider.chatStore,

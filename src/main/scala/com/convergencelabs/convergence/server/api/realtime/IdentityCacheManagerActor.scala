@@ -174,8 +174,7 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
         case ChatEventData.Event.TopicChanged(topicChanged) =>
           usernames += topicChanged.user.get
         case ChatEventData.Event.Empty =>
-          // FIXME send an error back.
-          ???
+        // no-op
       }
     }
     processMessage(message, Set(), usernames.map(dataToDomainUserId).toSet)
@@ -244,8 +243,8 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
 private[realtime] object IdentityCacheManagerActor {
 
   private[realtime] def apply(clientActor: ActorRef[ClientActor.FromIdentityResolver],
-            identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
-            timeout: Timeout): Behavior[Message] =
+                              identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
+                              timeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new IdentityCacheManagerActor(context, clientActor, identityServiceActor, timeout))
 
   private final case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
@@ -261,4 +260,5 @@ private[realtime] object IdentityCacheManagerActor {
   private final case class IdentityResolutionFailure(record: MessageRecord, cause: Throwable) extends Message
 
   final case class OutgoingMessage(message: ConvergenceMessage) extends Message
+
 }

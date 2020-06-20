@@ -221,7 +221,6 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case resyncCompleted: RemoteClientResyncCompleted =>
         onRemoteClientResyncCompleted(resyncCompleted)
       case ServerError(_, ExpectedError(code, message, details)) =>
-        // TODO use model Id.
         val errorMessage = ErrorMessage(code, message, JsonProtoConverter.jValueMapToValueMap(details))
         clientActor ! SendServerMessage(errorMessage)
     }
@@ -401,18 +400,18 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     }
   }
 
-  private[this] def mapIncomingReference(values: ReferenceValues): (ReferenceType.Value, List[Any]) = {
+  private[this] def mapIncomingReference(values: ReferenceValues): Either[Unit, (ReferenceType.Value, List[Any])] = {
     values.values match {
       case ReferenceValues.Values.Indices(Int32List(indices, _)) =>
-        (ReferenceType.Index, indices.toList)
+        Right((ReferenceType.Index, indices.toList))
       case ReferenceValues.Values.Ranges(IndexRangeList(ranges, _)) =>
-        (ReferenceType.Range, ranges.map(r => (r.startIndex, r.endIndex)).toList)
+        Right((ReferenceType.Range, ranges.map(r => (r.startIndex, r.endIndex)).toList))
       case ReferenceValues.Values.Properties(StringList(properties, _)) =>
-        (ReferenceType.Property, properties.toList)
+        Right((ReferenceType.Property, properties.toList))
       case ReferenceValues.Values.Elements(StringList(elements, _)) =>
-        (ReferenceType.Element, elements.toList)
+        Right((ReferenceType.Element, elements.toList))
       case ReferenceValues.Values.Empty =>
-        ???
+        Left(())
     }
   }
 
@@ -472,9 +471,21 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     val OperationSubmissionMessage(resourceId, seqNo, version, operation, _) = message
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val submission = RealtimeModelActor.OperationSubmission(
-          domainId, modelId, session, seqNo, version, OperationMapper.mapIncoming(operation.get))
-        modelClusterRegion ! submission
+        operation match {
+          case Some(op) =>
+            OperationMapper.mapIncoming(op).fold({ _ =>
+              warn(s"$domainId: Received an operation submissions with an invalid operation: $message")
+              invalidOperation(message)
+            },
+            { mappedOp =>
+              val submission = RealtimeModelActor.OperationSubmission(domainId, modelId, session, seqNo, version, mappedOp)
+              modelClusterRegion ! submission
+            })
+          case None =>
+            warn(s"$domainId: Received an operation submissions with an empty operation: $message")
+            invalidOperation(message)
+        }
+
       case None =>
         warn(s"$domainId: Received an operation submissions for a resource id that does not exists.")
         val serverMessage = unknownResourceId(resourceId)
@@ -495,18 +506,30 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     }
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  // References
+  /////////////////////////////////////////////////////////////////////////////
+
   private[this] def onShareReference(message: ShareReferenceMessage): Unit = {
     val ShareReferenceMessage(resourceId, valueId, key, references, version, _) = message
     val vId = valueId.filter(!_.isEmpty)
-    val (refType, values) = mapIncomingReference(references.get)
+
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val publishReference = RealtimeModelActor.ShareReference(domainId, modelId, session, vId, key, refType, values, version)
-        modelClusterRegion ! publishReference
+        references match {
+          case Some(refs) =>
+            mapIncomingReference(refs).map{
+              case (referenceType, values) =>
+                val publishReference = RealtimeModelActor.ShareReference(domainId, modelId, session, vId, key, referenceType, values, version)
+                modelClusterRegion ! publishReference
+            }.left.map { _ =>
+              invalidReferenceType(message.toString)
+            }
+          case None =>
+            noReferenceValues(message.toString)
+        }
       case None =>
-        warn(s"$domainId: Received a reference publish message for a resource id that does not exists.")
-        val serverMessage = unknownResourceId(resourceId)
-        clientActor ! SendServerMessage(serverMessage)
+        noResourceIdForReferenceMessage(resourceId, message.toString)
     }
   }
 
@@ -518,25 +541,30 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         val unshareReference = RealtimeModelActor.UnshareReference(domainId, modelId, session, vId, key)
         modelClusterRegion ! unshareReference
       case None =>
-        warn(s"$domainId: Received a reference unshare message for a resource id that does not exists.")
-        val serverMessage = unknownResourceId(resourceId)
-        clientActor ! SendServerMessage(serverMessage)
+        noResourceIdForReferenceMessage(resourceId, message.toString)
     }
   }
 
   private[this] def onSetReference(message: SetReferenceMessage): Unit = {
     val SetReferenceMessage(resourceId, valueId, key, references, version, _) = message
     val vId = valueId.filter(!_.isEmpty)
-    // FIXME handle none
-    val (referenceType, values) = mapIncomingReference(references.get)
+
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val setReference = RealtimeModelActor.SetReference(domainId, modelId, session, vId, key, referenceType, values, version)
-        modelClusterRegion ! setReference
+        references match {
+          case Some(refs) =>
+            mapIncomingReference(refs).map{
+              case (referenceType, values) =>
+                val setReference = RealtimeModelActor.SetReference(domainId, modelId, session, vId, key, referenceType, values, version)
+                modelClusterRegion ! setReference
+            }.left.map { _ =>
+              invalidReferenceType(message.toString)
+            }
+          case None =>
+            noReferenceValues(message.toString)
+        }
       case None =>
-        warn(s"$domainId: Received a reference set message for a resource id that does not exists.")
-        val serverMessage = unknownResourceId(resourceId)
-        clientActor ! SendServerMessage(serverMessage)
+        noResourceIdForReferenceMessage(resourceId, message.toString)
     }
   }
 
@@ -552,6 +580,36 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         val serverMessage = unknownResourceId(resourceId)
         clientActor ! SendServerMessage(serverMessage)
     }
+  }
+
+  private[this] def convertReferences(references: Set[ReferenceState]): Seq[ReferenceData] = {
+    references.map {
+      case ReferenceState(sessionId, valueId, key, refType, values) =>
+        val referenceValues = mapOutgoingReferenceValue(refType, values)
+        ReferenceData(sessionId.sessionId, valueId, key, Some(referenceValues))
+    }.toSeq
+  }
+
+  private[this] def noResourceIdForReferenceMessage(resourceId: String, message: String): () = {
+    warn(s"$domainId: Received a reference message for a resource id that does not exists $message")
+    val serverMessage = unknownResourceId(resourceId)
+    clientActor ! SendServerMessage(serverMessage)
+  }
+
+  private[this] def noReferenceValues(message: String): () = {
+    warn(s"$domainId: Received a reference set with no reference values.")
+    val errorMessage = ErrorMessage(
+      ErrorCodes.InvalidMessage.toString,
+      s"Invalid reference set message. No reference values were specified: $message")
+    clientActor ! SendServerMessage(errorMessage)
+  }
+
+  private[this] def invalidReferenceType(message: String): () = {
+    warn(s"$domainId: Received a reference set with an invalid reference type.")
+    val errorMessage = ErrorMessage(
+      ErrorCodes.InvalidMessage.toString,
+      "Invalid reference set message. Invalid reference type: " + message)
+    clientActor ! SendServerMessage(errorMessage)
   }
 
   private[this] def onModelOfflineSubscription(message: ModelOfflineSubscriptionChangeRequestMessage, replyCallback: ReplyCallback): Unit = {
@@ -612,7 +670,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, _) = request
-    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
+    val modelId = getSetOrRandomModelId(optionalModelId)
 
     val narrowedSelf = context.self.narrow[OutgoingMessage]
     modelClusterRegion.ask[RealtimeModelActor.OpenRealtimeModelResponse](
@@ -671,14 +729,6 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       }
   }
 
-  private[this] def convertReferences(references: Set[ReferenceState]): Seq[ReferenceData] = {
-    references.map {
-      case ReferenceState(sessionId, valueId, key, refType, values) =>
-        val referenceValues = mapOutgoingReferenceValue(refType, values)
-        ReferenceData(sessionId.sessionId, valueId, key, Some(referenceValues))
-    }.toSeq
-  }
-
   private[this] def onModelResyncRequest(request: ModelResyncRequestMessage, cb: ReplyCallback): Unit = {
     val ModelResyncRequestMessage(modelId, contextVersion, _) = request
     val narrowedSelf = context.self.narrow[OutgoingMessage]
@@ -723,8 +773,8 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 
     val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
 
-    // FIXME make a utility for this.
-    val modelId = optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
+    val modelId = getSetOrRandomModelId(optionalModelId)
+
     modelClusterRegion
       .ask[RealtimeModelActor.CreateRealtimeModelResponse](
         RealtimeModelActor.CreateRealtimeModelRequest(
@@ -891,16 +941,20 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     nextResourceId += 1
     id
   }
+
+  private[this] def getSetOrRandomModelId(optionalModelId: Option[String]): String = {
+    optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
+  }
 }
 
 object ModelClientActor {
   private[realtime] def apply(domain: DomainId,
-            session: DomainUserSessionId,
-            clientActor: ActorRef[ClientActor.SendToClient],
-            modelStoreActor: ActorRef[ModelStoreActor.Message],
-            modelShardRegion: ActorRef[RealtimeModelActor.Message],
-            requestTimeout: Timeout,
-            offlineModelSyncInterval: FiniteDuration): Behavior[Message] =
+                              session: DomainUserSessionId,
+                              clientActor: ActorRef[ClientActor.SendToClient],
+                              modelStoreActor: ActorRef[ModelStoreActor.Message],
+                              modelShardRegion: ActorRef[RealtimeModelActor.Message],
+                              requestTimeout: Timeout,
+                              offlineModelSyncInterval: FiniteDuration): Behavior[Message] =
     Behaviors.setup { context =>
       Behaviors.withTimers { timers =>
         new ModelClientActor(context, timers, domain, session, clientActor, modelStoreActor, modelShardRegion, requestTimeout, offlineModelSyncInterval)
@@ -913,6 +967,14 @@ object ModelClientActor {
     val details = Map("id" -> JString(id))
     val message = s"A model with id '$id' does not exist."
     cb.expectedError(ErrorCodes.ModelNotFound, message, details)
+  }
+
+  private def invalidOperation(operation: OperationSubmissionMessage): ErrorMessage = {
+    val opString = operation.operation.map(_.toString).getOrElse("no operation supplied")
+    ErrorMessage(
+      ErrorCodes.ModelInvalidOperation.toString,
+      s"An operation submission contained an invalid operation.",
+      Map("operation" -> Value(ProtoString(opString))))
   }
 
   private def unknownResourceId(resourceId: String) = ErrorMessage(
@@ -984,10 +1046,10 @@ object ModelClientActor {
   final case class OperationAcknowledgement(modelId: String, seqNo: Int, contextVersion: Long, timestamp: Instant) extends OutgoingMessage
 
   final case class OutgoingOperation(modelId: String,
-                               session: DomainUserSessionId,
-                               contextVersion: Long,
-                               timestamp: Instant,
-                               operation: Operation) extends OutgoingMessage
+                                     session: DomainUserSessionId,
+                                     contextVersion: Long,
+                                     timestamp: Instant,
+                                     operation: Operation) extends OutgoingMessage
 
   final case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
 
@@ -998,9 +1060,9 @@ object ModelClientActor {
   final case class RemoteClientResyncCompleted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
 
   final case class ModelResyncServerComplete(modelId: String,
-                                       connectedClients: Set[DomainUserSessionId],
-                                       resyncingClients: Set[DomainUserSessionId],
-                                       references: Set[ReferenceState]) extends OutgoingMessage
+                                             connectedClients: Set[DomainUserSessionId],
+                                             resyncingClients: Set[DomainUserSessionId],
+                                             references: Set[ReferenceState]) extends OutgoingMessage
 
   object ForceModelCloseReasonCode extends Enumeration {
     val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
@@ -1023,19 +1085,19 @@ object ModelClientActor {
   final case class ClientAutoCreateModelConfigResponse(config: Either[ClientAutoCreateModelConfigError, ClientAutoCreateModelConfig])
 
   final case class ClientAutoCreateModelConfig(collectionId: String,
-                                         modelData: Option[ObjectValue],
-                                         overridePermissions: Option[Boolean],
-                                         worldPermissions: Option[ModelPermissions],
-                                         userPermissions: Map[DomainUserId, ModelPermissions],
-                                         ephemeral: Option[Boolean])
+                                               modelData: Option[ObjectValue],
+                                               overridePermissions: Option[Boolean],
+                                               worldPermissions: Option[ModelPermissions],
+                                               userPermissions: Map[DomainUserId, ModelPermissions],
+                                               ephemeral: Option[Boolean])
 
   sealed trait RemoteReferenceEvent extends OutgoingMessage
 
   final case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
-                                   referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
+                                         referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
 
   final case class RemoteReferenceSet(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
-                                referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
+                                      referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
 
   final case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
 

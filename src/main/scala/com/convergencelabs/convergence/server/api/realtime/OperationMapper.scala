@@ -16,71 +16,82 @@ import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConver
 import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[realtime] object OperationMapper {
+  
+  sealed trait OperationMappingError
+  
+  final case object InvalidOperationTypeError extends OperationMappingError
 
-  def mapIncoming(op: OperationData): Operation = {
+  final case object InvalidDiscreteOperationTypeError extends OperationMappingError
+
+  def mapIncoming(op: OperationData): Either[OperationMappingError, Operation] = {
     op.operation match {
       case OperationData.Operation.CompoundOperation(operation) =>
         mapIncomingCompound(operation)
       case OperationData.Operation.DiscreteOperation(operation) =>
         mapIncomingDiscrete(operation)
       case OperationData.Operation.Empty =>
-        // FIXME handle empty
-        ???
+        Left(InvalidOperationTypeError)
     }
   }
 
-  def mapIncomingCompound(op: CompoundOperationData): CompoundOperation = {
-    CompoundOperation(op.operations.map(opData => mapIncomingDiscrete(opData)).toList)
+  def mapIncomingCompound(op: CompoundOperationData): Either[OperationMappingError, CompoundOperation] = {
+    val mapped: List[Either[OperationMappingError, DiscreteOperation]] =
+      op.operations.map(opData => mapIncomingDiscrete(opData)).toList
+
+    (mapped.partitionMap(identity) match {
+      case (Nil, operations) => Right(operations)
+      case (errors, _)    => Left(errors.head)
+    })
+      .fold(err => Left(err), ops => Right(CompoundOperation(ops)))
   }
 
   // scalastyle:off cyclomatic.complexity
-  // FIXME handle missing values.
-  def mapIncomingDiscrete(op: DiscreteOperationData): DiscreteOperation = {
+  def mapIncomingDiscrete(op: DiscreteOperationData): Either[OperationMappingError, DiscreteOperation] = {
     op.operation match {
       case DiscreteOperationData.Operation.StringInsertOperation(StringInsertOperationData(id, noOp, index, value, _)) =>
-        StringInsertOperation(id, noOp, index, value)
+        Right(StringInsertOperation(id, noOp, index, value))
       case DiscreteOperationData.Operation.StringRemoveOperation(StringRemoveOperationData(id, noOp, index, value, _)) =>
-        StringRemoveOperation(id, noOp, index, value)
+        Right(StringRemoveOperation(id, noOp, index, value))
       case DiscreteOperationData.Operation.StringSetOperation(StringSetOperationData(id, noOp, value, _)) =>
-        StringSetOperation(id, noOp, value)
+        Right(StringSetOperation(id, noOp, value))
 
       case DiscreteOperationData.Operation.ArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, newVal, _)) =>
-        ArrayInsertOperation(id, noOp, idx, newVal.get)
+        Right(ArrayInsertOperation(id, noOp, idx, newVal.get))
       case DiscreteOperationData.Operation.ArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx, _)) =>
-        ArrayRemoveOperation(id, noOp, idx)
+        Right(ArrayRemoveOperation(id, noOp, idx))
       case DiscreteOperationData.Operation.ArrayMoveOperation(ArrayMoveOperationData(id, noOp, fromIdx, toIdx, _)) =>
-        ArrayMoveOperation(id, noOp, fromIdx, toIdx)
+        Right(ArrayMoveOperation(id, noOp, fromIdx, toIdx))
       case DiscreteOperationData.Operation.ArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, newVal, _)) =>
-        ArrayReplaceOperation(id, noOp, idx, newVal.get)
+        Right(ArrayReplaceOperation(id, noOp, idx, newVal.get))
       case DiscreteOperationData.Operation.ArraySetOperation(ArraySetOperationData(id, noOp, array, _)) =>
-        ArraySetOperation(id, noOp, array.map(messageToDataValue).toList)
+        Right(ArraySetOperation(id, noOp, array.map(messageToDataValue).toList))
 
       case DiscreteOperationData.Operation.ObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, newVal, _)) =>
-        ObjectSetPropertyOperation(id, noOp, prop, newVal.get)
+        Right(ObjectSetPropertyOperation(id, noOp, prop, newVal.get))
       case DiscreteOperationData.Operation.ObjectAddPropertyOperation(ObjectAddPropertyOperationData(id, noOp, prop, newVal, _)) =>
-        ObjectAddPropertyOperation(id, noOp, prop, newVal.get)
+        Right(ObjectAddPropertyOperation(id, noOp, prop, newVal.get))
       case DiscreteOperationData.Operation.ObjectRemovePropertyOperation(ObjectRemovePropertyOperationData(id, noOp, prop, _)) =>
-        ObjectRemovePropertyOperation(id, noOp, prop)
+        Right(ObjectRemovePropertyOperation(id, noOp, prop))
       case DiscreteOperationData.Operation.ObjectSetOperation(ObjectSetOperationData(id, noOp, objectData, _)) =>
         val mappedData = objectData.map { case (k, v) => (k, messageToDataValue(v)) }
-        ObjectSetOperation(id, noOp, mappedData)
+        Right(ObjectSetOperation(id, noOp, mappedData))
 
       case DiscreteOperationData.Operation.NumberDeltaOperation(NumberDeltaOperationData(id, noOp, delta, _)) =>
-        NumberAddOperation(id, noOp, delta)
+        Right(NumberAddOperation(id, noOp, delta))
       case DiscreteOperationData.Operation.NumberSetOperation(NumberSetOperationData(id, noOp, number, _)) =>
-        NumberSetOperation(id, noOp, number)
+        Right(NumberSetOperation(id, noOp, number))
 
       case DiscreteOperationData.Operation.BooleanSetOperation(BooleanSetOperationData(id, noOp, value, _)) =>
-        BooleanSetOperation(id, noOp, value)
+        Right(BooleanSetOperation(id, noOp, value))
 
       case DiscreteOperationData.Operation.DateSetOperation(DateSetOperationData(id, noOp, value, _)) =>
-        DateSetOperation(id, noOp, value.get)
+        Right(DateSetOperation(id, noOp, value.get))
 
       case DiscreteOperationData.Operation.Empty =>
-        // FIXME handle error
-        ???
+        Left(InvalidDiscreteOperationTypeError)
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 
   def mapOutgoing(op: Operation): OperationData = {
@@ -139,5 +150,6 @@ private[realtime] object OperationMapper {
         DiscreteOperationData().withDateSetOperation(DateSetOperationData(id, noOp, Some(value)))
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 }

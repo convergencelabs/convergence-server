@@ -21,6 +21,8 @@ object ErrorCodes extends Enumeration {
   //
   // Common Error Codes
   //
+  val InvalidMessage: ErrorCode = Value("invalid_message")
+
   val Unknown: ErrorCode = Value("unknown")
 
   val Timeout: ErrorCode = Value("timeout")
@@ -66,6 +68,8 @@ object ErrorCodes extends Enumeration {
   val ModelInvalidQuery: ErrorCode = Value("invalid_query")
 
   val ModelDeleted: ErrorCode = Value("model_deleted")
+
+  val ModelInvalidOperation: ErrorCode = Value("invalid_operation")
 
   //
   // Chat Related Errors

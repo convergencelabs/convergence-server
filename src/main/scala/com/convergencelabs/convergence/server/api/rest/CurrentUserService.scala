@@ -20,14 +20,14 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
-import com.convergencelabs.convergence.server.datastore.convergence.{ConvergenceUserManagerActor, UserFavoriteDomainStoreActor}
+import com.convergencelabs.convergence.server.datastore.convergence.{UserStoreActor, UserFavoriteDomainStoreActor}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-private[rest] class CurrentUserService(convergenceUserActor: ActorRef[ConvergenceUserManagerActor.Message],
+private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreActor.Message],
                                        favoriteDomainsActor: ActorRef[UserFavoriteDomainStoreActor.Message],
                                        executionContext: ExecutionContext,
                                        scheduler: Scheduler,
@@ -77,13 +77,13 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[Convergenc
 
   private[this] def getBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
     convergenceUserActor
-      .ask[ConvergenceUserManagerActor.GetUserBearerTokenResponse](
-        ConvergenceUserManagerActor.GetUserBearerTokenRequest(authProfile.username, _))
+      .ask[UserStoreActor.GetUserBearerTokenResponse](
+        UserStoreActor.GetUserBearerTokenRequest(authProfile.username, _))
       .map(_.token.fold(
         {
-          case ConvergenceUserManagerActor.UserNotFoundError() =>
+          case UserStoreActor.UserNotFoundError() =>
             userNotFound()
-          case ConvergenceUserManagerActor.UnknownError() =>
+          case UserStoreActor.UnknownError() =>
             InternalServerError
         },
         { token =>
@@ -94,13 +94,13 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[Convergenc
 
   private[this] def regenerateBearerToken(authProfile: AuthorizationProfile): Future[RestResponse] = {
     convergenceUserActor
-      .ask[ConvergenceUserManagerActor.RegenerateUserBearerTokenResponse](
-        ConvergenceUserManagerActor.RegenerateUserBearerTokenRequest(authProfile.username, _))
+      .ask[UserStoreActor.RegenerateUserBearerTokenResponse](
+        UserStoreActor.RegenerateUserBearerTokenRequest(authProfile.username, _))
       .map(_.token.fold(
         {
-          case ConvergenceUserManagerActor.UserNotFoundError() =>
+          case UserStoreActor.UserNotFoundError() =>
             userNotFound()
-          case ConvergenceUserManagerActor.UnknownError() =>
+          case UserStoreActor.UnknownError() =>
             InternalServerError
         },
         { token =>
@@ -112,13 +112,13 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[Convergenc
   private[this] def setPassword(authProfile: AuthorizationProfile, request: PasswordSetRequest): Future[RestResponse] = {
     val PasswordSetRequest(password) = request
     convergenceUserActor
-      .ask[ConvergenceUserManagerActor.SetPasswordResponse](
-        ConvergenceUserManagerActor.SetPasswordRequest(authProfile.username, password, _))
+      .ask[UserStoreActor.SetPasswordResponse](
+        UserStoreActor.SetPasswordRequest(authProfile.username, password, _))
       .map(_.response.fold(
         {
-          case ConvergenceUserManagerActor.UserNotFoundError() =>
+          case UserStoreActor.UserNotFoundError() =>
             userNotFound()
-          case ConvergenceUserManagerActor.UnknownError() =>
+          case UserStoreActor.UnknownError() =>
             InternalServerError
         },
         { _ =>
@@ -129,17 +129,17 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[Convergenc
 
   private[this] def getProfile(authProfile: AuthorizationProfile): Future[RestResponse] = {
     convergenceUserActor.
-      ask[ConvergenceUserManagerActor.GetConvergenceUserResponse](
-        ConvergenceUserManagerActor.GetConvergenceUserRequest(authProfile.username, _))
+      ask[UserStoreActor.GetConvergenceUserResponse](
+        UserStoreActor.GetConvergenceUserRequest(authProfile.username, _))
       .map(_.user.fold(
         {
-          case ConvergenceUserManagerActor.UserNotFoundError() =>
+          case UserStoreActor.UserNotFoundError() =>
             userNotFound()
-          case ConvergenceUserManagerActor.UnknownError() =>
+          case UserStoreActor.UnknownError() =>
             InternalServerError
         },
         {
-          case ConvergenceUserManagerActor.ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole) =>
+          case UserStoreActor.ConvergenceUserInfo(User(username, email, firstName, lastName, displayName, _), globalRole) =>
             okResponse(ConvergenceUserProfile(username, email, firstName, lastName, displayName, globalRole))
         })
       )
@@ -148,13 +148,13 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[Convergenc
   private[this] def updateProfile(authProfile: AuthorizationProfile, profile: UpdateProfileRequest): Future[RestResponse] = {
     val UpdateProfileRequest(email, firstName, lastName, displayName) = profile
     convergenceUserActor
-      .ask[ConvergenceUserManagerActor.UpdateConvergenceUserProfileResponse](
-        ConvergenceUserManagerActor.UpdateConvergenceUserProfileRequest(authProfile.username, email, firstName, lastName, displayName, _))
+      .ask[UserStoreActor.UpdateConvergenceUserProfileResponse](
+        UserStoreActor.UpdateConvergenceUserProfileRequest(authProfile.username, email, firstName, lastName, displayName, _))
       .map(_.response.fold(
         {
-          case ConvergenceUserManagerActor.UserNotFoundError() =>
+          case UserStoreActor.UserNotFoundError() =>
             userNotFound()
-          case ConvergenceUserManagerActor.UnknownError() =>
+          case UserStoreActor.UnknownError() =>
             InternalServerError
         },
         { _ =>
