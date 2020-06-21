@@ -55,8 +55,8 @@ class ClientActorSpec
   }
 
   class TestFixture() {
-    val connectionActor: TestProbe[ConnectionActor.ClientMessage] =
-      testKit.createTestProbe[ConnectionActor.ClientMessage]()
+    val connectionActor: TestProbe[WebSocketService.WebSocketMessage] =
+      testKit.createTestProbe[WebSocketService.WebSocketMessage]()
 
     val domainId: DomainId = DomainId("namespace", "domainId")
     val protoConfig: ProtocolConfiguration = ProtocolConfiguration(
@@ -88,7 +88,7 @@ class ClientActorSpec
       domainLifecycleTopic.ref,
       modelSyncInterval))
 
-    clientActor ! ClientActor.ConnectionOpened(connectionActor.ref)
+    clientActor ! ClientActor.WebSocketOpened(connectionActor.ref)
   }
 
   class HandshookClient() extends TestFixture() {

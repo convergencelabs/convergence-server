@@ -82,7 +82,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   private[this] val identityResolutionTimeout =
     getTimeoutFromConfig("convergence.realtime.client.identity-resolution-timeout")
 
-  private[this] var connectionActor: ActorRef[ConnectionActor.ClientMessage] = _
+  private[this] var webSocketActor: ActorRef[WebSocketService.WebSocketMessage] = _
 
   domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
     case DomainLifecycleTopic.DomainDeleted(id) =>
@@ -131,8 +131,8 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   }
 
   private[this] def receiveWhileConnecting: PartialFunction[ClientActor.Message, Behavior[ClientActor.Message]] = {
-    case ConnectionOpened(connectionActor) =>
-      this.connectionActor = connectionActor
+    case WebSocketOpened(connectionActor) =>
+      this.webSocketActor = connectionActor
       this.protocolConnection = new ProtocolConnection(
         context.self.narrow[FromProtocolConnection],
         connectionActor,
@@ -178,10 +178,10 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     case SendServerRequest(message, replyTo) =>
       onOutgoingRequest(message, replyTo)
 
-    case ConnectionClosed =>
+    case WebSocketClosed =>
       onConnectionClosed()
 
-    case ConnectionError(cause) =>
+    case WebSocketError(cause) =>
       onConnectionError(cause)
 
     case DomainDeleted(domainId) =>
@@ -197,8 +197,8 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   private[this] val receiveWhileHandshaking: PartialFunction[Message, Behavior[Message]] = {
     case HandshakeTimeout =>
       debug(s"$domainId: Client handshake timeout")
-      Option(connectionActor) match {
-        case Some(connection) => connection ! ConnectionActor.CloseConnection
+      Option(webSocketActor) match {
+        case Some(connection) => connection ! WebSocketService.CloseSocket
         case None =>
       }
       Behaviors.stopped
@@ -298,7 +298,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
   }
 
   private[this] def handleDisconnect(): Behavior[Message] = {
-    this.connectionActor ! ConnectionActor.CloseConnection
+    this.webSocketActor ! WebSocketService.CloseSocket
     Behaviors.stopped
   }
 
@@ -564,16 +564,6 @@ object ClientActor {
 
   private type MessageHandler = PartialFunction[ProtocolMessageEvent, Behavior[Message]]
 
-  private final case object HandshakeTimerKey
-
-  /////////////////////////////////////////////////////////////////////////////
-  // Message Protocol
-  /////////////////////////////////////////////////////////////////////////////
-
-  sealed trait Message
-
-  private final case object HandshakeTimeout extends Message
-
   private[realtime] type IncomingMessage = GeneratedMessage with NormalMessage with ClientMessage
 
   private[realtime] final case class IncomingProtocolMessage(message: IncomingMessage) extends Message
@@ -582,13 +572,57 @@ object ClientActor {
 
   private[realtime] final case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends Message
 
-  private[realtime] sealed trait ConnectionMessage extends Message
 
-  private[realtime] final case class ConnectionOpened(connectionActor: ActorRef[ConnectionActor.ClientMessage]) extends ConnectionMessage
+  private final case object HandshakeTimerKey
 
-  private[realtime] case object ConnectionClosed extends ConnectionMessage
+  /////////////////////////////////////////////////////////////////////////////
+  // Message Protocol
+  /////////////////////////////////////////////////////////////////////////////
 
-  private[realtime] final case class ConnectionError(cause: Throwable) extends ConnectionMessage
+  /**
+   * The parent trait of all messages sent to the ClientActor.
+   */
+  sealed trait Message
+
+  /**
+   * Indicates that a handshake timeout with the connecting client has occured.
+   */
+  private final case object HandshakeTimeout extends Message
+
+  /**
+   * Defines the messages that will come in from the WebSocketService
+   */
+  private[realtime] sealed trait WebSocketMessage extends Message
+
+  /**
+   * Indicates that the connection should now be open and use he supplied
+   * ActorRef to send outgoing messages too.
+   *
+   * @param webSocket The ActorRef to use to send outgoing messages
+   *                            to the Web Socket.
+   */
+  private[realtime] final case class WebSocketOpened(webSocket: ActorRef[WebSocketService.WebSocketMessage]) extends WebSocketMessage
+
+  /**
+   * Indicates that the Web Socket for this connection has been closed.
+   */
+  private[realtime] case object WebSocketClosed extends WebSocketMessage
+
+  /**
+   * Indicates that the Web Socket associated with this connection emitted an
+   * error.
+   *
+   * @param cause The cause of the error.
+   */
+  private[realtime] final case class WebSocketError(cause: Throwable) extends WebSocketMessage
+
+  /**
+   * Represents an incoming binary message from the web socket.
+   *
+   * @param data The incoming binary web socket message data.
+   */
+  private[realtime] final case class IncomingBinaryMessage(data: Array[Byte]) extends WebSocketMessage
+
 
 
   private[realtime] sealed trait SendToClient extends Message
@@ -597,13 +631,12 @@ object ClientActor {
 
   private[realtime] final case class SendServerRequest(message: GeneratedMessage with RequestMessage with ServerMessage, replyTo: ActorRef[Any]) extends SendToClient
 
-  /**
-   * Represents an incoming binary message from the client.
-   *
-   * @param data The incoming binary web socket message data.
-   */
-  private[realtime] final case class IncomingBinaryMessage(data: Array[Byte]) extends ConnectionMessage
 
+  /**
+   * Messages sent to this actor from the ProtocolConnection. This trait is used
+   * to narrow the ClientActor's ref some that the ProtocolConnection can only
+   * send certain messages to the ClientActor.
+   */
   private[realtime] sealed trait FromProtocolConnection extends Message
 
   private[realtime] final case object PongTimeout extends FromProtocolConnection

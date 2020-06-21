@@ -19,7 +19,7 @@ import akka.cluster.typed._
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
-import com.convergencelabs.convergence.server.api.realtime.ConvergenceRealtimeApi
+import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi}
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
@@ -68,7 +68,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
         stop(msg)
       case msg: StartBackendServices =>
         startBackend(msg)
-      case msg: BackendInitializationFailure=>
+      case msg: BackendInitializationFailure =>
         onBackendFailure(msg)
     }
   }
@@ -258,19 +258,23 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
                                            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Unit = {
 
     info("Role 'realtimeApi' detected, activating the Realtime API...")
-    val host = config.getString("convergence.realtime.host")
-    val port = config.getInt("convergence.realtime.port")
-    val realTimeFrontEnd = new ConvergenceRealtimeApi(
-      context,
-      host,
-      port,
+    val protoConfig = ProtocolConfigUtil.loadConfig(context.system.settings.config)
+    val clientCreator = context.spawn(ClientActorCreator(
+      protoConfig,
       domainRegion,
       activityShardRegion,
       modelShardRegion,
       chatShardRegion,
       chatDeliveryShardRegion,
-      domainLifecycleTopic)
+      domainLifecycleTopic),
+      "ClientCreatorActor")
+
+    val host = config.getString("convergence.realtime.host")
+    val port = config.getInt("convergence.realtime.port")
+
+    val realTimeFrontEnd = new ConvergenceRealtimeApi(context.system, clientCreator, host, port)
     realTimeFrontEnd.start()
+
     this.realtime = Some(realTimeFrontEnd)
   }
 }
@@ -298,6 +302,8 @@ object ConvergenceServerActor {
   final case class StopRequest(replyTo: ActorRef[StopResponse]) extends Message
 
   final case class StopResponse()
+
+  final case class CreateClient()
 
 
   //////////////////////

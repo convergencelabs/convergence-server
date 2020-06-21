@@ -20,7 +20,6 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.OutgoingBinaryMessage
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
@@ -37,17 +36,17 @@ import scala.util.{Failure, Success, Try}
  * keep the web socket open and to detect when a connection has been silently
  * lost.
  *
- * @param clientActor     The client actor to deliver incoming message events to.
- * @param connectionActor The web socket connection actor to send outgoing
- *                        messages to.
- * @param protocolConfig  The protocol configuration object that configures the
- *                        connection behavior.
- * @param scheduler       The scheduler to use to schedule periodic work, such as
- *                        heartbeats.
- * @param ec              The execution context to use for asynchronous work.
+ * @param clientActor    The client actor to deliver incoming message events to.
+ * @param webSocketActor The web socket connection actor to send outgoing
+ *                       messages to.
+ * @param protocolConfig The protocol configuration object that configures the
+ *                       connection behavior.
+ * @param scheduler      The scheduler to use to schedule periodic work, such as
+ *                       heartbeats.
+ * @param ec             The execution context to use for asynchronous work.
  */
 class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnection],
-                         connectionActor: ActorRef[OutgoingBinaryMessage],
+                         webSocketActor: ActorRef[WebSocketService.OutgoingBinaryMessage],
                          protocolConfig: ProtocolConfiguration,
                          scheduler: Scheduler,
                          ec: ExecutionContext)
@@ -176,7 +175,7 @@ class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnectio
    */
   def serializeAndSend(convergenceMessage: ConvergenceMessage): Unit = {
     val bytes = convergenceMessage.toByteArray
-    connectionActor ! OutgoingBinaryMessage(bytes)
+    webSocketActor ! WebSocketService.OutgoingBinaryMessage(bytes)
     if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
       logger.debug("SND: " + convergenceMessage)
     }
@@ -303,6 +302,7 @@ class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnectio
       expectedError(ErrorCodes.Timeout, "An internal server timeout occurred")
     }
   }
+
 }
 
 object ProtocolConnection {

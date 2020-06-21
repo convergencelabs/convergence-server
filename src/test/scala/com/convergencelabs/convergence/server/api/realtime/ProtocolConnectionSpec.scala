@@ -17,7 +17,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{PongTimeout, SendUnprocessedMessage}
-import com.convergencelabs.convergence.server.api.realtime.ConnectionActor.OutgoingBinaryMessage
+import WebSocketService.OutgoingBinaryMessage
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, RequestReceived}
 import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.google.protobuf.struct.Value
@@ -65,7 +65,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(message) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(message) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentMessage = ConvergenceMessage.parseFrom(message)
 
           sentMessage.body.operationAck shouldBe defined
@@ -83,7 +83,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
           sentMessage.requestId shouldBe defined
@@ -154,7 +154,7 @@ class ProtocolConnectionSpec
           val bytes = message.toByteArray
           connection.onIncomingMessage(bytes).success
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val received = ConvergenceMessage.parseFrom(sentBytes)
 
           val expected = ConvergenceMessage().withPong(PongMessage())
@@ -184,7 +184,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
           sentMessage shouldBe expectedResponseEnvelope
         }
@@ -205,7 +205,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
           sentMessage.body.error shouldBe defined
@@ -229,7 +229,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentError = ConvergenceMessage.parseFrom(sentBytes)
 
           sentError.body.error shouldBe defined
@@ -242,7 +242,7 @@ class ProtocolConnectionSpec
     "set to ping" must {
       "ping within the specified interval" in {
         val clientActor = testKit.createTestProbe[ClientActor.Message]()
-        val connectionActor = testKit.createTestProbe[ConnectionActor.Message]()
+        val webSocketActor = testKit.createTestProbe[WebSocketService.OutgoingBinaryMessage]()
 
         val protoConfig = ProtocolConfiguration(
           100 millis,
@@ -254,12 +254,12 @@ class ProtocolConnectionSpec
 
         new ProtocolConnection(
           clientActor.ref,
-          connectionActor.ref,
+          webSocketActor.ref,
           protoConfig,
           system.scheduler,
           system.executionContext)
 
-        val OutgoingBinaryMessage(outgoing) = connectionActor.expectMessageType[OutgoingBinaryMessage](1000 millis)
+        val OutgoingBinaryMessage(outgoing) = webSocketActor.expectMessageType[OutgoingBinaryMessage](1000 millis)
         val convergenceMessage = ConvergenceMessage.parseFrom(outgoing)
 
         val expected = ConvergenceMessage().withPing(PingMessage())
@@ -268,7 +268,8 @@ class ProtocolConnectionSpec
 
       "timeout within the specified interval" in {
         val clientActor = testKit.createTestProbe[ClientActor.Message]()
-        val connectionActor = testKit.createTestProbe[ConnectionActor.Message]()
+        val webSocketActor =
+          testKit.createTestProbe[WebSocketService.OutgoingBinaryMessage]()
 
         val protoConfig = ProtocolConfiguration(
           100 millis,
@@ -280,7 +281,7 @@ class ProtocolConnectionSpec
 
         new ProtocolConnection(
           clientActor.ref,
-          connectionActor.ref,
+          webSocketActor.ref,
           protoConfig,
           system.scheduler,
           system.executionContext)
@@ -313,7 +314,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
           val replyMessage = AutoCreateModelConfigResponseMessage()
@@ -339,7 +340,7 @@ class ProtocolConnectionSpec
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
 
-          val OutgoingBinaryMessage(sentBytes) = this.connectionActor.expectMessageType[OutgoingBinaryMessage](10 millis)
+          val OutgoingBinaryMessage(sentBytes) = this.webSocketActor.expectMessageType[OutgoingBinaryMessage](10 millis)
           val sentMessage = ConvergenceMessage.parseFrom(sentBytes)
 
           val replyMessage = ErrorMessage(code.toString, errorMessage, Map("foo" -> Value(Value.Kind.StringValue("bar"))))
@@ -363,7 +364,8 @@ class ProtocolConnectionSpec
 
   class TestFixture() {
     val clientActor: scaladsl.TestProbe[ClientActor.Message] = testKit.createTestProbe[ClientActor.Message]()
-    val connectionActor: scaladsl.TestProbe[ConnectionActor.Message] = testKit.createTestProbe[ConnectionActor.Message]()
+    val webSocketActor: scaladsl.TestProbe[WebSocketService.OutgoingBinaryMessage] =
+      testKit.createTestProbe[WebSocketService.OutgoingBinaryMessage]()
 
     val protoConfig: ProtocolConfiguration = ProtocolConfiguration(
       100 millis,
@@ -375,7 +377,7 @@ class ProtocolConnectionSpec
 
     val connection = new ProtocolConnection(
       clientActor.ref,
-      connectionActor.ref,
+      webSocketActor.ref,
       protoConfig,
       system.scheduler,
       system.executionContext)
