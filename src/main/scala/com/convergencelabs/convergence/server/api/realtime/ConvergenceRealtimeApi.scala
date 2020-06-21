@@ -21,9 +21,8 @@ import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 /**
  * The [[ConvergenceRealtimeApi]] is the main entry point that bootstraps
@@ -48,18 +47,24 @@ class ConvergenceRealtimeApi(system: ActorSystem[_],
   /**
    * Starts the Realtime API, which will listen on the specified
    * interface and port for incoming web socket connections.
+   *
+   * @return A future that will be resolved when the Realtime API startup
+   *         is complete.
    */
-  def start(): Unit = {
+  def start(): Future[Unit] = {
     val service = new WebSocketService(system, clientCreator)
 
-    Http().bindAndHandle(service.route, interface, websocketPort).onComplete {
-      case Success(b) =>
-        this.binding = Some(b)
+    Http()
+      .bindAndHandle(service.route, interface, websocketPort)
+      .map { binding =>
+        this.binding = Some(binding)
         logger.info(s"Realtime API started at: http://$interface:$websocketPort")
-      case Failure(e) =>
-        logger.error("Realtime API startup failed", e)
-        system.terminate()
-    }
+        ()
+      }
+      .recoverWith { cause =>
+        logger.error("Realtime API startup failed", cause)
+        Future.failed(cause)
+      }
   }
 
   /**

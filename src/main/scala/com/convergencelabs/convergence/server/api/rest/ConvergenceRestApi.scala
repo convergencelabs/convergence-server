@@ -37,9 +37,8 @@ import grizzled.slf4j.Logging
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 
 /**
  * The [[ConvergenceRestApi]] class is the main entry point to the Convergence
@@ -82,7 +81,7 @@ class ConvergenceRestApi(interface: String,
    * Starts the REST API by deploying the relevant Actor's and binding
    * to the specified interface and port.
    */
-  def start(): Unit = {
+  def start(): Future[Unit] = {
 
     // Routers to backend services. We add them to a list so we can shut them down.
     val authenticationActor = createBackendRouter(context, AuthenticationActor.Key, "authActor")
@@ -194,14 +193,16 @@ class ConvergenceRestApi(interface: String,
     // Now we start up the server
     implicit val s: actor.ActorSystem = system.toClassic
     implicit val materializer: Materializer = akka.stream.Materializer.createMaterializer(s)
-    Http().bindAndHandle(route, interface, port).onComplete {
-      case Success(b) =>
-        this.binding = Some(b)
+    Http()
+      .bindAndHandle(route, interface, port)
+      .map { binding =>
+        this.binding = Some(binding)
         logger.info(s"Rest API started at: http://$interface:$port")
-      case Failure(e) =>
-        logger.info(s"Rest API binding failed with ${e.getMessage}")
-        system.terminate()
-    }
+      }
+      .recoverWith { cause =>
+        logger.error(s"Rest API startup failed", cause)
+        Future.failed(cause)
+      }
   }
 
   /**

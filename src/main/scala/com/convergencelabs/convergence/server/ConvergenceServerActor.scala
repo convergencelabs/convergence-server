@@ -35,9 +35,9 @@ import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.Duration
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
-
 
 /**
  * This is the main ConvergenceServer class. It is responsible for starting
@@ -109,11 +109,13 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     val domainRestShardRegion = DomainRestActorSharding(context.system.settings.config, sharding, shardCount)
 
 
-    if (roles.contains(ServerClusterRoles.RestApi)) {
+    val restStartupFuture = if (roles.contains(ServerClusterRoles.RestApi)) {
       this.processRestApiRole(domainRestShardRegion, modelShardRegion, chatShardRegion)
+    } else {
+      Future.successful(())
     }
 
-    if (roles.contains(ServerClusterRoles.RealtimeApi)) {
+    val realtimeStartupFuture = if (roles.contains(ServerClusterRoles.RealtimeApi)) {
       this.processRealtimeApiRole(
         domainShardRegion,
         activityShardRegion,
@@ -121,19 +123,33 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
         chatShardRegion,
         chatDeliveryShardRegion,
         domainLifeCycleTopic)
+    } else {
+      Future.successful(())
     }
 
-    if (roles.contains(ServerClusterRoles.Backend)) {
+    val backendStartupFuture = if (roles.contains(ServerClusterRoles.Backend)) {
       this.processBackendRole(domainLifeCycleTopic, msg)
     } else {
-      msg.replyTo ! StartResponse(Right(Ok()))
+      Future.successful(())
     }
+
+    implicit val ec: ExecutionContext = ExecutionContext.global
+    (for {
+      _ <- restStartupFuture
+      _ <- realtimeStartupFuture
+      _ <- backendStartupFuture
+    } yield {
+      msg.replyTo ! StartResponse(Right(Ok()))
+    }).recover { cause => {
+      error("The was an error starting the ConvergenceServerActor", cause)
+      msg.replyTo ! StartResponse(Left(()))
+    }}
 
     Behaviors.same
   }
 
   private[this] def startBackend(msg: StartBackendServices): Behavior[Message] = {
-    val StartBackendServices(domainLifecycleTopic, startRequest) = msg
+    val StartBackendServices(domainLifecycleTopic, promise) = msg
     val persistenceConfig = config.getConfig("convergence.persistence")
     val dbServerConfig = persistenceConfig.getConfig("server")
 
@@ -159,17 +175,15 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     backend.start()
     this.backend = Some(backend)
 
-    startRequest.replyTo ! StartResponse(Right(Ok()))
+    promise.success(())
 
     Behaviors.same
   }
 
   private[this] def onBackendFailure(msg: BackendInitializationFailure): Behavior[Message] = {
-    val BackendInitializationFailure(cause, startRequest) = msg
-    error("Aborting the Convergence Sever startup because starting the backend services failed", cause)
-    shutdown()
-    startRequest.replyTo ! StartResponse(Left(()))
-    Behaviors.stopped
+    val BackendInitializationFailure(cause, p) = msg
+    p.failure(cause)
+    Behaviors.same
   }
 
   /**
@@ -202,7 +216,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
    * A helper method that will bootstrap the backend node.
    */
   private[this] def processBackendRole(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
-                                       startRequest: StartRequest): Unit = {
+                                       startRequest: StartRequest): Future[Unit] = {
     info("Role 'backend' detected, activating Backend Services...")
 
     val singletonManager = ClusterSingleton(context.system)
@@ -216,14 +230,18 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     val initTimeout = config.getDuration("convergence.persistence.convergence-database.initialization-timeout")
     implicit val timeout: Timeout = Timeout.durationToTimeout(Duration.fromNanos(initTimeout.toNanos))
 
+    val p = Promise[Unit]()
+
     context.ask(convergenceDatabaseInitializerActor, ConvergenceDatabaseInitializerActor.AssertInitialized) {
       case Success(ConvergenceDatabaseInitializerActor.Initialized()) =>
-        StartBackendServices(domainLifecycleTopic, startRequest)
+        StartBackendServices(domainLifecycleTopic, p)
       case Success(ConvergenceDatabaseInitializerActor.InitializationFailed(cause)) =>
-        BackendInitializationFailure(cause, startRequest)
+        BackendInitializationFailure(cause, p)
       case Failure(cause) =>
-        BackendInitializationFailure(cause, startRequest)
+        BackendInitializationFailure(cause, p)
     }
+
+    p.future
   }
 
   /**
@@ -231,7 +249,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
    */
   private[this] def processRestApiRole(domainRestRegion: ActorRef[DomainRestActor.Message],
                                        modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                                       chatClusterRegion: ActorRef[ChatActor.Message]): Unit = {
+                                       chatClusterRegion: ActorRef[ChatActor.Message]): Future[Unit] = {
     info("Role 'restApi' detected, activating REST API...")
     val host = config.getString("convergence.rest.host")
     val port = config.getInt("convergence.rest.port")
@@ -243,8 +261,8 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
       modelClusterRegion,
       chatClusterRegion
     )
-    restFrontEnd.start()
     this.rest = Some(restFrontEnd)
+    restFrontEnd.start()
   }
 
   /**
@@ -255,7 +273,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
                                            modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                            chatShardRegion: ActorRef[ChatActor.Message],
                                            chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-                                           domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Unit = {
+                                           domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Future[Unit] = {
 
     info("Role 'realtimeApi' detected, activating the Realtime API...")
     val protoConfig = ProtocolConfigUtil.loadConfig(context.system.settings.config)
@@ -273,9 +291,8 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     val port = config.getInt("convergence.realtime.port")
 
     val realTimeFrontEnd = new ConvergenceRealtimeApi(context.system, clientCreator, host, port)
-    realTimeFrontEnd.start()
-
     this.realtime = Some(realTimeFrontEnd)
+    realTimeFrontEnd.start()
   }
 }
 
@@ -311,9 +328,11 @@ object ConvergenceServerActor {
   //////////////////////
 
   private final case class StartBackendServices(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
-                                                startRequest: StartRequest) extends Message
+                                                startPromise: Promise[Unit]) extends Message
 
-  private final case class BackendInitializationFailure(cause: Throwable, startRequest: StartRequest) extends Message
+  private final case class BackendInitializationFailure(cause: Throwable,
+
+                                                        startPromise: Promise[Unit]) extends Message
 
 }
 

@@ -24,7 +24,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
@@ -97,7 +97,11 @@ object ConvergenceServer extends Logging {
       val system: ActorSystem[Message] = ActorSystem(ConvergenceServerActor(), ActorSystemName)
       this.system = Some(system)
 
-      implicit val t: Timeout = Timeout(10, TimeUnit.SECONDS)
+
+
+      implicit val t: Timeout = Timeout(Duration.fromNanos(
+        system.settings.config.getDuration("convergence.server-startup-timeout").toNanos))
+
       implicit val s: Scheduler = system.scheduler
       implicit val ec: ExecutionContext = system.executionContext
       system
@@ -105,8 +109,7 @@ object ConvergenceServer extends Logging {
         .map(_.response match {
           case Left(_) =>
             error("There was a failure on server start up. Exiting.")
-            system.terminate()
-            System.exit(1)
+            this.terminateAndExitOnError(system)
           case Right(_) =>
         })
         .recover { _ =>
@@ -124,37 +127,23 @@ object ConvergenceServer extends Logging {
    * Helper method that will shut down the server, if it was started.
    */
   private[this] def stop(): Unit = {
-    this.system.foreach(s => {
-      implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
-      implicit val sys: Scheduler = s.scheduler
-      implicit val ec: ExecutionContext = s.executionContext
-      s
+    this.system.foreach(system => {
+      implicit val t: Timeout = Timeout(Duration.fromNanos(
+        system.settings.config.getDuration("convergence.server-shutdown-timeout").toNanos))
+
+      implicit val sys: Scheduler = system.scheduler
+      implicit val ec: ExecutionContext = system.executionContext
+      system
         .ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
         .map { _ =>
-          terminate(s)
+          terminate(system)
           System.exit(0)
         }
         .recover { _ =>
           error("The server did not stop up in time. Exiting.")
-          terminate(s)
-          System.exit(1)
+          terminateAndExitOnError(system)
         }
     })
-
-  }
-
-  private[this] def terminate(system: ActorSystem[Message]): Unit = {
-    logger.info(s"Terminating ActorSystem...")
-
-    system.terminate()
-
-    Try(
-      Await.result(system.whenTerminated, FiniteDuration(15, TimeUnit.SECONDS))
-    )
-
-    logger.info(s"ActorSystem terminated")
-
-    LogManager.shutdown()
   }
 
   /**
@@ -215,7 +204,7 @@ object ConvergenceServer extends Logging {
 
                 (host.trim, port)
               case host :: Nil =>
-                (host, 2551)
+                (host, 25520)
               case _ =>
                 throw new IllegalArgumentException(s"Invalid seed node environment variable $seedNodesEnv")
             }
@@ -324,5 +313,36 @@ object ConvergenceServer extends Logging {
         }
       }
     }
+  }
+
+  /**
+   * Helper method to wait on the server to shut down.
+   *
+   * @param system The ActorSystem to shutdown.
+   */
+  private[this] def terminate(system: ActorSystem[Message]): Unit = {
+    logger.info(s"Terminating ActorSystem...")
+
+    system.terminate()
+
+    val timeout = Duration.fromNanos(system.settings.config.getDuration("convergence.system-termination-timeout").toNanos)
+
+    Try(
+      Await.result(system.whenTerminated, timeout)
+    )
+
+    logger.info(s"ActorSystem terminated")
+
+    LogManager.shutdown()
+  }
+
+  /**
+   * A helper method to exit uncleanly.
+   *
+   * @param system The system to terminate.
+   */
+  private[this] def terminateAndExitOnError(system: ActorSystem[Message]): Unit = {
+    terminate(system)
+    System.exit(1)
   }
 }

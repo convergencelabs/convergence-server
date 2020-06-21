@@ -91,7 +91,7 @@ object ClientActorCreator {
    * @param userAgent  The HTTP User Agent, if set.
    * @param replyTo    The actor to reply to.
    */
-  final case class CreateClientRequest(domain: DomainId,
+  private[realtime] final case class CreateClientRequest(domain: DomainId,
                                        remoteHost: RemoteAddress,
                                        userAgent: String,
                                        replyTo: ActorRef[CreateClientResponse])
@@ -101,7 +101,7 @@ object ClientActorCreator {
    *
    * @param client The actor ref of the ClientActor.
    */
-  final case class CreateClientResponse(client: ActorRef[ClientActor.WebSocketMessage])
+  private[realtime] final case class CreateClientResponse(client: ActorRef[ClientActor.WebSocketMessage])
 
 }
 
