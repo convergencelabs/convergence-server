@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.adapter._
@@ -47,14 +45,18 @@ private[realtime] class WebSocketService(system: ActorSystem[_],
   extends Directives with Logging with JsonSupport {
 
   private[this] val config = system.settings.config
+
   private[this] val maxFrames = config.getInt("convergence.realtime.websocket.max-frames")
+
   private[this] val maxStreamDuration = Duration.fromNanos(
     config.getDuration("convergence.realtime.websocket.max-stream-duration").toNanos)
+
+  private[this] implicit val clientCreationTimeout: Timeout = Timeout(Duration.fromNanos(
+    config.getDuration("convergence.realtime.client.client-creation-timeout").toNanos))
 
   private[this] implicit val ec: ExecutionContextExecutor = system.executionContext
   private[this] implicit val scheduler: Scheduler = system.scheduler
 
-  private[this] implicit val timeout: Timeout = Timeout(5, TimeUnit.SECONDS)
 
   // Needed by akka http that still uses Classic actors
   private[this] implicit val classicSystem: actor.ActorSystem = system.toClassic
