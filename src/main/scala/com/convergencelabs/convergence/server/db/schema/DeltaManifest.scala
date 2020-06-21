@@ -13,15 +13,18 @@ package com.convergencelabs.convergence.server.db.schema
 
 import scala.util.Try
 import java.io.InputStream
+
 import scala.util.Failure
 import org.json4s.ext.EnumNameSerializer
-import com.convergencelabs.convergence.server.util.SimpleNamePolymorphicSerializer
 import org.json4s.DefaultFormats
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.json4s.jackson.JsonMethods
 import org.json4s.Extraction
 import java.io.IOException
+
+import com.convergencelabs.convergence.server.util.serialization.SimpleNamePolymorphicSerializer
+
 import scala.util.Success
 import scala.io.Source
 

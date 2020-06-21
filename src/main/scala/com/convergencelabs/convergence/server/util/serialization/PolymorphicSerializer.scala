@@ -9,22 +9,13 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.util
+package com.convergencelabs.convergence.server.util.serialization
+
+import org.json4s.JsonAST.{JObject, JString}
+import org.json4s.JsonDSL.{jobject2assoc, pair2jvalue, string2jvalue}
+import org.json4s.{DefaultFormats, Extraction, Formats, JField, JValue, MappingException, Serializer, TypeInfo}
 
 import scala.language.postfixOps
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.Formats
-import org.json4s.JField
-import org.json4s.JValue
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import org.json4s.JsonDSL.jobject2assoc
-import org.json4s.JsonDSL.pair2jvalue
-import org.json4s.JsonDSL.string2jvalue
-import org.json4s.MappingException
-import org.json4s.Serializer
-import org.json4s.TypeInfo
 
 /**
  * A custom object serializer that will append a specified field to resulting JObject based

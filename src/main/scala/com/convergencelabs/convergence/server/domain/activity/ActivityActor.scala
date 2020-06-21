@@ -210,6 +210,7 @@ object ActivityActor {
 
   final case class JoinResponse(response: Either[JoinError, Joined]) extends CborSerializable
 
+
   final case class Joined(state: Map[String, Map[String, JValue]])
 
 

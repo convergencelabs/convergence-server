@@ -9,11 +9,11 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.util
+package com.convergencelabs.convergence.server.util.serialization
 
 import org.json4s.TypeHints
 
-case class MappedTypeHits(private val hintMap: Map[String, Class[_]]) extends TypeHints {
+final case class MappedTypeHints(private val hintMap: Map[String, Class[_]]) extends TypeHints {
   private val reverseHintMap = hintMap map (_.swap)
 
   val hints: List[Class[_]] = hintMap.values.toList

@@ -30,9 +30,7 @@ object DomainUserId {
   def convergence(username: String) = DomainUserId(DomainUserType.Convergence, username)
 }
 
-case class DomainUserId(
-                         userType: DomainUserType.Value,
-                         username: String) {
+case class DomainUserId(userType: DomainUserType.Value, username: String) {
   def isConvergence: Boolean = this.userType == DomainUserType.Convergence
 
   def isNormal: Boolean = this.userType == DomainUserType.Normal

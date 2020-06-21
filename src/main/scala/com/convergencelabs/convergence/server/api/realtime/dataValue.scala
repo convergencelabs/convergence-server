@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api
 
 import com.convergencelabs.convergence.server.domain.model.data._
-import com.convergencelabs.convergence.server.util.MappedTypeHits
+import com.convergencelabs.convergence.server.util.serialization.MappedTypeHints
 import org.json4s.{FieldSerializer, JField}
 
 package object realtime {
@@ -31,7 +31,7 @@ package object realtime {
 
   val DataValueFieldSerializer: FieldSerializer[DataValue] = FieldSerializer[DataValue](serializer, deserializer)
 
-  val DataValueTypeHints: MappedTypeHits = MappedTypeHits(Map(
+  val DataValueTypeHints: MappedTypeHints = MappedTypeHints(Map(
     "0" -> classOf[ObjectValue],
     "1" -> classOf[ArrayValue],
     "2" -> classOf[StringValue],

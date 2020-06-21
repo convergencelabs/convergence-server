@@ -28,7 +28,9 @@ import com.convergencelabs.convergence.server.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
+import com.convergencelabs.convergence.server.util.serialization.akka.DomainUserIdSerialization
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -534,6 +536,9 @@ object RealtimeModelActor {
   case class ModelOpenError() extends CreateOrUpdateRealtimeModelError
 
   case class CreateOrUpdateRealtimeModelResponse(response: Either[CreateOrUpdateRealtimeModelError, Ok]) extends CborSerializable
+
+
+
 
   //
   // CreateRealtimeModel
