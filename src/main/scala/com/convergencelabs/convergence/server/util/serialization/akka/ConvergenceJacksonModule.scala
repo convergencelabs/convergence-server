@@ -11,16 +11,17 @@
 
 package com.convergencelabs.convergence.server.util.serialization.akka
 
-import com.convergencelabs.convergence.server.BuildInfo
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.fasterxml.jackson.databind.module.SimpleModule
-import grizzled.slf4j.Logging
-import org.json4s.JsonAST.JValue
 
-class ConvergenceModule extends SimpleModule(BuildInfo.version) with Logging {
-  addSerializer(classOf[JValue], new Json4sSerialization.Serializer())
-  addDeserializer(classOf[JValue], new Json4sSerialization.Deserializer())
+/**
+ * The [[ConvergenceJacksonModule]] adds serialization and deserialization for
+ * the types that Convergence serializes through akka using the Jackson CBOR
+ * serializer, that can't be handled by automated means.
+ */
+final class ConvergenceJacksonModule extends SimpleModule() {
 
+  // Handle DomainUserId as a map key.
   addKeyDeserializer(classOf[DomainUserId], new DomainUserIdSerialization.MapKeyDeserializer())
   addKeySerializer(classOf[DomainUserId], new DomainUserIdSerialization.MapKeySerializer())
 }
