@@ -11,10 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.chat.processors.general
 
-import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.datastore.domain.ChatEvent
 import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetChatHistoryRequest, GetChatHistoryResponse, PagedChatEvents, UnauthorizedError, UnknownError}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -24,7 +22,7 @@ import scala.util.{Success, Try}
 
 object GetHistoryMessageProcessor extends Logging {
 
-  type GetChatHistory = (String, Option[Set[String]], Option[Long], QueryOffset, QueryLimit, Option[Boolean], Option[String]) => Try[PagedData[ChatEvent]]
+  type GetChatHistory = (String, Option[Set[String]], Option[Long], QueryOffset, QueryLimit, Option[Boolean], Option[String]) => Try[PagedChatEvents]
 
   def execute(message: GetChatHistoryRequest,
               getHistory: GetChatHistory,

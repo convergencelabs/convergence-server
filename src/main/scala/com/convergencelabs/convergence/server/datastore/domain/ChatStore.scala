@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.PagedChatEvents
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
@@ -822,7 +823,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
                     offset: QueryOffset,
                     limit: QueryLimit,
                     forward: Option[Boolean],
-                    messageFilter: Option[String]): Try[PagedData[ChatEvent]] = withDb { db =>
+                    messageFilter: Option[String]): Try[PagedChatEvents] = withDb { db =>
     val params = scala.collection.mutable.Map[String, Any]("chatId" -> chatId)
 
     val eventTypesClause = eventTypes.getOrElse(Set()).toList match {
@@ -872,7 +873,7 @@ class ChatStore(private[this] val dbProvider: DatabaseProvider) extends Abstract
           }
         }))
     } yield {
-      PagedData(events, offset.getOrZero, count)
+      PagedChatEvents(events, offset.getOrZero, count)
     }
   }
 

@@ -18,6 +18,11 @@ import com.orientechnologies.orient.core.db.{ODatabase, ODatabasePool, OrientDB,
 
 import scala.util.{Failure, Success, Try}
 
+/**
+ * A trait that provides methods for performing operations wth a database
+ * connection. This trait abstracts over various implementations that
+ * can provide a database for persistence operations.
+ */
 trait DatabaseProvider {
   def connect(): Try[Unit]
 
@@ -29,7 +34,7 @@ trait DatabaseProvider {
 
   def shutdown(): Unit
 
-  protected[db] val NotConnected = "Orient DB is not connected."
+  protected[db] val NotConnected = "The database is not connected."
 }
 
 class SingleDatabaseProvider(serverUrl: String, database: String, username: String, password: String) extends DatabaseProvider {
