@@ -11,6 +11,15 @@
 
 package com.convergencelabs.convergence.server.domain
 
-case class Namespace(id: String, displayName: String, userNamespace: Boolean)
-case class NamespaceUpdates(id: String, displayName: String)
-case class NamespaceAndDomains(id: String, displayName: String, domains: Set[Domain])
+/**
+ * The [[Namespace]] class holds the meta data for a single namespace in the
+ * system. Namespaces group Domains. Namespaces can be "user namespaces"
+ * which means they are a private space where Convergence users can create
+ * domains without needing explicit permissions to the namespace.
+ *
+ * @param id            The unique id of the namespace.
+ * @param displayName   A more friendly display name.
+ * @param userNamespace True if the namespace is a user namespace, false
+ *                      .otherwise
+ */
+final case class Namespace(id: String, displayName: String, userNamespace: Boolean)

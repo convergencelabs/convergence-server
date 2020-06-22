@@ -22,12 +22,12 @@ import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.Try
 
-case class JwtInfo(username: String,
-                   firstName: Option[String],
-                   lastName: Option[String],
-                   displayName: Option[String],
-                   email: Option[String],
-                   groups: Option[Set[String]])
+final case class JwtInfo(username: String,
+                         firstName: Option[String],
+                         lastName: Option[String],
+                         displayName: Option[String],
+                         email: Option[String],
+                         groups: Option[Set[String]])
 
 object JwtUtil {
 

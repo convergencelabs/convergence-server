@@ -27,6 +27,7 @@ import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.Re
 import com.convergencelabs.convergence.server.datastore.domain.ChatMembership.InvalidChatMembershipValue
 import com.convergencelabs.convergence.server.datastore.domain.ChatType.InvalidChatTypeValue
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.PagedChatEvents
 import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
 import com.convergencelabs.convergence.server.domain.chat._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
@@ -608,7 +609,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
           case ChatActor.ChatNotJoinedError() =>
             chatNotJoined(chatId, cb)
         },
-        { case PagedData(events, startIndex, totalResults) =>
+        { case PagedChatEvents(events, startIndex, totalResults) =>
           val eventData = events.map(channelEventToMessage)
           val reply = ChatHistoryResponseMessage(eventData, startIndex, totalResults)
           cb.reply(reply)

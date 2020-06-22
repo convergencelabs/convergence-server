@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersist
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -48,6 +49,17 @@ final case class ChatInfo(id: String,
                           lastEventTime: Instant,
                           members: Set[ChatMember])
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[ChatCreatedEvent], name = "created"),
+  new JsonSubTypes.Type(value = classOf[ChatMessageEvent], name = "message"),
+  new JsonSubTypes.Type(value = classOf[ChatUserJoinedEvent], name = "joined"),
+  new JsonSubTypes.Type(value = classOf[ChatUserLeftEvent], name = "left"),
+  new JsonSubTypes.Type(value = classOf[ChatUserAddedEvent], name = "user_added"),
+  new JsonSubTypes.Type(value = classOf[ChatUserRemovedEvent], name = "user_removed"),
+  new JsonSubTypes.Type(value = classOf[ChatNameChangedEvent], name = "name_changed"),
+  new JsonSubTypes.Type(value = classOf[ChatTopicChangedEvent], name = "topic_changed"),
+))
 sealed trait ChatEvent {
   val eventNumber: Long
   val id: String

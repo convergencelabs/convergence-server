@@ -26,7 +26,7 @@ object DomainUserIdSerialization {
   }
 
   class MapKeyDeserializer extends KeyDeserializer {
-    override def deserializeKey(key: String, ctxt: DeserializationContext): DomainUserId = { //Use the string key here to return a real map key object
+    override def deserializeKey(key: String, ctxt: DeserializationContext): DomainUserId = {
       val sepIndex = key.indexOf(':')
       val userType = key.substring(0, sepIndex)
       val username = key.substring(sepIndex + 1)

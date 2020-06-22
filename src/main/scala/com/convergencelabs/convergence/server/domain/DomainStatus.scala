@@ -11,15 +11,16 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import java.time.Duration
+import com.fasterxml.jackson.core.`type`.TypeReference
 
-final case class ModelSnapshotConfig(
-  snapshotsEnabled: Boolean,
-  triggerByVersion: Boolean,
-  limitedByVersion: Boolean,
-  minimumVersionInterval: Long,
-  maximumVersionInterval: Long,
-  triggerByTime: Boolean,
-  limitedByTime: Boolean,
-  minimumTimeInterval: Duration,
-  maximumTimeInterval: Duration)
+object DomainStatus extends Enumeration {
+  type DomainStatus = Value
+  val Initializing: DomainStatus = Value("initializing")
+  val Error: DomainStatus = Value("error")
+  val Online: DomainStatus = Value("online")
+  val Offline: DomainStatus = Value("offline")
+  val Maintenance: DomainStatus = Value("maintenance")
+  val Deleting: DomainStatus = Value("deleting")
+}
+
+class DomainStatusTypeReference extends TypeReference[DomainStatus.type]

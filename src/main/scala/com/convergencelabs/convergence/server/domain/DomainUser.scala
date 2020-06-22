@@ -13,30 +13,38 @@ package com.convergencelabs.convergence.server.domain
 
 import java.time.Instant
 
-object DomainUserType extends Enumeration {
-  type DomainUserType = Value
-  val Normal: DomainUserType = Value("normal")
-  val Anonymous: DomainUserType = Value("anonymous")
-  val Convergence: DomainUserType = Value("convergence")
+import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 
-  def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
+/**
+ * A [[DomainUser]] represents an individual user inside a Domain.
+ *
+ * @param userType        The type of user indicating if they are a normal user,
+ * @param username        The username of the user.
+ * @param firstName       The user's first name or None if not set.
+ * @param lastName        The user's last name or None if not set.
+ * @param displayName     The user's display name or None if not set.
+ * @param email           The user's email address, or None if not set.
+ * @param lastLogin       The time this user last logged in, or None if they
+ *                        have never logged in.
+ * @param disabled        True if the user is disabled, false otherwise.
+ * @param deleted         True if the user has been deleted, false otherwise.
+ * @param deletedUsername The username of the user before they were deleted or
+ *                        None if the user has not been deleted yet.
+ */
+final case class DomainUser(@JsonScalaEnumeration(classOf[DomainUserTypeReference]) userType: DomainUserType.Value,
+                            username: String,
+                            firstName: Option[String],
+                            lastName: Option[String],
+                            displayName: Option[String],
+                            email: Option[String],
+                            lastLogin: Option[Instant],
+                            disabled: Boolean,
+                            deleted: Boolean,
+                            deletedUsername: Option[String]) {
+
+  def toUserId: DomainUserId = DomainUserId(this.userType, this.username)
 }
 
-object DomainUserId {
-  def apply(userType: String, username: String): DomainUserId = DomainUserId(DomainUserType.withName(userType), username)
-
-  def normal(username: String) = DomainUserId(DomainUserType.Normal, username)
-
-  def convergence(username: String) = DomainUserId(DomainUserType.Convergence, username)
-}
-
-case class DomainUserId(userType: DomainUserType.Value, username: String) {
-  def isConvergence: Boolean = this.userType == DomainUserType.Convergence
-
-  def isNormal: Boolean = this.userType == DomainUserType.Normal
-
-  def isAnonymous: Boolean = this.userType == DomainUserType.Anonymous
-}
 
 object DomainUser {
   def apply(userId: DomainUserId,
@@ -67,20 +75,3 @@ object DomainUser {
             lastLogin: Option[Instant]): DomainUser =
     DomainUser(userType, username, firstName, lastName, displayName, email, lastLogin, disabled = false, deleted = false, None)
 }
-
-case class DomainUser(userType: DomainUserType.Value,
-                      username: String,
-                      firstName: Option[String],
-                      lastName: Option[String],
-                      displayName: Option[String],
-                      email: Option[String],
-                      lastLogin: Option[Instant],
-                      disabled: Boolean,
-                      deleted: Boolean,
-                      deletedUsername: Option[String]) {
-
-  def toUserId: DomainUserId = DomainUserId(this.userType, this.username)
-}
-
-case class DomainUserSessionId(sessionId: String,
-                               userId: DomainUserId)

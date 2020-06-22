@@ -101,7 +101,7 @@ class DomainStoreSpec
         stores.domain.createDomain(ns2d1, "", ns2d1Database).get
 
         val domains = stores.domain.getDomainsInNamespace(namespace1).get
-        domains.map { x => x.domainFqn }.toSet shouldBe Set(ns1d1, ns1d2)
+        domains.map { x => x.domainId }.toSet shouldBe Set(ns1d1, ns1d2)
       }
     }
 

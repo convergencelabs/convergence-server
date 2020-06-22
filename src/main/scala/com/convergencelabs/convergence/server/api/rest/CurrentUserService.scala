@@ -169,8 +169,8 @@ private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreA
         { domains =>
           okResponse(domains.map(domain => DomainRestData(
             domain.displayName,
-            domain.domainFqn.namespace,
-            domain.domainFqn.domainId,
+            domain.domainId.namespace,
+            domain.domainId.domainId,
             domain.status.toString)))
         })
       )

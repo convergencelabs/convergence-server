@@ -128,8 +128,8 @@ class DomainService(schedule: Scheduler,
           val response = okResponse(
             domains map (domain => DomainRestData(
               domain.displayName,
-              domain.domainFqn.namespace,
-              domain.domainFqn.domainId,
+              domain.domainId.namespace,
+              domain.domainId.domainId,
               domain.status.toString.toLowerCase)))
           response
         }
@@ -148,8 +148,8 @@ class DomainService(schedule: Scheduler,
         { domain =>
           okResponse(DomainRestData(
             domain.displayName,
-            domain.domainFqn.namespace,
-            domain.domainFqn.domainId,
+            domain.domainId.namespace,
+            domain.domainId.domainId,
             domain.status.toString.toLowerCase()))
         }
       ))

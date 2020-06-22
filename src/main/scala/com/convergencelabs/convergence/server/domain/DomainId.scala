@@ -11,4 +11,4 @@
 
 package com.convergencelabs.convergence.server.domain
 
-case class DomainId(namespace: String, domainId: String)
+final case class DomainId(namespace: String, domainId: String)

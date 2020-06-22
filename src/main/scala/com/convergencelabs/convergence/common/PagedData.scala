@@ -11,8 +11,12 @@
 
 package com.convergencelabs.convergence.common
 
-case class PagedData[T](
-  data: List[T],
-  offset: Long,
-  count: Long
-)
+trait PagedDataResult[T] {
+  val data: List[T]
+
+  val offset: Long
+
+  val count: Long
+}
+
+final case class PagedData[T](data: List[T], offset: Long, count: Long) extends PagedDataResult[T]

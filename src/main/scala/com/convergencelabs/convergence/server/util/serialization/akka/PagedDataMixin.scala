@@ -9,17 +9,8 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain
+package com.convergencelabs.convergence.server.util.serialization.akka
 
-import java.time.Duration
+class PagedDataMixin {
 
-final case class ModelSnapshotConfig(
-  snapshotsEnabled: Boolean,
-  triggerByVersion: Boolean,
-  limitedByVersion: Boolean,
-  minimumVersionInterval: Long,
-  maximumVersionInterval: Long,
-  triggerByTime: Boolean,
-  limitedByTime: Boolean,
-  minimumTimeInterval: Duration,
-  maximumTimeInterval: Duration)
+}

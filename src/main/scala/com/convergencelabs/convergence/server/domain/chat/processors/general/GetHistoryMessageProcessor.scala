@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.general
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.datastore.domain.ChatEvent
 import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetChatHistoryRequest, GetChatHistoryResponse, UnauthorizedError, UnknownError}
+import com.convergencelabs.convergence.server.domain.chat.ChatActor.{GetChatHistoryRequest, GetChatHistoryResponse, PagedChatEvents, UnauthorizedError, UnknownError}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -37,7 +37,7 @@ object GetHistoryMessageProcessor extends Logging {
         .getOrElse(Success(true))
       response <- if (allowed) {
         getHistory(chatId, eventTypes, startEvent, offset, limit, forward, messageFilter)
-          .map(r => GetChatHistoryResponse(Right(r)))
+          .map(r => GetChatHistoryResponse(Right(PagedChatEvents(r.data, r.offset, r.count))))
       } else {
         Success(GetChatHistoryResponse(Left(UnauthorizedError())))
       }

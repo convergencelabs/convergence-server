@@ -196,7 +196,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   def updateDomain(domain: Domain): Try[Unit] = withDb { db =>
-    val params = Map(Params.Namespace -> domain.domainFqn.namespace, Params.Id -> domain.domainFqn.domainId)
+    val params = Map(Params.Namespace -> domain.domainId.namespace, Params.Id -> domain.domainId.domainId)
     OrientDBUtil.getDocument(db, GetDomainQuery, params).flatMap { existing =>
       DomainStore.domainToDoc(domain, db).map { updated =>
         existing.merge(updated, true, false)

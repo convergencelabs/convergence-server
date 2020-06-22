@@ -11,15 +11,15 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import java.time.Duration
+import com.fasterxml.jackson.core.`type`.TypeReference
 
-final case class ModelSnapshotConfig(
-  snapshotsEnabled: Boolean,
-  triggerByVersion: Boolean,
-  limitedByVersion: Boolean,
-  minimumVersionInterval: Long,
-  maximumVersionInterval: Long,
-  triggerByTime: Boolean,
-  limitedByTime: Boolean,
-  minimumTimeInterval: Duration,
-  maximumTimeInterval: Duration)
+object DomainUserType extends Enumeration {
+  type DomainUserType = Value
+  val Normal: DomainUserType = Value("normal")
+  val Anonymous: DomainUserType = Value("anonymous")
+  val Convergence: DomainUserType = Value("convergence")
+
+  def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
+}
+
+class DomainUserTypeReference extends TypeReference[DomainUserType.type]

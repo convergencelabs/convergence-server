@@ -11,15 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain
 
-import java.time.Duration
-
-final case class ModelSnapshotConfig(
-  snapshotsEnabled: Boolean,
-  triggerByVersion: Boolean,
-  limitedByVersion: Boolean,
-  minimumVersionInterval: Long,
-  maximumVersionInterval: Long,
-  triggerByTime: Boolean,
-  limitedByTime: Boolean,
-  minimumTimeInterval: Duration,
-  maximumTimeInterval: Duration)
+case class DomainDatabase(database: String,
+                          username: String,
+                          password: String,
+                          adminUsername: String,
+                          adminPassword: String)

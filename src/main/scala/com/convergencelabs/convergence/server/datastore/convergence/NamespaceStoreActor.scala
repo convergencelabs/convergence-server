@@ -16,8 +16,9 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.datastore.convergence.NamespaceStore.{NamespaceAndDomains, NamespaceUpdates}
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
-import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceAndDomains, NamespaceUpdates}
+import com.convergencelabs.convergence.server.domain.Namespace
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
 import com.fasterxml.jackson.annotation.JsonSubTypes
 

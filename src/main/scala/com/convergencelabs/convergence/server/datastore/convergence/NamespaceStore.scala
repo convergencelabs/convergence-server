@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.datastore.convergence.schema.Names
 import com.convergencelabs.convergence.server.datastore.convergence.schema.NamespaceClass.{Fields, Indices}
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.{Namespace, NamespaceAndDomains, NamespaceUpdates}
+import com.convergencelabs.convergence.server.domain.{Domain, Namespace}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -25,44 +25,8 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
-object NamespaceStore {
 
-  val UserNamespacePrefix = "~"
-
-  object Params {
-    val Username = "username"
-    val Id = "id"
-    val DisplayName = "displayName"
-  }
-
-  def namespaceToDoc(namespace: Namespace, db: ODatabaseDocument): Try[ODocument] = Try {
-    val Namespace(id, displayName, userNamespace) = namespace
-    val doc = db.newInstance(NamespaceClass.ClassName).asInstanceOf[ODocument]
-    doc.setProperty(Fields.Id, id)
-    doc.setProperty(Fields.DisplayName, displayName)
-    doc.setProperty(Fields.UserNamespace, userNamespace)
-    doc
-  }
-
-  def docToNamespace(doc: ODocument): Namespace = {
-    Namespace(
-      doc.getProperty(Fields.Id),
-      doc.getProperty(Fields.DisplayName),
-      doc.getProperty(Fields.UserNamespace))
-  }
-
-  def getNamespaceRid(id: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
-  }
-
-  def userNamespace(username: String): String = {
-    UserNamespacePrefix + username
-  }
-}
-
-class NamespaceStore(dbProvider: DatabaseProvider)
-  extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import NamespaceStore._
 
@@ -130,7 +94,7 @@ class NamespaceStore(dbProvider: DatabaseProvider)
     val query = "SELECT FROM Domain WHERE namespace IN :namespaces"
     val params = Map("namespaces" -> namespaceRids.asJava)
     val domains = OrientDBUtil.queryAndMap(db, query, params)(DomainStore.docToDomain)
-    domains.map(_.groupBy(_.domainFqn.namespace)).map { domainsByNamespace =>
+    domains.map(_.groupBy(_.domainId.namespace)).map { domainsByNamespace =>
       val namespaceAndDomains = namespaces.map { namespace =>
         val domains = domainsByNamespace.get(namespace.id).map(_.toSet).getOrElse(Set())
         NamespaceAndDomains(namespace.id, namespace.displayName, domains)
@@ -164,5 +128,44 @@ class NamespaceStore(dbProvider: DatabaseProvider)
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object NamespaceStore {
+
+  case class NamespaceUpdates(id: String, displayName: String)
+  case class NamespaceAndDomains(id: String, displayName: String, domains: Set[Domain])
+
+  val UserNamespacePrefix = "~"
+
+  object Params {
+    val Username = "username"
+    val Id = "id"
+    val DisplayName = "displayName"
+  }
+
+  def namespaceToDoc(namespace: Namespace, db: ODatabaseDocument): Try[ODocument] = Try {
+    val Namespace(id, displayName, userNamespace) = namespace
+    val doc = db.newInstance(NamespaceClass.ClassName).asInstanceOf[ODocument]
+    doc.setProperty(Fields.Id, id)
+    doc.setProperty(Fields.DisplayName, displayName)
+    doc.setProperty(Fields.UserNamespace, userNamespace)
+    doc
+  }
+
+  def docToNamespace(doc: ODocument): Namespace = {
+    Namespace(
+      doc.getProperty(Fields.Id),
+      doc.getProperty(Fields.DisplayName),
+      doc.getProperty(Fields.UserNamespace))
+  }
+
+  def getNamespaceRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
+  }
+
+  def userNamespace(username: String): String = {
+    UserNamespacePrefix + username
   }
 }

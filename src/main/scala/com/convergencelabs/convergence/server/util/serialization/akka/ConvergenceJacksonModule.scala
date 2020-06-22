@@ -24,4 +24,10 @@ final class ConvergenceJacksonModule extends SimpleModule() {
   // Handle DomainUserId as a map key.
   addKeyDeserializer(classOf[DomainUserId], new DomainUserIdSerialization.MapKeyDeserializer())
   addKeySerializer(classOf[DomainUserId], new DomainUserIdSerialization.MapKeySerializer())
+//
+//  addSerializer(classOf[DomainUserType.Value], new DomainUserTypeSerialization.Serializer())
+//  addDeserializer(classOf[DomainUserType.Value], new DomainUserTypeSerialization.Deserializer())
+//
+//  addSerializer(classOf[DomainStatus.Value], new DomainStatusSerialization.Serializer())
+//  addDeserializer(classOf[DomainStatus.Value], new DomainStatusSerialization.Deserializer())
 }

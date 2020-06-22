@@ -16,7 +16,7 @@ import java.time.Instant
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import com.convergencelabs.convergence.common.{Ok, PagedData}
+import com.convergencelabs.convergence.common.{Ok, PagedData, PagedDataResult}
 import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.datastore.EntityNotFoundException
@@ -612,7 +612,9 @@ object ChatActor {
   ))
   sealed trait GetChatHistoryError
 
-  final case class GetChatHistoryResponse(events: Either[GetChatHistoryError, PagedData[ChatEvent]]) extends CborSerializable
+  final case class PagedChatEvents(data: List[ChatEvent], offset: Long, count: Long) extends PagedDataResult[ChatEvent]
+
+  final case class GetChatHistoryResponse(events: Either[GetChatHistoryError, PagedChatEvents]) extends CborSerializable
 
 
   //

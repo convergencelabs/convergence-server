@@ -183,9 +183,9 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
 
 
         domains.foreach { domain =>
-          deleteDomain(domain.domainFqn) recover {
+          deleteDomain(domain.domainId) recover {
             case cause: Exception =>
-              error(s"Unable to delete domain '${domain.domainFqn}' while deleting user '$username'", cause)
+              error(s"Unable to delete domain '${domain.domainId}' while deleting user '$username'", cause)
           }
         }
         DeleteDomainsForUserResponse(Right(Ok()))
