@@ -111,7 +111,9 @@ class ConvergenceDevServer() extends Logging {
 
     orientDb.start()
 
-    implicit val t: Timeout = Timeout(30, TimeUnit.SECONDS)
+    // Note: This is set so high because the orient db installation might
+    // take some time to complete.
+    implicit val t: Timeout = Timeout(2, TimeUnit.MINUTES)
     implicit val sys: Scheduler = backend.scheduler
     implicit val ec: ExecutionContext = ExecutionContext.global
 
@@ -124,7 +126,7 @@ class ConvergenceDevServer() extends Logging {
       case Success(_) :: Success(_) :: Nil =>
         logger.info("Convergence Development Server started")
       case _ =>
-        logger.info("Convergence Development Server startup failed")
+        logger.info("Convergence Development Server startup failed due to a startup time out.")
         System.exit(1)
     }
 
@@ -133,6 +135,7 @@ class ConvergenceDevServer() extends Logging {
       this.stop()
     }
 
+    // This is just a convenience to get the system to shut down.
     var done = false
     do {
       val line = scala.io.StdIn.readLine()
@@ -188,6 +191,7 @@ class ConvergenceDevServer() extends Logging {
     val reader = new InputStreamReader(new FileInputStream(configFile))
     val parsed = ConfigFactory.parseReader(reader)
       .withValue("akka.remote.artery.canonical.port", ConfigValueFactory.fromAnyRef(port))
+      .withValue("akka.remote.artery.bind.port", ConfigValueFactory.fromAnyRef(port))
       .withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
 
     ConfigFactory.load(parsed)
