@@ -17,14 +17,14 @@ object Dependencies {
   object Versions {
     val akka      = "2.6.6"
     val akkaHttp  = "10.1.12"
-    val orientDb  = "3.0.31"
-    val log4j     = "2.13.1"
-    val jackson   = "2.10.3"
+    val orientDb  = "3.0.32"
+    val log4j     = "2.13.3"
+    val jackson   = "2.10.4"
   }
 
   object Compile {
     // Convergence
-    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto-scala"      % "1.0.0-SNAPSHOT"            // Apache 2.0
+    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto-scala"      % "1.0.0-rc.4"                // Apache 2.0
 
     // Protobuf
     val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.10.3"                    // Apache 2.0
@@ -32,16 +32,13 @@ object Dependencies {
     // Akka
     val akkaActor          = "com.typesafe.akka"        %% "akka-actor"                   % Versions.akka               // Apache 2.0
     val akkaActorTyped     = "com.typesafe.akka"        %% "akka-actor-typed"             % Versions.akka               // Apache 2.0
-    val akkaCluster        = "com.typesafe.akka"        %% "akka-cluster"                 % Versions.akka               // Apache 2.0
     val akkaClusterTyped   = "com.typesafe.akka"        %% "akka-cluster-typed"           % Versions.akka               // Apache 2.0
     val akkaShardingTyped  = "com.typesafe.akka"        %% "akka-cluster-sharding-typed"  % Versions.akka               // Apache 2.0
     val akkaSlf4j          = "com.typesafe.akka"        %% "akka-slf4j"                   % Versions.akka               // Apache 2.0
-    val akkaClusterTools   = "com.typesafe.akka"        %% "akka-cluster-tools"           % Versions.akka               // Apache 2.0
     val akkaPersistence    = "com.typesafe.akka"        %% "akka-persistence"             % Versions.akka               // Apache 2.0
-    val akkaSharding       = "com.typesafe.akka"        %% "akka-cluster-sharding"        % Versions.akka               // Apache 2.0
     val akkaJackson        = "com.typesafe.akka"        %% "akka-serialization-jackson"   % Versions.akka               // Apache 2.0
 
-    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaActorTyped, akkaCluster, akkaClusterTyped, akkaShardingTyped, akkaClusterTools, akkaSlf4j, akkaPersistence, akkaSharding, akkaJackson)
+    val akkaCore: Seq[ModuleID] = Seq(akkaActor, akkaActorTyped, akkaClusterTyped, akkaShardingTyped, akkaSlf4j, akkaPersistence, akkaJackson)
 
     val akkaHttp           = "com.typesafe.akka"        %% "akka-http"                    % Versions.akkaHttp           // Apache 2.0
     val akkaHttpTest       = "com.typesafe.akka"        %% "akka-http-testkit"            % Versions.akkaHttp           // Apache 2.0
@@ -80,12 +77,12 @@ object Dependencies {
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                   % "3.4"                     // Apache 2.0
     val json4s             = "org.json4s"               %% "json4s-jackson"                 % "3.6.8"                   // Apache 2.0
     val json4sExt          = "org.json4s"               %% "json4s-ext"                     % "3.6.8"                   // Apache 2.0
-//    val jacksonDatabind    = "com.fasterxml.jackson.core" % "jackson-databind" % Versions.jackson          // Apache 2.0
+    val jacksonDatabind    = "com.fasterxml.jackson.core" % "jackson-databind"              % Versions.jackson          // Apache 2.0
     val jacksonYaml        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % Versions.jackson          // Apache 2.0
-//    val jacksonCbor        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % Versions.jackson          // Apache 2.0
-//    val jacksonJdk8        = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8"     % Versions.jackson          // Apache 2.0
-//    val jacksonJsr310      = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310"   % Versions.jackson          // Apache 2.0
-//    val jacksonScala       = "com.fasterxml.jackson.module" %% "jackson-module-scala"       % Versions.jackson          // Apache 2.0
+    val jacksonCbor        = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % Versions.jackson          // Apache 2.0
+    val jacksonJdk8        = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8"     % Versions.jackson          // Apache 2.0
+    val jacksonJsr310      = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310"   % Versions.jackson          // Apache 2.0
+    val jacksonScala       = "com.fasterxml.jackson.module" %% "jackson-module-scala"       % Versions.jackson          // Apache 2.0
     val parboiled          = "org.parboiled"            %% "parboiled"                      % "2.2.0"                   // Apache 2.0
   }
 
