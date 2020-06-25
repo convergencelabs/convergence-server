@@ -17,7 +17,6 @@ import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.actor._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor.DomainNotFoundException
@@ -121,32 +120,38 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
       case _: AnonymousAuthRequest => "anonymous"
     }
 
-    authenticator
+    val response = authenticator
       .authenticate(credentials)
-      .map { case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), _) =>
-        debug(s"$identityString: Authenticated user successfully, creating session")
+      .fold(
+        { _ =>
+          error(s"$identityString: Authentication failed")
+          AuthenticationResponse(Left(AuthenticationFailed()))
+        },
+        {
+          case authSuccess@AuthenticationSuccess(DomainUserSessionId(sessionId, userId), _) =>
+            debug(s"$identityString: Authenticated user successfully, creating session")
 
-        val session = DomainSession(
-          sessionId, userId, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
+            val session = DomainSession(
+              sessionId, userId, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
 
-        persistenceProvider
-          .sessionStore
-          .createSession(session)
-          .map { _ =>
-            debug(s"$identityString: Session created replying to ClientActor")
-            authenticatedClients.put(clientActor, sessionId)
-            AuthenticationResponse(Right(authSuccess))
-          }
-          .recoverWith {
-            case cause: Throwable =>
-              error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
-              Failure(cause)
-          }
-          .getOrElse(AuthenticationResponse(Left(AuthenticationFailed())))
-      }
-      .foreach(replyTo ! _)
+            persistenceProvider
+              .sessionStore
+              .createSession(session)
+              .map { _ =>
+                debug(s"$identityString: Session created replying to ClientActor")
+                authenticatedClients.put(clientActor, sessionId)
+                AuthenticationResponse(Right(authSuccess))
+              }
+              .recoverWith { cause =>
+                error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
+                Failure(cause)
+              }
+              .getOrElse(AuthenticationResponse(Left(AuthenticationFailed())))
+        }
+      )
 
     debug(s"$identityString: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
+    replyTo ! response
 
     Behaviors.same
   }
@@ -236,7 +241,7 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
 
     debug(s"$identityString: Acquiring domain persistence provider")
     domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId) map { provider =>
-      debug( s"$identityString: Acquired domain persistence provider")
+      debug(s"$identityString: Acquired domain persistence provider")
 
       this.persistenceProvider = provider
       this.authenticator = new AuthenticationHandler(
@@ -352,6 +357,7 @@ object DomainActor {
                                          replyTo: ActorRef[AuthenticationResponse]) extends Message
 
   final case class AuthenticationFailed()
+
   final case class AuthenticationResponse(response: Either[AuthenticationFailed, AuthenticationSuccess]) extends CborSerializable
 
   final case class AuthenticationSuccess(session: DomainUserSessionId, reconnectToken: Option[String])
