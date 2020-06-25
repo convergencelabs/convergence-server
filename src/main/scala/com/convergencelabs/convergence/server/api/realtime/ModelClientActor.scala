@@ -42,6 +42,7 @@ import grizzled.slf4j.Logging
 import org.json4s.JsonAST.{JInt, JString}
 import scalapb.GeneratedMessage
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
@@ -50,29 +51,39 @@ import scala.language.postfixOps
  * The [[ModelClientActor]] handles all incoming and outgoing messages
  * that are specific to the Model subsystem.
  *
- * @param domainId        The domain this client has connected to.
- * @param session         The session that has connected to the domain.
- * @param modelStoreActor The model persistence store from this domain.
- * @param requestTimeout  The default request timeout.
+ * @param context                  The ActorContext for this actor.
+ * @param timers                   The Akka timers instance to use for
+ *                                 scheduling.
+ * @param domainId                 The domain this client has connected to.
+ * @param session                  The unique session for this client.
+ * @param clientActor              The client actor managing the web socket
+ *                                 communication.
+ * @param modelStoreActor          The model store actor store for this domain.
+ * @param modelClusterRegion       The model shard region for this domain.
+ * @param requestTimeout           The default request timeout.
+ * @param offlineModelSyncInterval Specifies how often should offline model
+ *                                 synchronization should occur.
  */
 class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                                timers: TimerScheduler[ModelClientActor.Message],
                                domainId: DomainId,
-                               private[this] implicit val session: DomainUserSessionId,
+                               session: DomainUserSessionId,
                                clientActor: ActorRef[ClientActor.SendToClient],
                                modelStoreActor: ActorRef[ModelStoreActor.Message],
                                modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                               private[this] implicit val requestTimeout: Timeout,
+                               requestTimeout: Timeout,
                                offlineModelSyncInterval: FiniteDuration)
   extends AbstractBehavior[ModelClientActor.Message](context) with Logging {
 
   private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
+  private[this] implicit val defaultRequestTimeout: Timeout = requestTimeout
 
   private[this] var nextResourceId = 0
   private[this] var resourceIdToModelId = Map[String, String]()
   private[this] var modelIdToResourceId = Map[String, String]()
   private[this] var subscribedModels = Map[String, OfflineModelState]()
+  private[this] var openingModelStash = Map[String, ListBuffer[OutgoingMessage]]()
 
   timers.startTimerAtFixedRate(SyncTaskTimer, SyncOfflineModels, offlineModelSyncInterval)
 
@@ -190,39 +201,44 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
   //
   // Outgoing Messages
   //
-  private[this] def onOutgoingModelMessage(event: OutgoingMessage): Unit = {
-    event match {
-      case op: OutgoingOperation =>
-        onOutgoingOperation(op)
-      case opAck: OperationAcknowledgement =>
-        onOperationAcknowledgement(opAck)
-      case remoteOpened: RemoteClientOpened =>
-        onRemoteClientOpened(remoteOpened)
-      case remoteClosed: RemoteClientClosed =>
-        onRemoteClientClosed(remoteClosed)
-      case forceClosed: ModelForceClose =>
-        onModelForceClose(forceClosed)
-      case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
-        onAutoCreateModelConfigRequest(autoCreateRequest)
-      case refShared: RemoteReferenceShared =>
-        onRemoteReferenceShared(refShared)
-      case refUnshared: RemoteReferenceUnshared =>
-        onRemoteReferenceUnshared(refUnshared)
-      case refSet: RemoteReferenceSet =>
-        onRemoteReferenceSet(refSet)
-      case refCleared: RemoteReferenceCleared =>
-        onRemoteReferenceCleared(refCleared)
-      case permsChanged: ModelPermissionsChanged =>
-        onModelPermissionsChanged(permsChanged)
-      case message: ModelResyncServerComplete =>
-        onModelResyncServerComplete(message)
-      case resyncStarted: RemoteClientResyncStarted =>
-        onRemoteClientResyncStarted(resyncStarted)
-      case resyncCompleted: RemoteClientResyncCompleted =>
-        onRemoteClientResyncCompleted(resyncCompleted)
-      case ServerError(_, ExpectedError(code, message, details)) =>
-        val errorMessage = ErrorMessage(code, message, JsonProtoConverter.jValueMapToValueMap(details))
-        clientActor ! SendServerMessage(errorMessage)
+  private[this] def onOutgoingModelMessage(message: OutgoingMessage): Unit = {
+    if (openingModelStash.contains(message.modelId)) {
+      val stashedMessages = openingModelStash(message.modelId)
+      stashedMessages += message
+    } else {
+      message match {
+        case op: OutgoingOperation =>
+          onOutgoingOperation(op)
+        case opAck: OperationAcknowledgement =>
+          onOperationAcknowledgement(opAck)
+        case remoteOpened: RemoteClientOpened =>
+          onRemoteClientOpened(remoteOpened)
+        case remoteClosed: RemoteClientClosed =>
+          onRemoteClientClosed(remoteClosed)
+        case forceClosed: ModelForceClose =>
+          onModelForceClose(forceClosed)
+        case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
+          onAutoCreateModelConfigRequest(autoCreateRequest)
+        case refShared: RemoteReferenceShared =>
+          onRemoteReferenceShared(refShared)
+        case refUnshared: RemoteReferenceUnshared =>
+          onRemoteReferenceUnshared(refUnshared)
+        case refSet: RemoteReferenceSet =>
+          onRemoteReferenceSet(refSet)
+        case refCleared: RemoteReferenceCleared =>
+          onRemoteReferenceCleared(refCleared)
+        case permsChanged: ModelPermissionsChanged =>
+          onModelPermissionsChanged(permsChanged)
+        case message: ModelResyncServerComplete =>
+          onModelResyncServerComplete(message)
+        case resyncStarted: RemoteClientResyncStarted =>
+          onRemoteClientResyncStarted(resyncStarted)
+        case resyncCompleted: RemoteClientResyncCompleted =>
+          onRemoteClientResyncCompleted(resyncCompleted)
+        case ServerError(_, ExpectedError(code, message, details)) =>
+          val errorMessage = ErrorMessage(code, message, JsonProtoConverter.jValueMapToValueMap(details))
+          clientActor ! SendServerMessage(errorMessage)
+      }
     }
   }
 
@@ -477,10 +493,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
               warn(s"$domainId: Received an operation submissions with an invalid operation: $message")
               invalidOperation(message)
             },
-            { mappedOp =>
-              val submission = RealtimeModelActor.OperationSubmission(domainId, modelId, session, seqNo, version, mappedOp)
-              modelClusterRegion ! submission
-            })
+              { mappedOp =>
+                val submission = RealtimeModelActor.OperationSubmission(domainId, modelId, session, seqNo, version, mappedOp)
+                modelClusterRegion ! submission
+              })
           case None =>
             warn(s"$domainId: Received an operation submissions with an empty operation: $message")
             invalidOperation(message)
@@ -518,7 +534,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case Some(modelId) =>
         references match {
           case Some(refs) =>
-            mapIncomingReference(refs).map{
+            mapIncomingReference(refs).map {
               case (referenceType, values) =>
                 val publishReference = RealtimeModelActor.ShareReference(domainId, modelId, session, vId, key, referenceType, values, version)
                 modelClusterRegion ! publishReference
@@ -553,7 +569,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case Some(modelId) =>
         references match {
           case Some(refs) =>
-            mapIncomingReference(refs).map{
+            mapIncomingReference(refs).map {
               case (referenceType, values) =>
                 val setReference = RealtimeModelActor.SetReference(domainId, modelId, session, vId, key, referenceType, values, version)
                 modelClusterRegion ! setReference
@@ -672,6 +688,8 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     val OpenRealtimeModelRequestMessage(optionalModelId, autoCreateId, _) = request
     val modelId = getSetOrRandomModelId(optionalModelId)
 
+    openingModelStash += (modelId -> ListBuffer())
+
     val narrowedSelf = context.self.narrow[OutgoingMessage]
     modelClusterRegion.ask[RealtimeModelActor.OpenRealtimeModelResponse](
       RealtimeModelActor.OpenRealtimeModelRequest(domainId, modelId, autoCreateId, session, narrowedSelf, _))
@@ -723,9 +741,20 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                   modelPermissions.manage))))
         })
       )
+      .map { _ =>
+        val stashedMessages = openingModelStash.getOrElse(modelId, ListBuffer())
+        // Note: We must remove the stash before processing the messages or
+        // else they would be re stashed.
+        openingModelStash -= modelId
+
+        // replay these messages into the outgoing message handler to get
+        // them shipped off to the client.
+        stashedMessages.foreach(message => onOutgoingModelMessage(message))
+      }
       .recover { cause =>
         warn("A timeout occurred waiting for an open model request", cause)
         cb.timeoutError()
+        openingModelStash -= modelId
       }
   }
 
