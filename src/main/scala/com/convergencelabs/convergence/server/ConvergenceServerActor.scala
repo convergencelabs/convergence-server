@@ -40,14 +40,14 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
 /**
- * This is the main ConvergenceServer class. It is responsible for starting
- * up all services including the Akka Actor System.
+ * TThe [[ConvergenceServerActor]] is the root Guardian actor of all
+ * Convergence services. It is responsible for spawning all of the
+ * actors that implement the system as well as for starting
+ * the rest and realtime akka-http services.
  *
- * @param context The configuration to use for the server.
+ * @param context ActorContext for this actor / behavior.
  */
-class ConvergenceServerActor(private[this] val context: ActorContext[Message])
-  extends AbstractBehavior[Message](context)
-    with Logging {
+class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBehavior[Message](context) with Logging {
 
   import ConvergenceServerActor._
 
@@ -91,7 +91,6 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toSet
     info(s"Convergence Server Roles: ${roles.mkString(", ")}")
 
-
     val shardCount = context.system.settings.config.getInt("convergence.shard-count")
 
     val domainLifeCycleTopic = context.spawn(DomainLifecycleTopic.TopicBehavior, DomainLifecycleTopic.TopicName)
@@ -107,7 +106,6 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     })
 
     val domainRestShardRegion = DomainRestActorSharding(context.system.settings.config, sharding, shardCount)
-
 
     val restStartupFuture = if (roles.contains(ServerClusterRoles.RestApi)) {
       this.processRestApiRole(domainRestShardRegion, modelShardRegion, chatShardRegion)
@@ -128,7 +126,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     }
 
     val backendStartupFuture = if (roles.contains(ServerClusterRoles.Backend)) {
-      this.processBackendRole(domainLifeCycleTopic, msg)
+      this.processBackendRole(domainLifeCycleTopic)
     } else {
       Future.successful(())
     }
@@ -143,11 +141,19 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     }).recover { cause => {
       error("The was an error starting the ConvergenceServerActor", cause)
       msg.replyTo ! StartResponse(Left(()))
-    }}
+    }
+    }
 
     Behaviors.same
   }
 
+  /**
+   * A helper method used to start the backend services when they are ready to
+   * be started.
+   *
+   * @param msg The message containing the request to start the backend services.
+   * @return The next Behavior this actor should exhibit.
+   */
   private[this] def startBackend(msg: StartBackendServices): Behavior[Message] = {
     val StartBackendServices(domainLifecycleTopic, promise) = msg
     val persistenceConfig = config.getConfig("convergence.persistence")
@@ -180,6 +186,12 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
     Behaviors.same
   }
 
+  /**
+   * A help method to handle the case where backend initialization fails.
+   *
+   * @param msg The message indicating initialization failed.
+   * @return The next behavior to exhibit.
+   */
   private[this] def onBackendFailure(msg: BackendInitializationFailure): Behavior[Message] = {
     val BackendInitializationFailure(cause, p) = msg
     p.failure(cause)
@@ -215,8 +227,7 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
   /**
    * A helper method that will bootstrap the backend node.
    */
-  private[this] def processBackendRole(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
-                                       startRequest: StartRequest): Future[Unit] = {
+  private[this] def processBackendRole(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Future[Unit] = {
     info("Role 'backend' detected, activating Backend Services...")
 
     val singletonManager = ClusterSingleton(context.system)
@@ -298,42 +309,81 @@ class ConvergenceServerActor(private[this] val context: ActorContext[Message])
 
 object ConvergenceServerActor {
 
+  /**
+   * Creates a ne ConvergenceServerActor behavior.
+   *
+   * @return The newly created Behavior.
+   */
   def apply(): Behavior[Message] = Behaviors.setup(new ConvergenceServerActor(_))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * The base trait for all messages that can be sent to the
+   * ConvergenceServerActor.
+   */
   sealed trait Message
 
   //
   // Start
   //
+
+  /**
+   * Requests that the Convergence Server Actor start and initialize all of
+   * the configured server roles.
+   *
+   * @param replyTo The actor to reply to on success or failure of startup.
+   */
   final case class StartRequest(replyTo: ActorRef[StartResponse]) extends Message
 
+  /**
+   * The message to send back to the actor that requested start up.
+   *
+   * @param response Right(OK()) if startup was successful, or Left(()) if
+   *                 startup failed for some reason.
+   */
   final case class StartResponse(response: Either[Unit, Ok])
 
   //
   // Stop
   //
+  /**
+   * Requests that the ConvergenceServerActor stop all services and shutdown.
+   *
+   * @param replyTo The actor to reply to.
+   */
   final case class StopRequest(replyTo: ActorRef[StopResponse]) extends Message
 
+  /**
+   * The response to the StopRequest message.
+   */
   final case class StopResponse()
-
-  final case class CreateClient()
 
 
   //////////////////////
   // Internal Messages
   //////////////////////
 
+  /**
+   * A internal message that indicates all required resources have been
+   * acquired that are necessary to start the backend services.
+   *
+   * @param domainLifecycleTopic The distributed pub-sub topic for domain
+   *                             lifecycle events.
+   * @param startPromise         The promise used for starting up.
+   */
   private final case class StartBackendServices(domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
                                                 startPromise: Promise[Unit]) extends Message
 
+  /**
+   * Indicates that initializing the backend services has failed.
+   *
+   * @param cause        The exception that caused the failure.
+   * @param startPromise The promise used for starting up.
+   */
   private final case class BackendInitializationFailure(cause: Throwable,
-
                                                         startPromise: Promise[Unit]) extends Message
 
 }
-
-

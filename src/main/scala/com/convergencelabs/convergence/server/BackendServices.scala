@@ -96,7 +96,6 @@ class BackendServices(context: ActorContext[_],
     val domainStoreActor = context.spawn(DomainStoreActor(
       domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor), "DomainStore")
 
-
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
     context.spawn(UserStoreActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")
     context.spawn(NamespaceStoreActor(namespaceStore, roleStore, configStore), "NamespaceStore")

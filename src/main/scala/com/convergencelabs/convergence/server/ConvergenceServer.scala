@@ -12,7 +12,6 @@
 package com.convergencelabs.convergence.server
 
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 import akka.actor.Address
 import akka.actor.typed.scaladsl.AskPattern._
@@ -24,7 +23,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
@@ -43,6 +42,15 @@ import scala.util.{Failure, Success, Try}
 object ConvergenceServer extends Logging {
 
   /**
+   * String constants for various Akka baseConfig keys that are used during
+   * initialization.
+   */
+  object AkkaConfig {
+    val AkkaClusterRoles = "akka.cluster.roles"
+    val AkkaClusterSeedNodes = "akka.cluster.seed-nodes"
+  }
+
+  /**
    * String constants for the environment variables that the Convergence Server
    * will look for when initializing.
    */
@@ -53,15 +61,6 @@ object ConvergenceServer extends Logging {
   }
 
   /**
-   * String constants for various Akka baseConfig keys that are used during
-   * initialization.
-   */
-  object AkkaConfig {
-    val AkkaClusterRoles = "akka.cluster.roles"
-    val AkkaClusterSeedNodes = "akka.cluster.seed-nodes"
-  }
-
-  /**
    * The name of the Akka ActorSystem.
    */
   val ActorSystemName: String = "Convergence"
@@ -69,7 +68,7 @@ object ConvergenceServer extends Logging {
   /**
    * The currently running instance of the ConvergenceServer.
    */
-  private var system: Option[ActorSystem[Message]] = None
+  private[this] var system: Option[ActorSystem[Message]] = None
 
   /**
    * The main entry point of the ConvergenceServer.
@@ -96,8 +95,6 @@ object ConvergenceServer extends Logging {
     } yield {
       val system: ActorSystem[Message] = ActorSystem(ConvergenceServerActor(), ActorSystemName)
       this.system = Some(system)
-
-
 
       implicit val t: Timeout = Timeout(Duration.fromNanos(
         system.settings.config.getDuration("convergence.server-startup-timeout").toNanos))
@@ -210,7 +207,7 @@ object ConvergenceServer extends Logging {
             }
           })
           val seedsAddresses = seedNodes.map { seed =>
-            Address("akka", ConvergenceServer.ActorSystemName, seed._1, seed._2).toString
+            Address("akka", ActorSystemName, seed._1, seed._2).toString
           }
           logger.debug(s"Setting cluster seeds: [${seedsAddresses.mkString(", ")}]")
           baseConfig.withValue(AkkaConfig.AkkaClusterSeedNodes, ConfigValueFactory.fromIterable(seedsAddresses.asJava))
@@ -254,12 +251,12 @@ object ConvergenceServer extends Logging {
    * @return Success if at least one role is set, Failure otherwise.
    */
   private[this] def validateRoles(config: Config): Try[Unit] = {
-    val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toList
+    val roles = config.getStringList(AkkaConfig.AkkaClusterRoles).asScala.toList
     if (roles.isEmpty) {
       Failure(
         new IllegalStateException("No cluster roles were defined. " +
-          s"Cluster roles must be defined in either the config '${ConvergenceServer.AkkaConfig.AkkaClusterRoles}', " +
-          s"or the environment variable '${ConvergenceServer.Environment.ConvergenceServerRoles}'"))
+          s"Cluster roles must be defined in either the config '${AkkaConfig.AkkaClusterRoles}', " +
+          s"or the environment variable '${Environment.ConvergenceServerRoles}'"))
 
     } else {
       Success(())
@@ -273,11 +270,11 @@ object ConvergenceServer extends Logging {
    * @return Success if at least one seed node is set, Failure otherwise.
    */
   private[this] def validateSeedNodes(config: Config): Try[Unit] = {
-    val configuredSeeds = config.getAnyRefList(ConvergenceServer.AkkaConfig.AkkaClusterSeedNodes).asScala.toList
+    val configuredSeeds = config.getAnyRefList(AkkaConfig.AkkaClusterSeedNodes).asScala.toList
     if (configuredSeeds.isEmpty) {
       Failure(new IllegalStateException("No akka cluster seed nodes specified." +
-        s"seed nodes must be specified in the akka baseConfig '${ConvergenceServer.AkkaConfig.AkkaClusterSeedNodes}' " +
-        s"or the environment variable '${ConvergenceServer.Environment.ConvergenceClusterSeeds}"))
+        s"seed nodes must be specified in the akka baseConfig '${AkkaConfig.AkkaClusterSeedNodes}' " +
+        s"or the environment variable '${Environment.ConvergenceClusterSeeds}"))
     } else {
       Success(())
     }
