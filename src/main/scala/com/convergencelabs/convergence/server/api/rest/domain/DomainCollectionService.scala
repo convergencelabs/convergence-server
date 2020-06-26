@@ -107,7 +107,8 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
             InternalServerError
         },
         { collection =>
-          okResponse(collection)
+          val collectionData = collectionToCollectionData(collection)
+          okResponse(collectionData)
         })
       )
   }
