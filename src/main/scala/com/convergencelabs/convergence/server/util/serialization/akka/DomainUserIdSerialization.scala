@@ -21,7 +21,7 @@ object DomainUserIdSerialization {
     override def serialize(userId: DomainUserId, gen: JsonGenerator, serializers: SerializerProvider): Unit = {
       val userType = userId.userType.toString
       val username = userId.username
-      gen.writeString(s"$userType:$username")
+      gen.writeFieldName(s"$userType:$username")
     }
   }
 
@@ -34,5 +34,3 @@ object DomainUserIdSerialization {
     }
   }
 }
-
-
