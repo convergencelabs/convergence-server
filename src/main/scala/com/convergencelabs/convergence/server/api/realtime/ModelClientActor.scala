@@ -28,7 +28,6 @@ import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, Norma
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
 import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
-import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, ModelStoreActor}
@@ -75,6 +74,8 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                                offlineModelSyncInterval: FiniteDuration)
   extends AbstractBehavior[ModelClientActor.Message](context) with Logging {
 
+  import ModelClientActor._
+
   private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
   private[this] implicit val defaultRequestTimeout: Timeout = requestTimeout
@@ -99,6 +100,16 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         syncOfflineModels(this.subscribedModels)
       case message: UpdateOfflineModel =>
         handleOfflineModelSynced(message)
+      case message: ModelClosed =>
+        onModelClosed(message)
+      case message: ModelOpenSuccess =>
+        onModelOpenSuccess(message)
+      case message: ModelOpenFailure =>
+        onModelOpenFailure(message)
+      case message: ModelResyncRequestSuccess =>
+        onModelResyncSuccess(message)
+      case message: ModelResyncRequestFailure =>
+        onModelResyncFailure(message)
     }
 
     Behaviors.same
@@ -303,6 +314,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     resourceId(modelId) foreach { resourceId =>
       modelIdToResourceId -= modelId
       resourceIdToModelId -= resourceId
+      openingModelStash -= modelId
       val serverMessage = ModelForceCloseMessage(resourceId, reason, reasonCode.id)
       clientActor ! SendServerMessage(serverMessage)
     }
@@ -628,6 +640,8 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     clientActor ! SendServerMessage(errorMessage)
   }
 
+  val NoPermissions = ModelPermissionsData(read = false, write = false, remove = false, manage = false)
+
   private[this] def onModelOfflineSubscription(message: ModelOfflineSubscriptionChangeRequestMessage, replyCallback: ReplyCallback): Unit = {
     val ModelOfflineSubscriptionChangeRequestMessage(subscribe, unsubscribe, all, _) = message
 
@@ -640,8 +654,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     unsubscribe.foreach(modelId => this.subscribedModels -= modelId)
 
     subscribe.foreach { case ModelOfflineSubscriptionData(modelId, version, permissions, _) =>
-      val ModelPermissionsData(read, write, remove, manage, _) =
-        permissions.getOrElse(() => ModelPermissionsData(read = false, write = false, remove = false, manage = false))
+      val ModelPermissionsData(read, write, remove, manage, _) = permissions.getOrElse(NoPermissions)
       val state = OfflineModelState(version, ModelPermissions(read, write, remove, manage))
       this.subscribedModels += modelId -> state
     }
@@ -670,9 +683,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                 cb.unexpectedError("An unexpected error occurred while closing the model.")
             },
             { _ =>
-              resourceIdToModelId -= resourceId
-              modelIdToResourceId -= modelId
-              cb.reply(CloseRealTimeModelResponseMessage())
+              context.self ! ModelClosed(modelId, resourceId, cb)
             })
           )
           .recover { cause =>
@@ -682,6 +693,13 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case None =>
         cb.expectedError(ErrorCodes.ModelNotOpen, s"the requested model was not open")
     }
+  }
+
+  private[this] def onModelClosed(message: ModelClosed): Unit = {
+    val ModelClosed(modelId, resourceId, cb) = message
+    resourceIdToModelId -= resourceId
+    modelIdToResourceId -= modelId
+    cb.reply(CloseRealTimeModelResponseMessage())
   }
 
   private[this] def onOpenRealtimeModelRequest(request: OpenRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
@@ -694,102 +712,148 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     modelClusterRegion.ask[RealtimeModelActor.OpenRealtimeModelResponse](
       RealtimeModelActor.OpenRealtimeModelRequest(domainId, modelId, autoCreateId, session, narrowedSelf, _))
       .map(_.response.fold(
-        {
-          case RealtimeModelActor.ModelAlreadyOpenError() =>
-            ModelClientActor.modelAlreadyOpenError(cb, modelId)
-          case RealtimeModelActor.ModelAlreadyOpeningError() =>
-            ModelClientActor.modelAlreadyOpeningError(cb, modelId)
-          case RealtimeModelActor.ModelClosingAfterErrorError() =>
-            modelClosingAfterErrorError(cb, modelId)
-          case RealtimeModelActor.ModelDeletedWhileOpeningError() =>
-            ModelClientActor.modelDeletedError(cb, modelId)
-          case RealtimeModelActor.ClientDataRequestError(message) =>
-            cb.expectedError(ErrorCodes.ModelClientDataRequestFailure, message)
-          case RealtimeModelActor.ModelNotFoundError() =>
-            ModelClientActor.modelNotFoundError(cb, modelId)
-          case RealtimeModelActor.UnauthorizedError(message) =>
-            cb.reply(ErrorMessages.Unauthorized(message))
-          case RealtimeModelActor.UnknownError() =>
-            cb.unknownError()
-          case RealtimeModelActor.ClientErrorResponse(message) =>
-            cb.expectedError(ErrorCodes.ModelClientDataRequestFailure, message)
-        },
-        {
-          case RealtimeModelActor.OpenModelSuccess(valueIdPrefix, metaData, connectedClients, resyncingClients, references, modelData, modelPermissions) =>
-            val resourceId = generateNextResourceId()
-            resourceIdToModelId += (resourceId -> modelId)
-            modelIdToResourceId += (modelId -> resourceId)
+        error => context.self ! ModelOpenFailure(modelId, Right(error), cb),
+        message => context.self ! ModelOpenSuccess(modelId, message, cb)
+      ))
+      .recover(cause => context.self ! ModelOpenFailure(modelId, Left(cause), cb))
+  }
 
-            val convertedReferences = convertReferences(references)
-            cb.reply(
-              OpenRealtimeModelResponseMessage(
-                resourceId,
-                metaData.id,
-                metaData.collection,
-                java.lang.Long.toString(valueIdPrefix, 36),
-                metaData.version,
-                Some(metaData.createdTime),
-                Some(metaData.modifiedTime),
-                Some(modelData),
-                connectedClients.map(s => s.sessionId).toSeq,
-                resyncingClients.map(s => s.sessionId).toSeq,
-                convertedReferences,
-                Some(ModelPermissionsData(
-                  modelPermissions.read,
-                  modelPermissions.write,
-                  modelPermissions.remove,
-                  modelPermissions.manage))))
-        })
-      )
-      .map { _ =>
-        val stashedMessages = openingModelStash.getOrElse(modelId, ListBuffer())
-        // Note: We must remove the stash before processing the messages or
-        // else they would be re stashed.
-        openingModelStash -= modelId
+  private[this] def onModelOpenFailure(message: ModelOpenFailure): Unit = {
+    val ModelOpenFailure(modelId, failure, cb) = message
 
-        // replay these messages into the outgoing message handler to get
-        // them shipped off to the client.
-        stashedMessages.foreach(message => onOutgoingModelMessage(message))
+    // Remove the message stash since we didn't open we aren't going to
+    // send the messages on.
+    openingModelStash -= modelId
+
+    failure
+      .map {
+        case RealtimeModelActor.ModelAlreadyOpenError() =>
+          ModelClientActor.modelAlreadyOpenError(cb, modelId)
+        case RealtimeModelActor.ModelAlreadyOpeningError() =>
+          ModelClientActor.modelAlreadyOpeningError(cb, modelId)
+        case RealtimeModelActor.ModelClosingAfterErrorError() =>
+          modelClosingAfterErrorError(cb, modelId)
+        case RealtimeModelActor.ModelDeletedWhileOpeningError() =>
+          ModelClientActor.modelDeletedError(cb, modelId)
+        case RealtimeModelActor.ClientDataRequestError(message) =>
+          cb.expectedError(ErrorCodes.ModelClientDataRequestFailure, message)
+        case RealtimeModelActor.ModelNotFoundError() =>
+          ModelClientActor.modelNotFoundError(cb, modelId)
+        case RealtimeModelActor.UnauthorizedError(message) =>
+          cb.reply(ErrorMessages.Unauthorized(message))
+        case RealtimeModelActor.UnknownError() =>
+          cb.unknownError()
+        case RealtimeModelActor.ClientErrorResponse(message) =>
+          cb.expectedError(ErrorCodes.ModelClientDataRequestFailure, message)
       }
-      .recover { cause =>
+      .left
+      .map { cause =>
         warn("A timeout occurred waiting for an open model request", cause)
         cb.timeoutError()
-        openingModelStash -= modelId
       }
+  }
+
+  private[this] def onModelOpenSuccess(message: ModelOpenSuccess): Unit = {
+    val ModelOpenSuccess(modelId, success, cb) = message
+    val RealtimeModelActor.OpenModelSuccess(valueIdPrefix, metaData, connectedClients, resyncingClients, references, modelData, modelPermissions) = success
+
+    val resourceId = claimResourceId(modelId)
+
+    val convertedReferences = convertReferences(references)
+    cb.reply(
+      OpenRealtimeModelResponseMessage(
+        resourceId,
+        metaData.id,
+        metaData.collection,
+        java.lang.Long.toString(valueIdPrefix, 36),
+        metaData.version,
+        Some(metaData.createdTime),
+        Some(metaData.modifiedTime),
+        Some(modelData),
+        connectedClients.map(s => s.sessionId).toSeq,
+        resyncingClients.map(s => s.sessionId).toSeq,
+        convertedReferences,
+        Some(ModelPermissionsData(
+          modelPermissions.read,
+          modelPermissions.write,
+          modelPermissions.remove,
+          modelPermissions.manage))))
+
+    flushOpenStash(modelId)
+  }
+
+  private[this] def flushOpenStash(modelId: String): Unit = {
+    val stashedMessages = openingModelStash.getOrElse(modelId, ListBuffer())
+
+    // Note: We must remove the stash before processing the messages or
+    // else they would be re stashed.
+    openingModelStash -= modelId
+
+    // replay these messages into the outgoing message handler to get
+    // them shipped off to the client.
+    stashedMessages.foreach(message => onOutgoingModelMessage(message))
   }
 
   private[this] def onModelResyncRequest(request: ModelResyncRequestMessage, cb: ReplyCallback): Unit = {
     val ModelResyncRequestMessage(modelId, contextVersion, _) = request
     val narrowedSelf = context.self.narrow[OutgoingMessage]
+
+    openingModelStash += (modelId -> ListBuffer())
+
     modelClusterRegion.ask[RealtimeModelActor.ModelResyncResponse](
       RealtimeModelActor.ModelResyncRequest(domainId, modelId, session, contextVersion, narrowedSelf, _))
       .map(_.response.fold(
-        {
-          case RealtimeModelActor.ModelAlreadyOpenError() =>
-            ModelClientActor.modelAlreadyOpenError(cb, modelId)
-          case RealtimeModelActor.ModelAlreadyOpeningError() =>
-            ModelClientActor.modelAlreadyOpeningError(cb, modelId)
-          case RealtimeModelActor.ModelClosingAfterErrorError() =>
-            modelClosingAfterErrorError(cb, modelId)
-          case RealtimeModelActor.ModelNotFoundError() =>
-            ModelClientActor.modelNotFoundError(cb, modelId)
-          case RealtimeModelActor.UnauthorizedError(message) =>
-            cb.reply(ErrorMessages.Unauthorized(message))
-          case RealtimeModelActor.UnknownError() =>
-            cb.unknownError()
-        },
-        {
-          case RealtimeModelActor.ModelResyncResponseData(currentVersion, permissions) =>
-            val resourceId = generateNextResourceId()
-            resourceIdToModelId += (resourceId -> modelId)
-            modelIdToResourceId += (modelId -> resourceId)
-            val ModelPermissions(read, write, remove, manage) = permissions
-            val permissionData = ModelPermissionsData(read, write, remove, manage)
-            val responseMessage = ModelResyncResponseMessage(resourceId, currentVersion, Some(permissionData))
-            cb.reply(responseMessage)
-        })
-      )
-      .recover { cause =>
+        error => context.self ! ModelResyncRequestFailure(modelId, Right(error), cb),
+        data => context.self ! ModelResyncRequestSuccess(modelId, data, cb)
+      ))
+      .recover ( cause => context.self ! ModelResyncRequestFailure(modelId, Left(cause), cb))
+  }
+
+  private[this] def onModelResyncSuccess(message: ModelResyncRequestSuccess): Unit = {
+    val ModelResyncRequestSuccess(modelId, data, cb) = message
+    val RealtimeModelActor.ModelResyncResponseData(currentVersion, permissions) = data
+
+    val ModelPermissions(read, write, remove, manage) = permissions
+    val permissionData = ModelPermissionsData(read, write, remove, manage)
+    val resourceId = claimResourceId(modelId)
+    val responseMessage = ModelResyncResponseMessage(resourceId, currentVersion, Some(permissionData))
+    cb.reply(responseMessage)
+
+    flushOpenStash(modelId)
+  }
+
+  private[this] def claimResourceId(modelId: String): String = {
+    val resourceId = generateNextResourceId()
+    debug(s"Mapping model id '$modelId' to resource id '$resourceId'")
+
+    resourceIdToModelId += (resourceId -> modelId)
+    modelIdToResourceId += (modelId -> resourceId)
+
+    resourceId
+  }
+
+  private[this] def onModelResyncFailure(message: ModelResyncRequestFailure): Unit = {
+    val ModelResyncRequestFailure(modelId, failure, cb) = message
+
+    openingModelStash -= modelId
+
+    failure
+      .map {
+        case RealtimeModelActor.ModelAlreadyOpenError() =>
+          ModelClientActor.modelAlreadyOpenError(cb, modelId)
+        case RealtimeModelActor.ModelAlreadyOpeningError() =>
+          ModelClientActor.modelAlreadyOpeningError(cb, modelId)
+        case RealtimeModelActor.ModelClosingAfterErrorError() =>
+          modelClosingAfterErrorError(cb, modelId)
+        case RealtimeModelActor.ModelNotFoundError() =>
+          ModelClientActor.modelNotFoundError(cb, modelId)
+        case RealtimeModelActor.UnauthorizedError(message) =>
+          cb.reply(ErrorMessages.Unauthorized(message))
+        case RealtimeModelActor.UnknownError() =>
+          cb.unknownError()
+      }
+      .left
+      .map { cause =>
         warn("A timeout occurred waiting for an model resync request", cause)
         cb.timeoutError()
       }
@@ -827,9 +891,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           case RealtimeModelActor.UnknownError() =>
             cb.unexpectedError("could not create model")
         },
-        { modelId =>
-          cb.reply(CreateRealtimeModelResponseMessage(modelId))
-        }
+        modelId => cb.reply(CreateRealtimeModelResponseMessage(modelId))
       ))
       .recover { cause =>
         warn("A timeout occurred waiting for an close model request", cause)
@@ -1131,6 +1193,17 @@ object ModelClientActor {
   final case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
 
   final case class RemoteReferenceUnshared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
+
+  private final case class ModelClosed(modelId: String, resourceId: String, cb: ReplyCallback) extends Message
+
+  private final case class ModelOpenSuccess(modelId: String, message: RealtimeModelActor.OpenModelSuccess, cb: ReplyCallback) extends Message
+
+  private final case class ModelOpenFailure(modelId: String, failure: Either[Throwable, RealtimeModelActor.OpenRealtimeModelError], cb: ReplyCallback) extends Message
+
+
+  private final case class ModelResyncRequestSuccess(modelId: String, data: RealtimeModelActor.ModelResyncResponseData, cb: ReplyCallback) extends Message
+
+  private final case class ModelResyncRequestFailure(modelId: String, failure: Either[Throwable, RealtimeModelActor.ModelResyncError], cb: ReplyCallback) extends Message
 
 }
 
