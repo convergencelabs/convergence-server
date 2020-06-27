@@ -18,10 +18,9 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Scheduler}
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.ConvergenceServer.ActorSystemName
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
-import com.convergencelabs.convergence.server.{ConvergenceServer, ConvergenceServerActor, ServerClusterRoles}
+import com.convergencelabs.convergence.server._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
@@ -66,7 +65,9 @@ object ConvergenceDevServer {
  */
 class ConvergenceDevServer() extends Logging {
 
-  ConvergenceServer.configureLogging(Some("src/dev-server/log4j2.xml"))
+  import ConvergenceServerConstants._
+
+  LoggingConfigManager.configureLogging("src/dev-server/log4j2.xml")
 
   private[this] val ConfigFile = "src/dev-server/convergence-server.conf"
   private[this] val persistent = java.lang.Boolean.getBoolean("convergence.dev-server.persistent")

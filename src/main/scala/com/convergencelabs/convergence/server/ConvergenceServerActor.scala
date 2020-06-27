@@ -47,6 +47,7 @@ import scala.util.{Failure, Success}
 class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBehavior[Message](context) with Logging {
 
   import ConvergenceServerActor._
+  import ConvergenceServerConstants._
 
   private[this] val config = context.system.settings.config
 
@@ -84,7 +85,7 @@ class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBeh
     this.cluster = Some(cluster)
     this.clusterListener = Some(context.spawn(AkkaClusterDebugListener(cluster), "clusterListener"))
 
-    val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toSet
+    val roles = config.getStringList(AkkaConfig.AkkaClusterRoles).asScala.toSet
     info(s"Convergence Server Roles: [${roles.mkString(", ")}]")
 
     val shardCount = context.system.settings.config.getInt("convergence.shard-count")

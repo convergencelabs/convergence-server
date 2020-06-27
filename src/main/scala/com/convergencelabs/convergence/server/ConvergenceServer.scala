@@ -41,29 +41,7 @@ import scala.util.{Failure, Success, Try}
  */
 object ConvergenceServer extends Logging {
 
-  /**
-   * String constants for various Akka baseConfig keys that are used during
-   * initialization.
-   */
-  object AkkaConfig {
-    val AkkaClusterRoles = "akka.cluster.roles"
-    val AkkaClusterSeedNodes = "akka.cluster.seed-nodes"
-  }
-
-  /**
-   * String constants for the environment variables that the Convergence Server
-   * will look for when initializing.
-   */
-  object Environment {
-    val ConvergenceServerRoles = "CONVERGENCE_SERVER_ROLES"
-    val ConvergenceClusterSeeds = "CONVERGENCE_CLUSTER_SEEDS"
-    val ConvergenceLog4jConfigFile = "CONVERGENCE_LOG4J_CONFIG_FILE"
-  }
-
-  /**
-   * The name of the Akka ActorSystem.
-   */
-  val ActorSystemName: String = "Convergence"
+  import ConvergenceServerConstants._
 
   /**
    * The currently running instance of the ConvergenceServer.
@@ -154,7 +132,7 @@ object ConvergenceServer extends Logging {
     Try {
       new File(options.config.toOption.get.trim)
     } flatMap { configFile =>
-      if (!configFile.canRead()) {
+      if (!configFile.canRead) {
         Failure(new IllegalArgumentException(s"Can not read config file: ${configFile.getAbsolutePath}."))
       } else {
         info(s"Using config file: ${configFile.getAbsolutePath}")
@@ -290,26 +268,22 @@ object ConvergenceServer extends Logging {
    * @return Success if either no options were supplied, or if they were
    *         successfully applied; Failure otherwise.
    */
-  def configureLogging(logFile: Option[String] = None): Try[Unit] = {
+  private[this] def configureLogging(logFile: Option[String] = None): Try[Unit] = {
     // Check for the environment baseConfig.
     val env: Option[String] = Option(System.getenv().get(Environment.ConvergenceLog4jConfigFile))
+
+    env.foreach { v =>
+      info(s"${Environment.ConvergenceLog4jConfigFile}: $v")
+    }
 
     // Take one or the other
     val config: Option[String] = logFile orElse env ensuring (_ => (logFile zip env).isEmpty)
 
-    Try {
-      config.foreach { path =>
-        info(s"${Environment.ConvergenceLog4jConfigFile} is set: $path")
-        val file = new File(path)
-        if (file.canRead) {
-          info(s"Log4J config file exists; reloading logging config with the specified configuration.")
-          val context = LogManager.getContext(false).asInstanceOf[org.apache.logging.log4j.core.LoggerContext]
-          // this will force a reconfiguration
-          context.setConfigLocation(file.toURI)
-        } else {
-          warn(s"Log4j baseConfig file '$path' does not exist. Ignoring.")
-        }
-      }
+    config match {
+      case Some(path) =>
+        LoggingConfigManager.configureLogging(path)
+      case None =>
+        Success(())
     }
   }
 
