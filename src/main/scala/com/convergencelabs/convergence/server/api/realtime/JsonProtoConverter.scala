@@ -38,9 +38,9 @@ private[realtime] object JsonProtoConverter extends Logging {
       case JDouble(v) =>
         Value().withNumberValue(v)
       case JLong(v) =>
-        Value().withNumberValue(v)
+        Value().withNumberValue(v.doubleValue)
       case JInt(v) =>
-        Value().withNumberValue(v.intValue)
+        Value().withNumberValue(v.doubleValue)
       case JBool(v) =>
         Value().withBoolValue(v)
       case JString(v) =>
@@ -56,9 +56,6 @@ private[realtime] object JsonProtoConverter extends Logging {
       case JSet(set) =>
         val mappedValues = set.toList.map(toValue)
         Value().withListValue(ListValue(mappedValues))
-      case _: Any =>
-        error("Invalid JValue Value:" + json.toString)
-        Value().withNullValue(NullValue.NULL_VALUE)
     }
   }
 
