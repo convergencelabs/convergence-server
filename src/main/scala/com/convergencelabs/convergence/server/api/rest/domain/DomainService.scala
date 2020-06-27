@@ -105,7 +105,7 @@ class DomainService(schedule: Scheduler,
         {
           case DomainAlreadyExistsError(field) =>
             conflictsResponse(field, "A domain with this value already exists")
-          case InvalidDomainCreationRequest(_, message) =>
+          case InvalidDomainCreationRequest(message) =>
             badRequest(message)
           case UnknownError() =>
             InternalServerError

@@ -14,7 +14,6 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import java.util.UUID
 
 import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.convergence.DomainCreator.{DomainAlreadyExists, InvalidDomainValue}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomainResponse
@@ -47,6 +46,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
   private[this] val randomizeCredentials = config.getBoolean("convergence.persistence.domain-databases.randomize-credentials")
 
   import ConfigKeys._
+  import DomainCreator._
 
   def createDomain(domainId: DomainId,
                    displayName: String,
@@ -68,6 +68,8 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
         .recoverWith {
           case DuplicateValueException(field, _, _) =>
             Failure(DomainAlreadyExists(field))
+          case _: NamespaceNotFoundException =>
+            Failure(NamespaceNotFoundError())
         }
       _ <- roleStore.setUserRolesForTarget(owner, DomainRoleTarget(domainId), Set(Roles.Domain.Owner))
     } yield domainDbInfo
@@ -100,9 +102,9 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
   private[this] def validate(domainId: DomainId): Try[Unit] = {
     val DomainId(namespace, id) = domainId
     if (namespace.isEmpty) {
-      Failure(InvalidDomainValue("namespace", "The namespace can not be empty"))
+      Failure(InvalidDomainValue("The namespace can not be empty"))
     } else if (id.isEmpty) {
-      Failure(InvalidDomainValue("id", "The domain id can not be empty"))
+      Failure(InvalidDomainValue("The domain id can not be empty"))
     } else {
       val keys = List(Namespaces.Enabled, Namespaces.UserNamespacesEnabled, Namespaces.DefaultNamespace)
       configStore.getConfigs(keys).flatMap { configs =>
@@ -110,9 +112,9 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
         val userNamespacesEnabled = configs(Namespaces.UserNamespacesEnabled).asInstanceOf[Boolean]
         val defaultNamespace = configs(Namespaces.DefaultNamespace).asInstanceOf[String]
         if (!namespacesEnabled && namespace != defaultNamespace) {
-          Failure(InvalidDomainValue("namespace", "When namespaces are disabled, you can only create domains in the default namespace."))
+          Failure(InvalidDomainValue("When namespaces are disabled, you can only create domains in the default namespace."))
         } else if (!userNamespacesEnabled && namespace.startsWith("~")) {
-          Failure(InvalidDomainValue("namespace", "User namespaces are disabled."))
+          Failure(InvalidDomainValue("User namespaces are disabled."))
         } else {
           Success(())
         }
@@ -138,8 +140,10 @@ object DomainCreator {
 
   final case class DomainAlreadyExists(field: String) extends RuntimeException with NoStackTrace with DomainCreationError
 
-  final case class InvalidDomainValue(field: String, message: String) extends RuntimeException(message) with NoStackTrace with DomainCreationError
+  final case class InvalidDomainValue(message: String) extends RuntimeException(message) with NoStackTrace with DomainCreationError
 
   final case class UnknownError() extends RuntimeException with NoStackTrace with DomainCreationError
+
+  final case class NamespaceNotFoundError() extends RuntimeException with NoStackTrace with DomainCreationError
 
 }

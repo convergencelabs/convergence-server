@@ -85,11 +85,15 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
       .recover {
         case DomainCreator.DomainAlreadyExists(field) =>
           CreateDomainResponse(Left(DomainAlreadyExistsError(field)))
-        case DomainCreator.InvalidDomainValue(field, message) =>
-          CreateDomainResponse(Left(InvalidDomainCreationRequest(field, message)))
+        case DomainCreator.InvalidDomainValue(message) =>
+          CreateDomainResponse(Left(InvalidDomainCreationRequest(message)))
+        case DomainCreator.NamespaceNotFoundError() =>
+          CreateDomainResponse(Left(InvalidDomainCreationRequest(s"The namespace '$namespace' does not exist.")))
         case DomainCreator.UnknownError() =>
           CreateDomainResponse(Left(UnknownError()))
-
+        case cause =>
+          error(s"Unexpected error creating domain: $domainId", cause)
+          CreateDomainResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
 
@@ -295,7 +299,7 @@ object DomainStoreActor {
   ))
   sealed trait CreateDomainError
 
-  final case class InvalidDomainCreationRequest(field: String, message: String) extends CreateDomainError
+  final case class InvalidDomainCreationRequest(message: String) extends CreateDomainError
 
   final case class CreateDomainResponse(dbInfo: Either[CreateDomainError, DomainDatabase]) extends CborSerializable
 
