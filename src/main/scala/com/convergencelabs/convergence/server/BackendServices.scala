@@ -81,7 +81,7 @@ class BackendServices(context: ActorContext[_],
    * @return A [[DatabaseProvider]] if the connection pool creation succeeds.
    */
   private[this] def createPool(persistenceConfig: Config): Try[DatabaseProvider] = {
-    logger.info("Creating connection pool to convergence database...")
+    logger.debug("Creating connection pool to convergence database...")
     val dbServerConfig = persistenceConfig.getConfig("server")
 
     val baseUri = dbServerConfig.getString("uri")
@@ -98,7 +98,7 @@ class BackendServices(context: ActorContext[_],
     this.convergenceDbProvider = Some(convergenceDbProvider)
 
     convergenceDbProvider.connect().map { _ =>
-      logger.info("Connected to convergence database.")
+      logger.debug("Connected to convergence database.")
       convergenceDbProvider
     }
   }
@@ -123,11 +123,11 @@ class BackendServices(context: ActorContext[_],
     implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
     implicit val scheduler: Scheduler = context.system.scheduler
 
-    logger.info("Registering DomainPersistenceManagerActor")
+    logger.debug("Registering DomainPersistenceManagerActor")
     val f = persistenceManager.ask[DomainPersistenceManagerActor.Registered](DomainPersistenceManagerActor.Register(t, _))
 
     Try(Await.ready(f, t.duration)).map { _ =>
-      logger.info("DomainPersistenceManagerActor registered")
+      logger.debug("DomainPersistenceManagerActor registered")
       ()
     }
   }

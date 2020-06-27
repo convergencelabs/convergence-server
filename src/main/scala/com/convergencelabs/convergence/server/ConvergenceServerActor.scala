@@ -85,7 +85,7 @@ class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBeh
     this.clusterListener = Some(context.spawn(AkkaClusterDebugListener(cluster), "clusterListener"))
 
     val roles = config.getStringList(ConvergenceServer.AkkaConfig.AkkaClusterRoles).asScala.toSet
-    info(s"Convergence Server Roles: ${roles.mkString(", ")}")
+    info(s"Convergence Server Roles: [${roles.mkString(", ")}]")
 
     val shardCount = context.system.settings.config.getInt("convergence.shard-count")
 

@@ -93,7 +93,7 @@ object ConvergenceServer extends Logging {
       _ <- validateSeedNodes(config)
       _ <- validateRoles(config)
     } yield {
-      val system: ActorSystem[Message] = ActorSystem(ConvergenceServerActor(), ActorSystemName)
+      val system: ActorSystem[Message] = ActorSystem(ConvergenceServerActor(), ActorSystemName, config)
       this.system = Some(system)
 
       implicit val t: Timeout = Timeout(Duration.fromNanos(
@@ -154,8 +154,8 @@ object ConvergenceServer extends Logging {
     Try {
       new File(options.config.toOption.get.trim)
     } flatMap { configFile =>
-      if (!configFile.exists()) {
-        Failure(new IllegalArgumentException(s"Config file not found: ${configFile.getAbsolutePath}."))
+      if (!configFile.canRead()) {
+        Failure(new IllegalArgumentException(s"Can not read config file: ${configFile.getAbsolutePath}."))
       } else {
         info(s"Using config file: ${configFile.getAbsolutePath}")
         Success(configFile)
@@ -229,12 +229,13 @@ object ConvergenceServer extends Logging {
    * @return The merged config object.
    */
   private[this] def mergeServerRoles(baseConfig: Config): Config = {
-    val rolesInConfig = baseConfig.getStringList("akka.cluster.roles").asScala.toList
+    val rolesInConfig = baseConfig.getStringList(AkkaConfig.AkkaClusterRoles).asScala.toList
     if (rolesInConfig.isEmpty) {
+      logger.info(s"No roles specified in the config file. Looking for the '${Environment.ConvergenceServerRoles}' environment variable.")
       Option(System.getenv().get(Environment.ConvergenceServerRoles)) match {
-        case Some(rolesEnv) =>
-          val roles = rolesEnv.split(",").toList map (_.trim)
-          val updated = baseConfig.withValue("akka.cluster.roles", ConfigValueFactory.fromIterable(roles.asJava))
+        case Some(rolesEnv) if rolesEnv.trim.length > 0 =>
+          val roles = rolesEnv.split(",").toList.map(_.trim).filter(_.nonEmpty)
+          val updated = baseConfig.withValue(AkkaConfig.AkkaClusterRoles, ConfigValueFactory.fromIterable(roles.asJava))
           updated
         case None =>
           baseConfig
@@ -298,11 +299,11 @@ object ConvergenceServer extends Logging {
 
     Try {
       config.foreach { path =>
-        info(s"${Environment.ConvergenceLog4jConfigFile} is set. Attempting to load logging baseConfig from: $path")
-        val context = LogManager.getContext(false).asInstanceOf[org.apache.logging.log4j.core.LoggerContext]
+        info(s"${Environment.ConvergenceLog4jConfigFile} is set: $path")
         val file = new File(path)
         if (file.canRead) {
-          info(s"Config file exists. Loading")
+          info(s"Log4J config file exists; reloading logging config with the specified configuration.")
+          val context = LogManager.getContext(false).asInstanceOf[org.apache.logging.log4j.core.LoggerContext]
           // this will force a reconfiguration
           context.setConfigLocation(file.toURI)
         } else {
