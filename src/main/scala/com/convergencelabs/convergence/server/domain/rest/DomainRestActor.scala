@@ -206,8 +206,6 @@ object DomainRestActor {
   final case class DomainRestMessage(domainId: DomainId, message: DomainRestMessageBody) extends Message
 
 
-
-
   //
   // AdminToken
   //

@@ -138,7 +138,7 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
               .sessionStore
               .createSession(session)
               .map { _ =>
-                debug(s"$identityString: Session created replying to ClientActor")
+                debug(s"$identityString: Session created, replying to ClientActor")
                 authenticatedClients.put(clientActor, sessionId)
                 AuthenticationResponse(Right(authSuccess))
               }
