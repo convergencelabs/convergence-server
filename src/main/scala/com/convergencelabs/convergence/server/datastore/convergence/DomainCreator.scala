@@ -13,17 +13,19 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.util.UUID
 
-import com.convergencelabs.convergence.server.datastore.InvalidValueException
+import com.convergencelabs.convergence.server.datastore.DuplicateValueException
+import com.convergencelabs.convergence.server.datastore.convergence.DomainCreator.{DomainAlreadyExists, InvalidDomainValue}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
+import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomainResponse
 import com.convergencelabs.convergence.server.domain.{DomainDatabase, DomainId, DomainStatus}
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.ExceptionUtils
-import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -46,11 +48,9 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
 
   import ConfigKeys._
 
-  def createDomain(namespace: String,
-                   id: String,
+  def createDomain(domainId: DomainId,
                    displayName: String,
-                   anonymousAuth: Boolean,
-                   owner: String): Future[DomainDatabase] = {
+                   owner: String): Try[DomainDatabase] = {
 
     val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
     val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = if (randomizeCredentials) {
@@ -60,46 +60,59 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
       ("writer", "writer", "admin", "admin")
     }
 
-    val domainId = DomainId(namespace, id)
     val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
 
-    val provisionRequest = ProvisionRequest(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
     for {
-      _ <- FutureUtils.tryToFuture(validate(namespace, id))
-      _ <- FutureUtils.tryToFuture(domainStore.createDomain(domainId, displayName, domainDbInfo))
-      _ <- provisionDomain(provisionRequest)
-        .map { _ =>
-          roleStore.setUserRolesForTarget(owner, DomainRoleTarget(domainId), Set(Roles.Domain.Owner))
+      _ <- validate(domainId)
+      _ <- domainStore.createDomain(domainId, displayName, domainDbInfo)
+        .recoverWith {
+          case DuplicateValueException(field, _, _) =>
+            Failure(DomainAlreadyExists(field))
         }
-        .map { _ =>
-          debug(s"Domain created, setting status to online: $dbName")
-          this.updateStatusAfterProvisioning(domainId, DomainStatus.Online)
-        }
-        .recover {
-          case cause: Throwable =>
-            error(s"Domain was not created successfully: $dbName", cause)
-            val statusMessage = ExceptionUtils.stackTraceToString(cause)
-            this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, statusMessage)
-            ()
-        }
+      _ <- roleStore.setUserRolesForTarget(owner, DomainRoleTarget(domainId), Set(Roles.Domain.Owner))
     } yield domainDbInfo
   }
 
-  private[this] def validate(namespace: String, id: String): Try[Unit] = {
+  def provisionDomain(domainId: DomainId, anonymousAuth: Boolean, database: DomainDatabase): Future[Unit] = {
+    val DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = database
+    val provisionRequest = ProvisionRequest(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
+    provisionDomain(provisionRequest)
+      .map(_.response.fold(
+        { e =>
+          error(s"Domain was not provisioned successfully: $dbName")
+          val msg = e.message.getOrElse("Unknown error provisioning the domain")
+          this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, msg)
+        },
+        { _ =>
+          debug(s"Domain provisioned, setting status to online: $dbName")
+          this.updateStatusAfterProvisioning(domainId, DomainStatus.Online)
+        },
+      ))
+      .recover {
+        case cause: Throwable =>
+          error(s"Domain was not provisioned successfully: $dbName", cause)
+          val statusMessage = ExceptionUtils.stackTraceToString(cause)
+          this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, statusMessage)
+          ()
+      }
+  }
+
+  private[this] def validate(domainId: DomainId): Try[Unit] = {
+    val DomainId(namespace, id) = domainId
     if (namespace.isEmpty) {
-      Failure(InvalidValueException("namespace", "The namespace can not be empty"))
+      Failure(InvalidDomainValue("namespace", "The namespace can not be empty"))
     } else if (id.isEmpty) {
-      Failure(InvalidValueException("id", "The domain id can not be empty"))
+      Failure(InvalidDomainValue("id", "The domain id can not be empty"))
     } else {
       val keys = List(Namespaces.Enabled, Namespaces.UserNamespacesEnabled, Namespaces.DefaultNamespace)
       configStore.getConfigs(keys).flatMap { configs =>
         val namespacesEnabled = configs(Namespaces.Enabled).asInstanceOf[Boolean]
         val userNamespacesEnabled = configs(Namespaces.UserNamespacesEnabled).asInstanceOf[Boolean]
-        val defaultNamesapce = configs(Namespaces.DefaultNamespace).asInstanceOf[String]
-        if (!namespacesEnabled && namespace != defaultNamesapce) {
-          Failure(InvalidValueException("namespace", "When namespaces are disabled, you can only create domains in the default namespace."))
+        val defaultNamespace = configs(Namespaces.DefaultNamespace).asInstanceOf[String]
+        if (!namespacesEnabled && namespace != defaultNamespace) {
+          Failure(InvalidDomainValue("namespace", "When namespaces are disabled, you can only create domains in the default namespace."))
         } else if (!userNamespacesEnabled && namespace.startsWith("~")) {
-          Failure(InvalidValueException("namespace", "User namespaces are disabled."))
+          Failure(InvalidDomainValue("namespace", "User namespaces are disabled."))
         } else {
           Success(())
         }
@@ -109,19 +122,24 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
 
   private[this] def updateStatusAfterProvisioning(domainId: DomainId, status: DomainStatus.Value, statusMessage: String = ""): Unit = {
     domainStore
-      .getDomainByFqn(domainId)
-      .flatMap {
-        case Some(domain) =>
-          val updated = domain.copy(status = status, statusMessage = statusMessage)
-          domainStore.updateDomain(updated)
-        case None =>
-          Failure(new IllegalStateException("Could not find domain after it was created to update its status."))
-      }
+      .updateDomainStatus(domainId, status, statusMessage)
       .recover {
         case cause: Throwable =>
           logger.error("Could not update domain status after creation", cause)
       }
   }
 
-  def provisionDomain(request: ProvisionRequest): Future[Unit]
+  protected def provisionDomain(request: ProvisionRequest): Future[ProvisionDomainResponse]
+}
+
+object DomainCreator {
+
+  sealed trait DomainCreationError
+
+  final case class DomainAlreadyExists(field: String) extends RuntimeException with NoStackTrace with DomainCreationError
+
+  final case class InvalidDomainValue(field: String, message: String) extends RuntimeException(message) with NoStackTrace with DomainCreationError
+
+  final case class UnknownError() extends RuntimeException with NoStackTrace with DomainCreationError
+
 }

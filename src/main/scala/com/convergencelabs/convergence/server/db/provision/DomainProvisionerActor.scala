@@ -46,7 +46,7 @@ class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActo
       } recover {
         case cause: Exception =>
           error(s"Error provisioning domain: ${data.domainId}", cause)
-          replyTo ! ProvisionDomainResponse(Left(UnknownError()))
+          replyTo ! ProvisionDomainResponse(Left(UnknownError(Some(cause.getMessage))))
       }
     }
     Behaviors.same
@@ -90,5 +90,5 @@ object DomainProvisionerActor {
 
   final case class DestroyDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
   
-  final case class UnknownError()
+  final case class UnknownError(message: Option[String] = None)
 }

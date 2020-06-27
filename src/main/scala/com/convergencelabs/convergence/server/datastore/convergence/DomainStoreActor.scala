@@ -18,7 +18,7 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Scheduler}
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor
@@ -54,35 +54,42 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
 
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
-      case createRequest: CreateDomainRequest =>
-        createDomain(createRequest)
-      case deleteRequest: DeleteDomainRequest =>
-        deleteDomain(deleteRequest)
-      case updateRequest: UpdateDomainRequest =>
-        updateDomain(updateRequest)
-      case getRequest: GetDomainRequest =>
-        handleGetDomain(getRequest)
-      case listRequest: GetDomainsRequest =>
-        onGetDomains(listRequest)
-      case deleteForUser: DeleteDomainsForUserRequest =>
-        deleteDomainsForUser(deleteForUser)
+      case message: CreateDomainRequest =>
+        createDomain(message)
+      case message: DeleteDomainRequest =>
+        deleteDomain(message)
+      case message: UpdateDomainRequest =>
+        updateDomain(message)
+      case message: GetDomainRequest =>
+        handleGetDomain(message)
+      case message: GetDomainsRequest =>
+        onGetDomains(message)
+      case message: DeleteDomainsForUserRequest =>
+        deleteDomainsForUser(message)
     }
 
     Behaviors.same
   }
 
   private[this] def createDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, domainId, displayName, anonymousAuth, owner, replyTo) = createRequest
+    val CreateDomainRequest(namespace, id, displayName, anonymousAuth, owner, replyTo) = createRequest
     configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
-    domainCreator.createDomain(namespace, domainId, displayName, anonymousAuth, owner)
-      .map(dbInfo => CreateDomainResponse(Right(dbInfo)))
+    val domainId = DomainId(namespace, id)
+    domainCreator.createDomain(domainId, displayName, owner)
+      .map { dbInfo =>
+        // This returns a future, but we don't need to take any
+        // action.
+        domainCreator.provisionDomain(domainId, anonymousAuth, dbInfo)
+        CreateDomainResponse(Right(dbInfo))
+      }
       .recover {
-        case InvalidValueException(_, message, _) =>
-          CreateDomainResponse(Left(InvalidDomainCreationRequest(message)))
-        case DuplicateValueException(field, _, _) =>
+        case DomainCreator.DomainAlreadyExists(field) =>
           CreateDomainResponse(Left(DomainAlreadyExistsError(field)))
-        case _ =>
+        case DomainCreator.InvalidDomainValue(field, message) =>
+          CreateDomainResponse(Left(InvalidDomainCreationRequest(field, message)))
+        case DomainCreator.UnknownError() =>
           CreateDomainResponse(Left(UnknownError()))
+
       }
       .foreach(replyTo ! _)
 
@@ -201,7 +208,8 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
 
   private[this] def handleGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId, replyTo) = getRequest
-    domainStore.getDomainByFqn(DomainId(namespace, domainId))
+    domainStore
+      .getDomainByFqn(DomainId(namespace, domainId))
       .map {
         case Some(domain) =>
           GetDomainResponse(Right(domain))
@@ -219,11 +227,13 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
   private[this] def onGetDomains(listRequest: GetDomainsRequest): Unit = {
     val GetDomainsRequest(authProfileData, namespace, filter, offset, limit, replyTo) = listRequest
     val authProfile = AuthorizationProfile(authProfileData)
-    if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
+    val result = if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
       domainStore.getDomains(namespace, filter, QueryOffset(offset), QueryLimit(limit))
     } else {
       domainStore.getDomainsByAccess(authProfile.username, namespace, filter, QueryOffset(offset), QueryLimit(limit))
     }
+
+    result
       .map(domains => GetDomainsResponse(Right(domains)))
       .recover { cause =>
         error("unexpected error getting domains", cause)
@@ -237,12 +247,14 @@ class ActorBasedDomainCreator(databaseProvider: DatabaseProvider,
                               config: Config,
                               domainProvisioner: ActorRef[ProvisionDomain],
                               executionContext: ExecutionContext,
-                              implicit val scheduler: Scheduler)
+                              implicit val scheduler: Scheduler,
+                              timeout: Timeout)
   extends DomainCreator(databaseProvider, config, executionContext) {
 
-  def provisionDomain(data: ProvisionRequest): Future[Unit] = {
-    implicit val t: Timeout = Timeout(4 minutes)
-    domainProvisioner.ask[ProvisionDomainResponse](ref => ProvisionDomain(data, ref)).mapTo[Unit]
+  def provisionDomain(data: ProvisionRequest): Future[ProvisionDomainResponse] = {
+    implicit val t: Timeout = timeout
+    domainProvisioner
+      .ask[ProvisionDomainResponse](ref => ProvisionDomain(data, ref))
   }
 }
 
@@ -283,7 +295,7 @@ object DomainStoreActor {
   ))
   sealed trait CreateDomainError
 
-  final case class InvalidDomainCreationRequest(message: String) extends CreateDomainError
+  final case class InvalidDomainCreationRequest(field: String, message: String) extends CreateDomainError
 
   final case class CreateDomainResponse(dbInfo: Either[CreateDomainError, DomainDatabase]) extends CborSerializable
 

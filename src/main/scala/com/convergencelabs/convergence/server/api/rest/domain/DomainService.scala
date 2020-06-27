@@ -105,7 +105,7 @@ class DomainService(schedule: Scheduler,
         {
           case DomainAlreadyExistsError(field) =>
             conflictsResponse(field, "A domain with this value already exists")
-          case InvalidDomainCreationRequest(message) =>
+          case InvalidDomainCreationRequest(_, message) =>
             badRequest(message)
           case UnknownError() =>
             InternalServerError
@@ -119,11 +119,10 @@ class DomainService(schedule: Scheduler,
                                filter: Option[String],
                                offset: Option[Int],
                                limit: Option[Int]): Future[RestResponse] = {
-    domainStoreActor.ask[GetDomainsResponse](GetDomainsRequest(authProfile.data, namespace, filter, offset, limit, _))
+    domainStoreActor
+      .ask[GetDomainsResponse](GetDomainsRequest(authProfile.data, namespace, filter, offset, limit, _))
       .map(_.domains.fold(
-        { _ =>
-          InternalServerError
-        },
+        _ => InternalServerError,
         { domains =>
           val response = okResponse(
             domains map (domain => DomainRestData(

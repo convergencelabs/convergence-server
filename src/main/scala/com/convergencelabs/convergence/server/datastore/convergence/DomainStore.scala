@@ -67,6 +67,7 @@ object DomainStore {
   }
 
   private[this] val DomainRidQuery = "SELECT @rid FROM Domain WHERE id = :id AND namespace.id = :namespace"
+
   def getDomainRid(namespace: String, domainId: String, db: ODatabaseDocument): Try[ORID] = {
     val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
     OrientDBUtil.getDocument(db, DomainRidQuery, params).map(_.getProperty("@rid").asInstanceOf[ORID])
@@ -94,7 +95,7 @@ object DomainStore {
 
 class DomainStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import DomainStore._
 
@@ -108,6 +109,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   } recoverWith handleDuplicateValue
 
   private[this] val DomainExistsQuery = "SELECT count(@rid) as count FROM Domain WHERE id = :id AND namespace.id = :namespace"
+
   def domainExists(domainId: DomainId): Try[Boolean] = withDb { db =>
     val DomainId(namespace, id) = domainId
     val params = Map(Params.Id -> id, Params.Namespace -> namespace)
@@ -115,11 +117,13 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val DomainCountQuery = "SELECT count(@rid) as count FROM Domain"
+
   def domainCount(): Try[Long] = withDb { db =>
     OrientDBUtil.getDocument(db, DomainCountQuery).map(_.getProperty("count").asInstanceOf[Long])
   }
 
   private[this] val GetDomainQuery = "SELECT FROM Domain WHERE namespace.id = :namespace AND id = :id"
+
   def getDomainByFqn(domainId: DomainId): Try[Option[Domain]] = withDb { db =>
     val DomainId(namespace, id) = domainId
     val params = Map(Params.Id -> id, Params.Namespace -> namespace)
@@ -127,6 +131,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val GetDomainsByNamespaceQuery = "SELECT FROM Domain WHERE namespace.id = :namespace"
+
   def getDomainsInNamespace(namespace: String): Try[List[Domain]] = withDb { db =>
     val params = Map(Params.Namespace -> namespace)
     OrientDBUtil.query(db, GetDomainsByNamespaceQuery, params).map(_.map(docToDomain))
@@ -163,11 +168,12 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   def getDomainsByAccess(username: String, namespace: Option[String], filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[Domain]] = withDb { db =>
-    val accessQuery = """LET namespaces = SELECT set(target) FROM UserRole WHERE user.username = :username AND (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace');
-                        |LET domainsInNamespaces = SELECT FROM Domain WHERE namespace IN $namespaces;
-                        |LET roleAccess = SELECT expand(set(target)) FROM UserRole WHERE user.username = :username AND role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain';
-                        |LET allDomains = SELECT expand(set(unionall($domainsInNamespaces, $roleAccess))) as domains;
-                        |SELECT * FROM $allDomains WHERE true""".stripMargin
+    val accessQuery =
+      """LET namespaces = SELECT set(target) FROM UserRole WHERE user.username = :username AND (role.permissions CONTAINS ('namespace-access') AND target.@class = 'Namespace');
+        |LET domainsInNamespaces = SELECT FROM Domain WHERE namespace IN $namespaces;
+        |LET roleAccess = SELECT expand(set(target)) FROM UserRole WHERE user.username = :username AND role.permissions CONTAINS ('domain-access') AND target.@class = 'Domain';
+        |LET allDomains = SELECT expand(set(unionall($domainsInNamespaces, $roleAccess))) as domains;
+        |SELECT * FROM $allDomains WHERE true""".stripMargin
 
     val (filterWhere, filterParams) = filter.map(filter => {
       val where = " AND (id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
@@ -189,6 +195,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val DeleteDomainCommand = "DELETE FROM Domain WHERE namespace.id = :namespace AND id = :id"
+
   def removeDomain(domainId: DomainId): Try[Unit] = withDb { db =>
     val DomainId(namespace, id) = domainId
     val params = Map(Params.Id -> id, Params.Namespace -> namespace)
@@ -205,16 +212,41 @@ class DomainStore(dbProvider: DatabaseProvider)
       }
     }
   } recoverWith handleDuplicateValue
-  
-  private[this] val SetDomainStatusCommand = "UPDATE Domain SET status = :status, statusMessage = :statusMessage WHERE namespace.id = :namespace AND id = :id"
+
+
+  /**
+   * Updates the status and status message of a specific domain.
+   *
+   * @param domainId      The id of the domain to set the status for.
+   * @param status        The status flag for the domain.
+   * @param statusMessage The status message for the domain.
+   * @return Success if updating the domain status succeeds, a Failure
+   *         otherwise.
+   */
+  def updateDomainStatus(domainId: DomainId, status: DomainStatus.Value, statusMessage: String): Try[Unit] = withDb { db =>
+    val params = Map(
+      Params.Namespace -> domainId.namespace,
+      Params.Id -> domainId.domainId,
+      "status" -> status.toString,
+      "statusMessage" -> statusMessage
+    )
+    OrientDBUtil.mutateOneDocument(db, UpdateDomainStatusCommand, params)
+  }
+
+  private[this] val UpdateDomainStatusCommand = "UPDATE Domain SET status = :status, statusMessage = :statusMessage WHERE namespace.id = :namespace AND id = :id"
+
+
   def setDomainStatus(domain: DomainId, status: DomainStatus.Value, statusMessage: String): Try[Unit] = withDb { db =>
     val params = Map(
-        Params.Namespace -> domain.namespace, 
-        Params.Id -> domain.domainId, 
-        Params.Status -> status.toString.toLowerCase,
-        Params.StatusMessage -> statusMessage)
+      Params.Namespace -> domain.namespace,
+      Params.Id -> domain.domainId,
+      Params.Status -> status.toString.toLowerCase,
+      Params.StatusMessage -> statusMessage)
     OrientDBUtil.mutateOneDocument(db, SetDomainStatusCommand, params)
   }
+
+  private[this] val SetDomainStatusCommand = "UPDATE Domain SET status = :status, statusMessage = :statusMessage WHERE namespace.id = :namespace AND id = :id"
+
 
   def getDomainDatabase(domainId: DomainId): Try[Option[DomainDatabase]] = withDb { db =>
     val DomainId(namespace, id) = domainId

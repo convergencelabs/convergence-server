@@ -11,9 +11,12 @@
 
 package com.convergencelabs.convergence.server
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
+import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
@@ -86,12 +89,15 @@ class BackendServices(context: ActorContext[_],
     val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
     context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
 
+    val domainCreationTimeout = Timeout(2, TimeUnit.MINUTES)
+
     val domainCreator: DomainCreator = new ActorBasedDomainCreator(
       convergenceDbProvider,
       this.context.system.settings.config,
       provisionerActor.narrow[ProvisionDomain],
       context.executionContext,
-      context.system.scheduler)
+      context.system.scheduler,
+      domainCreationTimeout)
 
     val domainStoreActor = context.spawn(DomainStoreActor(
       domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor), "DomainStore")

@@ -14,10 +14,13 @@ package com.convergencelabs.convergence.server.db
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
+import akka.util.Timeout
+import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner
 import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
+import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomainResponse
 import com.convergencelabs.convergence.server.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.Roles
@@ -26,7 +29,6 @@ import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBCo
 import com.typesafe.config.{Config, ConfigObject}
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
@@ -128,7 +130,7 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
     if (!orientDb.exists(convergenceDatabase)) {
       logger.info("Convergence database does not exists.  Creating.")
       orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
-      logger.debug("Convergence database created, connecting as default admin user")
+      logger.debug("Convergence database created, connecting as default admin user and setting credentials")
 
       val db = orientDb.open(convergenceDatabase, "admin", "admin")
       logger.info("Connected to convergence database.")
@@ -268,15 +270,19 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
             Success(())
           }
         } yield {
-          val f = domainCreator.createDomain(namespace, id, displayName, anonymousAuth, owner).map { _ =>
-            logger.info(s"bootstrapped domain '$namespace/$id'")
-          }(ec)
+          implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+          val domainId = DomainId(namespace, id)
+          val timeout = Timeout(4, TimeUnit.MINUTES)
+          domainCreator.createDomain(domainId, displayName, owner)
+            .map { dbInfo =>
+              val f = domainCreator.provisionDomain(domainId, anonymousAuth, dbInfo)
+              Await.ready(f, timeout.duration)
+              logger.info(s"bootstrapped domain '$namespace/$id'")
 
-          Await.ready(f, FiniteDuration.apply(2, TimeUnit.MINUTES))
-
-          if (favorite) {
-            val username = config.getString("convergence.default-server-admin.username")
-            favoriteStore.addFavorite(username, DomainId(namespace, id)).get
+              if (favorite) {
+                val username = config.getString("convergence.default-server-admin.username")
+                favoriteStore.addFavorite(username, DomainId(namespace, id)).get
+              }
           }
         }).get
     }
@@ -316,7 +322,7 @@ private class InlineDomainCreator(provider: DatabaseProvider,
                                   ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
   private val provisioner = new DomainProvisioner(provider, config)
 
-  def provisionDomain(request: ProvisionRequest): Future[Unit] = {
-    FutureUtils.tryToFuture(provisioner.provisionDomain(request))
+  override def provisionDomain(request: ProvisionRequest): Future[ProvisionDomainResponse] = {
+    FutureUtils.tryToFuture(provisioner.provisionDomain(request).map(_ => ProvisionDomainResponse(Right(Ok()))))
   }
 }
