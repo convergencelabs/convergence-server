@@ -15,12 +15,13 @@ import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions, Roles}
 
 trait PermissionChecks {
-  protected def isServerAdmin( authProfile: AuthorizationProfile): Boolean = {
+  protected def isServerAdmin(authProfile: AuthorizationProfile): Boolean = {
     authProfile.hasServerRole(Roles.Server.ServerAdmin)
   }
 
   protected def canManageDomainsInNamespace(namespace: String, authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, namespace)
+    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+      authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, namespace)
   }
 
   protected def canAccessDomain(domainFqn: DomainId, authProfile: AuthorizationProfile): Boolean = {
