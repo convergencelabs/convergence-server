@@ -223,6 +223,15 @@ object ModelStoreActor {
   ))
   sealed trait GetModelUpdateError
 
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[OfflineModelPermissionRevoked], name = "permissions_revoked"),
+    new JsonSubTypes.Type(value = classOf[OfflineModelNotUpdate], name = "not_updated"),
+    new JsonSubTypes.Type(value = classOf[OfflineModelDeleted], name = "deleted"),
+    new JsonSubTypes.Type(value = classOf[OfflineModelUpdated], name = "updated"),
+    new JsonSubTypes.Type(value = classOf[OfflineModelInitial], name = "initial"),
+  ))
   sealed trait ModelUpdateResult
 
   final case class OfflineModelPermissionRevoked() extends ModelUpdateResult
