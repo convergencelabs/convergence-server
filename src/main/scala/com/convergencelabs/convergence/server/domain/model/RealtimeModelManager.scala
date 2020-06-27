@@ -758,7 +758,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   //
 
   def onOperationSubmission(request: OperationSubmission): Unit = {
-    if (!this.openClients.contains(request.session)) {
+    if (!this.openClients.contains(request.session) && !this.resyncingClients.contains(request.session)) {
       warn(s"$domainFqn/$modelId: Received operation from client for model that is not open or resyncing!")
     } else {
       val session = request.session
