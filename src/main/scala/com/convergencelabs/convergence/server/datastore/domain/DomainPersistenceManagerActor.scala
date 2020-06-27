@@ -44,10 +44,10 @@ import scala.util.{Failure, Success, Try}
  * @param baseDbUri   The base uri of the database.
  * @param domainStore The domain store to look up domain databases with.
  */
-class DomainPersistenceManagerActor(private[this] val context: ActorContext[DomainPersistenceManagerActor.Message],
-                                    private[this] val baseDbUri: String,
-                                    private[this] val domainStore: DomainStore,
-                                    domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+class DomainPersistenceManagerActor private(context: ActorContext[DomainPersistenceManagerActor.Message],
+                                            baseDbUri: String,
+                                            domainStore: DomainStore,
+                                            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
   extends AbstractBehavior[DomainPersistenceManagerActor.Message](context) with Logging {
 
   import DomainPersistenceManagerActor._
@@ -60,9 +60,6 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
     case DomainLifecycleTopic.DomainDeleted(domainId) => DomainDeleted(domainId)
   })
 
-  context.system.receptionist ! Receptionist.Register(
-    DomainPersistenceManagerActor.DomainPersistenceManagerServiceKey, context.self)
-
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
       case Acquire(domainId, requester, replyTo) =>
@@ -71,6 +68,8 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
         onRelease(domainId, requester)
       case DomainDeleted(domainId) =>
         this.onDomainDeleted(domainId)
+      case message: Register =>
+        onRegister(message)
     }
 
     Behaviors.same
@@ -80,6 +79,16 @@ class DomainPersistenceManagerActor(private[this] val context: ActorContext[Doma
     case Terminated(actor) =>
       onActorDeath(actor)
       Behaviors.same
+  }
+
+  private[this] def onRegister(register: Register): Unit = {
+    implicit val scheduler: Scheduler = context.system.scheduler
+    implicit val ec: ExecutionContextExecutor = context.system.executionContext
+    implicit val timeout: Timeout = register.timout
+    context.system.receptionist.ask[Receptionist.Registered](replyTo => Receptionist.Register(
+      DomainPersistenceManagerActor.DomainPersistenceManagerServiceKey, context.self, replyTo)).map { _ =>
+      register.replyTo ! Registered()
+    }
   }
 
   private[this] def onAcquire(domainId: DomainId, requester: ActorRef[_], replyTo: ActorRef[AcquireResponse]): Unit = {
@@ -304,5 +313,9 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
   private final case class DomainDeleted(domainId: DomainId) extends Message
 
   final case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
+
+  final case class Register(timout: Timeout, replyTo: ActorRef[Registered]) extends Message
+
+  final case class Registered()
 
 }

@@ -21,16 +21,13 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi}
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
-import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
+import com.convergencelabs.convergence.server.db.ConvergenceDatabaseInitializerActor
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.db.{ConvergenceDatabaseInitializerActor, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.domain.activity.{ActivityActor, ActivityActorSharding}
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
 import com.convergencelabs.convergence.server.domain.model.{RealtimeModelActor, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.domain.rest.{DomainRestActor, DomainRestActorSharding}
 import com.convergencelabs.convergence.server.domain.{DomainActor, DomainActorSharding}
-import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
 import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
 
@@ -55,7 +52,6 @@ class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBeh
 
   private[this] var cluster: Option[Cluster] = None
   private[this] var backend: Option[BackendServices] = None
-  private[this] var orientDb: Option[OrientDB] = None
   private[this] var rest: Option[ConvergenceRestApi] = None
   private[this] var realtime: Option[ConvergenceRealtimeApi] = None
   private[this] var clusterListener: Option[ActorRef[MemberEvent]] = None
@@ -156,32 +152,16 @@ class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBeh
    */
   private[this] def startBackend(msg: StartBackendServices): Behavior[Message] = {
     val StartBackendServices(domainLifecycleTopic, promise) = msg
-    val persistenceConfig = config.getConfig("convergence.persistence")
-    val dbServerConfig = persistenceConfig.getConfig("server")
 
-    val baseUri = dbServerConfig.getString("uri")
-    orientDb = Some(new OrientDB(baseUri, OrientDBConfig.defaultConfig()))
-
-    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
-    val convergenceDatabase = convergenceDbConfig.getString("database")
-    val username = convergenceDbConfig.getString("username")
-    val password = convergenceDbConfig.getString("password")
-
-    val poolMin = convergenceDbConfig.getInt("pool.db-pool-min")
-    val poolMax = convergenceDbConfig.getInt("pool.db-pool-max")
-
-    val dbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password, poolMin, poolMax)
-    dbProvider.connect().get
-
-    val domainStore = new DomainStore(dbProvider)
-
-    context.spawn(DomainPersistenceManagerActor(baseUri, domainStore, domainLifecycleTopic), "DomainPersistenceManager")
-
-    val backend = new BackendServices(context, dbProvider, domainLifecycleTopic)
+    val backend = new BackendServices(context, domainLifecycleTopic)
     backend.start()
-    this.backend = Some(backend)
-
-    promise.success(())
+      .map { _ =>
+        this.backend = Some(backend)
+        promise.success(())
+      }
+      .recover { cause =>
+        promise.failure(cause)
+      }
 
     Behaviors.same
   }
@@ -218,7 +198,6 @@ class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBeh
     this.backend.foreach(backend => backend.stop())
     this.rest.foreach(rest => rest.stop())
     this.realtime.foreach(realtime => realtime.stop())
-    this.orientDb.foreach(db => db.close())
 
     logger.info(s"Leaving the cluster")
     cluster.foreach(c => c.manager ! Leave(c.selfMember.address))

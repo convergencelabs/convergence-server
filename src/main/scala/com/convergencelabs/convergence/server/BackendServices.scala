@@ -14,17 +14,22 @@ package com.convergencelabs.convergence.server
 import java.util.concurrent.TimeUnit
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, SupervisorStrategy}
+import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
+import akka.actor.typed.scaladsl.AskPattern._
 import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
 import com.convergencelabs.convergence.server.db.provision.{DomainLifecycleTopic, DomainProvisioner, DomainProvisionerActor}
 import com.convergencelabs.convergence.server.db.schema.{DatabaseManager, DatabaseManagerActor}
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, PooledDatabaseProvider}
+import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
+import scala.concurrent.Await
 import scala.language.postfixOps
+import scala.util.{Success, Try}
 
 /**
  * The [[BackendServices]] class is the main entry point that bootstraps the
@@ -32,33 +37,121 @@ import scala.language.postfixOps
  * for start that various Akka Actors the comprise the major subsystems (
  * Chat, Presence, Models, etc.).
  *
- * @param context               The Akka ActorContext to start Actors in.
- * @param convergenceDbProvider A [[DatabaseProvider]] that is connected to the
- *                              main convergence database.
+ * @param context              The Akka ActorContext to start Actors in.
+ * @param domainLifecycleTopic The topic to use for domain lifecycle events.
  */
 class BackendServices(context: ActorContext[_],
-                      convergenceDbProvider: DatabaseProvider,
                       domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]
                      ) extends Logging {
+
+  private[this] var convergenceDbProvider: Option[DatabaseProvider] = None
 
   /**
    * Starts the Backend Services. Largely this method will start up all
    * of the Actors required to provide e the core Convergence Server
    * services.
    */
-  def start(): Unit = {
+  def start(): Try[Unit] = {
     logger.info("Convergence Backend Services starting up...")
+    val config = this.context.system.settings.config
+    val persistenceConfig = config.getConfig("convergence.persistence")
+    for {
+      provider <- createPool(persistenceConfig)
+      _ <- createDomainPersistenceManager(persistenceConfig, provider)
+      _ <- startActors(persistenceConfig, provider)
+    } yield {
+      logger.info("Convergence Backend Services started up.")
+    }
+  }
 
-    val dbServerConfig = context.system.settings.config.getConfig("convergence.persistence.server")
-    val convergenceDbConfig = context.system.settings.config.getConfig("convergence.persistence.convergence-database")
+  /**
+   * Stops the backend services. Note that this does not stop the
+   * ActorSystem.
+   */
+  def stop(): Unit = {
+    logger.info("Convergence Backend Services shutting down.")
+    this.convergenceDbProvider.foreach(_.shutdown())
+  }
 
+
+  /**
+   * Creates the connection pool to the Convergence database.
+   *
+   * @param persistenceConfig The config subtree for the persistence subsystem.
+   * @return A [[DatabaseProvider]] if the connection pool creation succeeds.
+   */
+  private[this] def createPool(persistenceConfig: Config): Try[DatabaseProvider] = {
+    logger.info("Creating connection pool to convergence database...")
+    val dbServerConfig = persistenceConfig.getConfig("server")
+
+    val baseUri = dbServerConfig.getString("uri")
+
+    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
+    val convergenceDatabase = convergenceDbConfig.getString("database")
+    val username = convergenceDbConfig.getString("username")
+    val password = convergenceDbConfig.getString("password")
+
+    val poolMin = convergenceDbConfig.getInt("pool.db-pool-min")
+    val poolMax = convergenceDbConfig.getInt("pool.db-pool-max")
+
+    val convergenceDbProvider = new PooledDatabaseProvider(baseUri, convergenceDatabase, username, password, poolMin, poolMax)
+    this.convergenceDbProvider = Some(convergenceDbProvider)
+
+    convergenceDbProvider.connect().map { _ =>
+      logger.info("Connected to convergence database.")
+      convergenceDbProvider
+    }
+  }
+
+  /**
+   * Creates and registers the local [[DomainPersistenceManagerActor]] on this
+   * node.
+   *
+   * @param persistenceConfig     The config subtree for the persistence
+   *                              subsystem.
+   * @param convergenceDbProvider The database provider for the Convergence
+   *                              database.
+   * @return Success if the actor was started and registered; a failure
+   *         otherwise.
+   */
+  private[this] def createDomainPersistenceManager(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): Try[Unit] = {
+    val domainStore = new DomainStore(convergenceDbProvider)
+    val dbServerConfig = persistenceConfig.getConfig("server")
+    val baseUri = dbServerConfig.getString("uri")
+    val persistenceManager = context.spawn(DomainPersistenceManagerActor(baseUri, domainStore, domainLifecycleTopic), "DomainPersistenceManager")
+
+    implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
+    implicit val scheduler: Scheduler = context.system.scheduler
+
+    logger.info("Registering DomainPersistenceManagerActor")
+    val f = persistenceManager.ask[DomainPersistenceManagerActor.Registered](DomainPersistenceManagerActor.Register(t, _))
+
+    Try(Await.ready(f, t.duration)).map { _ =>
+      logger.info("DomainPersistenceManagerActor registered")
+      ()
+    }
+  }
+
+  /**
+   * Starts the backend services actors.
+   *
+   * @param persistenceConfig     The config subtree for the persistence
+   *                              subsystem.
+   * @param convergenceDbProvider The database provider for the Convergence
+   *                              database.
+   * @return Success if the actors are started; a failure otherwise.
+   */
+  private[this] def startActors(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): Try[Unit] = {
+    val dbServerConfig = persistenceConfig.getConfig("server")
+    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
+
+    val domainStore = new DomainStore(convergenceDbProvider)
     val userStore = new UserStore(convergenceDbProvider)
     val userApiKeyStore = new UserApiKeyStore(convergenceDbProvider)
     val roleStore = new RoleStore(convergenceDbProvider)
     val configStore = new ConfigStore(convergenceDbProvider)
     val userSessionTokenStore = new UserSessionTokenStore(convergenceDbProvider)
     val namespaceStore = new NamespaceStore(convergenceDbProvider)
-    val domainStore = new DomainStore(convergenceDbProvider)
 
     val favoriteDomainStore = new UserFavoriteDomainStore(convergenceDbProvider)
     val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
@@ -74,7 +167,6 @@ class BackendServices(context: ActorContext[_],
         .withSettings(ClusterSingletonSettings(context.system).withRole("backed"))
     )
 
-
     //
     // REST Services
     //
@@ -89,7 +181,8 @@ class BackendServices(context: ActorContext[_],
     val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
     context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
 
-    val domainCreationTimeout = Timeout(2, TimeUnit.MINUTES)
+    val domainCreationTimeoutMillis = persistenceConfig.getDuration("domain-databases.initialization-timeout").toMillis
+    val domainCreationTimeout = Timeout(domainCreationTimeoutMillis, TimeUnit.MILLISECONDS)
 
     val domainCreator: DomainCreator = new ActorBasedDomainCreator(
       convergenceDbProvider,
@@ -111,14 +204,6 @@ class BackendServices(context: ActorContext[_],
     context.spawn(ServerStatusActor(domainStore, namespaceStore), "ServerStatus")
     context.spawn(UserFavoriteDomainStoreActor(favoriteDomainStore), "FavoriteDomains")
 
-    logger.info("Convergence Backend Services started up.")
-  }
-
-  /**
-   * Stops the backend services. Note that this does not stop the
-   * ActorSystem.
-   */
-  def stop(): Unit = {
-    logger.info("Convergence Backend Services shutting down.")
+    Success(())
   }
 }
