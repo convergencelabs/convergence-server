@@ -111,10 +111,14 @@ lazy val dist = (project in file("distribution"))
     discoveredMainClasses in Compile := Seq(),
     executableScriptName := "convergence-server",
     mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer"),
+
     bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.conf"""",
     bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j2.xml"""",
+    bashScriptExtraDefines += """addJava "-Dnashorn.args=--no-deprecation-warning"""",
+
     batScriptExtraDefines += """call :add_app "-c %APP_HOME%\conf\convergence-server.conf"""",
     batScriptExtraDefines += """call :add_java "-Dlog4j.configurationFile=%APP_HOME%\conf\log4j2.xml"""",
+    batScriptExtraDefines += """call :add_java "-Dnashorn.args=--no-deprecation-warning"""",
 
     packageZip := (baseDirectory in Compile).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".zip"),
     artifact in(Universal, packageZip) ~= { (art: Artifact) => art.withType("zip").withExtension("zip") },
