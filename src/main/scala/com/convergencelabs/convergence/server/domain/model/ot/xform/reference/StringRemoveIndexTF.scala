@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
 import com.convergencelabs.convergence.server.domain.model.IndexReferenceValues
-import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
-import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringRemoveOperation}
+import com.convergencelabs.convergence.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.convergence.server.domain.model.ot.xform.{IndexTransformer, ReferenceTransformationFunction}
 
 object StringRemoveIndexTF extends ReferenceTransformationFunction[StringRemoveOperation, IndexReferenceValues] {
   def transform(op: StringRemoveOperation, values: IndexReferenceValues): Option[IndexReferenceValues] = {

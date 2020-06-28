@@ -9,21 +9,11 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform.string
 
-import RangeRangeRelationship.ContainedBy
-import RangeRangeRelationship.Contains
-import RangeRangeRelationship.EqualTo
-import RangeRangeRelationship.FinishedBy
-import RangeRangeRelationship.Finishes
-import RangeRangeRelationship.Meets
-import RangeRangeRelationship.MetBy
-import RangeRangeRelationship.OverlappedBy
-import RangeRangeRelationship.Overlaps
-import RangeRangeRelationship.PrecededBy
-import RangeRangeRelationship.Precedes
-import RangeRangeRelationship.StartedBy
-import RangeRangeRelationship.Starts
+import com.convergencelabs.convergence.server.domain.model.ot.RangeRangeRelationship.{ContainedBy, Contains, EqualTo, FinishedBy, Finishes, Meets, MetBy, OverlappedBy, Overlaps, PrecededBy, Precedes, StartedBy, Starts}
+import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 
 /**
  * This transformation function handles a concurrent server

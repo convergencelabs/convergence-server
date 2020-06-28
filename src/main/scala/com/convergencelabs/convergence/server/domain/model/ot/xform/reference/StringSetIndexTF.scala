@@ -12,7 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
 import com.convergencelabs.convergence.server.domain.model.IndexReferenceValues
-import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringSetOperation}
+import com.convergencelabs.convergence.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformationFunction
 
 object StringSetIndexTF extends ReferenceTransformationFunction[StringSetOperation, IndexReferenceValues] {
   def transform(op: StringSetOperation, values: IndexReferenceValues): Option[IndexReferenceValues] = {

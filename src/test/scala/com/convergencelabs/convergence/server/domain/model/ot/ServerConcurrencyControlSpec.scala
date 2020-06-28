@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformer
+import com.convergencelabs.convergence.server.domain.model.ot.xform.{OperationTransformer, ReferenceTransformer, TransformationFunctionRegistry}
 import org.mockito.Mockito.{inOrder, spy, times, verify}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar

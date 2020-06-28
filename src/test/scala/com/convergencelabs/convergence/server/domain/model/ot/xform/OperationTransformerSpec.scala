@@ -9,19 +9,16 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.when
-import org.mockito.Mockito
-import org.mockito.Matchers.any
+import com.convergencelabs.convergence.server.domain.model.ot._
 import org.mockito.Matchers.anyObject
+import org.mockito.Mockito
+import org.mockito.Mockito.{spy, times, verify, when}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
+
 
 // scalastyle:off multiple.string.literals
 class OperationTransformerSpec

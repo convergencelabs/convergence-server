@@ -9,9 +9,16 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform
 
 import com.convergencelabs.convergence.server.domain.model.ot.xform.reference._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.string._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.array._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.obj._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.number._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.bool._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.date._
+import com.convergencelabs.convergence.server.domain.model.ot._
 import com.convergencelabs.convergence.server.domain.model.{IndexReferenceValues, ModelReferenceValues, RangeReferenceValues}
 
 import scala.reflect.ClassTag

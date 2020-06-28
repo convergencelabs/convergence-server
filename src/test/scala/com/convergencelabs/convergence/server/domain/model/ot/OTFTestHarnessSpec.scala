@@ -17,6 +17,7 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.domain.model.data._
 import com.convergencelabs.convergence.server.domain.model.ot.OTFTestHarnessSpec._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.TransformationFunctionRegistry
 import org.json4s.JsonAST._
 import org.json4s.jackson.Serialization.read
 import org.json4s.{DefaultFormats, JArray, JBool, JInt, JString, JsonAST, jvalue2monadic}

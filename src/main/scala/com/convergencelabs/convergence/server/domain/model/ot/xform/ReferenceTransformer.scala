@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform
 
-import com.convergencelabs.convergence.server.domain.model.ot.{CompoundOperation, DiscreteOperation, Operation, TransformationFunctionRegistry}
-import com.convergencelabs.convergence.server.domain.model.{ModelReferenceValues, ReferenceValue}
+import com.convergencelabs.convergence.server.domain.model.ModelReferenceValues
+import com.convergencelabs.convergence.server.domain.model.ot.{CompoundOperation, DiscreteOperation, Operation}
 
 import scala.util.control.Breaks._
 

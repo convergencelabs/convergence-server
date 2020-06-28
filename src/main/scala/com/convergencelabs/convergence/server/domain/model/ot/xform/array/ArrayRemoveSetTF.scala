@@ -9,7 +9,10 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform.array
+
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[ot] object ArrayRemoveSetTF extends OperationTransformationFunction[ArrayRemoveOperation, ArraySetOperation] {
   def transform(s: ArrayRemoveOperation, c: ArraySetOperation): (ArrayRemoveOperation, ArraySetOperation) = {

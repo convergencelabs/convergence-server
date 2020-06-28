@@ -9,7 +9,10 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform.string
+
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[ot] object StringRemoveInsertTF extends OperationTransformationFunction[StringRemoveOperation, StringInsertOperation] {
   def transform(s: StringRemoveOperation, c: StringInsertOperation): (StringOperation, StringOperation) = {

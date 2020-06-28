@@ -9,7 +9,10 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform.string
+
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[ot] object StringSetSetTF extends OperationTransformationFunction[StringSetOperation, StringSetOperation] {
   def transform(s: StringSetOperation, c: StringSetOperation): (StringOperation, StringOperation) = {

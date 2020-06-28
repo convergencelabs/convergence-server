@@ -12,7 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
 import com.convergencelabs.convergence.server.domain.model.RangeReferenceValues
-import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringSetOperation}
+import com.convergencelabs.convergence.server.domain.model.ot.StringSetOperation
+import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformationFunction
 
 object StringSetRangeTF extends ReferenceTransformationFunction[StringSetOperation, RangeReferenceValues] {
   def transform(op: StringSetOperation, values: RangeReferenceValues): Option[RangeReferenceValues] = {

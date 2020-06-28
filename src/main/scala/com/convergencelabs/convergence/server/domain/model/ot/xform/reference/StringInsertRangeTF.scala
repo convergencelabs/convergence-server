@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
 import com.convergencelabs.convergence.server.domain.model.RangeReferenceValues
-import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
-import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringInsertOperation}
+import com.convergencelabs.convergence.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.convergence.server.domain.model.ot.xform.{IndexTransformer, ReferenceTransformationFunction}
 import com.convergencelabs.convergence.server.domain.model.reference.RangeReference
 
 object StringInsertRangeTF extends ReferenceTransformationFunction[StringInsertOperation, RangeReferenceValues] {

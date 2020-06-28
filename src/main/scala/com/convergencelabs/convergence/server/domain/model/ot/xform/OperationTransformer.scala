@@ -9,7 +9,9 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform
+
+import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[model] class OperationTransformer(
     private[this] val tfr: TransformationFunctionRegistry) {

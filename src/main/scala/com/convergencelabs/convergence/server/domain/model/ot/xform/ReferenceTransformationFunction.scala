@@ -9,9 +9,10 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform
 
 import com.convergencelabs.convergence.server.domain.model.ModelReferenceValues
+import com.convergencelabs.convergence.server.domain.model.ot.DiscreteOperation
 
 private[ot] trait ReferenceTransformationFunction[O <: DiscreteOperation, V <: ModelReferenceValues] {
   def transform(serverOp: O, values: V): Option[V]

@@ -9,7 +9,10 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform.number
+
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[ot] object NumberSetAddTF extends OperationTransformationFunction[NumberSetOperation, NumberAddOperation] {
   def transform(s: NumberSetOperation, c: NumberAddOperation): (NumberSetOperation, NumberAddOperation) = {

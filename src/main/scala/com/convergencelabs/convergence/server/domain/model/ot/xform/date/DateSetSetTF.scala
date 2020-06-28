@@ -9,7 +9,10 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.domain.model.ot.xform.date
+
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot._
 
 private[ot] object DateSetSetTF extends OperationTransformationFunction[DateSetOperation, DateSetOperation] {
   def transform(s: DateSetOperation, c: DateSetOperation): (DateOperation, DateOperation) = {

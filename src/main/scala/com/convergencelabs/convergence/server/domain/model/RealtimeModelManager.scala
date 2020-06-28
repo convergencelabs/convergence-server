@@ -24,8 +24,8 @@ import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.Forc
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, ModelDataGenerator}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{ModelResyncResponse, OpenRealtimeModelResponse}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler
-import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformer
-import com.convergencelabs.convergence.server.domain.model.ot.{OperationTransformer, ServerConcurrencyControl, TransformationFunctionRegistry, UnprocessedOperationEvent}
+import com.convergencelabs.convergence.server.domain.model.ot.xform.{OperationTransformer, ReferenceTransformer, TransformationFunctionRegistry}
+import com.convergencelabs.convergence.server.domain.model.ot.{ServerConcurrencyControl, UnprocessedOperationEvent}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.util.EventLoop
 import grizzled.slf4j.Logging
