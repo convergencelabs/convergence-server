@@ -14,19 +14,15 @@ package com.convergencelabs.convergence.server.datastore.convergence
 import java.time.Instant
 import java.util.Date
 
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.UserApiKeyClass
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
-
 import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Try}
 
 case class UserApiKey(username: String,
                       name: String,

@@ -11,24 +11,17 @@
 
 package com.convergencelabs.convergence.common
 
-import java.io.File
-import java.io.FileReader
-import java.io.Reader
-import java.io.StringReader
-import java.security.KeyFactory
-import java.security.PrivateKey
-import java.security.Security
+import java.io.{File, FileReader, Reader, StringReader}
+import java.security.{KeyFactory, PrivateKey, Security}
 import java.security.spec.PKCS8EncodedKeySpec
 
-import scala.util.Try
-
+import com.convergencelabs.convergence.server.domain.JwtConstants
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.util.io.pem.PemReader
-import org.jose4j.jws.AlgorithmIdentifiers
-import org.jose4j.jws.JsonWebSignature
+import org.jose4j.jws.{AlgorithmIdentifiers, JsonWebSignature}
 import org.jose4j.jwt.JwtClaims
 
-import com.convergencelabs.convergence.server.domain.JwtConstants
+import scala.util.Try
 
 object ConvergenceJwtUtil {
 

@@ -11,12 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import scala.language.implicitConversions
-
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.orientechnologies.orient.core.metadata.schema.OType
+
+import scala.language.implicitConversions
 
 object StringRemoveOperationMapper extends ODocumentMapper {
 

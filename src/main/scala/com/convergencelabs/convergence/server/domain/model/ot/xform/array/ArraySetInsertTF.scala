@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.array
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 
 private[ot] object ArraySetInsertTF extends OperationTransformationFunction[ArraySetOperation, ArrayInsertOperation] {
   def transform(s: ArraySetOperation, c: ArrayInsertOperation): (ArraySetOperation, ArrayInsertOperation) = {

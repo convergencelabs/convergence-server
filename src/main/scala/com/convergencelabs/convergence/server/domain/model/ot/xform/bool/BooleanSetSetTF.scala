@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.bool
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 
 private[ot] object BooleanSetSetTF extends OperationTransformationFunction[BooleanSetOperation, BooleanSetOperation] {
   def transform(s: BooleanSetOperation, c: BooleanSetOperation): (BooleanSetOperation, BooleanSetOperation) = {

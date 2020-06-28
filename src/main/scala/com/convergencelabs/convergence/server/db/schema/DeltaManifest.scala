@@ -11,22 +11,17 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import scala.util.Try
-import java.io.InputStream
-
-import scala.util.Failure
-import org.json4s.ext.EnumNameSerializer
-import org.json4s.DefaultFormats
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import org.json4s.jackson.JsonMethods
-import org.json4s.Extraction
 import java.io.IOException
 
 import com.convergencelabs.convergence.server.util.serialization.SimpleNamePolymorphicSerializer
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.json4s.{DefaultFormats, Extraction}
+import org.json4s.ext.EnumNameSerializer
+import org.json4s.jackson.JsonMethods
 
-import scala.util.Success
 import scala.io.Source
+import scala.util.{Failure, Success, Try}
 
 object DeltaManifest {
   val Formats = DefaultFormats +

@@ -53,9 +53,9 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   import ChatClientActor._
 
-  implicit val ec: ExecutionContextExecutor = context.executionContext
-  implicit val s: ActorSystem[_] = context.system
-  implicit val t: Timeout = requestTimeout
+  private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
+  private[this] implicit val s: ActorSystem[_] = context.system
+  private[this] implicit val t: Timeout = requestTimeout
 
   private[this] val outgoingSelf = context.self.narrow[ChatClientActor.OutgoingMessage]
 
@@ -77,7 +77,6 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   private[this] def handleBroadcastMessage(message: OutgoingMessage): Unit = {
     val serverMessage: GeneratedMessage with ServerMessage with NormalMessage = message match {
-      // Broadcast messages
       case RemoteChatMessage(chatId, eventNumber, timestamp, user, message) =>
         RemoteChatMessageMessage(chatId, eventNumber,
           Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)),
@@ -186,11 +185,11 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData, _) = message
     val members = memberData.toSet.map(protoToDomainUserId)
     (for {
-      t <- ChatType.parse(chatType)
+      ct <- ChatType.parse(chatType)
       m <- ChatMembership.parse(membership)
     } yield {
       chatManagerActor
-        .ask[CreateChatResponse](CreateChatRequest(chatId, session.userId, t, m, Some(name), Some(topic), members, _))
+        .ask[CreateChatResponse](CreateChatRequest(chatId, session.userId, ct, m, Some(name), Some(topic), members, _))
         .map(_.chatId.fold(
           {
             case ChatAlreadyExists() =>

@@ -11,12 +11,13 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import scala.language.implicitConversions
+import java.util.Date
 
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-import java.util.Date
+
+import scala.language.implicitConversions
 
 object DateSetOperationMapper extends ODocumentMapper {
 

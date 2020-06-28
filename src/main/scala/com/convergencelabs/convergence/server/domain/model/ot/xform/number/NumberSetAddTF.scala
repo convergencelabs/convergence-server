@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.number
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 
 private[ot] object NumberSetAddTF extends OperationTransformationFunction[NumberSetOperation, NumberAddOperation] {
   def transform(s: NumberSetOperation, c: NumberAddOperation): (NumberSetOperation, NumberAddOperation) = {

@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.domain.model
 
 import java.time.Instant
+
 import com.convergencelabs.convergence.server.datastore.domain.ModelPermissions
 
 case class ModelMetaData(

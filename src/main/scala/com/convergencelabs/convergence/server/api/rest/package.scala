@@ -11,8 +11,7 @@
 
 package com.convergencelabs.convergence.server.api
 
-import akka.http.scaladsl.model.StatusCode
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 
 package object rest {
 

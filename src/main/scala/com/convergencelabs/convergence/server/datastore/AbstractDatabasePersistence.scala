@@ -11,10 +11,11 @@
 
 package com.convergencelabs.convergence.server.datastore
 
-import scala.util.{Failure, Try}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Try}
 
 /**
  * The [[AbstractDatabasePersistence]] class provides help utilities for the

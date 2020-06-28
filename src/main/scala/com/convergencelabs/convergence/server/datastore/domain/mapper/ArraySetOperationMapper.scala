@@ -11,17 +11,15 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
+import java.util.{List => JavaList}
 
-import scala.jdk.CollectionConverters._
-import scala.language.implicitConversions
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedArraySetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import DataValueMapper.DataValueToODocument
-import DataValueMapper.ODocumentToDataValue
+import scala.jdk.CollectionConverters._
+import scala.language.implicitConversions
 
 object ArraySetOperationMapper extends ODocumentMapper {
 

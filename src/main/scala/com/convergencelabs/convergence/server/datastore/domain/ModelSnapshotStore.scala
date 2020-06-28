@@ -14,18 +14,16 @@ package com.convergencelabs.convergence.server.datastore.domain
 import java.time.Instant
 import java.util.Date
 
-import scala.util.Try
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectValueMapper.ODocumentToObjectValue
-import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectValueMapper.ObjectValueToODocument
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectValueMapper.{ODocumentToObjectValue, ObjectValueToODocument}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshot
-import com.convergencelabs.convergence.server.domain.model.ModelSnapshotMetaData
+import com.convergencelabs.convergence.server.domain.model.{ModelSnapshot, ModelSnapshotMetaData}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
+
+import scala.util.Try
 
 object ModelSnapshotStore {
 

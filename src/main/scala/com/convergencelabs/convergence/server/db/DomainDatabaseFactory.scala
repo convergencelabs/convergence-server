@@ -11,15 +11,12 @@
 
 package com.convergencelabs.convergence.server.db
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.datastore.convergence.DomainStore
 import com.convergencelabs.convergence.server.datastore.convergence.schema.DomainClass
-import com.convergencelabs.convergence.server.domain.DomainDatabase
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.domain.{DomainDatabase, DomainId}
+
+import scala.util.{Failure, Success, Try}
 
 class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: DatabaseProvider) {
 

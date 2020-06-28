@@ -16,10 +16,10 @@ import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.http.scaladsl.model.RemoteAddress
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.domain.{DomainActor, DomainId}
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.domain.{DomainActor, DomainId}
 
 import scala.concurrent.duration.Duration
 

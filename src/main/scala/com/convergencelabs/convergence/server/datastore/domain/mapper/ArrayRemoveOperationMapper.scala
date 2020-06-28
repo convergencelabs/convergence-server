@@ -11,15 +11,12 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import scala.language.implicitConversions
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
 
-import DataValueMapper.DataValueToODocument
-import DataValueMapper.ODocumentToDataValue
+import scala.language.implicitConversions
 
 object ArrayRemoveOperationMapper extends ODocumentMapper {
 

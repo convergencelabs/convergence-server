@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.string
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 
 private[ot] object StringSetRemoveTF extends OperationTransformationFunction[StringSetOperation, StringRemoveOperation] {
   def transform(s: StringSetOperation, c: StringRemoveOperation): (StringOperation, StringOperation) = {

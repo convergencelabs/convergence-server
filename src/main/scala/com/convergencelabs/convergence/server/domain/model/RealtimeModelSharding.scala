@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ServerClusterRoles
 import com.convergencelabs.convergence.server.actor.ActorSharding

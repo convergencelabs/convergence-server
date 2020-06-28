@@ -11,47 +11,18 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import scala.language.implicitConversions
-
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ArrayValueMapper.{ArrayValueToODocument, ODocumentToArrayValue, DocumentClassName => ArrayValueDocName, OpDocumentClassName => ArrayOpValueDocName}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.BooleanValueMapper.{BooleanValueToODocument, ODocumentToBooleanValue, DocumentClassName => BooleanValueDocName, OpDocumentClassName => BooleanOpValueDocName}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.DateValueMapper.{DateValueToODocument, ODocumentToDateValue, DocumentClassName => DateValueDocName, OpDocumentClassName => DateOpValueDocName}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.DoubleValueMapper.{DoubleValueToODocument, ODocumentToDoubleValue, DocumentClassName => DoubleValueDocName, OpDocumentClassName => DoubleOpValueDocName}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.NullValueMapper.{NullValueToODocument, ODocumentToNullValue, DocumentClassName => NullValueDocName, OpDocumentClassName => NullOpValueDocName}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.ObjectValueMapper.{ODocumentToObjectValue, ObjectValueToODocument, DocumentClassName => ObjectValueDocName, OpDocumentClassName => ObjectOpValueDocName}
+import com.convergencelabs.convergence.server.datastore.domain.mapper.StringValueMapper.{ODocumentToStringValue, StringValueToODocument, DocumentClassName => StringValueDocName, OpDocumentClassName => StringOpValueDocName}
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.data.NullValue
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
+import com.convergencelabs.convergence.server.domain.model.data._
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import ArrayValueMapper.ArrayValueToODocument
-import ArrayValueMapper.{ DocumentClassName => ArrayValueDocName }
-import ArrayValueMapper.ODocumentToArrayValue
-import ArrayValueMapper.{ OpDocumentClassName => ArrayOpValueDocName }
-import BooleanValueMapper.BooleanValueToODocument
-import BooleanValueMapper.{ DocumentClassName => BooleanValueDocName }
-import BooleanValueMapper.ODocumentToBooleanValue
-import BooleanValueMapper.{ OpDocumentClassName => BooleanOpValueDocName }
-import DoubleValueMapper.{ DocumentClassName => DoubleValueDocName }
-import DoubleValueMapper.DoubleValueToODocument
-import DoubleValueMapper.ODocumentToDoubleValue
-import DoubleValueMapper.{ OpDocumentClassName => DoubleOpValueDocName }
-import NullValueMapper.{ DocumentClassName => NullValueDocName }
-import NullValueMapper.NullValueToODocument
-import NullValueMapper.ODocumentToNullValue
-import NullValueMapper.{ OpDocumentClassName => NullOpValueDocName }
-import ObjectValueMapper.{ DocumentClassName => ObjectValueDocName }
-import ObjectValueMapper.ODocumentToObjectValue
-import ObjectValueMapper.ObjectValueToODocument
-import ObjectValueMapper.{ OpDocumentClassName => ObjectOpValueDocName }
-import StringValueMapper.{ DocumentClassName => StringValueDocName }
-import StringValueMapper.ODocumentToStringValue
-import StringValueMapper.{ OpDocumentClassName => StringOpValueDocName }
-import StringValueMapper.StringValueToODocument
-import DateValueMapper.{ DocumentClassName => DateValueDocName }
-import DateValueMapper.{ OpDocumentClassName => DateOpValueDocName }
-import DateValueMapper.DateValueToODocument
-import DateValueMapper.ODocumentToDateValue
+import scala.language.implicitConversions
 
 object DataValueMapper extends ODocumentMapper {
 

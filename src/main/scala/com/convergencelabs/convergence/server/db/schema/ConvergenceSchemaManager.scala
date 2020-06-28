@@ -13,14 +13,11 @@ package com.convergencelabs.convergence.server.db.schema
 
 import java.time.Instant
 
-import scala.util.Try
-
+import com.convergencelabs.convergence.server.datastore.convergence.{ConvergenceDelta, ConvergenceDeltaHistory, DeltaHistoryStore}
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceDelta
-import com.convergencelabs.convergence.server.datastore.convergence.ConvergenceDeltaHistory
-import com.convergencelabs.convergence.server.datastore.convergence.DeltaHistoryStore
-import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import scala.util.Try
 
 class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistoryStore, preRelease: Boolean)
     extends AbstractSchemaManager(db, preRelease: Boolean) {

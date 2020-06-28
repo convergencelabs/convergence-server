@@ -13,21 +13,15 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.util.Date
 
-import scala.util.Success
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.datastore.AbstractDatabasePersistence
-import com.convergencelabs.convergence.server.datastore.OrientDBUtil
-import com.convergencelabs.convergence.server.datastore.convergence.schema.ConvergenceDeltaClass
-import com.convergencelabs.convergence.server.datastore.convergence.schema.ConvergenceDeltaHistoryClass
-import com.convergencelabs.convergence.server.datastore.convergence.schema.DomainDeltaClass
-import com.convergencelabs.convergence.server.datastore.convergence.schema.DomainDeltaHistoryClass
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
+import com.convergencelabs.convergence.server.datastore.convergence.schema.{ConvergenceDeltaClass, ConvergenceDeltaHistoryClass, DomainDeltaClass, DomainDeltaHistoryClass}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
-
 import grizzled.slf4j.Logging
+
+import scala.util.{Success, Try}
 
 object DeltaHistoryStore {
 

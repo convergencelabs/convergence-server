@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.array
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 import com.convergencelabs.convergence.server.domain.model.ot._
 
 /**

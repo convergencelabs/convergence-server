@@ -11,9 +11,7 @@
 
 package com.convergencelabs.convergence.server.util
 
-import scala.util.Success
-import scala.util.Failure
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object SafeTry {
   def apply[T](r: => T): Try[T] =

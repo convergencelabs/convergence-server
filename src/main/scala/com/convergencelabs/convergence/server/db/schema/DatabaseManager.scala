@@ -11,19 +11,15 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import scala.util.Failure
-import scala.util.Try
-
-import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.datastore.convergence.DeltaHistoryStore
-import com.convergencelabs.convergence.server.db.DomainDatabaseFactory
+import com.convergencelabs.convergence.server.db.{DatabaseProvider, DomainDatabaseFactory}
 import com.convergencelabs.convergence.server.domain.DomainId
+import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-
-import grizzled.slf4j.Logging
 import com.typesafe.config.Config
-import com.orientechnologies.orient.core.db.OrientDBConfig
-import com.orientechnologies.orient.core.db.OrientDB
+import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Try}
 
 class DatabaseManager(
   databaseUrl: String,

@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.time.Duration
 
-import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.datastore.convergence.schema.ConfigClass
 import com.convergencelabs.convergence.server.datastore.convergence.schema.ConfigClass.Fields
+import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument

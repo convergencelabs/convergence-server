@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model
 
 import akka.actor.{ActorRef, ActorSystem, Status}
-import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.{CompletionStrategy, OverflowStrategy}
 import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationProcessor, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelPersistence.PersistenceEventHandler

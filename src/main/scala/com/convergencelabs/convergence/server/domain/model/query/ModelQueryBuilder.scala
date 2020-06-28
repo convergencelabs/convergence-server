@@ -17,8 +17,8 @@ import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.model.query.Ast._
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
-import scala.jdk.CollectionConverters._
 import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
 

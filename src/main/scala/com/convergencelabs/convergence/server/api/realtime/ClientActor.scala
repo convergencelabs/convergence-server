@@ -26,8 +26,8 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
-import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
 import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain._
@@ -47,11 +47,25 @@ import scala.util.{Failure, Success}
 
 /**
  * The [[ClientActor]] is the serve side representation of a connected client.
+ * It translates incoming and outgoing messages and forwards requests on to
+ * the appropriate backend systems.
  *
- * @param domainId       The id of the domain this client has connected to.
- * @param protocolConfig The server side protocol configuration.
- * @param remoteHost     The address of the remote host.
- * @param userAgent      The HTTP user agent of the connected client.
+ * @param context                 The ActorContext for this actor.
+ * @param timers                  The actors timer subsystem.
+ * @param domainId                The id of the domain this client has
+ *                                connected to.
+ * @param protocolConfig          The server side protocol configuration.
+ * @param remoteHost              The address of the remote host.
+ * @param userAgent               The HTTP user agent of the connected client.
+ * @param domainRegion            The shard region for domains.
+ * @param activityShardRegion     The shard region for activities.
+ * @param modelShardRegion        The shard region for realtime models.
+ * @param chatShardRegion         The shard region for chat actors.
+ * @param chatDeliveryShardRegion The shard region to register for chat message
+ *                                for the user this client represents.
+ * @param domainLifecycleTopic    The pub-sub topic for domain lifecycles.
+ * @param modelSyncInterval       The interval at which this client should
+ *                                check for model updates.
  */
 class ClientActor private(context: ActorContext[ClientActor.Message],
                           timers: TimerScheduler[ClientActor.Message],
@@ -602,7 +616,7 @@ object ClientActor {
    * ActorRef to send outgoing messages too.
    *
    * @param webSocket The ActorRef to use to send outgoing messages
-   *                            to the Web Socket.
+   *                  to the Web Socket.
    */
   private[realtime] final case class WebSocketOpened(webSocket: ActorRef[WebSocketService.WebSocketMessage]) extends WebSocketMessage
 
@@ -625,7 +639,6 @@ object ClientActor {
    * @param data The incoming binary web socket message data.
    */
   private[realtime] final case class IncomingBinaryMessage(data: Array[Byte]) extends WebSocketMessage
-
 
 
   private[realtime] sealed trait SendToClient extends Message

@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.obj
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
 
 private[ot] object ObjectSetPropertySetPropertyTF extends OperationTransformationFunction[ObjectSetPropertyOperation, ObjectSetPropertyOperation] {
   def transform(s: ObjectSetPropertyOperation, c: ObjectSetPropertyOperation): (ObjectSetPropertyOperation, ObjectSetPropertyOperation) = {

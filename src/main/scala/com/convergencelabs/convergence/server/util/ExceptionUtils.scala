@@ -11,8 +11,7 @@
 
 package com.convergencelabs.convergence.server.util
 
-import java.io.StringWriter
-import java.io.PrintWriter
+import java.io.{PrintWriter, StringWriter}
 
 object ExceptionUtils {
   def stackTraceToString(e: Throwable): String = {

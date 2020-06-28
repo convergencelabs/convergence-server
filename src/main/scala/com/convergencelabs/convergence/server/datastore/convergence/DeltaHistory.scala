@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.datastore.convergence
 
 import java.time.Instant
+
 import com.convergencelabs.convergence.server.domain.DomainId
 
 case class ConvergenceDelta(deltaNo: Int, value: String)

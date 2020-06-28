@@ -11,11 +11,8 @@
 
 package com.convergencelabs.convergence.server.security
 
-import com.convergencelabs.convergence.server.datastore.convergence.DomainRoleTarget
-import com.convergencelabs.convergence.server.datastore.convergence.ServerRoleTarget
-import com.convergencelabs.convergence.server.datastore.convergence.NamespaceRoleTarget
 import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
-import com.convergencelabs.convergence.server.datastore.convergence.RoleTarget
+import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
 import com.convergencelabs.convergence.server.domain.DomainId
 
 object AuthorizationProfile {

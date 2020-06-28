@@ -11,17 +11,10 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.array
 
-import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot.RangeIndexRelationship.{After, Before, End, Start, Within}
 import com.convergencelabs.convergence.server.domain.model.ot._
-
-import MoveDirection.Backward
-import MoveDirection.Forward
-import MoveDirection.Identity
-import RangeIndexRelationship.After
-import RangeIndexRelationship.Before
-import RangeIndexRelationship.End
-import RangeIndexRelationship.Start
-import RangeIndexRelationship.Within
+import com.convergencelabs.convergence.server.domain.model.ot.xform.OperationTransformationFunction
+import com.convergencelabs.convergence.server.domain.model.ot.xform.array.MoveDirection.{Backward, Forward, Identity}
 
 private[ot] object ArrayMoveInsertTF extends OperationTransformationFunction[ArrayMoveOperation, ArrayInsertOperation] {
 

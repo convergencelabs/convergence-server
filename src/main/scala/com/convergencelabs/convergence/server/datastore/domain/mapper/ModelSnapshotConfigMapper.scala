@@ -13,11 +13,11 @@ package com.convergencelabs.convergence.server.datastore.domain.mapper
 
 import java.time.Duration
 
-import scala.language.implicitConversions
-
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.core.record.impl.ODocument
+
+import scala.language.implicitConversions
 
 object ModelSnapshotConfigMapper extends ODocumentMapper {
 

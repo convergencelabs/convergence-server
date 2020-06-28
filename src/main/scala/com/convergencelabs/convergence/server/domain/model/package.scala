@@ -15,7 +15,6 @@ package model {
 
   import com.convergencelabs.convergence.server.domain.model.reference.RangeReference
   import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-  import com.fasterxml.jackson.core.`type`.TypeReference
 
   case class ModelId(domainId: DomainId, modelId: String)
 

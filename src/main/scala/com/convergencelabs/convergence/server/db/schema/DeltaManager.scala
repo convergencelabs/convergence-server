@@ -13,17 +13,13 @@ package com.convergencelabs.convergence.server.db.schema
 
 import java.io.FileNotFoundException
 
-import scala.util.Try
-
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.jackson.JsonMethods
-
+import com.convergencelabs.convergence.server.db.schema.DeltaManager.{DeltaBasePath, IndexFileName}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import org.json4s.{DefaultFormats, Extraction}
+import org.json4s.jackson.JsonMethods
 
-import DeltaManager.DeltaBasePath
-import DeltaManager.IndexFileName
+import scala.util.Try
 
 object DeltaCategory extends Enumeration {
   val Convergence = Value("convergence")

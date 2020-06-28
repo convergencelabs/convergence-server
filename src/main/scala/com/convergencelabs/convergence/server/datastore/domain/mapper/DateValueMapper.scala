@@ -11,16 +11,13 @@
 
 package com.convergencelabs.convergence.server.datastore.domain.mapper
 
-import java.util.{ List => JavaList }
-import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.language.implicitConversions
-import com.orientechnologies.orient.core.record.impl.ODocument
+import java.util.Date
+
 import com.convergencelabs.convergence.server.datastore.mapper.ODocumentMapper
 import com.convergencelabs.convergence.server.domain.model.data.DateValue
-import DataValueMapper.DataValueToODocument
-import DataValueMapper.ODocumentToDataValue
-import java.util.Date
+import com.orientechnologies.orient.core.record.impl.ODocument
+
+import scala.language.implicitConversions
 
 object DateValueMapper extends ODocumentMapper {
 

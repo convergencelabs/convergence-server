@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
+import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 
 /**
  * Represents a RealtimeModel collection.

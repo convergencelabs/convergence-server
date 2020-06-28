@@ -11,14 +11,13 @@
 
 package com.convergencelabs.convergence.server.datastore.convergence
 
-import scala.util.Try
-
 import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.util.RandomStringGenerator
-
-import grizzled.slf4j.Logging
 import com.convergencelabs.convergence.server.security.Roles
+import com.convergencelabs.convergence.server.util.RandomStringGenerator
+import grizzled.slf4j.Logging
+
+import scala.util.Try
 
 class UserCreator(dbProvider: DatabaseProvider) extends Logging {
   val userStore = new UserStore(dbProvider);

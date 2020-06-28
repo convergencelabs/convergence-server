@@ -11,12 +11,10 @@
 
 package com.convergencelabs.convergence.server.db.schema
 
-import scala.util.Failure
-import scala.util.Try
-
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-
 import grizzled.slf4j.Logging
+
+import scala.util.{Failure, Try}
 
 abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean) extends Logging {
 

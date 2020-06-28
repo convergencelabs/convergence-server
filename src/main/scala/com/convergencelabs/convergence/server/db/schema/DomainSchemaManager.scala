@@ -13,18 +13,13 @@ package com.convergencelabs.convergence.server.db.schema
 
 import java.time.Instant
 
-import scala.util.Failure
-import scala.util.Try
-
-import org.apache.commons.lang3.exception.ExceptionUtils
-
-import com.convergencelabs.convergence.server.datastore.convergence.DeltaHistoryStore
-import com.convergencelabs.convergence.server.datastore.convergence.DomainDelta
-import com.convergencelabs.convergence.server.datastore.convergence.DomainDeltaHistory
+import com.convergencelabs.convergence.server.datastore.convergence.{DeltaHistoryStore, DomainDelta, DomainDeltaHistory}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-
 import grizzled.slf4j.Logging
+import org.apache.commons.lang3.exception.ExceptionUtils
+
+import scala.util.{Failure, Try}
 
 class DomainSchemaManager(
   domainFqn: DomainId,

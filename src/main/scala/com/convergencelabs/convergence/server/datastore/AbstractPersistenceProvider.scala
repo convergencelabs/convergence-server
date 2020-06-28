@@ -11,8 +11,9 @@
 
 package com.convergencelabs.convergence.server.datastore
 
-import scala.util.Try
 import com.convergencelabs.convergence.server.db.DatabaseProvider
+
+import scala.util.Try
 
 abstract class AbstractPersistenceProvider(dbProvider: DatabaseProvider) {
   def validateConnection(): Try[Unit] = {

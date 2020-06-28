@@ -13,11 +13,11 @@ package com.convergencelabs.convergence.server
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
-import akka.actor.typed.scaladsl.AskPattern._
 import com.convergencelabs.convergence.server.datastore.convergence._
 import com.convergencelabs.convergence.server.datastore.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain

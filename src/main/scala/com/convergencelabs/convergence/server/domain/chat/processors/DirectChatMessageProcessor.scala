@@ -15,8 +15,8 @@ import akka.actor.typed.ActorRef
 import com.convergencelabs.convergence.server.datastore.domain.{ChatStore, PermissionsStore}
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor._
-import com.convergencelabs.convergence.server.domain.chat.{ChatDeliveryActor, ChatState}
 import com.convergencelabs.convergence.server.domain.chat.processors.event.ChatEventMessageProcessorResult
+import com.convergencelabs.convergence.server.domain.chat.{ChatDeliveryActor, ChatState}
 
 /**
  * Processes messages for a Direct Chat.

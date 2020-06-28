@@ -27,12 +27,12 @@ import com.convergencelabs.convergence.proto.model.{ReferenceValues, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
-import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
-import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
-import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
 import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, ModelStoreActor}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
