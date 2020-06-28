@@ -27,8 +27,12 @@ import com.convergencelabs.convergence.proto.model.{ReferenceValues, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
-import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions.{instanceToTimestamp, messageToObjectValue, modelPermissionsToMessage, modelUserPermissionSeqToMap, objectValueToMessage}
+import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
+import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, ModelStoreActor}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
@@ -130,9 +134,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         this.subscribedModels.get(modelId).foreach { _ =>
           val modelDataUpdate = ModelUpdateData(
             model.metaData.version,
-            Some(model.metaData.createdTime),
-            Some(model.metaData.modifiedTime),
-            Some(model.data)
+            Some(instanceToTimestamp(model.metaData.createdTime)),
+            Some(instanceToTimestamp(model.metaData.modifiedTime)),
+            Some(objectValueToProto(model.data))
           )
 
           val permissionsData = ModelPermissionsData(
@@ -156,9 +160,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           val modelUpdate = model.map { m =>
             ModelUpdateData(
               m.metaData.version,
-              Some(m.metaData.createdTime),
-              Some(m.metaData.modifiedTime),
-              Some(m.data)
+              Some(instanceToTimestamp(m.metaData.createdTime)),
+              Some(instanceToTimestamp(m.metaData.modifiedTime)),
+              Some(objectValueToProto(m.data))
             )
           }
 
@@ -257,7 +261,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         case resyncCompleted: RemoteClientResyncCompleted =>
           onRemoteClientResyncCompleted(resyncCompleted)
         case ServerError(_, ExpectedError(code, message, details)) =>
-          val errorMessage = ErrorMessage(code, message, JsonProtoConverter.jValueMapToValueMap(details))
+          val errorMessage = ErrorMessage(code, message, JsonProtoConverters.jValueMapToValueMap(details))
           clientActor ! SendServerMessage(errorMessage)
       }
     }
@@ -270,8 +274,8 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         resourceId,
         session.sessionId,
         contextVersion,
-        Some(timestamp),
-        Some(OperationMapper.mapOutgoing(operation)))
+        Some(instanceToTimestamp(timestamp)),
+        Some(OperationConverters.mapOutgoing(operation)))
 
       clientActor ! SendServerMessage(message)
 
@@ -285,7 +289,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
   private[this] def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
     val OperationAcknowledgement(modelId, seqNo, version, timestamp) = opAck
     resourceId(modelId) foreach { resourceId =>
-      val message = OperationAcknowledgementMessage(resourceId, seqNo, version, Some(timestamp))
+      val message = OperationAcknowledgementMessage(resourceId, seqNo, version, Some(instanceToTimestamp(timestamp)))
       clientActor ! SendServerMessage(message)
     }
   }
@@ -309,7 +313,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
   private[this] def onModelPermissionsChanged(permsChanged: ModelPermissionsChanged): Unit = {
     val ModelPermissionsChanged(modelId, permissions) = permsChanged
     resourceId(modelId) foreach { resourceId =>
-      val serverMessage = ModelPermissionsChangedMessage(resourceId, Some(permissions))
+      val serverMessage = ModelPermissionsChangedMessage(resourceId, Some(modelPermissionsToProto(permissions)))
       clientActor ! SendServerMessage(serverMessage)
 
       this.subscribedModels.get(modelId).foreach(state => {
@@ -344,7 +348,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
           val config = ClientAutoCreateModelConfig(
             collection,
-            data.map(messageToObjectValue),
+            data.map(protoToObjectValue),
             Some(overridePermissions),
             worldPermissions,
             userPermissions,
@@ -509,7 +513,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case Some(modelId) =>
         operation match {
           case Some(op) =>
-            OperationMapper.mapIncoming(op).fold({ _ =>
+            OperationConverters.mapIncoming(op).fold({ _ =>
               warn(s"$domainId: Received an operation submissions with an invalid operation: $message")
               invalidOperation(message)
             },
@@ -771,9 +775,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         metaData.collection,
         java.lang.Long.toString(valueIdPrefix, 36),
         metaData.version,
-        Some(metaData.createdTime),
-        Some(metaData.modifiedTime),
-        Some(modelData),
+        Some(instanceToTimestamp(metaData.createdTime)),
+        Some(instanceToTimestamp(metaData.modifiedTime)),
+        Some(objectValueToProto(modelData)),
         connectedClients.map(s => s.sessionId).toSeq,
         resyncingClients.map(s => s.sessionId).toSeq,
         convertedReferences,
@@ -865,42 +869,48 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CreateRealtimeModelRequestMessage(collectionId, optionalModelId, data, overridePermissions, worldPermissionsData, userPermissionsData, _) = request
-    val worldPermissions = worldPermissionsData.map(w =>
-      ModelPermissions(w.read, w.write, w.remove, w.manage))
+    data match {
+      case Some(createData) =>
+        val worldPermissions = worldPermissionsData.map(w =>
+          ModelPermissions(w.read, w.write, w.remove, w.manage))
 
-    val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
+        val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
 
-    val modelId = getSetOrRandomModelId(optionalModelId)
+        val modelId = getSetOrRandomModelId(optionalModelId)
 
-    modelClusterRegion
-      .ask[RealtimeModelActor.CreateRealtimeModelResponse](
-        RealtimeModelActor.CreateRealtimeModelRequest(
-          domainId,
-          modelId,
-          collectionId,
-          data.get,
-          Some(overridePermissions),
-          worldPermissions,
-          userPermissions,
-          Some(session),
-          _))
-      .map(_.response.fold(
-        {
-          case RealtimeModelActor.ModelAlreadyExistsError() =>
-            cb.expectedError(ErrorCodes.ModelAlreadyExists, s"A model with the id '$modelId' already exists")
-          case RealtimeModelActor.UnauthorizedError(message) =>
-            cb.reply(ErrorMessages.Unauthorized(message))
-          case RealtimeModelActor.InvalidCreationDataError(message) =>
-            badRequest(message)
-          case RealtimeModelActor.UnknownError() =>
-            cb.unexpectedError("could not create model")
-        },
-        modelId => cb.reply(CreateRealtimeModelResponseMessage(modelId))
-      ))
-      .recover { cause =>
-        warn("A timeout occurred waiting for an close model request", cause)
-        cb.timeoutError()
-      }
+        modelClusterRegion
+          .ask[RealtimeModelActor.CreateRealtimeModelResponse](
+            RealtimeModelActor.CreateRealtimeModelRequest(
+              domainId,
+              modelId,
+              collectionId,
+              protoToObjectValue(createData),
+              Some(overridePermissions),
+              worldPermissions,
+              userPermissions,
+              Some(session),
+              _))
+          .map(_.response.fold(
+            {
+              case RealtimeModelActor.ModelAlreadyExistsError() =>
+                cb.expectedError(ErrorCodes.ModelAlreadyExists, s"A model with the id '$modelId' already exists")
+              case RealtimeModelActor.UnauthorizedError(message) =>
+                cb.reply(ErrorMessages.Unauthorized(message))
+              case RealtimeModelActor.InvalidCreationDataError(message) =>
+                badRequest(message)
+              case RealtimeModelActor.UnknownError() =>
+                cb.unexpectedError("could not create model")
+            },
+            modelId => cb.reply(CreateRealtimeModelResponseMessage(modelId))
+          ))
+          .recover { cause =>
+            warn("A timeout occurred waiting for an close model request", cause)
+            cb.timeoutError()
+          }
+      case None =>
+        cb.expectedError(ErrorCodes.InvalidMessage, "No creation data was provided in create model request")
+    }
+
   }
 
   private[this] def onDeleteRealtimeModelRequest(request: DeleteRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
@@ -947,10 +957,10 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
               ModelResult(
                 r.metaData.collection,
                 r.metaData.id,
-                Some(r.metaData.createdTime),
-                Some(r.metaData.modifiedTime),
+                Some(instanceToTimestamp(r.metaData.createdTime)),
+                Some(instanceToTimestamp(r.metaData.modifiedTime)),
                 r.metaData.version,
-                Some(JsonProtoConverter.toStruct(r.data)))
+                Some(JsonProtoConverters.toStruct(r.data)))
           }
           cb.reply(ModelsQueryResponseMessage(models, result.offset, result.count))
         }
@@ -1003,7 +1013,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
           mappedWorld,
           setAllUsers,
           mappedAddedUsers,
-          removedUsers.map(ImplicitMessageConversions.dataToDomainUserId).toList,
+          removedUsers.map(protoToDomainUserId).toList,
           _))
       .map(_.response.fold(
         {

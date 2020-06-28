@@ -19,8 +19,8 @@ object SubscriptionMap {
 
 class SubscriptionMap[S, T] {
 
-  var subscribersToTargets = Map[S, Set[T]]()
-  var targetsToSubscribers = Map[T, Set[S]]()
+  private[this] var subscribersToTargets = Map[S, Set[T]]()
+  private[this]var targetsToSubscribers = Map[T, Set[S]]()
 
   def subscribe(subscriber: S, target: T): Unit = {
     val targets = subscribersToTargets.getOrElse(subscriber, Set())

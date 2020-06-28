@@ -28,7 +28,7 @@ import scala.concurrent.duration.Duration
  * an instance of this actor will be sent to the WebSocketService and used
  * to create ClientActors for incoming WebSocket connections.
  */
-object ClientActorCreator {
+private[server] object ClientActorCreator {
 
   /**
    * Creates the ClientActorCreator actor.

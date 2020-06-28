@@ -9,13 +9,14 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.util
+package com.convergencelabs.convergence.server.api.realtime.protocol
 
-object OptionUtils {
-  def toNullable[T >: Null](option: Option[T]): T = {
-    option match {
-      case Some(value) => value
-      case None => null
-    }
-  }
+import java.time.Instant
+
+import com.google.protobuf.timestamp.Timestamp
+
+private[realtime] object CommonProtoConverters {
+  def instanceToTimestamp(instant: Instant): Timestamp = Timestamp(instant.getEpochSecond, instant.getNano)
+
+  def timestampToInstant(timestamp: Timestamp): Instant = Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos)
 }

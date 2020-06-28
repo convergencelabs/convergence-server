@@ -20,12 +20,14 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.api.realtime.protocol.{ConvergenceMessageBodyUtils, JsonProtoConverters}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -45,11 +47,11 @@ import scala.util.{Failure, Success, Try}
  *                       heartbeats.
  * @param ec             The execution context to use for asynchronous work.
  */
-class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnection],
-                         webSocketActor: ActorRef[WebSocketService.OutgoingBinaryMessage],
-                         protocolConfig: ProtocolConfiguration,
-                         scheduler: Scheduler,
-                         ec: ExecutionContext)
+private[realtime] class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnection],
+                                           webSocketActor: ActorRef[WebSocketService.OutgoingBinaryMessage],
+                                           protocolConfig: ProtocolConfiguration,
+                                           scheduler: Scheduler,
+                                           ec: ExecutionContext)
   extends Logging {
 
   import ProtocolConnection._
@@ -287,7 +289,7 @@ class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnectio
     }
 
     override def expectedError(code: ErrorCodes.ErrorCode, message: String, details: Map[String, JValue]): Unit = {
-      val protoDetails = JsonProtoConverter.jValueMapToValueMap(details)
+      val protoDetails = JsonProtoConverters.jValueMapToValueMap(details)
       val errorMessage = ErrorMessage(code.toString, message, protoDetails)
 
       val envelope = ConvergenceMessage(
@@ -391,4 +393,6 @@ object ProtocolConnection {
 
   private final case class RequestRecord(id: Long, promise: Promise[ClientResponseMessage], future: Cancellable)
 
+
+  final case class ClientErrorResponseException(code: String, message: String) extends Exception(message) with NoStackTrace
 }

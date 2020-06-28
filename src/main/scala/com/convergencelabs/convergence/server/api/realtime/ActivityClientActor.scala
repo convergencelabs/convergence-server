@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.proto.activity._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
 import grizzled.slf4j.Logging
@@ -89,7 +90,7 @@ class ActivityClientActor private(context: ActorContext[Message],
 
   private[this] def onActivityUpdateState(message: ActivityUpdateStateMessage): Unit = {
     val ActivityUpdateStateMessage(id, state, complete, removed, _) = message
-    val mappedState = JsonProtoConverter.valueMapToJValueMap(state)
+    val mappedState = JsonProtoConverters.valueMapToJValueMap(state)
     val updateMessage = ActivityActor.UpdateState(domain, id, session.sessionId, mappedState, complete, removed.toList)
     this.activityShardRegion ! updateMessage
   }
@@ -111,7 +112,7 @@ class ActivityClientActor private(context: ActorContext[Message],
       ActivityActor.GetParticipantsRequest(domain, activityId, _))
       .map { response =>
         cb.reply(ActivityParticipantsResponseMessage(response.state.map {
-          case (k, v) => k -> ActivityStateData(JsonProtoConverter.jValueMapToValueMap(v))
+          case (k, v) => k -> ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))
         }))
       }
       .recoverWith(handleAskFailure(_, cb))
@@ -119,7 +120,7 @@ class ActivityClientActor private(context: ActorContext[Message],
 
   private[this] def onActivityJoin(RequestMessage: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityJoinRequestMessage(activityId, state, _) = RequestMessage
-    val jsonState = JsonProtoConverter.valueMapToJValueMap(state)
+    val jsonState = JsonProtoConverters.valueMapToJValueMap(state)
     activityShardRegion
       .ask[ActivityActor.JoinResponse](
         ActivityActor.JoinRequest(domain, activityId, session.sessionId, jsonState, context.self.narrow[OutgoingMessage], _))
@@ -127,7 +128,7 @@ class ActivityClientActor private(context: ActorContext[Message],
         case ActivityActor.AlreadyJoined() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity '$activityId'.")
       }, { response =>
-        val mappedState = response.state.view.mapValues(v => ActivityStateData(JsonProtoConverter.jValueMapToValueMap(v))).toMap
+        val mappedState = response.state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
         cb.reply(ActivityJoinResponseMessage(mappedState))
       }))
       .recoverWith(handleAskFailure(_, cb))
@@ -155,12 +156,12 @@ class ActivityClientActor private(context: ActorContext[Message],
   private[this] def onOutgoingMessage(msg: ActivityClientActor.OutgoingMessage): Behavior[Message] = {
     val serverMessage: GeneratedMessage with ServerMessage with NormalMessage = msg match {
       case ActivitySessionJoined(activityId, sessionId, state) =>
-        ActivitySessionJoinedMessage(activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state))
+        ActivitySessionJoinedMessage(activityId, sessionId, JsonProtoConverters.jValueMapToValueMap(state))
       case ActivitySessionLeft(activityId, sessionId) =>
         ActivitySessionLeftMessage(activityId, sessionId)
       case ActivityStateUpdated(activityId, sessionId, state, complete, removed) =>
         ActivityStateUpdatedMessage(
-          activityId, sessionId, JsonProtoConverter.jValueMapToValueMap(state), complete, removed)
+          activityId, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
     }
 
     clientActor ! ClientActor.SendServerMessage(serverMessage)

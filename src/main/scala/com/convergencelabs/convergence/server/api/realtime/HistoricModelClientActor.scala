@@ -19,6 +19,9 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.ModelOperationConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
 import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor
 import com.convergencelabs.convergence.server.domain.DomainId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
@@ -72,10 +75,10 @@ class HistoricModelClientActor private(context: ActorContext[HistoricModelClient
         { model =>
           val response = HistoricalDataResponseMessage(
             model.metaData.collection,
-            Some(ImplicitMessageConversions.objectValueToMessage(model.data)),
+            Some(objectValueToProto(model.data)),
             model.metaData.version,
-            Some(ImplicitMessageConversions.instanceToTimestamp(model.metaData.createdTime)),
-            Some(ImplicitMessageConversions.instanceToTimestamp(model.metaData.modifiedTime))
+            Some(instanceToTimestamp(model.metaData.createdTime)),
+            Some(instanceToTimestamp(model.metaData.modifiedTime))
           )
           cb.reply(response)
         }))
@@ -93,7 +96,7 @@ class HistoricModelClientActor private(context: ActorContext[HistoricModelClient
             cb.unexpectedError("Unexpected error getting historical model operations.")
         },
         { operations =>
-          val response = HistoricalOperationsResponseMessage(operations map ModelOperationMapper.mapOutgoing)
+          val response = HistoricalOperationsResponseMessage(operations map modelOperationToProto)
           cb.reply(response)
         }))
       .recoverWith(handleAskFailure(_, cb))

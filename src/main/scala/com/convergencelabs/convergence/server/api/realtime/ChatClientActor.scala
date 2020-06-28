@@ -22,8 +22,9 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions._
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.protocol.ChatProtoConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.datastore.domain.ChatMembership.InvalidChatMembershipValue
 import com.convergencelabs.convergence.server.datastore.domain.ChatType.InvalidChatTypeValue
 import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
@@ -47,13 +48,14 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
                               chatManagerActor: ActorRef[ChatManagerActor.Message],
                               clientActor: ActorRef[ClientActor.SendServerMessage],
                               session: DomainUserSessionId,
-                              implicit val requestTimeout: Timeout)
+                              requestTimeout: Timeout)
   extends AbstractBehavior[ChatClientActor.Message](context) with Logging {
 
   import ChatClientActor._
 
   implicit val ec: ExecutionContextExecutor = context.executionContext
   implicit val s: ActorSystem[_] = context.system
+  implicit val t: Timeout = requestTimeout
 
   private[this] val outgoingSelf = context.self.narrow[ChatClientActor.OutgoingMessage]
 
@@ -79,38 +81,38 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       case RemoteChatMessage(chatId, eventNumber, timestamp, user, message) =>
         RemoteChatMessageMessage(chatId, eventNumber,
           Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)),
-          Some(domainUserIdToData(user)),
+          Some(domainUserIdToProto(user)),
           message)
 
       case EventsMarkedSeen(chatId: String, userId: DomainUserId, eventNumber: Long) =>
-        ChatEventsMarkedSeenMessage(chatId, Some(domainUserIdToData(userId)), eventNumber)
+        ChatEventsMarkedSeenMessage(chatId, Some(domainUserIdToProto(userId)), eventNumber)
 
       case UserJoinedChat(chatId, eventNumber, timestamp, userId) =>
         UserJoinedChatMessage(chatId, eventNumber,
-          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId))
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(domainUserIdToProto(userId)))
 
       case UserLeftChat(chatId, eventNumber, timestamp, userId) =>
         UserLeftChatMessage(chatId, eventNumber,
-          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId))
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(domainUserIdToProto(userId)))
 
       case UserAddedToChat(chatId, eventNumber, timestamp, userId, addedUser) =>
         UserAddedToChatMessage(chatId, eventNumber,
-          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId), Some(addedUser))
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(domainUserIdToProto(userId)), Some(domainUserIdToProto(addedUser)))
 
       case UserRemovedFromChat(chatId, eventNumber, timestamp, userId, removedUser) =>
         UserRemovedFromChatMessage(chatId, eventNumber,
-          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId), Some(removedUser))
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(domainUserIdToProto(userId)), Some(domainUserIdToProto(removedUser)))
 
       case ChatRemoved(chatId) =>
         ChatRemovedMessage(chatId)
 
       case ChatNameChanged(chatId, eventNumber, timestamp, userId, name) =>
         ChatNameSetMessage(chatId, eventNumber,
-          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId), name)
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(domainUserIdToProto(userId)), name)
 
       case ChatTopicChanged(chatId, eventNumber, timestamp, userId, topic) =>
         ChatTopicSetMessage(chatId, eventNumber,
-          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(userId), topic)
+          Some(Timestamp(timestamp.getEpochSecond, timestamp.getNano)), Some(domainUserIdToProto(userId)), topic)
     }
 
     clientActor ! ClientActor.SendServerMessage(serverMessage)
@@ -182,7 +184,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   private[this] def onCreateChatRequest(message: CreateChatRequestMessage, cb: ReplyCallback): Unit = {
     val CreateChatRequestMessage(chatId, chatType, membership, name, topic, memberData, _) = message
-    val members = memberData.toSet.map(ImplicitMessageConversions.dataToDomainUserId)
+    val members = memberData.toSet.map(protoToDomainUserId)
     (for {
       t <- ChatType.parse(chatType)
       m <- ChatMembership.parse(membership)
@@ -265,7 +267,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
   private[this] def onAddUserToChatRequest(message: AddUserToChatRequestMessage, cb: ReplyCallback): Unit = {
     val AddUserToChatRequestMessage(chatId, userToAdd, _) = message
     chatShardRegion
-      .ask[ChatActor.AddUserToChatResponse](ChatActor.AddUserToChatRequest(domainId, chatId, session.userId, ImplicitMessageConversions.dataToDomainUserId(userToAdd.get), _))
+      .ask[ChatActor.AddUserToChatResponse](ChatActor.AddUserToChatRequest(domainId, chatId, session.userId, protoToDomainUserId(userToAdd.get), _))
       .map(_.response.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -286,7 +288,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     val RemoveUserFromChatRequestMessage(chatId, userToRemove, _) = message
     chatShardRegion
       .ask[ChatActor.RemoveUserFromChatResponse](
-        ChatActor.RemoveUserFromChatRequest(domainId, chatId, session.userId, ImplicitMessageConversions.dataToDomainUserId(userToRemove.get), _))
+        ChatActor.RemoveUserFromChatRequest(domainId, chatId, session.userId, protoToDomainUserId(userToRemove.get), _))
       .map(_.response.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -458,7 +460,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
         },
         { users =>
           val userPermissionEntries = users.map { case (userId, permissions) =>
-            (userId, UserPermissionsEntry(Some(ImplicitMessageConversions.domainUserIdToData(userId)), permissions.toSeq))
+            (userId, UserPermissionsEntry(Some(domainUserIdToProto(userId)), permissions.toSeq))
           }
           cb.reply(GetAllUserPermissionsResponseMessage(userPermissionEntries.values.toSeq))
         }))
@@ -486,7 +488,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     val GetUserPermissionsRequestMessage(_, id, user, _) = message
     chatShardRegion
       .ask[ChatActor.GetUserChatPermissionsResponse](ChatActor.GetUserChatPermissionsRequest(
-        domainId, id, session, ImplicitMessageConversions.dataToDomainUserId(user.get), _))
+        domainId, id, session, protoToDomainUserId(user.get), _))
       .map(_.permissions.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -566,7 +568,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   private[this] def onGetDirect(message: GetDirectChatsRequestMessage, cb: ReplyCallback): Unit = {
     val GetDirectChatsRequestMessage(usernameLists, _) = message
-    val usernames = usernameLists.map(_.values.map(ImplicitMessageConversions.dataToDomainUserId).toSet).toSet
+    val usernames = usernameLists.map(_.values.map(protoToDomainUserId).toSet).toSet
     chatManagerActor
       .ask[ChatManagerActor.GetDirectChatsResponse](GetDirectChatsRequest(session.userId, usernames, _))
       .map(_.chatInfo.fold(
@@ -669,17 +671,6 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       case ChatActor.UnknownError() =>
         cb.unknownError()
     }
-  }
-
-  private[this] def mapGroupPermissions(groupPermissionData: Map[String, PermissionsList]): Set[GroupPermissions] = {
-    groupPermissionData.map {
-      case (groupId, permissions) => (groupId, GroupPermissions(groupId, permissions.values.toSet))
-    }.values.toSet
-  }
-
-  private[this] def mapUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
-    userPermissionData
-      .map(p => UserPermissions(ImplicitMessageConversions.dataToDomainUserId(p.user.get), p.permissions.toSet)).toSet
   }
 
   private[this] def chatNotJoined(chatId: String, cb: ReplyCallback): Unit = {

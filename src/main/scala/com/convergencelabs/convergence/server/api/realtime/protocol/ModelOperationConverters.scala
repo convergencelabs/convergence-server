@@ -9,25 +9,27 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.api.realtime
+package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.model.HistoricalOperationsResponseMessage.ModelOperationData
 import com.convergencelabs.convergence.proto.model._
-import com.convergencelabs.convergence.server.api.realtime.ImplicitMessageConversions._
+import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
 import com.convergencelabs.convergence.server.domain.model.ModelOperation
 import com.convergencelabs.convergence.server.domain.model.ot._
 import com.google.protobuf.timestamp.Timestamp
 
-private[realtime] object ModelOperationMapper {
+private[realtime] object ModelOperationConverters {
 
-  def mapOutgoing(modelOp: ModelOperation): ModelOperationData = {
-    val ModelOperation(modelId, version, timestamp, username, sessionId, op) = modelOp
+  def modelOperationToProto(modelOp: ModelOperation): ModelOperationData = {
+    val ModelOperation(modelId, version, timestamp, _, sessionId, op) = modelOp
+
     val mappedOp = op match {
       case operation: AppliedCompoundOperation =>
-        AppliedOperationData().withCompoundOperation(mapOutgoingCompound(operation))
+        AppliedOperationData().withCompoundOperation(compoundOpToProto(operation))
       case operation: AppliedDiscreteOperation =>
-        AppliedOperationData().withDiscreteOperation(mapOutgoingDiscrete(operation))
+        AppliedOperationData().withDiscreteOperation(discreteOpToProto(operation))
     }
+
     ModelOperationData(
       modelId,
       version,
@@ -36,55 +38,93 @@ private[realtime] object ModelOperationMapper {
       Some(mappedOp))
   }
 
-  def mapOutgoingCompound(op: AppliedCompoundOperation): AppliedCompoundOperationData = {
-    AppliedCompoundOperationData(op.operations.map(op => mapOutgoingDiscrete(op)))
+  private[this] def compoundOpToProto(op: AppliedCompoundOperation): AppliedCompoundOperationData = {
+    AppliedCompoundOperationData(op.operations.map(op => discreteOpToProto(op)))
   }
 
   // scalastyle:off cyclomatic.complexity
-  def mapOutgoingDiscrete(op: AppliedDiscreteOperation): AppliedDiscreteOperationData = {
+  private[this] def discreteOpToProto(op: AppliedDiscreteOperation): AppliedDiscreteOperationData = {
     op match {
+      //
+      // Strings
+      //
       case AppliedStringInsertOperation(id, noOp, index, value) =>
-        AppliedDiscreteOperationData().withStringInsertOperation(AppliedStringInsertOperationData(id, noOp, index, value))
-      case AppliedStringRemoveOperation(id, noOp, index, length, oldValue) =>
-        AppliedDiscreteOperationData().withStringRemoveOperation(AppliedStringRemoveOperationData(id, noOp, index, length, oldValue.get))
-      case AppliedStringSetOperation(id, noOp, value, oldValue) =>
-        AppliedDiscreteOperationData().withStringSetOperation(AppliedStringSetOperationData(id, noOp, value, oldValue.get))
+        AppliedDiscreteOperationData()
+          .withStringInsertOperation(AppliedStringInsertOperationData(id, noOp, index, value))
 
+      case AppliedStringRemoveOperation(id, noOp, index, length, oldValue) =>
+        AppliedDiscreteOperationData()
+          .withStringRemoveOperation(AppliedStringRemoveOperationData(id, noOp, index, length, oldValue.get))
+
+      case AppliedStringSetOperation(id, noOp, value, oldValue) =>
+        AppliedDiscreteOperationData()
+          .withStringSetOperation(AppliedStringSetOperationData(id, noOp, value, oldValue.get))
+
+      //
+      // Arrays
+      //
       case AppliedArrayInsertOperation(id, noOp, idx, newVal) =>
-        AppliedDiscreteOperationData().withArrayInsertOperation(AppliedArrayInsertOperationData(id, noOp, idx, Some(newVal)))
+        AppliedDiscreteOperationData().withArrayInsertOperation(
+          AppliedArrayInsertOperationData(id, noOp, idx, Some(dataValueToProto(newVal))))
+
       case AppliedArrayRemoveOperation(id, noOp, idx, oldValue) =>
-        AppliedDiscreteOperationData().withArrayRemoveOperation(AppliedArrayRemoveOperationData(id, noOp, idx, oldValue.map(dataValueToMessage)))
+        AppliedDiscreteOperationData().withArrayRemoveOperation(
+          AppliedArrayRemoveOperationData(id, noOp, idx, oldValue.map(dataValueToProto)))
+
       case AppliedArrayMoveOperation(id, noOp, fromIdx, toIdx) =>
-        AppliedDiscreteOperationData().withArrayMoveOperation(AppliedArrayMoveOperationData(id, noOp, fromIdx, toIdx))
+        AppliedDiscreteOperationData().withArrayMoveOperation(
+          AppliedArrayMoveOperationData(id, noOp, fromIdx, toIdx))
+
       case AppliedArrayReplaceOperation(id, noOp, idx, newVal, oldValue) =>
-        AppliedDiscreteOperationData().withArrayReplaceOperation(AppliedArrayReplaceOperationData(id, noOp, idx, Some(newVal), oldValue.map(dataValueToMessage)))
+        AppliedDiscreteOperationData().withArrayReplaceOperation(
+          AppliedArrayReplaceOperationData(id, noOp, idx, Some(dataValueToProto(newVal)), oldValue.map(dataValueToProto)))
+
       case AppliedArraySetOperation(id, noOp, array, oldValue) =>
         AppliedDiscreteOperationData().withArraySetOperation(
-          AppliedArraySetOperationData(id, noOp, array.map(dataValueToMessage), oldValue.getOrElse(List()).map(dataValueToMessage)))
+          AppliedArraySetOperationData(id, noOp, array.map(dataValueToProto), oldValue.getOrElse(List()).map(dataValueToProto)))
 
+      //
+      // Objects
+      //
       case AppliedObjectSetPropertyOperation(id, noOp, prop, newVal, oldValue) =>
         AppliedDiscreteOperationData().withObjectSetPropertyOperation(
-          AppliedObjectSetPropertyOperationData(id, noOp, prop, Some(newVal), oldValue.map(dataValueToMessage)))
+          AppliedObjectSetPropertyOperationData(id, noOp, prop, Some(dataValueToProto(newVal)), oldValue.map(dataValueToProto)))
+
       case AppliedObjectAddPropertyOperation(id, noOp, prop, newVal) =>
         AppliedDiscreteOperationData().withObjectAddPropertyOperation(
-          AppliedObjectAddPropertyOperationData(id, noOp, prop, Some(newVal)))
+          AppliedObjectAddPropertyOperationData(id, noOp, prop, Some(dataValueToProto(newVal))))
+
       case AppliedObjectRemovePropertyOperation(id, noOp, prop, oldValue) =>
         AppliedDiscreteOperationData().withObjectRemovePropertyOperation(
-          AppliedObjectRemovePropertyOperationData(id, noOp, prop, oldValue.map(dataValueToMessage)))
+          AppliedObjectRemovePropertyOperationData(id, noOp, prop, oldValue.map(dataValueToProto)))
+
       case AppliedObjectSetOperation(id, noOp, objectData, oldValue) =>
-        val mappedData = objectData.map { case (k, v) => (k, dataValueToMessage(v)) }
-        val mappedOldValues = oldValue.getOrElse(Map()).map { case (k, v) => (k, dataValueToMessage(v)) }
+        val mappedData = objectData.map { case (k, v) => (k, dataValueToProto(v)) }
+        val mappedOldValues = oldValue.getOrElse(Map()).map { case (k, v) => (k, dataValueToProto(v)) }
         AppliedDiscreteOperationData().withObjectSetOperation(AppliedObjectSetOperationData(id, noOp, mappedData, mappedOldValues))
+
+      //
+      // Numbers
+      //
       case AppliedNumberAddOperation(id, noOp, delta) =>
         AppliedDiscreteOperationData().withNumberDeltaOperation(AppliedNumberDeltaOperationData(id, noOp, delta))
+
       case AppliedNumberSetOperation(id, noOp, number, oldValue) =>
         AppliedDiscreteOperationData().withNumberSetOperation(AppliedNumberSetOperationData(id, noOp, number, oldValue.get))
 
+      //
+      // Booleans
+      //
       case AppliedBooleanSetOperation(id, noOp, value, oldValue) =>
         AppliedDiscreteOperationData().withBooleanSetOperation(AppliedBooleanSetOperationData(id, noOp, value, oldValue.get))
+
+      //
+      // Dates
+      //
       case AppliedDateSetOperation(id, noOp, value, oldValue) =>
         AppliedDiscreteOperationData().withDateSetOperation(AppliedDateSetOperationData(id, noOp, Some(Timestamp(value.getEpochSecond, value.getNano)), oldValue.map(v => Timestamp(v.getEpochSecond, v.getNano))))
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 }

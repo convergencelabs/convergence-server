@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.api.realtime
+package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.google.protobuf.struct.{ListValue, NullValue, Struct, Value}
 import grizzled.slf4j.Logging
@@ -20,7 +20,7 @@ import org.json4s.JsonAST._
  * A helper class to convert between json4s and google protocol buffer structs
  * and values.
  */
-private[realtime] object JsonProtoConverter extends Logging {
+private[realtime] object JsonProtoConverters extends Logging {
 
   def toStruct(jsonObject: JObject): Struct = {
     toValue(jsonObject).getStructValue
@@ -84,13 +84,13 @@ private[realtime] object JsonProtoConverter extends Logging {
 
   def valueMapToJValueMap(map: Map[String, Value]): Map[String, JValue] = {
     map.map {
-      case (k, v) => (k, JsonProtoConverter.toJValue(v))
+      case (k, v) => (k, JsonProtoConverters.toJValue(v))
     }
   }
 
   def jValueMapToValueMap(map: Map[String, JValue]): Map[String, Value] = {
     map.map {
-      case (k, v) => (k, JsonProtoConverter.toValue(v))
+      case (k, v) => (k, JsonProtoConverters.toValue(v))
     }
   }
 }

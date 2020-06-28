@@ -26,6 +26,8 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
+import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain._
@@ -33,7 +35,8 @@ import com.convergencelabs.convergence.server.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.domain.presence.{PresenceServiceActor, UserPresence}
-import com.convergencelabs.convergence.server.util.concurrent.{AskHandler, UnexpectedErrorException}
+import com.convergencelabs.convergence.server.util.UnexpectedErrorException
+import com.convergencelabs.convergence.server.util.concurrent.AskHandler
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
@@ -421,10 +424,10 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccessData(
-      Some(ImplicitMessageConversions.mapDomainUser(user)),
+      Some(domainUserToProto(user)),
       session.sessionId,
       this.reconnectToken.getOrElse(""),
-      JsonProtoConverter.jValueMapToValueMap(presence.state)))
+      jValueMapToValueMap(presence.state)))
     cb.reply(response)
 
     Behaviors.receiveMessage(receiveWhileAuthenticated)

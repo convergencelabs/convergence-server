@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+import com.convergencelabs.convergence.server.api.realtime.protocol.OperationConverters
 import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
 import com.convergencelabs.convergence.server.domain.model.ot._
 import org.scalatest.matchers.should.Matchers
@@ -53,8 +54,8 @@ class OperationMapperSpec extends AnyWordSpec with Matchers {
     "mapping an unmapping operations" must {
       "correctly map and unmap operations" in {
         operations.foreach { op =>
-          val data = OperationMapper.mapOutgoing(op)
-          val reverted = OperationMapper.mapIncoming(data)
+          val data = OperationConverters.mapOutgoing(op)
+          val reverted = OperationConverters.mapIncoming(data)
           reverted shouldBe Right(op)
         }
       }

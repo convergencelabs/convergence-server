@@ -29,7 +29,7 @@ object FutureUtils {
     fs map { lift(_) }
 
   implicit class RichSeqFuture[+T](val fs: Seq[Future[T]]) extends AnyVal {
-    def onComplete[U](f: Seq[Try[T]] => U)(implicit ec: ExecutionContext) = {
+    def onComplete[U](f: Seq[Try[T]] => U)(implicit ec: ExecutionContext): Unit = {
       Future.sequence(lift(fs)) onComplete {
         case Success(s) => f(s)
         case Failure(e) => throw e // will never happen, because of the Try lifting

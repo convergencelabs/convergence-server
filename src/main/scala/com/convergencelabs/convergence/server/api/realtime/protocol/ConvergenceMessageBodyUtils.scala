@@ -9,15 +9,15 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.api.realtime
+package com.convergencelabs.convergence.server.api.realtime.protocol
 
+import com.convergencelabs.convergence.proto.ConvergenceMessage.Body
 import com.convergencelabs.convergence.proto.activity._
-import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.chat._
+import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.proto.presence._
-import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import scalapb.GeneratedMessage
 
 /**

@@ -17,6 +17,7 @@ import java.util.concurrent.LinkedBlockingDeque
 
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
+import com.convergencelabs.convergence.server.api.realtime.protocol.ConvergenceMessageBodyUtils
 import grizzled.slf4j.Logging
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.drafts.Draft_17

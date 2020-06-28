@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import com.convergencelabs.convergence.proto._
@@ -21,6 +21,7 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.IdentityResolutionError
+import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
 import com.convergencelabs.convergence.server.domain.{DomainUserId, IdentityServiceActor}
 import grizzled.slf4j.Logging
 
@@ -45,7 +46,7 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
   extends AbstractBehavior[IdentityCacheManagerActor.Message](context) with Logging {
 
   import IdentityCacheManagerActor._
-  import ImplicitMessageConversions._
+  import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 
   private[this] val sessions: Set[String] = Set()
   private[this] val users: Set[DomainUserId] = Set()
@@ -89,7 +90,7 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
       case Body.HistoricalOperationsResponse(body) =>
         processMessage(message, body.operations.map(op => op.sessionId).toSet, Set())
       case Body.GetModelPermissionsResponse(body) =>
-        processMessage(message, Set(), body.userPermissions.keys.toSet)
+        processMessage(message, Set(), modelUserPermissionSeqToMap(body.userPermissions).keys.toSet)
 
       // Activity
       case Body.ActivityParticipantsResponse(body) =>
@@ -101,48 +102,48 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
 
       // Presence
       case Body.PresenceResponse(body) =>
-        processMessage(message, Set(), body.userPresences.map(p => dataToDomainUserId(p.user.get)).toSet)
+        processMessage(message, Set(), body.userPresences.map(p => protoToDomainUserId(p.user.get)).toSet)
       case Body.PresenceSubscribeResponse(body) =>
-        processMessage(message, Set(), body.userPresences.map(p => dataToDomainUserId(p.user.get)).toSet)
+        processMessage(message, Set(), body.userPresences.map(p => protoToDomainUserId(p.user.get)).toSet)
 
       // Chat
       case Body.GetChatsResponse(body) =>
-        val users = body.chatInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.chatInfo.flatMap(_.members.map(m => protoToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
       case Body.GetDirectChatsResponse(body) =>
-        val users = body.chatInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.chatInfo.flatMap(_.members.map(m => protoToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
       case Body.GetJoinedChatsResponse(body) =>
-        val users = body.chatInfo.flatMap(_.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.chatInfo.flatMap(_.members.map(m => protoToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
       case Body.JoinChatResponse(body) =>
-        val users = body.chatInfo.get.members.map(m => ImplicitMessageConversions.dataToDomainUserId(m.user.get)).toSet
+        val users = body.chatInfo.get.members.map(m => protoToDomainUserId(m.user.get)).toSet
         processMessage(message, Set(), users)
       case Body.UserJoinedChat(body) =>
-        processMessage(message, Set(), Set(body.user.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get)))
       case Body.UserLeftChat(body) =>
-        processMessage(message, Set(), Set(body.user.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get)))
       case Body.UserAddedToChat(body) =>
-        processMessage(message, Set(), Set(body.user.get, body.addedUser.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get), protoToDomainUserId(body.addedUser.get)))
       case Body.UserRemovedFromChat(body) =>
-        processMessage(message, Set(), Set(body.user.get, body.removedUser.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get), protoToDomainUserId(body.removedUser.get)))
       case Body.ChatNameChanged(body) =>
-        processMessage(message, Set(), Set(body.user.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get)))
       case Body.ChatTopicChanged(body) =>
-        processMessage(message, Set(), Set(body.user.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get)))
       case Body.ChatEventsMarkedSeen(body) =>
-        processMessage(message, Set(), Set(body.user.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get)))
       case Body.RemoteChatMessage(body) =>
-        processMessage(message, Set(), Set(body.user.get))
+        processMessage(message, Set(), Set(protoToDomainUserId(body.user.get)))
       case Body.GetChatHistoryResponse(body) =>
         processChatEvent(message, body.data)
       case Body.ChatsSearchResponse(body) =>
-        val users = body.data.flatMap(info => info.members.map(m => dataToDomainUserId(m.user.get))).toSet
+        val users = body.data.flatMap(info => info.members.map(m => protoToDomainUserId(m.user.get))).toSet
         processMessage(message, Set(), users)
 
       // permissions
       case Body.GetAllUserPermissionsResponse(body) =>
-        processMessage(message, Set(), body.users.map(u => dataToDomainUserId(u.user.get)).toSet)
+        processMessage(message, Set(), body.users.map(u => protoToDomainUserId(u.user.get)).toSet)
 
       case _ =>
         this.messages.enqueue(MessageRecord(message, ready = true))
@@ -177,7 +178,7 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
         // no-op
       }
     }
-    processMessage(message, Set(), usernames.map(dataToDomainUserId).toSet)
+    processMessage(message, Set(), usernames.map(protoToDomainUserId).toSet)
   }
 
   private[this] def processMessage(message: ConvergenceMessage,
@@ -212,9 +213,9 @@ class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManag
           this.clientActor ! IdentityResolutionError()
       },
       { resolution =>
-        val users = resolution.users.map(ImplicitMessageConversions.mapDomainUser)
+        val users = resolution.users.map(domainUserToProto)
         val body = IdentityCacheUpdateMessage()
-          .withSessions(resolution.sessionMap.map { case (sessionId, userId) => (sessionId, ImplicitMessageConversions.domainUserIdToData(userId)) })
+          .withSessions(resolution.sessionMap.map { case (sessionId, userId) => (sessionId, domainUserIdToProto(userId)) })
           .withUsers(users.toSeq)
         val updateMessage = ConvergenceMessage()
           .withIdentityCacheUpdate(body)

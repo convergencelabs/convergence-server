@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.datastore.SortOrder
 import com.convergencelabs.convergence.server.datastore.domain.UserGroup
 import com.convergencelabs.convergence.server.domain.IdentityServiceActor
@@ -89,7 +90,7 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
         .map(_.users.fold({ _ =>
           cb.unexpectedError("Unexpected error searching users.")
         }, { users =>
-          val userData = users.data.map(ImplicitMessageConversions.mapDomainUser)
+          val userData = users.data.map(domainUserToProto)
           // FIXME update the protocol to use a paged data structure
           cb.reply(UserListMessage(userData))
         }))
@@ -99,13 +100,13 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
 
   private[this] def onGetUsers(request: GetUsersRequestMessage, cb: ReplyCallback): Unit = {
     val GetUsersRequestMessage(userIdData, _) = request
-    val userIds = userIdData.map { userIdData => ImplicitMessageConversions.dataToDomainUserId(userIdData) }
+    val userIds = userIdData.map { userIdData => protoToDomainUserId(userIdData) }
     identityServiceActor.ask[IdentityServiceActor.GetUsersResponse](IdentityServiceActor.GetUsersRequest(userIds.toList, _))
       .map(_.users.fold({
         case IdentityServiceActor.UnknownError() =>
           cb.unexpectedError("Unexpected error getting users.")
       }, { users =>
-        val userData = users.map(ImplicitMessageConversions.mapDomainUser)
+        val userData = users.map(domainUserToProto)
         cb.reply(UserListMessage(userData))
       }))
       .recoverWith(handleAskFailure(_, cb))
@@ -126,7 +127,7 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
             cb.unknownError()
         },
         { groups =>
-          val groupData = groups.map { case UserGroup(id, desc, members) => UserGroupData(id, desc, members.map(ImplicitMessageConversions.domainUserIdToData).toSeq) }
+          val groupData = groups.map { case UserGroup(id, desc, members) => UserGroupData(id, desc, members.map(domainUserIdToProto).toSeq) }
           cb.reply(UserGroupsResponseMessage(groupData))
         }))
       .recoverWith(handleAskFailure(_, cb))
@@ -135,7 +136,7 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
   private[this] def onUserGroupsForUsersRequest(request: UserGroupsForUsersRequestMessage, cb: ReplyCallback): Unit = {
     val UserGroupsForUsersRequestMessage(users, _) = request
     identityServiceActor.ask[IdentityServiceActor.GetUserGroupsForUsersResponse](
-      IdentityServiceActor.GetUserGroupsForUsersRequest(users.map(ImplicitMessageConversions.dataToDomainUserId).toList, _))
+      IdentityServiceActor.GetUserGroupsForUsersRequest(users.map(protoToDomainUserId).toList, _))
       .map(_.groups.fold({
         case IdentityServiceActor.UserNotFound(userId) =>
           cb.expectedError(
@@ -146,7 +147,7 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
           cb.unexpectedError("Unexpected error getting groups for users.")
       }, { groups =>
         val entries = groups.map { case (user, groups) =>
-          (user, UserGroupsEntry(Some(ImplicitMessageConversions.domainUserIdToData(user)), groups.toSeq))
+          (user, UserGroupsEntry(Some(domainUserIdToProto(user)), groups.toSeq))
         }
         cb.reply(UserGroupsForUsersResponseMessage(entries.values.toSeq))
       }))

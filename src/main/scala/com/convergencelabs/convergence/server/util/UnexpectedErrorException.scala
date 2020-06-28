@@ -9,6 +9,6 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.util.concurrent
+package com.convergencelabs.convergence.server.util
 
-case class UnexpectedResponseException(message: String) extends Exception(message)
+case class UnexpectedErrorException(message: String = "An unknown error occurred") extends Exception(message)

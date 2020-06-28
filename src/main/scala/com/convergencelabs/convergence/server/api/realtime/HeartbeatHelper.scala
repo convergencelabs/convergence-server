@@ -30,11 +30,11 @@ import scala.concurrent.duration.FiniteDuration
  * @param ec           The execution context to use for asynchronous events.
  * @param handler      The callback handler to handle events from the heartbeat helper.
  */
-private[realtime] class HeartbeatHelper(private[this] val pingInterval: FiniteDuration,
-                                        private[this] val pongTimeout: FiniteDuration,
-                                        private[this] val scheduler: Scheduler,
-                                        private[this] val ec: ExecutionContext,
-                                        private[this] val handler: PartialFunction[HeartbeatHelper.HeartbeatEvent, Unit])
+private[realtime] class HeartbeatHelper(pingInterval: FiniteDuration,
+                                        pongTimeout: FiniteDuration,
+                                        scheduler: Scheduler,
+                                        ec: ExecutionContext,
+                                        handler: PartialFunction[HeartbeatHelper.HeartbeatEvent, Unit])
   extends Logging {
 
   import HeartbeatHelper._

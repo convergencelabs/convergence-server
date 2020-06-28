@@ -17,7 +17,7 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{PongTimeout, SendUnprocessedMessage}
-import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, RequestReceived}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{ClientErrorResponseException, MessageReceived, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.WebSocketService.OutgoingBinaryMessage
 import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.google.protobuf.struct.Value

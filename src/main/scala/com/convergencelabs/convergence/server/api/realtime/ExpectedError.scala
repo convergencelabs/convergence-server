@@ -13,4 +13,4 @@ package com.convergencelabs.convergence.server.api.realtime
 
 import org.json4s.JsonAST.JValue
 
-case class ExpectedError(code: String, message: String, details: Map[String, JValue] = Map())
+final case class ExpectedError(code: String, message: String, details: Map[String, JValue] = Map())
