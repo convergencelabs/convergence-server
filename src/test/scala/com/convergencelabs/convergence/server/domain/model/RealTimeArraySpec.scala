@@ -109,6 +109,6 @@ class RealTimeArraySpec
       BooleanValue(child2Id, child2Value),
       DoubleValue(child3Id, child3Value)))
 
-    val valueFactory = new RealtimeValueFactory()
+    val valueFactory = new RealtimeValueFactory() {}
   }
 }

@@ -114,6 +114,6 @@ class RealTimeObjectSpec
       (child2Key -> BooleanValue(child2Id, child2Value)),
       (child3Key -> DoubleValue(child3Id, child3Value))))
 
-    val valueFactory = new RealtimeValueFactory()
+    val valueFactory = new RealtimeValueFactory() {}
   }
 }
