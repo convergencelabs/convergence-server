@@ -12,20 +12,11 @@
 package com.convergencelabs.convergence.server.util
 
 import com.convergencelabs.convergence.server.util.serialization.PolymorphicSerializer
-import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.matchers.should.Matchers
-import com.orientechnologies.common.log.OLogManager
-import com.orientechnologies.orient.core.db.document.ODatabaseDocumentTx
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.index.OIndex
-import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TYPE
-import com.orientechnologies.orient.core.metadata.function.OFunction
-import org.json4s.Extraction
-import org.json4s.DefaultFormats
 import org.json4s.JsonAST.JObject
-import org.json4s._
 import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
+import org.json4s.{DefaultFormats, Extraction, _}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class PolymorphicSerializerSpec extends AnyWordSpecLike with Matchers {
 

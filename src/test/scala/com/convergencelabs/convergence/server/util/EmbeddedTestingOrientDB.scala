@@ -15,9 +15,7 @@ import java.io.File
 
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.server.OServer
-import com.orientechnologies.orient.server.config.OServerConfigurationManager
-import com.orientechnologies.orient.server.config.OServerEntryConfiguration
-
+import com.orientechnologies.orient.server.config.{OServerConfigurationManager, OServerEntryConfiguration}
 import grizzled.slf4j.Logging
 
 class EmbeddedTestingOrientDB(dataPath: String, persistent: Boolean) extends Logging {

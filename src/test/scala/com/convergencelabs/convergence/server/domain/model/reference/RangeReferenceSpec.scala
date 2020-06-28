@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.domain.model.reference
 
-import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
 import com.convergencelabs.convergence.server.domain.model.RealTimeString
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
+import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

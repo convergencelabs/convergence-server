@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class PathComparatorSpec
     extends AnyWordSpec

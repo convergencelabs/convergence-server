@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.datastore.mapper
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
 import com.orientechnologies.orient.core.record.impl.ODocument
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off null
 class ODocumentMapperSpec

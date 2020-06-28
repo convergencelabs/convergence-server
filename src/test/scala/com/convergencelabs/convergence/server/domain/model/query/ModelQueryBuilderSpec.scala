@@ -11,12 +11,12 @@
 
 package com.convergencelabs.convergence.server.domain.model.query
 
-import org.scalatest.wordspec.AnyWordSpec
+import com.convergencelabs.convergence.server.domain.model.query.Ast._
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.jdk.CollectionConverters._
-import Ast._
-import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 class ModelQueryBuilderSpec extends AnyWordSpec with Matchers {
 

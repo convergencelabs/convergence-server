@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model
 
-import java.time.{Duration, Instant}
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.domain.ModelSnapshotConfig
 import org.scalatest.matchers.should.Matchers

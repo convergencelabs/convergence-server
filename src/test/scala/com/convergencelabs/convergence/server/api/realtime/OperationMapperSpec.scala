@@ -11,26 +11,10 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
+import com.convergencelabs.convergence.server.domain.model.ot._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayMoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArrayReplaceOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ArraySetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.BooleanSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.CompoundOperation
-import com.convergencelabs.convergence.server.domain.model.ot.NumberAddOperation
-import com.convergencelabs.convergence.server.domain.model.ot.NumberSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectAddPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectRemovePropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectSetOperation
-import com.convergencelabs.convergence.server.domain.model.ot.ObjectSetPropertyOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringSetOperation
 
 // scalastyle:off magic.number
 class OperationMapperSpec extends AnyWordSpec with Matchers {

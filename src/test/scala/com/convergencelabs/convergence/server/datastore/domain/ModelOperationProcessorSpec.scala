@@ -16,10 +16,10 @@ import java.time.{Duration, Instant}
 import com.convergencelabs.convergence.server.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, NewModelOperation}
 import com.convergencelabs.convergence.server.domain.model.data._
 import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, NewModelOperation}
+import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

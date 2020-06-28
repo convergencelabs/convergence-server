@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.datastore.convergence
 
 import com.convergencelabs.convergence.server.datastore.convergence.NamespaceStore.NamespaceUpdates
-import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.datastore.domain.PersistenceStoreSpec
+import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.domain.Namespace

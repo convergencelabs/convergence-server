@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class IndexTransformerSpec
     extends AnyWordSpec
