@@ -522,7 +522,7 @@ class RealtimeModelActorSpec
 
     val modelPermissionsResolver: ModelPermissionResolver = mock[ModelPermissionResolver]
     Mockito.when(modelPermissionsResolver.getModelAndCollectionPermissions(any(), any(), any()))
-      .thenReturn(Success(RealTimeModelPermissions(
+      .thenReturn(Success(RealtimeModelPermissions(
         overrideCollection = false,
         CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true),
         Map(),

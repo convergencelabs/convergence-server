@@ -13,25 +13,25 @@ package com.convergencelabs.convergence.server.domain.model
 
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.domain.model.ot._
-import com.convergencelabs.convergence.server.domain.model.reference.PropertyRemoveAware
+import com.convergencelabs.convergence.server.domain.model.reference.PropertyRemoveAwareReference
 
 import scala.util.{Failure, Success, Try}
 
-class RealTimeObject(private[this] val value: ObjectValue,
-                     private[this] val parent: Option[RealTimeContainerValue],
+class RealtimeObject(private[this] val value: ObjectValue,
+                     private[this] val parent: Option[RealtimeContainerValue],
                      private[this] val parentField: Option[Any],
-                     private[this] val valueFactory: RealTimeValueFactory)
-  extends RealTimeContainerValue(value.id, parent, parentField, List(classOf[PropertyReferenceValues])) {
+                     private[this] val valueFactory: RealtimeValueFactory)
+  extends RealtimeContainerValue(value.id, parent, parentField, List(classOf[PropertyReferenceValues])) {
 
-  private[this] var childValues: Map[String, RealTimeValue] = value.children.map {
+  private[this] var childValues: Map[String, RealtimeValue] = value.children.map {
     case (k, v) => (k, this.valueFactory.createValue(v, Some(this), Some(k)))
   }
 
-  def children: List[RealTimeValue] = {
+  def children: List[RealtimeValue] = {
     childValues.values.toList
   }
 
-  def valueAt(path: List[Any]): Option[RealTimeValue] = {
+  def valueAt(path: List[Any]): Option[RealtimeValue] = {
     path match {
       case Nil =>
         Some(this)
@@ -39,7 +39,7 @@ class RealTimeObject(private[this] val value: ObjectValue,
         this.childValues.get(prop)
       case (prop: String) :: rest =>
         this.childValues.get(prop).flatMap {
-          case child: RealTimeContainerValue => child.valueAt(rest)
+          case child: RealtimeContainerValue => child.valueAt(rest)
           case _ => None
         }
       case _ =>
@@ -55,7 +55,7 @@ class RealTimeObject(private[this] val value: ObjectValue,
     ObjectValue(id, childValues.map { case (k, v) => k -> v.dataValue() })
   }
 
-  def child(childPath: Any): Try[Option[RealTimeValue]] = {
+  def child(childPath: Any): Try[Option[RealtimeValue]] = {
     childPath match {
       case prop: String =>
         Success(this.childValues.get(prop))
@@ -100,7 +100,7 @@ class RealTimeObject(private[this] val value: ObjectValue,
       childValues = this.childValues - property
 
       this.referenceManager.referenceMap().getAll.foreach {
-        case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
+        case x: PropertyRemoveAwareReference => x.handlePropertyRemove(op.property)
       }
 
       child.detach()

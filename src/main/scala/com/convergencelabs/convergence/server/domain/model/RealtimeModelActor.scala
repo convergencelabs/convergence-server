@@ -822,7 +822,7 @@ object RealtimeModelActor {
    *                 key is unique for the model, session, and
    *                 potentially the element.
    */
-  final case class UnshareReference(domainId: DomainId,
+  final case class UnShareReference(domainId: DomainId,
                                     modelId: String,
                                     session: DomainUserSessionId,
                                     valueId: Option[String],

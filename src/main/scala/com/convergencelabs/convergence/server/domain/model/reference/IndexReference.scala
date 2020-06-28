@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-import com.convergencelabs.convergence.server.domain.model.{IndexReferenceValues, ModelReferenceValues, RealTimeValue}
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.convergence.server.domain.model.{IndexReferenceValues, RealtimeValue}
 
 /**
  * Represents and reference pointing to a set of indices, in a positionally
@@ -24,14 +24,16 @@ import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransfo
  * @param session The session the created the reference.
  * @param key     The unique (within the target and session) key for
  *                this reference.
+ * @param initial The initial values to set.
  */
-class IndexReference(target: RealTimeValue,
+class IndexReference(target: RealtimeValue,
                      session: DomainUserSessionId,
-                     key: String)
-  extends ModelReference[Int, RealTimeValue](target, session, key)
-    with PositionalInsertAware
-    with PositionalRemoveAware
-    with PositionalReorderAware {
+                     key: String,
+                     initial: List[Int])
+  extends ModelReference[Int, RealtimeValue](target, session, key, initial)
+    with PositionalInsertAwareReference
+    with PositionalRemoveAwareReference
+    with PositionalReorderAwareReference {
 
   def handlePositionalInsert(index: Int, length: Int): Unit = {
     this.values = IndexTransformer.handleInsert(this.values, index, length)
@@ -45,5 +47,5 @@ class IndexReference(target: RealTimeValue,
     this.values = IndexTransformer.handleReorder(this.values, fromIndex, toIndex)
   }
 
-  override def toReferenceValues: IndexReferenceValues = IndexReferenceValues(get())
+  override def referenceValues: IndexReferenceValues = IndexReferenceValues(get())
 }

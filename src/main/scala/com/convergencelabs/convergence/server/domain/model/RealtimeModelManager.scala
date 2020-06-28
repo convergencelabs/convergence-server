@@ -131,9 +131,9 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] var queuedOpeningClients = HashMap[DomainUserSessionId, OpenRequestRecord]()
   private[this] var queuedReconnectingClients = HashMap[DomainUserSessionId, ResynchronizationRequestRecord]()
 
-  private[this] var model: RealTimeModel = _
+  private[this] var model: RealtimeModel = _
   private[this] var metaData: ModelMetaData = _
-  private[this] var permissions: RealTimeModelPermissions = _
+  private[this] var permissions: RealtimeModelPermissions = _
 
   private[this] var snapshotConfig: ModelSnapshotConfig = _
   private[this] var latestSnapshot: ModelSnapshotMetaData = _
@@ -315,7 +315,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
   private[this] def onDatabaseModelResponse(modelData: Model,
                                             snapshotMetaData: ModelSnapshotMetaData,
                                             snapshotConfig: ModelSnapshotConfig,
-                                            permissions: RealTimeModelPermissions): Unit = {
+                                            permissions: RealtimeModelPermissions): Unit = {
 
     debug(s"$domainFqn/$modelId: Model loaded from database.")
 
@@ -333,7 +333,7 @@ class RealtimeModelManager(private[this] val persistenceFactory: RealtimeModelPe
         referenceTransformer,
         this.metaData.version)
 
-      this.model = new RealTimeModel(
+      this.model = new RealtimeModel(
         domainFqn,
         modelId,
         concurrencyControl,

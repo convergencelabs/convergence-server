@@ -27,7 +27,7 @@ class RealTimeArraySpec
     "constructed" must {
       "contain the correct values" in new TestFixture {
 
-        val rta = new RealTimeArray(arrayValue, None, None, valueFactory)
+        val rta = new RealtimeArray(arrayValue, None, None, valueFactory)
 
         rta.id shouldBe objectId
 
@@ -36,17 +36,17 @@ class RealTimeArraySpec
         rta.children.size shouldBe 3
 
         val c1 = rta.child(child1Index).get.get
-        c1 shouldBe a[RealTimeString]
+        c1 shouldBe a[RealtimeString]
         c1.id shouldBe child1Id
         c1.data() shouldBe child1Value
 
         val c2 = rta.child(child2Index).get.get
-        c2 shouldBe a[RealTimeBoolean]
+        c2 shouldBe a[RealtimeBoolean]
         c2.id shouldBe child2Id
         c2.data() shouldBe child2Value
 
         val c3 = rta.child(child3Index).get.get
-        c3 shouldBe a[RealTimeDouble]
+        c3 shouldBe a[RealtimeDouble]
         c3.id shouldBe child3Id
         c3.data() shouldBe child3Value
       }
@@ -54,7 +54,7 @@ class RealTimeArraySpec
 
     "asked for its data" must {
       "return correct primitive values" in new TestFixture {
-        val rta = new RealTimeArray(arrayValue, None, None, valueFactory)
+        val rta = new RealtimeArray(arrayValue, None, None, valueFactory)
         val data = rta.data()
         data.size shouldBe 3
 
@@ -64,7 +64,7 @@ class RealTimeArraySpec
     
     "processing an set value operation" must {
       "detach all children" in new TestFixture {
-        val rta = new RealTimeArray(arrayValue, None, None, valueFactory)
+        val rta = new RealtimeArray(arrayValue, None, None, valueFactory)
         
         val c1 = rta.child(child1Index).get.get
         var c1Detached = false
@@ -109,6 +109,6 @@ class RealTimeArraySpec
       BooleanValue(child2Id, child2Value),
       DoubleValue(child3Id, child3Value)))
 
-    val valueFactory = new RealTimeValueFactory()
+    val valueFactory = new RealtimeValueFactory()
   }
 }

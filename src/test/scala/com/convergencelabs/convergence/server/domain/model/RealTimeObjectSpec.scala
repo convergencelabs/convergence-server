@@ -27,7 +27,7 @@ class RealTimeObjectSpec
     "constructed" must {
       "contain the correct values" in new TestFixture {
 
-        val rto = new RealTimeObject(objectValue, None, None, valueFactory)
+        val rto = new RealtimeObject(objectValue, None, None, valueFactory)
 
         rto.id shouldBe objectId
 
@@ -36,17 +36,17 @@ class RealTimeObjectSpec
         rto.children.size shouldBe 3
 
         val c1 = rto.child(child1Key).get.get
-        c1 shouldBe a[RealTimeString]
+        c1 shouldBe a[RealtimeString]
         c1.id shouldBe child1Id
         c1.data() shouldBe child1Value
 
         val c2 = rto.child(child2Key).get.get
-        c2 shouldBe a[RealTimeBoolean]
+        c2 shouldBe a[RealtimeBoolean]
         c2.id shouldBe child2Id
         c2.data() shouldBe child2Value
 
         val c3 = rto.child(child3Key).get.get
-        c3 shouldBe a[RealTimeDouble]
+        c3 shouldBe a[RealtimeDouble]
         c3.id shouldBe child3Id
         c3.data() shouldBe child3Value
 
@@ -55,7 +55,7 @@ class RealTimeObjectSpec
 
     "asked for its data" must {
       "return correct primitive values" in new TestFixture {
-        val rto = new RealTimeObject(objectValue, None, None, valueFactory)
+        val rto = new RealtimeObject(objectValue, None, None, valueFactory)
         val data = rto.data()
         data.size shouldBe 3
         data.keySet shouldBe Set(child1Key, child2Key, child3Key)
@@ -69,7 +69,7 @@ class RealTimeObjectSpec
 
     "processing an set value operation" must {
       "detach all children" in new TestFixture {
-        val rto = new RealTimeObject(objectValue, None, None, valueFactory)
+        val rto = new RealtimeObject(objectValue, None, None, valueFactory)
 
         val c1 = rto.child(child1Key).get.get
         var c1Detached = false
@@ -114,6 +114,6 @@ class RealTimeObjectSpec
       (child2Key -> BooleanValue(child2Id, child2Value)),
       (child3Key -> DoubleValue(child3Id, child3Value))))
 
-    val valueFactory = new RealTimeValueFactory()
+    val valueFactory = new RealtimeValueFactory()
   }
 }

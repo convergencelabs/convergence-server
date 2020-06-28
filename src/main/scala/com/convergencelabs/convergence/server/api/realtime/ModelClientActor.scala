@@ -573,7 +573,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     val vId = valueId.filter(!_.isEmpty)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
-        val unshareReference = RealtimeModelActor.UnshareReference(domainId, modelId, session, vId, key)
+        val unshareReference = RealtimeModelActor.UnShareReference(domainId, modelId, session, vId, key)
         modelClusterRegion ! unshareReference
       case None =>
         noResourceIdForReferenceMessage(resourceId, message.toString)

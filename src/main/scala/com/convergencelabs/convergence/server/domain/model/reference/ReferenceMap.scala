@@ -15,12 +15,28 @@ import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 
 import scala.collection.mutable.ListBuffer
 
-class ReferenceMap {
+/**
+ * A utility class that stores references by session and key. Each session owns
+ * a set of references. Each reference owned by a session has a unique key.
+ */
+private[reference] class ReferenceMap {
 
-  // stored by sessionId first, then key.
+  /**
+   * Stores references as a nested map. First by sessionId and then by key.
+   * This allows us to get a reference by session and key, but also easily
+   * remove all references for a session when a session leaves.
+   */
   private[this] val references =
     collection.mutable.Map[DomainUserSessionId, collection.mutable.Map[String, ModelReference[_, _]]]()
 
+  /**
+   * Determines if a reference is set for a given session and key.
+   *
+   * @param sessionId The id of the session that owns the reference.
+   * @param key       The reference key
+   * @return True if the map contains a references for the session and key,
+   *         false oterwise.
+   */
   def has(sessionId: DomainUserSessionId, key: String): Boolean = {
     this.references.get(sessionId) match {
       case Some(map) =>
@@ -30,6 +46,11 @@ class ReferenceMap {
     }
   }
 
+  /**
+   * Puts a new reference. It will be stored by the session and key.
+   *
+   * @param reference The reference to put.
+   */
   def put(reference: ModelReference[_, _]): Unit = {
     val session: DomainUserSessionId = reference.session
     val key: String = reference.key
@@ -48,8 +69,16 @@ class ReferenceMap {
     sessionRefs(key) = reference
   }
 
-  def get(session: DomainUserSessionId, key: String): Option[ModelReference[_, _]] = {
-    this.references.get(session).flatMap { sr => sr.get(key) }
+  /**
+   * Gets a reference for a specific session and key.
+   *
+   * @param sessionId The session owning the reference.
+   * @param key       The key of the reference.
+   * @return The reference for the session and key, or None if it does not
+   *         exist.
+   */
+  def get(sessionId: DomainUserSessionId, key: String): Option[ModelReference[_, _]] = {
+    this.references.get(sessionId).flatMap { sr => sr.get(key) }
   }
 
   def getAll: Set[ModelReference[_, _]] = {
@@ -64,19 +93,34 @@ class ReferenceMap {
     buffer.toSet
   }
 
+  /**
+   * Removes all references in the map.
+   */
   def removeAll(): Unit = {
     this.references.clear()
   }
 
-  def remove(session: DomainUserSessionId, key: String): Option[ModelReference[_, _]] = {
-    val result = this.get(session, key)
+  /**
+   * Removes a single reference from the map.
+   *
+   * @param sessionId The id of the sessions that owns the reference.
+   * @param key       The key of the reference.
+   * @return The removed reference if it exists or None if it does not.
+   */
+  def remove(sessionId: DomainUserSessionId, key: String): Option[ModelReference[_, _]] = {
+    val result = this.get(sessionId, key)
     if (result.isDefined) {
-      references(session) -= key
+      references(sessionId) -= key
     }
     result
   }
 
-  def removeBySession(session: DomainUserSessionId): Unit = {
-    references -= session
+  /**
+   * Removes all references owned by the specified session.
+   *
+   * @param sessionId The id of the session to remove references for.
+   */
+  def removeAllReferencesForSession(sessionId: DomainUserSessionId): Unit = {
+    references -= sessionId
   }
 }

@@ -21,22 +21,22 @@ import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessio
 import scala.util.{Failure, Success, Try}
 
 /**
- * The [[RealTimeModel]] class represents an in memory version of a model.
+ * The [[RealtimeModel]] class represents an in memory version of a model.
  *
  * @param domainId The id of the domain this model belongs to.
  * @param modelId  The unique model id of this model.
  * @param cc       the server side concurrency control that will transform operations.
  * @param root     The root value of this model.
  */
-private[model] class RealTimeModel(domainId: DomainId,
-                    modelId: String,
-                    cc: ServerConcurrencyControl,
-                    root: ObjectValue) extends RealTimeValueFactory {
+private[model] class RealtimeModel(val domainId: DomainId,
+                                   val modelId: String,
+                                   cc: ServerConcurrencyControl,
+                                   root: ObjectValue) extends RealtimeValueFactory {
 
-  val idToValue: collection.mutable.HashMap[String, RealTimeValue] = collection.mutable.HashMap[String, RealTimeValue]()
-  private val elementReferenceManager = new ElementReferenceManager(this, List(classOf[ElementReferenceValues]))
+  val idToValue: collection.mutable.HashMap[String, RealtimeValue] = collection.mutable.HashMap[String, RealtimeValue]()
+  private val elementReferenceManager = new ModelReferenceManager(source = this)
 
-  val data: RealTimeObject = this.createValue(root, None, None).asInstanceOf[RealTimeObject]
+  val data: RealtimeObject = this.createValue(root, None, None).asInstanceOf[RealtimeObject]
 
   def contextVersion(): Long = {
     this.cc.contextVersion
@@ -53,8 +53,8 @@ private[model] class RealTimeModel(domainId: DomainId,
   }
 
   override def createValue(value: DataValue,
-                           parent: Option[RealTimeContainerValue],
-                           parentField: Option[Any]): RealTimeValue = {
+                           parent: Option[RealtimeContainerValue],
+                           parentField: Option[Any]): RealtimeValue = {
     val result = super.createValue(value, parent, parentField)
     this.registerValue(result)
     result.addDetachListener(_ => this.unregisterValue(result))
@@ -78,11 +78,11 @@ private[model] class RealTimeModel(domainId: DomainId,
     }
   }
 
-  private[this] def registerValue(realTimeValue: RealTimeValue): Unit = {
+  private[this] def registerValue(realTimeValue: RealtimeValue): Unit = {
     this.idToValue += (realTimeValue.id -> realTimeValue)
   }
 
-  private[this] def unregisterValue(realTimeValue: RealTimeValue): Unit = {
+  private[this] def unregisterValue(realTimeValue: RealtimeValue): Unit = {
     this.idToValue -= realTimeValue.id
   }
 
@@ -150,9 +150,9 @@ private[model] class RealTimeModel(domainId: DomainId,
                 Success(None)
             }
 
-          case unshare: UnshareReference =>
+          case unshare: UnShareReference =>
             realTimeValue.processReferenceEvent(unshare, session).map { _ =>
-              val UnshareReference(_, modelId, _, id, key) = unshare
+              val UnShareReference(_, modelId, _, id, key) = unshare
               Some(RemoteReferenceUnshared(modelId, session, id, key))
 
             }
@@ -187,20 +187,20 @@ private[model] class RealTimeModel(domainId: DomainId,
     val session = event.session
     event match {
       case share: ShareReference =>
-        elementReferenceManager.handleReferenceEvent(share, session)
+        elementReferenceManager.handleReferenceEvent(share)
         val ShareReference(_, _, _, id, key, values, contextVersion) = share
         val xFormedValue = values.asInstanceOf[ElementReferenceValues].values filter {
           idToValue.contains
         }
         val elementValues = ElementReferenceValues(xFormedValue)
         val xFormedShare = SetReference(domainId, modelId, session, id, key, elementValues, contextVersion)
-        elementReferenceManager.handleReferenceEvent(xFormedShare, session).map { _ =>
+        elementReferenceManager.handleReferenceEvent(xFormedShare).map { _ =>
           Some(RemoteReferenceShared(modelId, session, id, key, elementValues))
         }
 
-      case unshare: UnshareReference =>
-        elementReferenceManager.handleReferenceEvent(unshare, session).map { _ =>
-          val UnshareReference(_, _, _, id, key) = unshare
+      case unshare: UnShareReference =>
+        elementReferenceManager.handleReferenceEvent(unshare).map { _ =>
+          val UnShareReference(_, _, _, id, key) = unshare
           Some(RemoteReferenceUnshared(modelId, session, id, key))
         }
 
@@ -211,12 +211,12 @@ private[model] class RealTimeModel(domainId: DomainId,
         }
         val elementValues = ElementReferenceValues(xFormedValue)
         val xFormedSet = SetReference(d, m, s, id, key, elementValues, version)
-        elementReferenceManager.handleReferenceEvent(xFormedSet, session).map { _ =>
+        elementReferenceManager.handleReferenceEvent(xFormedSet).map { _ =>
           Some(RemoteReferenceSet(modelId, session, id, key, elementValues))
         }
 
       case cleared: ClearReference =>
-        elementReferenceManager.handleReferenceEvent(cleared, session).map { _ =>
+        elementReferenceManager.handleReferenceEvent(cleared).map { _ =>
           val ClearReference(_, _, _, id, key) = cleared
           Some(RemoteReferenceCleared(modelId, session, id, key))
         }
@@ -254,9 +254,9 @@ private[model] class RealTimeModel(domainId: DomainId,
     this.references(this.data) ++ mine
   }
 
-  def references(value: RealTimeValue): Set[ReferenceState] = {
+  def references(value: RealtimeValue): Set[ReferenceState] = {
     value match {
-      case v: RealTimeContainerValue =>
+      case v: RealtimeContainerValue =>
         val mine = v.references().map { x => toReferenceState(x) }
         val mappedChildren = v.children.flatMap { child =>
           references(child)
@@ -271,12 +271,12 @@ private[model] class RealTimeModel(domainId: DomainId,
     ReferenceState(
       r.session,
       r.target match {
-        case value: RealTimeValue =>
+        case value: RealtimeValue =>
           Some(value.id)
         case _ =>
           None
       },
       r.key,
-      r.toReferenceValues())
+      r.referenceValues)
   }
 }

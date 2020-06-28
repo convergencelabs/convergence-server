@@ -12,17 +12,34 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, RealTimeModel}
+import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, RealtimeModel}
 
-class ElementReference(
-  target: RealTimeModel,
-  session: DomainUserSessionId,
-  key: String)
-    extends ModelReference[String, RealTimeModel](target, session, key) {
+/**
+ * Represents a reference that targets model elements.
+ *
+ * @param target  The target of this reference, which is the object the
+ *                reference is relative to.
+ * @param session The session the created the reference.
+ * @param key     The unique (within the target and session) key for
+ *                this reference.
+ * @param initial The initial values to set.
+ */
+class ElementReference(target: RealtimeModel,
+                       session: DomainUserSessionId,
+                       key: String,
+                       initial: List[String])
+  extends ModelReference[String, RealtimeModel](target, session, key, initial) {
 
-  def handleElementDetached(vid: String): Unit = {
-    this.values = this.values filter(!_.equals(vid))
+  /**
+   * Handles the case where an element was removed from the model. This
+   * will remove the value from the reference if the reference contained
+   * the element.
+   *
+   * @param valueId The value id of the element that was removed.
+   */
+  def handleElementDetached(valueId: String): Unit = {
+    this.values = this.values filter (!_.equals(valueId))
   }
 
-  override def toReferenceValues(): ElementReferenceValues = ElementReferenceValues(get())
+  override def referenceValues: ElementReferenceValues = ElementReferenceValues(get())
 }

@@ -11,25 +11,25 @@
 
 package com.convergencelabs.convergence.server.domain.model.reference
 
-import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{SetReference, ShareReference}
-import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, RealTimeModel}
+import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, RealtimeModel, RealtimeModelActor}
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-object ElementReferenceManager {
-  val ReferenceDoesNotExist = "Reference does not exist"
-}
+/**
+ * The [ModelReferenceManager] manages reference that are created directly
+ * on a RealtimeModel. This is typically an Element Reference that points
+ * to elements within the model.
+ *
+ * @param source The [[RealtimeModel]] this ModelReferenceManager manages
+ *               references for.
+ */
+class ModelReferenceManager(source: RealtimeModel) extends AbstractReferenceManager[RealtimeModel](source) {
 
-class ElementReferenceManager(source: RealTimeModel,
-                              validValueClasses: List[Class[_]])
-  extends AbstractReferenceManager[RealTimeModel](source, validValueClasses) {
-
-
-  override protected def processReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit] = Try {
+  override protected def processReferenceShared(event: ShareReference): Try[Unit] = Try {
     val reference = event.values match {
       case ElementReferenceValues(elementIds) =>
-        new ElementReference(source, session, event.key)
+        new ElementReference(source, event.session, event.key, elementIds)
       case _ =>
         throw new IllegalArgumentException("Unexpected reference type")
     }
@@ -37,7 +37,7 @@ class ElementReferenceManager(source: RealTimeModel,
     this.rm.put(reference)
   }
 
-  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _], session: DomainUserSessionId): Try[Unit] = Try {
+  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _]): Try[Unit] = Try {
     (reference, event.values) match {
       case (reference: ElementReference, ElementReferenceValues(elementIds)) =>
         elementIds filter source.idToValue.contains
@@ -49,6 +49,14 @@ class ElementReferenceManager(source: RealTimeModel,
         reference.set(elementIds)
       case _ =>
         throw new IllegalArgumentException("Unexpected reference / value combination")
+    }
+  }
+
+  override protected def validateSource(event: RealtimeModelActor.ModelReferenceEvent): Try[Unit] = {
+    if (event.modelId == source.modelId) {
+      Success(())
+    } else {
+      Failure(new IllegalArgumentException(s"The ModelReferenceEvent does not target this model(${source.modelId}): ${event.modelId}"))
     }
   }
 }

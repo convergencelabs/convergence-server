@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-import com.convergencelabs.convergence.server.domain.model.{IndexReferenceValues, RangeReferenceValues, RealTimeValue}
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.convergence.server.domain.model.{RangeReferenceValues, RealtimeValue}
 
 /**
  * Represents and reference pointing to a set of ranges, in a positionally
@@ -24,14 +24,16 @@ import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransfo
  * @param session The session the created the reference.
  * @param key     The unique (within the target and session) key for
  *                this reference.
+ * @param initial The initial values to set.
  */
-class RangeReference(target: RealTimeValue,
+class RangeReference(target: RealtimeValue,
                      session: DomainUserSessionId,
-                     key: String)
-  extends ModelReference[RangeReference.Range, RealTimeValue](target, session, key)
-    with PositionalInsertAware
-    with PositionalRemoveAware
-    with PositionalReorderAware {
+                     key: String,
+                     initial: List[RangeReference.Range])
+  extends ModelReference[RangeReference.Range, RealtimeValue](target, session, key, initial)
+    with PositionalInsertAwareReference
+    with PositionalRemoveAwareReference
+    with PositionalReorderAwareReference {
 
   def handlePositionalInsert(index: Int, length: Int): Unit = {
     val newValues = this.values.map { v =>
@@ -55,7 +57,7 @@ class RangeReference(target: RealTimeValue,
     }
   }
 
-  override def toReferenceValues: RangeReferenceValues = RangeReferenceValues(get())
+  override def referenceValues: RangeReferenceValues = RangeReferenceValues(get())
 }
 
 object RangeReference {

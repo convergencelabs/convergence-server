@@ -16,36 +16,62 @@ import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor._
 
 import scala.util.{Failure, Try}
 
-object AbstractReferenceManager {
-  val ReferenceDoesNotExist = "Reference does not exist"
-}
+/**
+ * The base class of reference managers that help manage model references.
+ * This class will track which references exist and handle incoming reference
+ * events to keep the references up to date.
+ *
+ * @param source The source that this manager is managing references for.
+ * @tparam S The type of the source.
+ */
+private[reference] abstract class AbstractReferenceManager[S](protected val source: S) {
 
-abstract class AbstractReferenceManager[S](protected val source: S,
-                                           protected val validValueClasses: List[Class[_]]) {
-
+  /**
+   * Stores the references for this reference manager.
+   */
   protected val rm = new ReferenceMap()
 
   def referenceMap(): ReferenceMap = rm
 
-  def handleReferenceEvent(event: ModelReferenceEvent, session: DomainUserSessionId): Try[Unit] = {
-    event match {
-      case share: ShareReference =>
-        handleReferenceShared(share, session)
-      case unshare: UnshareReference =>
-        handleReferenceUnShared(unshare, session)
-      case set: SetReference =>
-        handleReferenceSet(set, session)
-      case cleared: ClearReference =>
-        handleReferenceCleared(cleared, session)
+  /**
+   * Handles an incoming ModelReferenceEvent.
+   *
+   * @param event The event that occurred.
+   * @return Success if the event was handled properly, a Failure otherwise.
+   */
+  def handleReferenceEvent(event: ModelReferenceEvent): Try[Unit] = {
+    validateSource(event).flatMap { _ =>
+      event match {
+        case share: ShareReference =>
+          handleReferenceShared(share)
+        case unshare: UnShareReference =>
+          handleReferenceUnShared(unshare)
+        case set: SetReference =>
+          handleReferenceSet(set)
+        case cleared: ClearReference =>
+          handleReferenceCleared(cleared)
+      }
     }
   }
 
-  def sessionDisconnected(session: DomainUserSessionId): Unit = {
-    this.rm.removeBySession(session)
+  /**
+   * Processes the disconnection of a session by removing all references
+   * owned by that session.
+   *
+   * @param sessionId The id of the session that disconnected.
+   */
+  def sessionDisconnected(sessionId: DomainUserSessionId): Unit = {
+    this.rm.removeAllReferencesForSession(sessionId)
   }
 
-  private[this] def handleReferenceUnShared(event: UnshareReference, session: DomainUserSessionId): Try[Unit] = Try {
-    this.rm.remove(session, event.key) match {
+  /**
+   * Handles the [[UnShareReference]] event by removing the reference.
+   *
+   * @param event The event to process.
+   * @return Success if the event was handled properly, a Failure otherwise.
+   */
+  private[this] def handleReferenceUnShared(event: UnShareReference): Try[Unit] = Try {
+    this.rm.remove(event.session, event.key) match {
       case Some(_) =>
       // No-op
       case None =>
@@ -53,8 +79,14 @@ abstract class AbstractReferenceManager[S](protected val source: S,
     }
   }
 
-  private[this] def handleReferenceCleared(event: ClearReference, session: DomainUserSessionId): Try[Unit] = Try {
-    this.rm.get(session, event.key) match {
+  /**
+   * Handles the [[ClearReference]] event by clearing the reference.
+   *
+   * @param event The event to process.
+   * @return Success if the event was handled properly, a Failure otherwise.
+   */
+  private[this] def handleReferenceCleared(event: ClearReference): Try[Unit] = Try {
+    this.rm.get(event.session, event.key) match {
       case Some(reference) =>
         reference.clear()
       case None =>
@@ -62,28 +94,64 @@ abstract class AbstractReferenceManager[S](protected val source: S,
     }
   }
 
-  protected def handleReferenceSet(event: SetReference, session: DomainUserSessionId): Try[Unit] = {
-    this.rm.get(session, event.key) match {
+  /**
+   * Handles the [[SetReference]] event by updating the reference.
+   *
+   * @param event The event to process.
+   * @return Success if the event was handled properly, a Failure otherwise.
+   */
+  private[this] def handleReferenceSet(event: SetReference): Try[Unit] = {
+    this.rm.get(event.session, event.key) match {
       case Some(reference) =>
-        processReferenceSet(event, reference, session)
+        processReferenceSet(event, reference)
       case None =>
         Failure(new IllegalArgumentException(AbstractReferenceManager.ReferenceDoesNotExist))
     }
   }
 
-  protected def handleReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit] = {
-    if (!this.validValueClasses.contains(event.values.getClass)) {
-      Failure(new IllegalArgumentException(s"Invalid value class: ${event.values.getClass}"))
+  /**
+   * Handles the [[ShareReference]] event by adding the new reference.
+   *
+   * @param event The event to process.
+   * @return Success if the event was handled properly, a Failure otherwise.
+   */
+  private[this] def handleReferenceShared(event: ShareReference): Try[Unit] = {
+    if (rm.has(event.session, event.key)) {
+      Failure(new IllegalArgumentException(s"Reference '${event.key}' already shared for session '$event.session'"))
     } else {
-      if (rm.has(session, event.key)) {
-        Failure(new IllegalArgumentException(s"Reference '${event.key}' already shared for session '$session'"))
-      } else {
-        processReferenceShared(event, session)
-      }
+      processReferenceShared(event)
     }
   }
 
-  protected def processReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit]
+  /**
+   * Processes the shared reference. Subclasses will implement how to actually
+   * create the new reference and set its initial value.
+   *
+   * @param event The event to process.
+   * @return Success if the event was processed properly, a Failure otherwise.
+   */
+  protected def processReferenceShared(event: ShareReference): Try[Unit]
 
-  protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _], session: DomainUserSessionId): Try[Unit]
+  /**
+   * Processes the set reference. Subclasses will implement how to actually
+   * create update the reference value based on the event.
+   *
+   * @param event The event to process.
+   * @return Success if the event was processed properly, a Failure otherwise.
+   */
+  protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _]): Try[Unit]
+
+  /**
+   * Ensures that the event is from the source that this reference manager
+   * has domain over.
+   *
+   * @param event The event to validate.
+   * @return Success if the event is for the propper source, a Failure
+   *         otherwise.
+   */
+  protected def validateSource(event: ModelReferenceEvent): Try[Unit]
+}
+
+private[reference] object AbstractReferenceManager {
+  val ReferenceDoesNotExist = "Reference does not exist"
 }

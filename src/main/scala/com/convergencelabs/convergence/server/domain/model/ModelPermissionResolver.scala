@@ -34,7 +34,7 @@ class ModelPermissionResolver() {
     }
   }
 
-  def getModelAndCollectionPermissions(modelId: String, collectionId: String, persistenceProvider: DomainPersistenceProvider): Try[RealTimeModelPermissions] = {
+  def getModelAndCollectionPermissions(modelId: String, collectionId: String, persistenceProvider: DomainPersistenceProvider): Try[RealtimeModelPermissions] = {
     for {
       overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
       collectionWorld <- persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)
@@ -42,7 +42,7 @@ class ModelPermissionResolver() {
       modelWorld <- persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)
       modelUsers <- persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {
-      RealTimeModelPermissions(
+      RealtimeModelPermissions(
         overrideCollection,
         collectionWorld,
         collectionUsers,

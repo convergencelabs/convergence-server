@@ -11,18 +11,34 @@
 
 package com.convergencelabs.convergence.server.domain.model.reference
 
-trait PositionalInsertAware {
+/**
+ * Indicates that a reference can update its value based on a position
+ * insert type of operation.
+ */
+trait PositionalInsertAwareReference {
   def handlePositionalInsert(index: Int, length: Int): Unit
 }
 
-trait PositionalRemoveAware {
+/**
+ * Indicates that a reference can update its value based on a position
+ * remove type of operation.
+ */
+trait PositionalRemoveAwareReference {
   def handlePositionalRemove(index: Int, length: Int): Unit
 }
 
-trait PositionalReorderAware {
+/**
+ * Indicates that a reference can update its value based on a position
+ * reorder type of operation.
+ */
+trait PositionalReorderAwareReference {
   def handlePositionalReorder(fromIndex: Int, toIndex: Int): Unit
 }
 
-trait PropertyRemoveAware {
+/**
+ * Indicates that a reference can update its value based on a property
+ * remove type of operation.
+ */
+trait PropertyRemoveAwareReference {
   def handlePropertyRemove(property: String): Unit
 }

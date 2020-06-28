@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.model.reference
 
-import com.convergencelabs.convergence.server.domain.model.RealTimeString
+import com.convergencelabs.convergence.server.domain.model.RealtimeString
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
 import org.scalatest.matchers.should.Matchers
@@ -21,7 +21,7 @@ class RangeReferenceSpec extends AnyWordSpec with Matchers {
   private[this] val session = DomainUserSessionId("session", DomainUserId.normal("user"))
   private[this] val key = "key"
   private[this] val stringValue = StringValue("id", "some string")
-  private[this] val rts = new RealTimeString(stringValue, None, None)
+  private[this] val rts = new RealtimeString(stringValue, None, None)
 
   private[this] val val1 = RangeReference.Range(5, 15)
   private[this] val val2 = RangeReference.Range(10, 20)
@@ -30,17 +30,17 @@ class RangeReferenceSpec extends AnyWordSpec with Matchers {
   "A RangeReference" when {
     "when constructed" must {
       "have the correct values" in {
-        val r = new RangeReference(rts, session, key)
+        val r = new RangeReference(rts, session, key, List(val1))
         r.target shouldBe rts
         r.session shouldBe session
         r.key shouldBe key
-        r.get() shouldBe List()
+        r.get() shouldBe List(val1)
       }
     }
 
     "when setting values" must {
       "set the correct values" in {
-        val r = new RangeReference(rts, session, key)
+        val r = new RangeReference(rts, session, key, List())
         r.set(List(val1))
         r.get() shouldBe List(val1)
       }
@@ -48,7 +48,7 @@ class RangeReferenceSpec extends AnyWordSpec with Matchers {
 
     "handlePositionalInsert" must {
       "have the correct values" in {
-        val r = new RangeReference(rts, session, key)
+        val r = new RangeReference(rts, session, key, List())
         r.set(List(val1, val2))
 
         r.handlePositionalInsert(6, 4)

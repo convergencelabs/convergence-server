@@ -16,10 +16,10 @@ import com.convergencelabs.convergence.server.domain.model.ot._
 
 import scala.util.{Failure, Success, Try}
 
-class RealTimeDouble(private[this] val value: DoubleValue,
-                     private[this] val parent: Option[RealTimeContainerValue],
+class RealtimeDouble(private[this] val value: DoubleValue,
+                     private[this] val parent: Option[RealtimeContainerValue],
                      private[this] val parentField: Option[Any])
-  extends RealTimeValue(value.id, parent, parentField, List()) {
+  extends RealtimeValue(value.id, parent, parentField, List()) {
 
   var double: Double = value.value
 

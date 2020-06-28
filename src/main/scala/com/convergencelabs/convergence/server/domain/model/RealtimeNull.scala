@@ -16,10 +16,10 @@ import com.convergencelabs.convergence.server.domain.model.ot.{AppliedDiscreteOp
 
 import scala.util.{Failure, Try}
 
-class RealTimeNull(private[this] val value: NullValue,
-                   private[this] val parent: Option[RealTimeContainerValue],
+class RealtimeNull(private[this] val value: NullValue,
+                   private[this] val parent: Option[RealtimeContainerValue],
                    private[this] val parentField: Option[Any])
-  extends RealTimeValue(value.id, parent, parentField, List()) {
+  extends RealtimeValue(value.id, parent, parentField, List()) {
 
   def data(): Null = {
     null // scalastyle:ignore null

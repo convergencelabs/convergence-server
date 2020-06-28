@@ -13,14 +13,14 @@ package com.convergencelabs.convergence.server.domain.model
 
 import com.convergencelabs.convergence.server.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.domain.model.ot._
-import com.convergencelabs.convergence.server.domain.model.reference.{PositionalInsertAware, PositionalRemoveAware}
+import com.convergencelabs.convergence.server.domain.model.reference.{PositionalInsertAwareReference, PositionalRemoveAwareReference}
 
 import scala.util.{Failure, Success, Try}
 
-class RealTimeString(private[this] val value: StringValue,
-                     private[this] val parent: Option[RealTimeContainerValue],
+class RealtimeString(private[this] val value: StringValue,
+                     private[this] val parent: Option[RealtimeContainerValue],
                      private[this] val parentField: Option[Any])
-  extends RealTimeValue(
+  extends RealtimeValue(
     value.id,
     parent,
     parentField,
@@ -58,7 +58,7 @@ class RealTimeString(private[this] val value: StringValue,
       this.string = this.string.slice(0, index) + value + this.string.slice(index, this.string.length)
 
       this.referenceManager.referenceMap().getAll.foreach {
-        case x: PositionalInsertAware => x.handlePositionalInsert(index, value.length)
+        case x: PositionalInsertAwareReference => x.handlePositionalInsert(index, value.length)
         case _ => // no-op
       }
 
@@ -75,7 +75,7 @@ class RealTimeString(private[this] val value: StringValue,
       this.string = this.string.slice(0, index) + this.string.slice(index + value.length, this.string.length)
 
       this.referenceManager.referenceMap().getAll.foreach {
-        case x: PositionalRemoveAware => x.handlePositionalRemove(index, value.length)
+        case x: PositionalRemoveAwareReference => x.handlePositionalRemove(index, value.length)
         case _ => // no-op
       }
 

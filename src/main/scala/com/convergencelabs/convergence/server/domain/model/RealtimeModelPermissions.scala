@@ -34,7 +34,7 @@ import com.convergencelabs.convergence.server.domain.DomainUserId
  * @param modelWorld         The model world permissions.
  * @param modelUsers         User specific permissions.
  */
-case class RealTimeModelPermissions(overrideCollection: Boolean,
+case class RealtimeModelPermissions(overrideCollection: Boolean,
                                     collectionWorld: CollectionPermissions,
                                     collectionUsers: Map[DomainUserId, CollectionPermissions],
                                     modelWorld: ModelPermissions,

@@ -16,21 +16,21 @@ import com.convergencelabs.convergence.server.domain.model.ot._
 
 import scala.util.{Failure, Success, Try}
 
-class RealTimeArray(private[this] val value: ArrayValue,
-                    private[this] val parent: Option[RealTimeContainerValue],
+class RealtimeArray(private[this] val value: ArrayValue,
+                    private[this] val parent: Option[RealtimeContainerValue],
                     private[this] val parentField: Option[Any],
-                    private[this] val valueFactory: RealTimeValueFactory)
-  extends RealTimeContainerValue(value.id, parent, parentField, List()) {
+                    private[this] val valueFactory: RealtimeValueFactory)
+  extends RealtimeContainerValue(value.id, parent, parentField, List()) {
 
-  private[this] var childValues: List[RealTimeValue] = _
+  private[this] var childValues: List[RealtimeValue] = _
 
   this.setValue(value.children)
 
-  def children: List[RealTimeValue] = {
+  def children: List[RealtimeValue] = {
     childValues
   }
 
-  def valueAt(path: List[Any]): Option[RealTimeValue] = {
+  def valueAt(path: List[Any]): Option[RealtimeValue] = {
     path match {
       case Nil =>
         Some(this)
@@ -38,7 +38,7 @@ class RealTimeArray(private[this] val value: ArrayValue,
         childValues.lift(index)
       case (index: Int) :: rest =>
         childValues.lift(index).flatMap {
-          case child: RealTimeContainerValue => child.valueAt(rest)
+          case child: RealtimeContainerValue => child.valueAt(rest)
           case _ => None
         }
       case _ =>
@@ -56,7 +56,7 @@ class RealTimeArray(private[this] val value: ArrayValue,
     })
   }
 
-  def child(childPath: Any): Try[Option[RealTimeValue]] = {
+  def child(childPath: Any): Try[Option[RealtimeValue]] = {
     childPath match {
       case index: Int =>
         Success(childValues.lift(index))

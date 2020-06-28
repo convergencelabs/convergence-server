@@ -15,16 +15,16 @@ import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.ModelReferenceEvent
 import com.convergencelabs.convergence.server.domain.model.data.DataValue
 import com.convergencelabs.convergence.server.domain.model.ot.{AppliedDiscreteOperation, DiscreteOperation}
-import com.convergencelabs.convergence.server.domain.model.reference.{ModelReference, ReferenceManager}
+import com.convergencelabs.convergence.server.domain.model.reference.{ModelReference, ValueReferenceManager}
 
 import scala.util.{Failure, Try}
 
-abstract class RealTimeValue(private[model] val id: String,
-                             private[model] var parent: Option[RealTimeContainerValue],
+abstract class RealtimeValue(val id: String,
+                             private[model] var parent: Option[RealtimeContainerValue],
                              private[model] var parentField: Option[Any],
-                             validReferenceValueClasses: List[Class[_]]) {
+                             validReferenceValueClasses: List[Class[_ <: ModelReferenceValues]]) {
 
-  protected val referenceManager = new ReferenceManager(this, validReferenceValueClasses)
+  protected val referenceManager = new ValueReferenceManager(this, validReferenceValueClasses)
   protected var listeners: List[String => Unit] = Nil
 
   def path(): List[Any] = {
@@ -72,7 +72,7 @@ abstract class RealTimeValue(private[model] val id: String,
     if (this.validReferenceValueClasses.isEmpty) {
       Failure(new IllegalArgumentException("This RealTimeValue does not allow references"))
     } else {
-      this.referenceManager.handleReferenceEvent(event, session)
+      this.referenceManager.handleReferenceEvent(event)
     }
   }
 

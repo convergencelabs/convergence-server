@@ -15,15 +15,15 @@ import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 
 import scala.util.Try
 
-abstract class RealTimeContainerValue(id: String,
-                                      parent: Option[RealTimeContainerValue],
+abstract class RealtimeContainerValue(id: String,
+                                      parent: Option[RealtimeContainerValue],
                                       parentField: Option[Any],
-                                      validReferenceValueClasses: List[Class[_]])
-  extends RealTimeValue(id, parent, parentField, validReferenceValueClasses) {
+                                      validReferenceValueClasses: List[Class[_ <: ModelReferenceValues]])
+  extends RealtimeValue(id, parent, parentField, validReferenceValueClasses) {
 
-  def valueAt(path: List[Any]): Option[RealTimeValue]
+  def valueAt(path: List[Any]): Option[RealtimeValue]
 
-  def child(childPath: Any): Try[Option[RealTimeValue]]
+  def child(childPath: Any): Try[Option[RealtimeValue]]
 
   override def detach(): Unit = {
     this.detachChildren()
@@ -32,7 +32,7 @@ abstract class RealTimeContainerValue(id: String,
 
   def detachChildren(): Unit
 
-  def children: List[RealTimeValue]
+  def children: List[RealtimeValue]
 
   override def sessionDisconnected(session: DomainUserSessionId): Unit = {
     this.children.foreach { child => child.sessionDisconnected(session) }
