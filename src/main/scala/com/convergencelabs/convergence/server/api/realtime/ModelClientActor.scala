@@ -23,7 +23,7 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
 import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
-import com.convergencelabs.convergence.proto.model._
+import com.convergencelabs.convergence.proto.model.{ReferenceValues, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
 import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
@@ -33,8 +33,10 @@ import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, ModelStoreActor}
 import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.domain.model.ot.Operation
-import com.convergencelabs.convergence.server.domain.model.{RealtimeModelActor, ReferenceState, ReferenceType}
+import com.convergencelabs.convergence.server.domain.model.reference.RangeReference
+import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, IndexReferenceValues, PropertyReferenceValues, RangeReferenceValues, RealtimeModelActor, _}
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.google.protobuf.struct.Value
 import com.google.protobuf.struct.Value.Kind.{StringValue => ProtoString}
 import grizzled.slf4j.Logging
@@ -214,8 +216,16 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
   //
   private[this] def onOutgoingModelMessage(message: OutgoingMessage): Unit = {
     if (openingModelStash.contains(message.modelId)) {
-      val stashedMessages = openingModelStash(message.modelId)
-      stashedMessages += message
+      message match {
+
+        case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
+          // This message is part of the opening process and should go
+          // out immediately. All others should be stashed.
+          onAutoCreateModelConfigRequest(autoCreateRequest)
+        case _ =>
+          val stashedMessages = openingModelStash(message.modelId)
+          stashedMessages += message
+      }
     } else {
       message match {
         case op: OutgoingOperation =>
@@ -229,7 +239,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         case forceClosed: ModelForceClose =>
           onModelForceClose(forceClosed)
         case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
-          onAutoCreateModelConfigRequest(autoCreateRequest)
+        // FIXME we are already opened.. this should not happen???
         case refShared: RemoteReferenceShared =>
           onRemoteReferenceShared(refShared)
         case refUnshared: RemoteReferenceUnshared =>
@@ -368,9 +378,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
   }
 
   private[this] def onRemoteReferenceShared(refShared: RemoteReferenceShared): Unit = {
-    val RemoteReferenceShared(modelId, session, valueId, key, refType, values) = refShared
+    val RemoteReferenceShared(modelId, session, valueId, key, values) = refShared
     resourceId(modelId) foreach { resourceId =>
-      val references = mapOutgoingReferenceValue(refType, values)
+      val references = mapOutgoingReferenceValue(values)
       val serverMessage = RemoteReferenceSharedMessage(resourceId, valueId, key, Some(references), session.sessionId)
       clientActor ! SendServerMessage(serverMessage)
     }
@@ -385,9 +395,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
   }
 
   private[this] def onRemoteReferenceSet(refSet: RemoteReferenceSet): Unit = {
-    val RemoteReferenceSet(modelId, session, valueId, key, refType, values) = refSet
+    val RemoteReferenceSet(modelId, session, valueId, key, values) = refSet
     resourceId(modelId) foreach { resourceId =>
-      val references = mapOutgoingReferenceValue(refType, values)
+      val references = mapOutgoingReferenceValue(values)
       val serverMessage = RemoteReferenceSetMessage(resourceId, valueId, key, Some(references), session.sessionId)
       clientActor ! SendServerMessage(serverMessage)
     }
@@ -409,35 +419,33 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
     }
   }
 
-  private[this] def mapOutgoingReferenceValue(refType: ReferenceType.Value, values: Any): ReferenceValues = {
-    refType match {
-      case ReferenceType.Index =>
-        val indices = values.asInstanceOf[List[Int]]
+  private[this] def mapOutgoingReferenceValue(values: ModelReferenceValues): ReferenceValues = {
+    values match {
+      case IndexReferenceValues(indices) =>
         ReferenceValues().withIndices(Int32List(indices))
-      case ReferenceType.Range =>
-        val ranges = values.asInstanceOf[List[(Int, Int)]].map {
-          case (from, to) => IndexRange(from, to)
+      case RangeReferenceValues(ranges) =>
+        val protoRanges = ranges.map {
+          case RangeReference.Range(from, to) => IndexRange(from, to)
         }
-        ReferenceValues().withRanges(IndexRangeList(ranges))
-      case ReferenceType.Property =>
-        val properties = values.asInstanceOf[List[String]]
+        ReferenceValues().withRanges(IndexRangeList(protoRanges))
+      case PropertyReferenceValues(properties) =>
         ReferenceValues().withProperties(StringList(properties))
-      case ReferenceType.Element =>
-        val elements = values.asInstanceOf[List[String]]
-        ReferenceValues().withElements(StringList(elements))
+      case ElementReferenceValues(elementIds) =>
+        ReferenceValues().withElements(StringList(elementIds))
     }
   }
 
-  private[this] def mapIncomingReference(values: ReferenceValues): Either[Unit, (ReferenceType.Value, List[Any])] = {
+  private[this] def mapIncomingReference(values: ReferenceValues): Either[Unit, ModelReferenceValues] = {
     values.values match {
       case ReferenceValues.Values.Indices(Int32List(indices, _)) =>
-        Right((ReferenceType.Index, indices.toList))
+        Right(IndexReferenceValues(indices.toList))
       case ReferenceValues.Values.Ranges(IndexRangeList(ranges, _)) =>
-        Right((ReferenceType.Range, ranges.map(r => (r.startIndex, r.endIndex)).toList))
+        val mapped = ranges.map(r => RangeReference.Range(r.startIndex, r.endIndex)).toList
+        Right(RangeReferenceValues(mapped))
       case ReferenceValues.Values.Properties(StringList(properties, _)) =>
-        Right((ReferenceType.Property, properties.toList))
+        Right(PropertyReferenceValues(properties.toList))
       case ReferenceValues.Values.Elements(StringList(elements, _)) =>
-        Right((ReferenceType.Element, elements.toList))
+        Right(ElementReferenceValues(elements.toList))
       case ReferenceValues.Values.Empty =>
         Left(())
     }
@@ -546,10 +554,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case Some(modelId) =>
         references match {
           case Some(refs) =>
-            mapIncomingReference(refs).map {
-              case (referenceType, values) =>
-                val publishReference = RealtimeModelActor.ShareReference(domainId, modelId, session, vId, key, referenceType, values, version)
-                modelClusterRegion ! publishReference
+            mapIncomingReference(refs).map { values =>
+              val publishReference = RealtimeModelActor.ShareReference(domainId, modelId, session, vId, key, values, version)
+              modelClusterRegion ! publishReference
             }.left.map { _ =>
               invalidReferenceType(message.toString)
             }
@@ -581,10 +588,9 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       case Some(modelId) =>
         references match {
           case Some(refs) =>
-            mapIncomingReference(refs).map {
-              case (referenceType, values) =>
-                val setReference = RealtimeModelActor.SetReference(domainId, modelId, session, vId, key, referenceType, values, version)
-                modelClusterRegion ! setReference
+            mapIncomingReference(refs).map { values =>
+              val setReference = RealtimeModelActor.SetReference(domainId, modelId, session, vId, key, values, version)
+              modelClusterRegion ! setReference
             }.left.map { _ =>
               invalidReferenceType(message.toString)
             }
@@ -612,8 +618,8 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 
   private[this] def convertReferences(references: Set[ReferenceState]): Seq[ReferenceData] = {
     references.map {
-      case ReferenceState(sessionId, valueId, key, refType, values) =>
-        val referenceValues = mapOutgoingReferenceValue(refType, values)
+      case ReferenceState(sessionId, valueId, key, values) =>
+        val referenceValues = mapOutgoingReferenceValue(values)
         ReferenceData(sessionId.sessionId, valueId, key, Some(referenceValues))
     }.toSeq
   }
@@ -639,8 +645,6 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
       "Invalid reference set message. Invalid reference type: " + message)
     clientActor ! SendServerMessage(errorMessage)
   }
-
-  val NoPermissions = ModelPermissionsData(read = false, write = false, remove = false, manage = false)
 
   private[this] def onModelOfflineSubscription(message: ModelOfflineSubscriptionChangeRequestMessage, replyCallback: ReplyCallback): Unit = {
     val ModelOfflineSubscriptionChangeRequestMessage(subscribe, unsubscribe, all, _) = message
@@ -806,7 +810,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
         error => context.self ! ModelResyncRequestFailure(modelId, Right(error), cb),
         data => context.self ! ModelResyncRequestSuccess(modelId, data, cb)
       ))
-      .recover ( cause => context.self ! ModelResyncRequestFailure(modelId, Left(cause), cb))
+      .recover(cause => context.self ! ModelResyncRequestFailure(modelId, Left(cause), cb))
   }
 
   private[this] def onModelResyncSuccess(message: ModelResyncRequestSuccess): Unit = {
@@ -1052,6 +1056,8 @@ object ModelClientActor {
       }
     }
 
+  private val NoPermissions = ModelPermissionsData(read = false, write = false, remove = false, manage = false)
+
   private final case object SyncTaskTimer
 
   private def modelNotFoundError(cb: ReplyCallback, id: String): Unit = {
@@ -1165,6 +1171,13 @@ object ModelClientActor {
 
   final case class ClientAutoCreateModelConfigRequest(modelId: String, autoConfigId: Int, replyTo: ActorRef[ClientAutoCreateModelConfigResponse]) extends OutgoingMessage
 
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ClientAutoCreateModelConfigTimeout], name = "timeout"),
+    new JsonSubTypes.Type(value = classOf[ClientAutoCreateModelConfigInvalid], name = "invalid"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
   sealed trait ClientAutoCreateModelConfigError
 
   final case class ClientAutoCreateModelConfigTimeout() extends ClientAutoCreateModelConfigError
@@ -1173,7 +1186,7 @@ object ModelClientActor {
 
   final case class UnknownError() extends ClientAutoCreateModelConfigError
 
-  final case class ClientAutoCreateModelConfigResponse(config: Either[ClientAutoCreateModelConfigError, ClientAutoCreateModelConfig])
+  final case class ClientAutoCreateModelConfigResponse(config: Either[ClientAutoCreateModelConfigError, ClientAutoCreateModelConfig]) extends CborSerializable
 
   final case class ClientAutoCreateModelConfig(collectionId: String,
                                                modelData: Option[ObjectValue],
@@ -1184,11 +1197,16 @@ object ModelClientActor {
 
   sealed trait RemoteReferenceEvent extends OutgoingMessage
 
-  final case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
-                                         referenceType: ReferenceType.Value, values: List[Any]) extends RemoteReferenceEvent
+  final case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId,
+                                         id: Option[String],
+                                         key: String,
+                                         values: ModelReferenceValues) extends RemoteReferenceEvent
 
-  final case class RemoteReferenceSet(modelId: String, session: DomainUserSessionId, id: Option[String], key: String,
-                                      referenceType: ReferenceType.Value, value: List[Any]) extends RemoteReferenceEvent
+  final case class RemoteReferenceSet(modelId: String,
+                                      session: DomainUserSessionId,
+                                      id: Option[String],
+                                      key: String,
+                                      values: ModelReferenceValues) extends RemoteReferenceEvent
 
   final case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
 

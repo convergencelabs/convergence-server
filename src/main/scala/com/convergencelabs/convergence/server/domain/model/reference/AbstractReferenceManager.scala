@@ -12,8 +12,7 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{ClearReference, ModelReferenceEvent, SetReference, ShareReference, UnshareReference}
-import com.convergencelabs.convergence.server.domain.model._
+import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor._
 
 import scala.util.{Failure, Try}
 
@@ -22,7 +21,7 @@ object AbstractReferenceManager {
 }
 
 abstract class AbstractReferenceManager[S](protected val source: S,
-                                           protected val validTypes: List[ReferenceType.Value]) {
+                                           protected val validValueClasses: List[Class[_]]) {
 
   protected val rm = new ReferenceMap()
 
@@ -73,8 +72,8 @@ abstract class AbstractReferenceManager[S](protected val source: S,
   }
 
   protected def handleReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit] = {
-    if (!this.validTypes.contains(event.referenceType)) {
-      Failure(new IllegalArgumentException(s"Invalid reference type: ${event.referenceType}"))
+    if (!this.validValueClasses.contains(event.values.getClass)) {
+      Failure(new IllegalArgumentException(s"Invalid value class: ${event.values.getClass}"))
     } else {
       if (rm.has(session, event.key)) {
         Failure(new IllegalArgumentException(s"Reference '${event.key}' already shared for session '$session'"))
@@ -86,5 +85,5 @@ abstract class AbstractReferenceManager[S](protected val source: S,
 
   protected def processReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit]
 
-  protected def processReferenceSet(event: SetReference, reference: ModelReference[_], session: DomainUserSessionId): Try[Unit]
+  protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _], session: DomainUserSessionId): Try[Unit]
 }

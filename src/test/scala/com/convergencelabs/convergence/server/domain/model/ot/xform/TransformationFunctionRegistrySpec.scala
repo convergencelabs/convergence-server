@@ -11,57 +11,48 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import scala.math.BigInt.int2bigInt
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JInt
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import org.scalatest.Finders
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.wordspec.AnyWordSpec
-import org.json4s.JsonAST.JDouble
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.ReferenceType
-import com.convergencelabs.convergence.server.domain.model.ot.xform.reference.StringInsertIndexTF
-import com.convergencelabs.convergence.server.domain.model.ot.xform.reference.StringRemoveIndexTF
-import com.convergencelabs.convergence.server.domain.model.ot.xform.reference.StringSetIndexTF
-import com.convergencelabs.convergence.server.domain.model.ot.xform.reference.StringInsertRangeTF
-import com.convergencelabs.convergence.server.domain.model.ot.xform.reference.StringRemoveRangeTF
-import com.convergencelabs.convergence.server.domain.model.ot.xform.reference.StringSetRangeTF
-import com.convergencelabs.convergence.server.domain.model.ReferenceValue
 import java.time.Instant
+
+import com.convergencelabs.convergence.server.domain.model.data.StringValue
+import com.convergencelabs.convergence.server.domain.model.ot.xform.reference._
+import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, IndexReferenceValues, PropertyReferenceValues, RangeReferenceValues}
+import org.scalatest.OptionValues.convertOptionToValuable
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off multiple.string.literals
 class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
 
-  val valueId = "testId"
+  private[this] val valueId = "testId"
 
-  val StringInsert = StringInsertOperation(valueId, false, 1, "")
-  val StringRemove = StringRemoveOperation(valueId, false, 1, "")
-  val StringSet = StringSetOperation(valueId, false, "4")
+  private[this] val StringInsert = StringInsertOperation(valueId, noOp = false, 1, "")
+  private[this] val StringRemove = StringRemoveOperation(valueId, noOp = false, 1, "")
+  private[this] val StringSet = StringSetOperation(valueId, noOp = false, "4")
 
-  val ArrayInsert = ArrayInsertOperation(valueId, false, 1, StringValue("id", "4"))
-  val ArrayRemove = ArrayRemoveOperation(valueId, false, 1)
-  val ArrayReplace = ArrayReplaceOperation(valueId, false, 1, StringValue("id", "4"))
-  val ArrayMove = ArrayMoveOperation(valueId, false, 1, 1)
-  val ArraySet = ArraySetOperation(valueId, false, List(StringValue("id", "4")))
+  private[this] val ArrayInsert = ArrayInsertOperation(valueId, noOp = false, 1, StringValue("id", "4"))
+  private[this] val ArrayRemove = ArrayRemoveOperation(valueId, noOp = false, 1)
+  private[this] val ArrayReplace = ArrayReplaceOperation(valueId, noOp = false, 1, StringValue("id", "4"))
+  private[this] val ArrayMove = ArrayMoveOperation(valueId, noOp = false, 1, 1)
+  private[this] val ArraySet = ArraySetOperation(valueId, noOp = false, List(StringValue("id", "4")))
 
-  val ObjectAddProperty = ObjectAddPropertyOperation(valueId, false, "prop", StringValue("id", "4"))
-  val ObjectSetProperty = ObjectSetPropertyOperation(valueId, false, "prop", StringValue("id", "4"))
-  val ObjectRemoveProperty = ObjectRemovePropertyOperation(valueId, false, "prop")
-  val ObjectSet = ObjectSetOperation(valueId, false, Map())
+  private[this] val ObjectAddProperty = ObjectAddPropertyOperation(valueId, noOp = false, "prop", StringValue("id", "4"))
+  private[this] val ObjectSetProperty = ObjectSetPropertyOperation(valueId, noOp = false, "prop", StringValue("id", "4"))
+  private[this] val ObjectRemoveProperty = ObjectRemovePropertyOperation(valueId, noOp = false, "prop")
+  private[this] val ObjectSet = ObjectSetOperation(valueId, noOp = false, Map())
 
-  val NumberAdd = NumberAddOperation(valueId, false, 1d)
-  val NumberSet = NumberSetOperation(valueId, false, 1d)
+  private[this] val NumberAdd = NumberAddOperation(valueId, noOp = false, 1d)
+  private[this] val NumberSet = NumberSetOperation(valueId, noOp = false, 1d)
 
-  val BooleanSet = BooleanSetOperation(valueId, false, true)
-  
-  val DateSet = DateSetOperation(valueId, false, Instant.now())
-  
-  val referenceKey = "refKey"
-  
-  val SetRef = ReferenceValue(Some(valueId), referenceKey, ReferenceType.Index, List(3), 1L)
+  private[this] val BooleanSet = BooleanSetOperation(valueId, noOp = false, value = true)
+
+  private[this] val DateSet = DateSetOperation(valueId, noOp = false, Instant.now())
+
+  private[this] val referenceKey = "refKey"
+
+  private [this] val IndexValues = IndexReferenceValues(List())
+  private [this] val RangeValues = RangeReferenceValues(List())
+  private [this] val ElementValues = ElementReferenceValues(List())
+  private [this] val PropertyValues = PropertyReferenceValues(List())
 
   "A TransformationFunctionRegistry" when {
 
@@ -444,7 +435,7 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
         tf.value shouldBe BooleanSetSetTF
       }
     }
-    
+
     ///////////////////////////////////////////////////////////////////////////
     // Date Operations
     ///////////////////////////////////////////////////////////////////////////
@@ -456,58 +447,58 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
         tf.value shouldBe DateSetSetTF
       }
     }
-    
+
     ///////////////////////////////////////////////////////////////////////////
     // String References
     ///////////////////////////////////////////////////////////////////////////
     "getting a ReferenceTransformationFunction for an StringInsert and an Index reference" must {
       "return StringInsertIndexFT" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringInsert, ReferenceType.Index)
+        val tf = tfr.getReferenceTransformationFunction(StringInsert, IndexValues)
         tf.value shouldBe StringInsertIndexTF
       }
     }
-    
+
     "getting a ReferenceTransformationFunction for an StringRemove and an Index reference" must {
       "return StringRemoveIndexTF" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringRemove, ReferenceType.Index)
+        val tf = tfr.getReferenceTransformationFunction(StringRemove, IndexValues)
         tf.value shouldBe StringRemoveIndexTF
       }
     }
-    
+
     "getting a ReferenceTransformationFunction for an StringSet and an Index reference" must {
       "return StringSetIndexTF" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringSet, ReferenceType.Index)
+        val tf = tfr.getReferenceTransformationFunction(StringSet, IndexValues)
         tf.value shouldBe StringSetIndexTF
       }
     }
-    
+
     "getting a ReferenceTransformationFunction for an StringInsert and an Range reference" must {
       "return StringInsertIndexFT" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringInsert, ReferenceType.Range)
+        val tf = tfr.getReferenceTransformationFunction(StringInsert, RangeValues)
         tf.value shouldBe StringInsertRangeTF
       }
     }
-    
+
     "getting a ReferenceTransformationFunction for an StringRemove and an Range reference" must {
       "return StringRemoveRangeTF" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringRemove, ReferenceType.Range)
+        val tf = tfr.getReferenceTransformationFunction(StringRemove, RangeValues)
         tf.value shouldBe StringRemoveRangeTF
       }
     }
-    
+
     "getting a ReferenceTransformationFunction for an StringSet and an Range reference" must {
       "return StringSetRangeTF" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringSet, ReferenceType.Range)
+        val tf = tfr.getReferenceTransformationFunction(StringSet, RangeValues)
         tf.value shouldBe StringSetRangeTF
       }
     }
-    
+
 
     ///////////////////////////////////////////////////////////////////////////
     // Exceptional Cases

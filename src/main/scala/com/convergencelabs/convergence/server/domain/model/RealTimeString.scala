@@ -24,7 +24,7 @@ class RealTimeString(private[this] val value: StringValue,
     value.id,
     parent,
     parentField,
-    List(ReferenceType.Index, ReferenceType.Range)) {
+    List(classOf[IndexReferenceValues], classOf[RangeReferenceValues])) {
 
   private[this] var string = value.value
 
@@ -57,8 +57,9 @@ class RealTimeString(private[this] val value: StringValue,
     } else {
       this.string = this.string.slice(0, index) + value + this.string.slice(index, this.string.length)
 
-      this.referenceManager.referenceMap().getAll().foreach {
+      this.referenceManager.referenceMap().getAll.foreach {
         case x: PositionalInsertAware => x.handlePositionalInsert(index, value.length)
+        case _ => // no-op
       }
 
       Success(AppliedStringInsertOperation(id, noOp, index, value))
@@ -73,8 +74,9 @@ class RealTimeString(private[this] val value: StringValue,
     } else {
       this.string = this.string.slice(0, index) + this.string.slice(index + value.length, this.string.length)
 
-      this.referenceManager.referenceMap().getAll().foreach {
+      this.referenceManager.referenceMap().getAll.foreach {
         case x: PositionalRemoveAware => x.handlePositionalRemove(index, value.length)
+        case _ => // no-op
       }
 
       Success(AppliedStringRemoveOperation(id, noOp, index, value.length(), Some(value)))
@@ -86,7 +88,7 @@ class RealTimeString(private[this] val value: StringValue,
 
     val oldValue = string
     this.string = value
-    this.referenceManager.referenceMap().getAll().foreach { x => x.handleSet() }
+    this.referenceManager.referenceMap().getAll.foreach { x => x.handleModelValueSet() }
 
     Success(AppliedStringSetOperation(id, noOp, value, Some(oldValue)))
   }

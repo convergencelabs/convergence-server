@@ -12,14 +12,17 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, RealTimeModel}
 
 class ElementReference(
-  source: Any,
+  target: RealTimeModel,
   session: DomainUserSessionId,
   key: String)
-    extends ModelReference[String](source, session, key) {
+    extends ModelReference[String, RealTimeModel](target, session, key) {
 
   def handleElementDetached(vid: String): Unit = {
     this.values = this.values filter(!_.equals(vid))
   }
+
+  override def toReferenceValues(): ElementReferenceValues = ElementReferenceValues(get())
 }

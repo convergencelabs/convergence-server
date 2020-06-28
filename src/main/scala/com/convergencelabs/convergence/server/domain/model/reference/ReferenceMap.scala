@@ -19,7 +19,7 @@ class ReferenceMap {
 
   // stored by sessionId first, then key.
   private[this] val references =
-    collection.mutable.Map[DomainUserSessionId, collection.mutable.Map[String, ModelReference[_]]]()
+    collection.mutable.Map[DomainUserSessionId, collection.mutable.Map[String, ModelReference[_, _]]]()
 
   def has(sessionId: DomainUserSessionId, key: String): Boolean = {
     this.references.get(sessionId) match {
@@ -30,14 +30,14 @@ class ReferenceMap {
     }
   }
 
-  def put(reference: ModelReference[_]): Unit = {
+  def put(reference: ModelReference[_, _]): Unit = {
     val session: DomainUserSessionId = reference.session
     val key: String = reference.key
 
     val sessionRefs = this.references.get(session) match {
       case Some(map) => map
       case None =>
-        this.references(session) = collection.mutable.Map[String, ModelReference[_]]()
+        this.references(session) = collection.mutable.Map[String, ModelReference[_, _]]()
         this.references(session)
     }
 
@@ -48,12 +48,12 @@ class ReferenceMap {
     sessionRefs(key) = reference
   }
 
-  def get(session: DomainUserSessionId, key: String): Option[ModelReference[_]] = {
+  def get(session: DomainUserSessionId, key: String): Option[ModelReference[_, _]] = {
     this.references.get(session).flatMap { sr => sr.get(key) }
   }
 
-  def getAll(): Set[ModelReference[_]] = {
-    val buffer = ListBuffer[ModelReference[_]]()
+  def getAll: Set[ModelReference[_, _]] = {
+    val buffer = ListBuffer[ModelReference[_, _]]()
     references.foreach {
       case (_, sessionRefs) =>
         sessionRefs.foreach {
@@ -68,7 +68,7 @@ class ReferenceMap {
     this.references.clear()
   }
 
-  def remove(session: DomainUserSessionId, key: String): Option[ModelReference[_]] = {
+  def remove(session: DomainUserSessionId, key: String): Option[ModelReference[_, _]] = {
     val result = this.get(session, key)
     if (result.isDefined) {
       references(session) -= key

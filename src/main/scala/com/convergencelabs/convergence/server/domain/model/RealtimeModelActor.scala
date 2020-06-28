@@ -28,9 +28,7 @@ import com.convergencelabs.convergence.server.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId, UnauthorizedException}
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
-import com.convergencelabs.convergence.server.util.serialization.akka.DomainUserIdSerialization
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -483,9 +481,9 @@ object RealtimeModelActor {
     val modelId: String
   }
 
-  case class ReceiveTimeout(domainId: DomainId, modelId: String) extends Message
+  final case class ReceiveTimeout(domainId: DomainId, modelId: String) extends Message
 
-  private case class ExecuteTask(domainId: DomainId, modelId: String, task: () => Unit) extends Message
+  private final case class ExecuteTask(domainId: DomainId, modelId: String, task: () => Unit) extends Message
 
   //
   // Messages that apply when the model is open or closed.
@@ -497,10 +495,10 @@ object RealtimeModelActor {
   //
   // GetRealtimeModel
   //
-  case class GetRealtimeModelRequest(domainId: DomainId,
-                                     modelId: String,
-                                     session: Option[DomainUserSessionId],
-                                     replyTo: ActorRef[GetRealtimeModelResponse]) extends StatelessModelMessage
+  final case class GetRealtimeModelRequest(domainId: DomainId,
+                                           modelId: String,
+                                           session: Option[DomainUserSessionId],
+                                           replyTo: ActorRef[GetRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -510,20 +508,20 @@ object RealtimeModelActor {
   ))
   sealed trait GetRealtimeModelError
 
-  case class GetRealtimeModelResponse(model: Either[GetRealtimeModelError, Model]) extends CborSerializable
+  final case class GetRealtimeModelResponse(model: Either[GetRealtimeModelError, Model]) extends CborSerializable
 
   //
   // CreateOrUpdateRealtimeModel
   //
-  case class CreateOrUpdateRealtimeModelRequest(domainId: DomainId,
-                                                modelId: String,
-                                                collectionId: String,
-                                                data: ObjectValue,
-                                                overridePermissions: Option[Boolean],
-                                                worldPermissions: Option[ModelPermissions],
-                                                userPermissions: Map[DomainUserId, ModelPermissions],
-                                                session: Option[DomainUserSessionId],
-                                                replyTo: ActorRef[CreateOrUpdateRealtimeModelResponse]) extends StatelessModelMessage
+  final case class CreateOrUpdateRealtimeModelRequest(domainId: DomainId,
+                                                      modelId: String,
+                                                      collectionId: String,
+                                                      data: ObjectValue,
+                                                      overridePermissions: Option[Boolean],
+                                                      worldPermissions: Option[ModelPermissions],
+                                                      userPermissions: Map[DomainUserId, ModelPermissions],
+                                                      session: Option[DomainUserSessionId],
+                                                      replyTo: ActorRef[CreateOrUpdateRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -533,25 +531,23 @@ object RealtimeModelActor {
   ))
   sealed trait CreateOrUpdateRealtimeModelError
 
-  case class ModelOpenError() extends CreateOrUpdateRealtimeModelError
+  final case class ModelOpenError() extends CreateOrUpdateRealtimeModelError
 
-  case class CreateOrUpdateRealtimeModelResponse(response: Either[CreateOrUpdateRealtimeModelError, Ok]) extends CborSerializable
-
-
+  final case class CreateOrUpdateRealtimeModelResponse(response: Either[CreateOrUpdateRealtimeModelError, Ok]) extends CborSerializable
 
 
   //
   // CreateRealtimeModel
   //
-  case class CreateRealtimeModelRequest(domainId: DomainId,
-                                        modelId: String,
-                                        collectionId: String,
-                                        data: ObjectValue,
-                                        overridePermissions: Option[Boolean],
-                                        worldPermissions: Option[ModelPermissions],
-                                        userPermissions: Map[DomainUserId, ModelPermissions],
-                                        session: Option[DomainUserSessionId],
-                                        replyTo: ActorRef[CreateRealtimeModelResponse]) extends StatelessModelMessage
+  final case class CreateRealtimeModelRequest(domainId: DomainId,
+                                              modelId: String,
+                                              collectionId: String,
+                                              data: ObjectValue,
+                                              overridePermissions: Option[Boolean],
+                                              worldPermissions: Option[ModelPermissions],
+                                              userPermissions: Map[DomainUserId, ModelPermissions],
+                                              session: Option[DomainUserSessionId],
+                                              replyTo: ActorRef[CreateRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -562,18 +558,18 @@ object RealtimeModelActor {
   ))
   sealed trait CreateRealtimeModelError
 
-  case class InvalidCreationDataError(message: String) extends CreateRealtimeModelError
+  final case class InvalidCreationDataError(message: String) extends CreateRealtimeModelError
 
-  case class CreateRealtimeModelResponse(response: Either[CreateRealtimeModelError, String]) extends CborSerializable
+  final case class CreateRealtimeModelResponse(response: Either[CreateRealtimeModelError, String]) extends CborSerializable
 
 
   //
   // DeleteRealtimeModel
   //
-  case class DeleteRealtimeModelRequest(domainId: DomainId,
-                                        modelId: String,
-                                        session: Option[DomainUserSessionId],
-                                        replyTo: ActorRef[DeleteRealtimeModelResponse]) extends StatelessModelMessage
+  final case class DeleteRealtimeModelRequest(domainId: DomainId,
+                                              modelId: String,
+                                              session: Option[DomainUserSessionId],
+                                              replyTo: ActorRef[DeleteRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -583,15 +579,15 @@ object RealtimeModelActor {
   ))
   sealed trait DeleteRealtimeModelError
 
-  case class DeleteRealtimeModelResponse(response: Either[DeleteRealtimeModelError, Ok]) extends CborSerializable
+  final case class DeleteRealtimeModelResponse(response: Either[DeleteRealtimeModelError, Ok]) extends CborSerializable
 
   //
   // GetModelPermissions
   //
-  case class GetModelPermissionsRequest(domainId: DomainId,
-                                        modelId: String,
-                                        session: DomainUserSessionId,
-                                        replyTo: ActorRef[GetModelPermissionsResponse]) extends StatelessModelMessage
+  final case class GetModelPermissionsRequest(domainId: DomainId,
+                                              modelId: String,
+                                              session: DomainUserSessionId,
+                                              replyTo: ActorRef[GetModelPermissionsResponse]) extends StatelessModelMessage
 
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -602,25 +598,25 @@ object RealtimeModelActor {
   ))
   sealed trait GetModelPermissionsError
 
-  case class GetModelPermissionsResponse(response: Either[GetModelPermissionsError, GetModelPermissionsSuccess]) extends CborSerializable
+  final case class GetModelPermissionsResponse(response: Either[GetModelPermissionsError, GetModelPermissionsSuccess]) extends CborSerializable
 
-  case class GetModelPermissionsSuccess(overridesCollection: Boolean,
-                                        worldPermissions: ModelPermissions,
-                                        userPermissions: Map[DomainUserId, ModelPermissions])
+  final case class GetModelPermissionsSuccess(overridesCollection: Boolean,
+                                              worldPermissions: ModelPermissions,
+                                              userPermissions: Map[DomainUserId, ModelPermissions])
 
 
   //
   // SetModelPermissions
   //
-  case class SetModelPermissionsRequest(domainId: DomainId,
-                                        modelId: String,
-                                        session: DomainUserSessionId,
-                                        overrideCollection: Option[Boolean],
-                                        worldPermissions: Option[ModelPermissions],
-                                        setAllUserPermissions: Boolean,
-                                        addedUserPermissions: Map[DomainUserId, ModelPermissions],
-                                        removedUserPermissions: List[DomainUserId],
-                                        replyTo: ActorRef[SetModelPermissionsResponse]) extends StatelessModelMessage
+  final case class SetModelPermissionsRequest(domainId: DomainId,
+                                              modelId: String,
+                                              session: DomainUserSessionId,
+                                              overrideCollection: Option[Boolean],
+                                              worldPermissions: Option[ModelPermissions],
+                                              setAllUserPermissions: Boolean,
+                                              addedUserPermissions: Map[DomainUserId, ModelPermissions],
+                                              removedUserPermissions: List[DomainUserId],
+                                              replyTo: ActorRef[SetModelPermissionsResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -630,7 +626,7 @@ object RealtimeModelActor {
   ))
   sealed trait SetModelPermissionsError
 
-  case class SetModelPermissionsResponse(response: Either[SetModelPermissionsError, Ok]) extends CborSerializable
+  final case class SetModelPermissionsResponse(response: Either[SetModelPermissionsError, Ok]) extends CborSerializable
 
   //
   // Messages targeted specifically at "open" models.
@@ -640,12 +636,12 @@ object RealtimeModelActor {
   //
   // OpenRealtimeModelRequest
   //
-  case class OpenRealtimeModelRequest(domainId: DomainId,
-                                      modelId: String,
-                                      autoCreateId: Option[Int],
-                                      session: DomainUserSessionId,
-                                      clientActor: ActorRef[OutgoingMessage],
-                                      replyTo: ActorRef[OpenRealtimeModelResponse]) extends RealTimeModelMessage
+  final case class OpenRealtimeModelRequest(domainId: DomainId,
+                                            modelId: String,
+                                            autoCreateId: Option[Int],
+                                            session: DomainUserSessionId,
+                                            clientActor: ActorRef[OutgoingMessage],
+                                            replyTo: ActorRef[OpenRealtimeModelResponse]) extends RealTimeModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -661,25 +657,25 @@ object RealtimeModelActor {
   ))
   sealed trait OpenRealtimeModelError
 
-  case class ClientErrorResponse(message: String) extends OpenRealtimeModelError
+  final case class ClientErrorResponse(message: String) extends OpenRealtimeModelError
 
-  case class OpenRealtimeModelResponse(response: Either[OpenRealtimeModelError, OpenModelSuccess]) extends CborSerializable
+  final case class OpenRealtimeModelResponse(response: Either[OpenRealtimeModelError, OpenModelSuccess]) extends CborSerializable
 
-  case class OpenModelSuccess(valuePrefix: Long,
-                              metaData: OpenModelMetaData,
-                              connectedClients: Set[DomainUserSessionId],
-                              resyncingClients: Set[DomainUserSessionId],
-                              referencesBySession: Set[ReferenceState],
-                              modelData: ObjectValue,
-                              modelPermissions: ModelPermissions)
+  final case class OpenModelSuccess(valuePrefix: Long,
+                                    metaData: OpenModelMetaData,
+                                    connectedClients: Set[DomainUserSessionId],
+                                    resyncingClients: Set[DomainUserSessionId],
+                                    referencesBySession: Set[ReferenceState],
+                                    modelData: ObjectValue,
+                                    modelPermissions: ModelPermissions)
 
   //
   // CloseRealtimeModel
   //
-  case class CloseRealtimeModelRequest(domainId: DomainId,
-                                       modelId: String,
-                                       session: DomainUserSessionId,
-                                       replyTo: ActorRef[CloseRealtimeModelResponse]) extends RealTimeModelMessage
+  final case class CloseRealtimeModelRequest(domainId: DomainId,
+                                             modelId: String,
+                                             session: DomainUserSessionId,
+                                             replyTo: ActorRef[CloseRealtimeModelResponse]) extends RealTimeModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -688,18 +684,18 @@ object RealtimeModelActor {
   ))
   sealed trait CloseRealtimeModelError
 
-  case class CloseRealtimeModelResponse(response: Either[CloseRealtimeModelError, Ok]) extends CborSerializable
+  final case class CloseRealtimeModelResponse(response: Either[CloseRealtimeModelError, Ok]) extends CborSerializable
 
 
   //
   // ModelResync
   //
-  case class ModelResyncRequest(domainId: DomainId,
-                                modelId: String,
-                                session: DomainUserSessionId,
-                                contextVersion: Long,
-                                clientActor: ActorRef[OutgoingMessage],
-                                replyTo: ActorRef[ModelResyncResponse]) extends RealTimeModelMessage
+  final case class ModelResyncRequest(domainId: DomainId,
+                                      modelId: String,
+                                      session: DomainUserSessionId,
+                                      contextVersion: Long,
+                                      clientActor: ActorRef[OutgoingMessage],
+                                      replyTo: ActorRef[ModelResyncResponse]) extends RealTimeModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -712,77 +708,157 @@ object RealtimeModelActor {
   ))
   sealed trait ModelResyncError
 
-  case class ModelResyncResponseData(currentVersion: Long, modelPermissions: ModelPermissions)
+  final case class ModelResyncResponseData(currentVersion: Long, modelPermissions: ModelPermissions)
 
-  case class ModelResyncResponse(response: Either[ModelResyncError, ModelResyncResponseData]) extends CborSerializable
+  final case class ModelResyncResponse(response: Either[ModelResyncError, ModelResyncResponseData]) extends CborSerializable
 
 
   //
   // ModelResyncClientComplete
   //
-  case class ModelResyncClientComplete(domainId: DomainId,
-                                       modelId: String,
-                                       session: DomainUserSessionId,
-                                       open: Boolean) extends RealTimeModelMessage
+  final case class ModelResyncClientComplete(domainId: DomainId,
+                                             modelId: String,
+                                             session: DomainUserSessionId,
+                                             open: Boolean) extends RealTimeModelMessage
 
 
   //
   // One one messages
   //
 
-  case class OperationSubmission(domainId: DomainId,
-                                 modelId: String,
-                                 session: DomainUserSessionId,
-                                 seqNo: Int,
-                                 contextVersion: Long,
-                                 operation: Operation) extends RealTimeModelMessage
+  final case class OperationSubmission(domainId: DomainId,
+                                       modelId: String,
+                                       session: DomainUserSessionId,
+                                       seqNo: Int,
+                                       contextVersion: Long,
+                                       operation: Operation) extends RealTimeModelMessage
 
   //
   // One Way Reference Events
   //
 
+  /**
+   * Trait for messages relating to references on this model.
+   */
   sealed trait ModelReferenceEvent extends RealTimeModelMessage {
     val valueId: Option[String]
     val session: DomainUserSessionId
   }
 
-  case class ShareReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+  /**
+   * Indicates that a session has shared a new reference related to a model.
+   *
+   * @param domainId       The id of the domain the model belongs to.
+   * @param modelId        The id of the model the reference
+   * @param session        The id of the session that shared the reference.
+   * @param valueId        The value the reference relates to, or None if it
+   *                       relates to the model itself.
+   * @param key            The unique key that identifies this reference. The
+   *                       key is unique for the model, session, and
+   *                       potentially the element.
+   * @param values         The current value of the reference.
+   * @param contextVersion The client's current context version for the model
+   *                       the reference is part of.
+   */
+  final case class ShareReference(domainId: DomainId,
+                                  modelId: String,
+                                  session: DomainUserSessionId,
+                                  valueId: Option[String],
+                                  key: String,
+                                  values: ModelReferenceValues,
+                                  contextVersion: Long) extends ModelReferenceEvent
 
-  case class SetReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String, referenceType: ReferenceType.Value, values: List[Any], contextVersion: Long) extends ModelReferenceEvent
+  /**
+   * Indicates that a session has set an existing reference related to a model.
+   *
+   * @param domainId       The id of the domain the model belongs to.
+   * @param modelId        The id of the model the reference
+   * @param session        The id of the session that shared the reference.
+   * @param valueId        The value the reference relates to, or None if it
+   *                       relates to the model itself.
+   * @param key            The unique key that identifies this reference. The
+   *                       key is unique for the model, session, and
+   *                       potentially the element.
+   * @param values         The current value of the reference.
+   * @param contextVersion The client's current context version for the model
+   *                       the reference is part of.
+   */
+  final case class SetReference(domainId: DomainId,
+                                modelId: String,
+                                session: DomainUserSessionId,
+                                valueId: Option[String],
+                                key: String,
+                                values: ModelReferenceValues,
+                                contextVersion: Long) extends ModelReferenceEvent
 
-  case class ClearReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String) extends ModelReferenceEvent
+  /**
+   * Indicates that a session has cleared an existing reference related to a
+   * model.
+   *
+   * @param domainId The id of the domain the model belongs to.
+   * @param modelId  The id of the model the reference
+   * @param session  The id of the session that shared the reference.
+   * @param valueId  The value the reference relates to, or None if it
+   *                 relates to the model itself.
+   * @param key      The unique key that identifies this reference. The
+   *                 key is unique for the model, session, and
+   *                 potentially the element.
+   */
+  final case class ClearReference(domainId: DomainId, modelId: String,
+                                  session: DomainUserSessionId,
+                                  valueId: Option[String],
+                                  key: String) extends ModelReferenceEvent
 
-  case class UnshareReference(domainId: DomainId, modelId: String, session: DomainUserSessionId, valueId: Option[String], key: String) extends ModelReferenceEvent
+  /**
+   * Indicates that a session has unshared an existing reference related to a
+   * model.
+   *
+   * @param domainId The id of the domain the model belongs to.
+   * @param modelId  The id of the model the reference
+   * @param session  The id of the session that shared the reference.
+   * @param valueId  The value the reference relates to, or None if it
+   *                 relates to the model itself.
+   * @param key      The unique key that identifies this reference. The
+   *                 key is unique for the model, session, and
+   *                 potentially the element.
+   */
+  final case class UnshareReference(domainId: DomainId,
+                                    modelId: String,
+                                    session: DomainUserSessionId,
+                                    valueId: Option[String],
+                                    key: String) extends ModelReferenceEvent
+
+
 
 
   //
   // Common Errors
   //
-  case class ModelAlreadyOpenError() extends AnyRef
+  final case class ModelAlreadyOpenError() extends AnyRef
     with OpenRealtimeModelError
     with ModelResyncError
 
-  case class ModelAlreadyOpeningError() extends AnyRef
+  final case class ModelAlreadyOpeningError() extends AnyRef
     with OpenRealtimeModelError
     with ModelResyncError
 
-  case class ModelNotOpenError() extends AnyRef
+  final case class ModelNotOpenError() extends AnyRef
     with CloseRealtimeModelError
 
-  case class ModelDeletedWhileOpeningError() extends AnyRef
+  final case class ModelDeletedWhileOpeningError() extends AnyRef
     with OpenRealtimeModelError
 
-  case class ModelAlreadyExistsError() extends AnyRef
+  final case class ModelAlreadyExistsError() extends AnyRef
     with CreateRealtimeModelError
 
-  case class ClientDataRequestError(message: String) extends AnyRef
+  final case class ClientDataRequestError(message: String) extends AnyRef
     with OpenRealtimeModelError
 
-  case class ModelClosingAfterErrorError() extends AnyRef
+  final case class ModelClosingAfterErrorError() extends AnyRef
     with OpenRealtimeModelError
     with ModelResyncError
 
-  case class ModelNotFoundError() extends AnyRef
+  final case class ModelNotFoundError() extends AnyRef
     with GetRealtimeModelError
     with OpenRealtimeModelError
     with ModelResyncError
@@ -790,7 +866,7 @@ object RealtimeModelActor {
     with GetModelPermissionsError
     with SetModelPermissionsError
 
-  case class UnauthorizedError(message: String) extends AnyRef
+  final case class UnauthorizedError(message: String) extends AnyRef
     with GetRealtimeModelError
     with OpenRealtimeModelError
     with CreateOrUpdateRealtimeModelError
@@ -800,7 +876,7 @@ object RealtimeModelActor {
     with GetModelPermissionsError
     with SetModelPermissionsError
 
-  case class UnknownError() extends AnyRef
+  final case class UnknownError() extends AnyRef
     with GetRealtimeModelError
     with OpenRealtimeModelError
     with CreateOrUpdateRealtimeModelError

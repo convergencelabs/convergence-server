@@ -19,16 +19,17 @@ import scala.util.Try
 
 
 class ReferenceManager(source: RealTimeValue,
-                       validTypes: List[ReferenceType.Value])
-  extends AbstractReferenceManager[RealTimeValue](source, validTypes) {
+                       validValueClasses: List[Class[_]])
+  extends AbstractReferenceManager[RealTimeValue](source, validValueClasses) {
 
   override protected def processReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit] = Try {
-    val reference = event.referenceType match {
-      case ReferenceType.Index =>
-        new IndexReference(this.source, session, event.key)
-      case ReferenceType.Range =>
+    // FIXME set value.
+    val reference = event.values match {
+      case RangeReferenceValues(ranges) =>
         new RangeReference(this.source, session, event.key)
-      case ReferenceType.Property =>
+      case IndexReferenceValues(indices) =>
+        new IndexReference(this.source, session, event.key)
+      case PropertyReferenceValues(properties) =>
         new PropertyReference(this.source, session, event.key)
       case _ =>
         throw new IllegalArgumentException("Unexpected reference type")
@@ -38,16 +39,16 @@ class ReferenceManager(source: RealTimeValue,
     ()
   }
 
-  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_], session: DomainUserSessionId): Try[Unit] = Try {
-    reference match {
-      case reference: IndexReference =>
-        reference.set(event.values.asInstanceOf[List[Int]])
-      case reference: RangeReference =>
-        reference.set(event.values.asInstanceOf[List[(Int, Int)]])
-      case reference: PropertyReference =>
-        reference.set(event.values.asInstanceOf[List[String]])
+  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _], session: DomainUserSessionId): Try[Unit] = Try {
+    (reference, event.values) match {
+      case (reference: IndexReference, IndexReferenceValues(values)) =>
+        reference.set(values)
+      case (reference: RangeReference, RangeReferenceValues(values)) =>
+        reference.set(values)
+      case (reference: PropertyReference, PropertyReferenceValues(values)) =>
+        reference.set(values)
       case _ =>
-        throw new IllegalArgumentException("Unexpected reference type")
+        throw new IllegalArgumentException("Unexpected reference type / value combination")
     }
   }
 }

@@ -21,7 +21,7 @@ class RealTimeObject(private[this] val value: ObjectValue,
                      private[this] val parent: Option[RealTimeContainerValue],
                      private[this] val parentField: Option[Any],
                      private[this] val valueFactory: RealTimeValueFactory)
-  extends RealTimeContainerValue(value.id, parent, parentField, List(ReferenceType.Property)) {
+  extends RealTimeContainerValue(value.id, parent, parentField, List(classOf[PropertyReferenceValues])) {
 
   private[this] var childValues: Map[String, RealTimeValue] = value.children.map {
     case (k, v) => (k, this.valueFactory.createValue(v, Some(this), Some(k)))
@@ -99,7 +99,7 @@ class RealTimeObject(private[this] val value: ObjectValue,
       val child = this.childValues(property)
       childValues = this.childValues - property
 
-      this.referenceManager.referenceMap().getAll().foreach {
+      this.referenceManager.referenceMap().getAll.foreach {
         case x: PropertyRemoveAware => x.handlePropertyRemove(op.property)
       }
 

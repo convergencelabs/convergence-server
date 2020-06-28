@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import com.convergencelabs.convergence.server.domain.model.ReferenceValue
+import com.convergencelabs.convergence.server.domain.model.ModelReferenceValues
 
-private[ot] trait ReferenceTransformationFunction[S <: DiscreteOperation] {
-  def transform(s: S, setReference: ReferenceValue): Option[ReferenceValue]
+private[ot] trait ReferenceTransformationFunction[O <: DiscreteOperation, V <: ModelReferenceValues] {
+  def transform(serverOp: O, values: V): Option[V]
 }

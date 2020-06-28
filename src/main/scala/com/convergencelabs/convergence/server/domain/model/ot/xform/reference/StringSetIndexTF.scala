@@ -11,13 +11,11 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
-import com.convergencelabs.convergence.server.domain.model.ot.ReferenceTransformationFunction
-import com.convergencelabs.convergence.server.domain.model.ot.StringRemoveOperation
-import com.convergencelabs.convergence.server.domain.model.ot.StringSetOperation
-import com.convergencelabs.convergence.server.domain.model.ReferenceValue
+import com.convergencelabs.convergence.server.domain.model.IndexReferenceValues
+import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringSetOperation}
 
-object StringSetIndexTF extends ReferenceTransformationFunction[StringSetOperation] {
-  def transform(op: StringSetOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
+object StringSetIndexTF extends ReferenceTransformationFunction[StringSetOperation, IndexReferenceValues] {
+  def transform(op: StringSetOperation, values: IndexReferenceValues): Option[IndexReferenceValues] = {
     None
   }
 }

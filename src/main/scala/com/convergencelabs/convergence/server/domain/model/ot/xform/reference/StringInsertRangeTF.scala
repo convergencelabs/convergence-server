@@ -11,20 +11,17 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
-import com.convergencelabs.convergence.server.domain.model.ot.ReferenceTransformationFunction
-import com.convergencelabs.convergence.server.domain.model.ot.StringInsertOperation
+import com.convergencelabs.convergence.server.domain.model.RangeReferenceValues
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
-import com.convergencelabs.convergence.server.domain.model.ReferenceValue
+import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringInsertOperation}
+import com.convergencelabs.convergence.server.domain.model.reference.RangeReference
 
-object StringInsertRangeTF extends ReferenceTransformationFunction[StringInsertOperation] {
-  def transform(op: StringInsertOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
-    val ranges = setReference.values.asInstanceOf[List[(Int, Int)]]
-    
-    val xFormedRanges = ranges map { range =>
-      val xFormed = IndexTransformer.handleInsert(List(range._1, range._2), op.index, op.value.length)
-      (xFormed(0), xFormed(1))
+object StringInsertRangeTF extends ReferenceTransformationFunction[StringInsertOperation, RangeReferenceValues] {
+  def transform(op: StringInsertOperation, values: RangeReferenceValues): Option[RangeReferenceValues] = {
+    val xFormedRanges = values.values map { range =>
+      val xFormed = IndexTransformer.handleInsert(List(range.to, range.from), op.index, op.value.length)
+      RangeReference.Range(xFormed.head, xFormed.last)
     }
-
-    Some(setReference.copy(values = xFormedRanges))
+    Some(RangeReferenceValues(xFormedRanges))
   }
 }

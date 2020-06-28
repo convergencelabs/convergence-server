@@ -15,11 +15,11 @@ import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 
 import scala.util.Try
 
-abstract class RealTimeContainerValue(private[this] val id: String,
-                                      private[this] val parent: Option[RealTimeContainerValue],
-                                      private[this] val parentField: Option[Any],
-                                      private[this] val validReferenceTypes: List[ReferenceType.Value])
-  extends RealTimeValue(id, parent, parentField, validReferenceTypes) {
+abstract class RealTimeContainerValue(id: String,
+                                      parent: Option[RealTimeContainerValue],
+                                      parentField: Option[Any],
+                                      validReferenceValueClasses: List[Class[_]])
+  extends RealTimeValue(id, parent, parentField, validReferenceValueClasses) {
 
   def valueAt(path: List[Any]): Option[RealTimeValue]
 
@@ -30,7 +30,7 @@ abstract class RealTimeContainerValue(private[this] val id: String,
     super.detach()
   }
 
-  def detachChildren(): Unit;
+  def detachChildren(): Unit
 
   def children: List[RealTimeValue]
 

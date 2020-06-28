@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor.{SetReference, ShareReference}
-import com.convergencelabs.convergence.server.domain.model.{RealTimeModel, ReferenceType}
+import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, RealTimeModel}
 
 import scala.util.Try
 
@@ -22,13 +22,13 @@ object ElementReferenceManager {
 }
 
 class ElementReferenceManager(source: RealTimeModel,
-                              validTypes: List[ReferenceType.Value])
-  extends AbstractReferenceManager[RealTimeModel](source, validTypes) {
+                              validValueClasses: List[Class[_]])
+  extends AbstractReferenceManager[RealTimeModel](source, validValueClasses) {
 
 
   override protected def processReferenceShared(event: ShareReference, session: DomainUserSessionId): Try[Unit] = Try {
-    val reference = event.referenceType match {
-      case ReferenceType.Element =>
+    val reference = event.values match {
+      case ElementReferenceValues(elementIds) =>
         new ElementReference(source, session, event.key)
       case _ =>
         throw new IllegalArgumentException("Unexpected reference type")
@@ -37,20 +37,18 @@ class ElementReferenceManager(source: RealTimeModel,
     this.rm.put(reference)
   }
 
+  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_, _], session: DomainUserSessionId): Try[Unit] = Try {
+    (reference, event.values) match {
+      case (reference: ElementReference, ElementReferenceValues(elementIds)) =>
+        elementIds filter source.idToValue.contains
 
-  override protected def processReferenceSet(event: SetReference, reference: ModelReference[_], session: DomainUserSessionId): Try[Unit] = Try {
-    reference match {
-      case reference: ElementReference =>
-        val vids = event.values.asInstanceOf[List[String]]
-        vids filter source.idToValue.contains
-
-        for (vid <- vids) {
+        for (vid <- elementIds) {
           source.idToValue(vid).addDetachListener(reference.handleElementDetached)
         }
 
-        reference.set(vids)
+        reference.set(elementIds)
       case _ =>
-        throw new IllegalArgumentException("Unexpected reference type")
+        throw new IllegalArgumentException("Unexpected reference / value combination")
     }
   }
 }

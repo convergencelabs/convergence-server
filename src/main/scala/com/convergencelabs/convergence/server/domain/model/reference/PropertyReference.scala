@@ -12,15 +12,16 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model.{PropertyReferenceValues, RealTimeValue}
 
-class PropertyReference(
-  source: Any,
-  session: DomainUserSessionId,
-  key: String)
-    extends ModelReference[String](source, session, key)
-    with PropertyRemoveAware {
+class PropertyReference(target: RealTimeValue,
+                        session: DomainUserSessionId,
+                        key: String)
+  extends ModelReference[String, RealTimeValue](target, session, key) with PropertyRemoveAware {
 
   def handlePropertyRemove(property: String): Unit = {
-    this.values filter(!_.equals(property))
+    this.values = this.values filter (_ != property)
   }
+
+  override def toReferenceValues(): PropertyReferenceValues = PropertyReferenceValues(get())
 }

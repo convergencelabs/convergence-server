@@ -151,7 +151,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
     val response = GetHistoryMessageProcessor.execute(
       message = message,
       getHistory = chatStore.getChatEvents,
-      checkPermissions = ChatPermissionResolver.hasPermissions(permissionsStore, message.chatId)
+      state = state
     )
 
     message.replyTo ! response

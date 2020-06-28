@@ -11,15 +11,13 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot.xform.reference
 
-import com.convergencelabs.convergence.server.domain.model.ot.ReferenceTransformationFunction
-import com.convergencelabs.convergence.server.domain.model.ot.StringRemoveOperation
+import com.convergencelabs.convergence.server.domain.model.IndexReferenceValues
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
-import com.convergencelabs.convergence.server.domain.model.ReferenceValue
+import com.convergencelabs.convergence.server.domain.model.ot.{ReferenceTransformationFunction, StringRemoveOperation}
 
-object StringRemoveIndexTF extends ReferenceTransformationFunction[StringRemoveOperation] {
-  def transform(op: StringRemoveOperation, setReference: ReferenceValue): Option[ReferenceValue] = {
-    val indices = setReference.values.asInstanceOf[List[Int]]
-    val xFormed = IndexTransformer.handleRemove(indices, op.index, op.value.length)
-    Some(setReference.copy(values = xFormed))
+object StringRemoveIndexTF extends ReferenceTransformationFunction[StringRemoveOperation, IndexReferenceValues] {
+  def transform(op: StringRemoveOperation, values: IndexReferenceValues): Option[IndexReferenceValues] = {
+    val xFormed = IndexTransformer.handleRemove(values.values, op.index, op.value.length)
+    Some(IndexReferenceValues(xFormed))
   }
 }

@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import com.convergencelabs.convergence.server.domain.model.ReferenceValue
+import com.convergencelabs.convergence.server.domain.model.{ModelReferenceValues, ReferenceValue}
 import com.convergencelabs.convergence.server.domain.model.ot.xform.ReferenceTransformer
 import grizzled.slf4j.Logging
 import org.apache.commons.lang3.Validate
@@ -115,23 +115,23 @@ private[model] class ServerConcurrencyControl(private[this] val operationTransfo
     })
   }
 
-  def processRemoteReferenceSet(clientId: String, setReference: ReferenceValue): Option[ReferenceValue] = {
+  def processRemoteReferenceSet[V <: ModelReferenceValues](clientId: String, reference: ReferenceValue[V]): Option[ReferenceValue[V]] = {
     val clientState = clientStates(clientId)
-    val newStatePath = getCurrentClientStatePath(clientState, setReference.contextVersion)
+    val newStatePath = getCurrentClientStatePath(clientState, reference.contextVersion)
 
-    var result: Option[ReferenceValue] = Some(setReference)
+    var xFormedValues: Option[V] = Some(reference.referenceValues)
 
     newStatePath.foreach { event =>
-      result = result.flatMap { ref => this.referenceTransformer.transform(event.operation, ref) }
+      xFormedValues = xFormedValues.flatMap { v => referenceTransformer.transform(event.operation, v) }
     }
 
     clientStates(clientId) = clientState.copy(
-      contextVersion = setReference.contextVersion,
+      contextVersion = reference.contextVersion,
       branchedStatePath = newStatePath)
 
     pruneHistory()
 
-    result.map { ref => ref.copy(contextVersion = this._contextVersion) }
+    xFormedValues.map { v => reference.copy(referenceValues = v, contextVersion = this._contextVersion) }
   }
 
   /**

@@ -22,9 +22,9 @@ import scala.util.{Failure, Try}
 abstract class RealTimeValue(private[model] val id: String,
                              private[model] var parent: Option[RealTimeContainerValue],
                              private[model] var parentField: Option[Any],
-                             validReferenceTypes: List[ReferenceType.Value]) {
+                             validReferenceValueClasses: List[Class[_]]) {
 
-  protected val referenceManager = new ReferenceManager(this, validReferenceTypes)
+  protected val referenceManager = new ReferenceManager(this, validReferenceValueClasses)
   protected var listeners: List[String => Unit] = Nil
 
   def path(): List[Any] = {
@@ -60,8 +60,8 @@ abstract class RealTimeValue(private[model] val id: String,
     }
   }
 
-  def references(): Set[ModelReference[_]] = {
-    this.referenceManager.referenceMap().getAll()
+  def references(): Set[ModelReference[_, _]] = {
+    this.referenceManager.referenceMap().getAll
   }
 
   def sessionDisconnected(session: DomainUserSessionId): Unit = {
@@ -69,7 +69,7 @@ abstract class RealTimeValue(private[model] val id: String,
   }
 
   def processReferenceEvent(event: ModelReferenceEvent, session: DomainUserSessionId): Try[Unit] = {
-    if (this.validReferenceTypes.isEmpty) {
+    if (this.validReferenceValueClasses.isEmpty) {
       Failure(new IllegalArgumentException("This RealTimeValue does not allow references"))
     } else {
       this.referenceManager.handleReferenceEvent(event, session)

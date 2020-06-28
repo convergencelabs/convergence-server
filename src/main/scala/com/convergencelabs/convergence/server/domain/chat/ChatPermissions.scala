@@ -53,5 +53,5 @@ object ChatPermissions {
   /**
    * The set of permissions to assign to a user by default.
    */
-  val DefaultChatPermissions: Set[String] = Set(Permissions.JoinChat, Permissions.LeaveChat).map(_.p)
+  val DefaultChatPermissions: Set[String] = Set(Permissions.LeaveChat).map(_.p)
 }

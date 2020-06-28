@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.domain.chat.processors.general
 
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatActor._
-import com.convergencelabs.convergence.server.domain.chat.ChatPermissions
+import com.convergencelabs.convergence.server.domain.chat.{ChatPermissions, ChatState}
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
@@ -26,12 +26,12 @@ object GetHistoryMessageProcessor extends Logging {
 
   def execute(message: GetChatHistoryRequest,
               getHistory: GetChatHistory,
-              checkPermissions: (DomainUserId, ChatPermission) => Try[Boolean]): GetChatHistoryResponse = {
+              state: ChatState): GetChatHistoryResponse = {
     val GetChatHistoryRequest(_, chatId, requester, offset, limit, startEvent, forward, eventTypes, messageFilter, _) = message
 
     (for {
       allowed <- requester
-        .map(r => checkPermissions(r.userId, ChatPermissions.Permissions.JoinChat))
+        .map(r => Success(state.members.contains(r.userId)))
         .getOrElse(Success(true))
       response <- if (allowed) {
         getHistory(chatId, eventTypes, startEvent, offset, limit, forward, messageFilter)

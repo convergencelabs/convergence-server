@@ -12,13 +12,23 @@
 package com.convergencelabs.convergence.server.domain.model.reference
 
 import com.convergencelabs.convergence.server.domain.DomainUserSessionId
+import com.convergencelabs.convergence.server.domain.model.{IndexReferenceValues, ModelReferenceValues, RealTimeValue}
 import com.convergencelabs.convergence.server.domain.model.ot.xform.IndexTransformer
 
-class IndexReference(
-  source: Any,
-  session: DomainUserSessionId,
-  key: String)
-    extends ModelReference[Int](source, session, key)
+/**
+ * Represents and reference pointing to a set of indices, in a positionally
+ * indexed data structure.
+ *
+ * @param target  The target of this reference, which is the object the
+ *                reference is relative to.
+ * @param session The session the created the reference.
+ * @param key     The unique (within the target and session) key for
+ *                this reference.
+ */
+class IndexReference(target: RealTimeValue,
+                     session: DomainUserSessionId,
+                     key: String)
+  extends ModelReference[Int, RealTimeValue](target, session, key)
     with PositionalInsertAware
     with PositionalRemoveAware
     with PositionalReorderAware {
@@ -34,4 +44,6 @@ class IndexReference(
   def handlePositionalReorder(fromIndex: Int, toIndex: Int): Unit = {
     this.values = IndexTransformer.handleReorder(this.values, fromIndex, toIndex)
   }
+
+  override def toReferenceValues: IndexReferenceValues = IndexReferenceValues(get())
 }

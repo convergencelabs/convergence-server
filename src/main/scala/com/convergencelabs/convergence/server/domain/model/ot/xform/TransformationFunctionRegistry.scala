@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.domain.model.ot
 
-import com.convergencelabs.convergence.server.domain.model.ReferenceType
 import com.convergencelabs.convergence.server.domain.model.ot.xform.reference._
+import com.convergencelabs.convergence.server.domain.model.{IndexReferenceValues, ModelReferenceValues, RangeReferenceValues}
 
 import scala.reflect.ClassTag
 
@@ -95,24 +95,24 @@ private[model] class TransformationFunctionRegistry {
 
   // Boolean Functions
   otfs.register[BooleanSetOperation, BooleanSetOperation](BooleanSetSetTF)
-  
+
   // Date Functions
   otfs.register[DateSetOperation, DateSetOperation](DateSetSetTF)
-  
-  rtfs.register[StringInsertOperation](ReferenceType.Index, StringInsertIndexTF)
-  rtfs.register[StringRemoveOperation](ReferenceType.Index, StringRemoveIndexTF)
-  rtfs.register[StringSetOperation](ReferenceType.Index, StringSetIndexTF)
-  
-  rtfs.register[StringInsertOperation](ReferenceType.Range, StringInsertRangeTF)
-  rtfs.register[StringRemoveOperation](ReferenceType.Range, StringRemoveRangeTF)
-  rtfs.register[StringSetOperation](ReferenceType.Range, StringSetRangeTF)
+
+  rtfs.register[StringInsertOperation, IndexReferenceValues](StringInsertIndexTF)
+  rtfs.register[StringRemoveOperation, IndexReferenceValues](StringRemoveIndexTF)
+  rtfs.register[StringSetOperation, IndexReferenceValues](StringSetIndexTF)
+
+  rtfs.register[StringInsertOperation, RangeReferenceValues](StringInsertRangeTF)
+  rtfs.register[StringRemoveOperation, RangeReferenceValues](StringRemoveRangeTF)
+  rtfs.register[StringSetOperation, RangeReferenceValues](StringSetRangeTF)
 
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     otfs.getOperationTransformationFunction(s, c)
   }
 
-  def getReferenceTransformationFunction[O <: DiscreteOperation](op: O, referenceType: ReferenceType.Value): Option[ReferenceTransformationFunction[O]] = {
-    rtfs.getReferenceTransformationFunction(op, referenceType)
+  def getReferenceTransformationFunction[O <: DiscreteOperation, V <: ModelReferenceValues](op: O, values: V): Option[ReferenceTransformationFunction[O, V]] = {
+    rtfs.getReferenceTransformationFunction(op, values)
   }
 }
 
@@ -127,39 +127,41 @@ private object RegistryKey {
 }
 
 private class OTFMap {
-  private[this] var otfs = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
+  private[this] var functions = Map[RegistryKey[_, _], OperationTransformationFunction[_, _]]()
 
   def register[S <: DiscreteOperation, C <: DiscreteOperation](otf: OperationTransformationFunction[S, C])(implicit s: ClassTag[S], c: ClassTag[C]): Unit = {
     val key = RegistryKey.of(s, c)
-    if (otfs.get(key).isDefined) {
+    if (functions.contains(key)) {
       throw new IllegalArgumentException(s"Transformation function already registered for ${key.s.getSimpleName}, ${key.c.getSimpleName}")
     } else {
-      otfs = otfs + (key -> otf)
+      functions = functions + (key -> otf)
     }
   }
 
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     val key = RegistryKey(s.getClass, c.getClass)
-    otfs.get(key).asInstanceOf[Option[OperationTransformationFunction[S, C]]]
+    functions.get(key).asInstanceOf[Option[OperationTransformationFunction[S, C]]]
   }
 }
 
 private class RTFMap {
-  private[this] var rtfs = Map[(Class[_], ReferenceType.Value), ReferenceTransformationFunction[_]]()
+  private[this] var functions = Map[(Class[_], Class[_]), ReferenceTransformationFunction[_, _]]()
 
-  def register[S <: DiscreteOperation](referenceType: ReferenceType.Value, otf: ReferenceTransformationFunction[S])(implicit s: ClassTag[S]): Unit = {
-    val sClass = s.runtimeClass.asInstanceOf[Class[S]]
-    val key = (sClass, referenceType)
-    if (rtfs.get(key).isDefined) {
-      throw new IllegalArgumentException(s"Reference transformation function already registered for ${key._1.getSimpleName}, ${key._2}")
+  def register[O <: DiscreteOperation, V <: ModelReferenceValues](otf: ReferenceTransformationFunction[O, V])(implicit o: ClassTag[O], v: ClassTag[V]): Unit = {
+    val oClass = o.runtimeClass.asInstanceOf[Class[O]]
+    val vClass = v.runtimeClass.asInstanceOf[Class[V]]
+    val key = (oClass, vClass)
+    if (functions.contains(key)) {
+      throw new IllegalArgumentException(s"Reference transformation function already registered for (${key._1.getSimpleName}, ${key._2.getSimpleName})")
     } else {
-      rtfs = rtfs + (key -> otf)
+      functions = functions + (key -> otf)
     }
   }
 
-  def getReferenceTransformationFunction[S <: DiscreteOperation](s: S, referenceType: ReferenceType.Value): Option[ReferenceTransformationFunction[S]] = {
-    val sClass = s.getClass.asInstanceOf[Class[S]]
-    val key = (sClass, referenceType)
-    rtfs.get(key).asInstanceOf[Option[ReferenceTransformationFunction[S]]]
+  def getReferenceTransformationFunction[O <: DiscreteOperation, V <: ModelReferenceValues](op: O, values: V): Option[ReferenceTransformationFunction[O, V]] = {
+    val oClass = op.getClass.asInstanceOf[Class[O]]
+    val vClass = values.getClass.asInstanceOf[Class[V]]
+    val key = (oClass, vClass)
+    functions.get(key).asInstanceOf[Option[ReferenceTransformationFunction[O, V]]]
   }
 }

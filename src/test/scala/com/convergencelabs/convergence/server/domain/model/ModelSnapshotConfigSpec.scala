@@ -19,9 +19,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class ModelSnapshotConfigSpec
-  extends AnyWordSpec
-    with Matchers {
+class ModelSnapshotConfigSpec extends AnyWordSpec with Matchers {
 
   private val versionBasedConfig = ModelSnapshotConfig(
     snapshotsEnabled = true,
