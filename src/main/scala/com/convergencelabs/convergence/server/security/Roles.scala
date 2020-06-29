@@ -11,19 +11,32 @@
 
 package com.convergencelabs.convergence.server.security
 
+/**
+ * Constants for server roles.
+ */
 object Roles {
+
+  /**
+   * Roles the apply to the server.
+   */
   object Server {
     val Developer = "Developer"
     val DomainAdmin = "Domain Admin"
     val ServerAdmin = "Server Admin"
   }
-  
+
+  /**
+   * Roles that apply to namespaces.
+   */
   object Namespace {
     val Developer = "Developer"
     val DomainAdmin = "Domain Admin"
     val Owner = "Owner"
   }
-  
+
+  /**
+   * Roles that apply to domains.
+   */
   object Domain {
     val Developer = "Developer"
     val DomainAdmin = "Domain Admin"

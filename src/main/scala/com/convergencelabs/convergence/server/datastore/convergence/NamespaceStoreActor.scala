@@ -116,7 +116,7 @@ class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Mess
   private[this] def onGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
     val GetAccessibleNamespacesRequest(authProfileData, _, _, _, replyTo) = getRequest
     val authProfile = AuthorizationProfile(authProfileData)
-    if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
+    if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
       namespaceStore.getAllNamespacesAndDomains()
     } else {
       namespaceStore

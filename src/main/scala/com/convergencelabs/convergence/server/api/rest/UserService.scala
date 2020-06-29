@@ -200,7 +200,7 @@ private[rest] class UserService(userManagerActor: ActorRef[Message],
   }
 
   private[this] def canManageUsers(authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageUsers)
+    authProfile.hasGlobalPermission(Permissions.Server.ManageUsers)
   }
 }
 

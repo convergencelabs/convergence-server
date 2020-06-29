@@ -159,7 +159,7 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
     notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
 
   private[this] def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)
+    authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)
   }
 }
 

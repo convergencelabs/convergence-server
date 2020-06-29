@@ -20,7 +20,7 @@ trait PermissionChecks {
   }
 
   protected def canManageDomainsInNamespace(namespace: String, authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+    authProfile.hasGlobalPermission(Permissions.Server.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, namespace)
   }
 
@@ -33,7 +33,7 @@ trait PermissionChecks {
   }
 
   protected def checkDomainPermission(domainFqn: DomainId, authProfile: AuthorizationProfile, permission: Set[String]): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+    authProfile.hasGlobalPermission(Permissions.Server.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageDomains, domainFqn.namespace) ||
       permission.forall(p => authProfile.hasDomainPermission(p, domainFqn))
   }

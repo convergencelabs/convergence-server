@@ -98,6 +98,6 @@ private[rest] class ConfigService(configActor: ActorRef[Message],
   }
 
   private[this] def canManageSettings(authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageSettings)
+    authProfile.hasGlobalPermission(Permissions.Server.ManageSettings)
   }
 }

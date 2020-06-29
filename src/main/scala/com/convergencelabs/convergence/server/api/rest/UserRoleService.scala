@@ -142,16 +142,16 @@ private[rest] class UserRoleService(roleActor: ActorRef[Message],
   }
 
   private[this] def canManageUsers(authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageUsers)
+    authProfile.hasGlobalPermission(Permissions.Server.ManageUsers)
   }
 
   private[this] def canManageNamespaceUsers(namespace: String, authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+    authProfile.hasGlobalPermission(Permissions.Server.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageUsers, namespace)
   }
 
   private[this] def canManageDomainUsers(namespace: String, domain: String, authProfile: AuthorizationProfile): Boolean = {
-    authProfile.hasGlobalPermission(Permissions.Global.ManageDomains) ||
+    authProfile.hasGlobalPermission(Permissions.Server.ManageDomains) ||
       authProfile.hasNamespacePermission(Permissions.Namespace.ManageUsers, namespace) ||
       authProfile.hasDomainPermission(Permissions.Domain.ManageUsers, namespace, domain)
   }

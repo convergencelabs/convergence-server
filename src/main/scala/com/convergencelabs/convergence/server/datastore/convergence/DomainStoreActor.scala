@@ -231,7 +231,7 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
   private[this] def onGetDomains(listRequest: GetDomainsRequest): Unit = {
     val GetDomainsRequest(authProfileData, namespace, filter, offset, limit, replyTo) = listRequest
     val authProfile = AuthorizationProfile(authProfileData)
-    val result = if (authProfile.hasGlobalPermission(Permissions.Global.ManageDomains)) {
+    val result = if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
       domainStore.getDomains(namespace, filter, QueryOffset(offset), QueryLimit(limit))
     } else {
       domainStore.getDomainsByAccess(authProfile.username, namespace, filter, QueryOffset(offset), QueryLimit(limit))

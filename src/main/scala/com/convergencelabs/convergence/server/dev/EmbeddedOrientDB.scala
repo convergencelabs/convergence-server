@@ -24,8 +24,8 @@ import grizzled.slf4j.Logging
  * @param databasesPath The path of the desired OrientDB "databases" directory.
  * @param persistent Whether data  should be kept between runs.
  */
-class EmbeddedOrientDB(private[this] val databasesPath: String,
-                       private[this] val persistent: Boolean)
+class EmbeddedOrientDB(databasesPath: String,
+                       persistent: Boolean)
   extends Logging {
 
   OLogManager.instance().setWarnEnabled(false)
