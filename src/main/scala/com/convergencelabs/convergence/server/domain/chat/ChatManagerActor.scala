@@ -25,6 +25,7 @@ import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success, Try}
@@ -252,7 +253,9 @@ object ChatManagerActor {
                                       searchFields: Option[Set[String]],
                                       chatType: Option[Set[ChatType.Value]],
                                       membership: Option[ChatMembership.Value],
+                                      @JsonDeserialize(contentAs = classOf[Long])
                                       offset: QueryOffset,
+                                      @JsonDeserialize(contentAs = classOf[Long])
                                       limit: QueryLimit,
                                       replyTo: ActorRef[ChatsSearchResponse]) extends Message
 

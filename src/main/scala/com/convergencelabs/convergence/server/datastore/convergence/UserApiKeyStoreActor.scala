@@ -169,9 +169,9 @@ object UserApiKeyStoreActor {
   // CreateUserApiKey
   //
   final case class CreateUserApiKeyRequest(username: String,
-                                     name: String,
-                                     enabled: Option[Boolean],
-                                     replyTo: ActorRef[CreateUserApiKeyResponse]) extends Message
+                                           name: String,
+                                           enabled: Option[Boolean],
+                                           replyTo: ActorRef[CreateUserApiKeyResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserApiKeyExistsError], name = "key_exists"),

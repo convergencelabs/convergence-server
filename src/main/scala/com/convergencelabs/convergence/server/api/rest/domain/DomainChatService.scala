@@ -48,7 +48,7 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
     pathPrefix("chats") {
       pathEnd {
         get {
-          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+          parameters("filter".?, "offset".as[Long].?, "limit".as[Long].?) { (filter, offset, limit) =>
             complete(getChats(domain, filter, offset, limit))
           }
         } ~ post {
@@ -76,8 +76,8 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
             "eventTypes".?,
             "messageFilter".?,
             "startEvent".as[Long].?,
-            "offset".as[Int].?,
-            "limit".as[Int].?,
+            "offset".as[Long].?,
+            "limit".as[Long].?,
             "forward".as[Boolean].?) { (eventTypes, messageFilter, startEvent, offset, limit, forward) =>
             complete(getChatEvents(domain, chatId, eventTypes, messageFilter, startEvent, offset, limit, forward))
           }
@@ -86,7 +86,7 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
     }
   }
 
-  private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     domainRestActor
       .ask[ChatsSearchResponse](r =>
         DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, QueryOffset(offset), QueryLimit(limit), r)))
@@ -196,8 +196,8 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
                                   eventTypes: Option[String],
                                   messageFilter: Option[String],
                                   startEvent: Option[Long],
-                                  offset: Option[Int],
-                                  limit: Option[Int],
+                                  offset: Option[Long],
+                                  limit: Option[Long],
                                   forward: Option[Boolean]): Future[RestResponse] = {
     val types = eventTypes.map(t => t.split(",").toSet)
     chatSharding

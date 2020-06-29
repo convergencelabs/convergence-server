@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData
 import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import grizzled.slf4j.Logging
 
 import scala.util.Success
@@ -163,7 +164,9 @@ object ModelStoreActor {
   //
   // GetModels
   //
-  final case class GetModelsRequest(offset: QueryOffset,
+  final case class GetModelsRequest(@JsonDeserialize(contentAs = classOf[Long])
+                                    offset: QueryOffset,
+                                    @JsonDeserialize(contentAs = classOf[Long])
                                     limit: QueryLimit,
                                     replyTo: ActorRef[GetModelsResponse]) extends Message
 
@@ -179,7 +182,9 @@ object ModelStoreActor {
   // GetModelsInCollection
   //
   final case class GetModelsInCollectionRequest(collectionId: String,
+                                                @JsonDeserialize(contentAs = classOf[Long])
                                                 offset: QueryOffset,
+                                                @JsonDeserialize(contentAs = classOf[Long])
                                                 limit: QueryLimit,
                                                 replyTo: ActorRef[GetModelsInCollectionResponse]) extends Message
 

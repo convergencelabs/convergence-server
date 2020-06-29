@@ -75,13 +75,13 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def LimitSection: Rule1[QueryLimit] = rule {
     SkipWS ~ Keyword.Limit ~
-      RequireWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => QueryLimit(Some(str.toInt))) |
+      RequireWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => QueryLimit(Some(str.toLong))) |
       SkipWS ~ !Keyword.Limit ~> (() => push(QueryLimit(None)))
   }
 
   def OffsetSection: Rule1[QueryOffset] = rule {
     SkipWS ~ Keyword.Offset ~
-      RequireWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => QueryOffset(Some(str.toInt))) |
+      RequireWS ~ capture(oneOrMore(CharPredicate.Digit)) ~> ((str: String) => QueryOffset(Some(str.toLong))) |
       SkipWS ~ !Keyword.Offset ~> (() => push(QueryOffset(None)))
   }
 

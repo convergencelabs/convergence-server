@@ -11,19 +11,28 @@
 
 package com.convergencelabs.convergence.server.util
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+
 /**
  * A value class that wraps and optional integer representing an
- * limit generally applied to a result set..
+ * limit generally applied to a result set.
  *
  * @param value The limit, or None if no limit is set.
  */
-class QueryLimit(val value: Option[Int]) extends AnyVal {
-  def getOrElse(v: Int): QueryLimit = QueryLimit(value.getOrElse(v))
+class QueryLimit(val value: Option[Long]) extends AnyVal {
+  @JsonIgnore()
+  def getOrElse(v: Long): QueryLimit = QueryLimit(value.getOrElse(v))
+
+  override def toString: String = s"{QueryLimit($value)}"
 }
 
 object QueryLimit {
   val Empty = new QueryLimit(None)
+
   def apply(): QueryLimit = Empty
-  def apply(offset: Int): QueryLimit = new QueryLimit(Some(offset))
-  def apply(offset: Option[Int]): QueryLimit = new QueryLimit(offset)
+
+  def apply(limit: Long): QueryLimit = new QueryLimit(Some(limit))
+
+  def apply(limit: Option[Long]): QueryLimit = new QueryLimit(limit)
 }

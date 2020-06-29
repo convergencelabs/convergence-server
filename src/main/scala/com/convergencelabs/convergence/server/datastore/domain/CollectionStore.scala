@@ -77,7 +77,7 @@ object CollectionStore {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
 
-  case class CollectionSummary(id: String, description: String, modelCount: Int)
+  case class CollectionSummary(id: String, description: String, modelCount: Long)
 
 }
 
@@ -193,7 +193,7 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider)
         val id: String = doc.getProperty(Fields.Id)
         val description: String = doc.getProperty(Fields.Description)
         val count: Long = modelCounts.getOrElse(id, 0)
-        CollectionSummary(id, description, count.toInt)
+        CollectionSummary(id, description, count)
       }
 
       PagedData[CollectionSummary](summaries, offset.getOrZero, collectionCount)

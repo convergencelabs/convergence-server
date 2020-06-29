@@ -25,6 +25,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
@@ -249,13 +250,13 @@ object UserStoreActor {
   // CreateConvergenceUser
   //
   final case class CreateConvergenceUserRequest(username: String,
-                                          email: String,
-                                          firstName: String,
-                                          lastName: String,
-                                          displayName: String,
-                                          password: String,
-                                          globalRole: String,
-                                          replyTo: ActorRef[CreateConvergenceUserResponse]) extends Message
+                                                email: String,
+                                                firstName: String,
+                                                lastName: String,
+                                                displayName: String,
+                                                password: String,
+                                                globalRole: String,
+                                                replyTo: ActorRef[CreateConvergenceUserResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserAlreadyExistsError], name = "user_exists"),
@@ -272,12 +273,12 @@ object UserStoreActor {
   //UpdateConvergenceUser
   //
   final case class UpdateConvergenceUserRequest(username: String,
-                                          email: String,
-                                          firstName: String,
-                                          lastName: String,
-                                          displayName: String,
-                                          globalRole: String,
-                                          replyTo: ActorRef[UpdateConvergenceUserResponse]) extends Message
+                                                email: String,
+                                                firstName: String,
+                                                lastName: String,
+                                                displayName: String,
+                                                globalRole: String,
+                                                replyTo: ActorRef[UpdateConvergenceUserResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -291,11 +292,11 @@ object UserStoreActor {
   // UpdateConvergenceUserProfile
   //
   final case class UpdateConvergenceUserProfileRequest(username: String,
-                                                 email: String,
-                                                 firstName: String,
-                                                 lastName: String,
-                                                 displayName: String,
-                                                 replyTo: ActorRef[UpdateConvergenceUserProfileResponse]) extends Message
+                                                       email: String,
+                                                       firstName: String,
+                                                       lastName: String,
+                                                       displayName: String,
+                                                       replyTo: ActorRef[UpdateConvergenceUserProfileResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
@@ -335,7 +336,9 @@ object UserStoreActor {
   // GetConvergenceUsers
   //
   final case class GetConvergenceUsersRequest(filter: Option[String],
+                                              @JsonDeserialize(contentAs = classOf[Long])
                                               offset: QueryOffset,
+                                              @JsonDeserialize(contentAs = classOf[Long])
                                               limit: QueryLimit,
                                               replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
 

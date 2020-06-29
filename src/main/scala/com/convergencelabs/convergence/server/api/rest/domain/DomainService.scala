@@ -26,6 +26,7 @@ import com.convergencelabs.convergence.server.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -57,7 +58,7 @@ class DomainService(schedule: Scheduler,
     pathPrefix("domains") {
       pathEnd {
         get {
-          parameters("namespace".?, "filter".?, "offset".as[Int].?, "limit".as[Int].?) { (namespace, filter, offset, limit) =>
+          parameters("namespace".?, "filter".?, "offset".as[Long].?, "limit".as[Long].?) { (namespace, filter, offset, limit) =>
             complete(getDomains(authProfile, namespace, filter, offset, limit))
           }
         } ~ post {
@@ -117,10 +118,10 @@ class DomainService(schedule: Scheduler,
   private[this] def getDomains(authProfile: AuthorizationProfile,
                                namespace: Option[String],
                                filter: Option[String],
-                               offset: Option[Int],
-                               limit: Option[Int]): Future[RestResponse] = {
+                               offset: Option[Long],
+                               limit: Option[Long]): Future[RestResponse] = {
     domainStoreActor
-      .ask[GetDomainsResponse](GetDomainsRequest(authProfile.data, namespace, filter, offset, limit, _))
+      .ask[GetDomainsResponse](GetDomainsRequest(authProfile.data, namespace, filter, QueryOffset(offset), QueryLimit(limit), _))
       .map(_.domains.fold(
         _ => InternalServerError,
         { domains =>

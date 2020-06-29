@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.domain.DomainUserId
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Message],
                                   groupStore: UserGroupStore)
@@ -329,7 +330,9 @@ object UserGroupStoreActor {
   // GetUserGroups
   //
   final case class GetUserGroupsRequest(filter: Option[String],
+                                        @JsonDeserialize(contentAs = classOf[Long])
                                         offset: QueryOffset,
+                                        @JsonDeserialize(contentAs = classOf[Long])
                                         limit: QueryLimit,
                                         replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
@@ -345,7 +348,9 @@ object UserGroupStoreActor {
   // GetUserGroupSummaries
   //
   final case class GetUserGroupSummariesRequest(filter: Option[String],
+                                                @JsonDeserialize(contentAs = classOf[Long])
                                                 offset: QueryOffset,
+                                                @JsonDeserialize(contentAs = classOf[Long])
                                                 limit: QueryLimit,
                                                 replyTo: ActorRef[GetUserGroupSummariesResponse]) extends Message
 

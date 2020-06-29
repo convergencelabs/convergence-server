@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.domain.JwtAuthKey
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Message],
                                    keyStore: JwtAuthKeyStore)
@@ -76,8 +77,8 @@ class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Me
         case _: EntityNotFoundException =>
           DeleteJwtAuthKeyResponse(Left(JwtAuthKeyNotFoundError()))
         case cause =>
-        context.log.error("Unexpected error deleting jwt auth key", cause)
-        DeleteJwtAuthKeyResponse(Left(UnknownError()))
+          context.log.error("Unexpected error deleting jwt auth key", cause)
+          DeleteJwtAuthKeyResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
   }
@@ -135,7 +136,9 @@ object JwtAuthKeyStoreActor {
   //
   // GetJwtAuthKeys
   //
-  final case class GetJwtAuthKeysRequest(offset: QueryOffset,
+  final case class GetJwtAuthKeysRequest(@JsonDeserialize(contentAs = classOf[Long])
+                                         offset: QueryOffset,
+                                         @JsonDeserialize(contentAs = classOf[Long])
                                          limit: QueryLimit,
                                          replyTo: ActorRef[GetJwtAuthKeysResponse]) extends Message
 

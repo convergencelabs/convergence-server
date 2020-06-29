@@ -180,8 +180,8 @@ object UserStoreActor {
   // GetUsers
   //
   final case class GetUsersRequest(filter: Option[String],
-                             offset: Option[Int],
-                             limit: Option[Int],
+                             offset: Option[Long],
+                             limit: Option[Long],
                              replyTo: ActorRef[GetUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

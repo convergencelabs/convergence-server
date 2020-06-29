@@ -42,7 +42,7 @@ private[rest] class UserService(userManagerActor: ActorRef[Message],
     pathPrefix("users") {
       pathEnd {
         get {
-          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
+          parameters("filter".?, "limit".as[Long].?, "offset".as[Long].?) { (filter, limit, offset) =>
             complete(getUsers(filter, limit, offset, authProfile))
           }
         } ~ post {
@@ -80,7 +80,7 @@ private[rest] class UserService(userManagerActor: ActorRef[Message],
     }
   }
 
-  private[this] def getUsers(filter: Option[String], limit: Option[Int], offset: Option[Int], authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
+  private[this] def getUsers(filter: Option[String], limit: Option[Long], offset: Option[Long], authorizationProfile: AuthorizationProfile): Future[RestResponse] = {
     userManagerActor
       .ask[GetConvergenceUsersResponse](GetConvergenceUsersRequest(filter, QueryOffset(offset), QueryLimit(limit), _))
       .map(_.users.fold(

@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 class SessionStoreActor private(context: ActorContext[SessionStoreActor.Message],
                                 sessionStore: SessionStore)
@@ -84,7 +85,9 @@ object SessionStoreActor {
                                       authMethod: Option[String],
                                       excludeDisconnected: Boolean,
                                       sessionType: SessionQueryType.Value,
+                                      @JsonDeserialize(contentAs = classOf[Long])
                                       offset: QueryOffset,
+                                      @JsonDeserialize(contentAs = classOf[Long])
                                       limit: QueryLimit,
                                       replyTo: ActorRef[GetSessionsResponse]) extends Message
 

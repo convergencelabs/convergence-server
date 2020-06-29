@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.datastore.{EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import grizzled.slf4j.Logging
 
 import scala.util.Success
@@ -182,12 +183,14 @@ object IdentityServiceActor {
   // SearchUsers
   //
   final case class SearchUsersRequest(fields: List[UserLookUpField.Value],
-                                searchValue: String,
-                                offset: QueryOffset,
-                                limit: QueryLimit,
-                                order: Option[UserLookUpField.Value],
-                                sort: Option[SortOrder.Value],
-                                replyTo: ActorRef[SearchUsersResponse]) extends Message
+                                      searchValue: String,
+                                      @JsonDeserialize(contentAs = classOf[Long])
+                                      offset: QueryOffset,
+                                      @JsonDeserialize(contentAs = classOf[Long])
+                                      limit: QueryLimit,
+                                      order: Option[UserLookUpField.Value],
+                                      sort: Option[SortOrder.Value],
+                                      replyTo: ActorRef[SearchUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -246,8 +249,8 @@ object IdentityServiceActor {
   // IdentityResolution
   //
   final case class IdentityResolutionRequest(sessionIds: Set[String],
-                                       userIds: Set[DomainUserId],
-                                       replyTo: ActorRef[IdentityResolutionResponse]) extends Message
+                                             userIds: Set[DomainUserId],
+                                             replyTo: ActorRef[IdentityResolutionResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

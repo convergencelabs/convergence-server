@@ -86,7 +86,7 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
       }
 
       identityServiceActor.ask[IdentityServiceActor.SearchUsersResponse](
-        IdentityServiceActor.SearchUsersRequest(fields.toList, value, QueryOffset(offset), QueryLimit(limit), Some(orderBy), Some(sort), _))
+        IdentityServiceActor.SearchUsersRequest(fields.toList, value, QueryOffset(offset.map(_.longValue)), QueryLimit(limit.map(_.longValue)), Some(orderBy), Some(sort), _))
         .map(_.users.fold({ _ =>
           cb.unexpectedError("Unexpected error searching users.")
         }, { users =>

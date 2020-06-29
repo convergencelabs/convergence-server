@@ -16,6 +16,7 @@ import com.convergencelabs.convergence.server.datastore.convergence.schema.Names
 import com.convergencelabs.convergence.server.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.db.DatabaseProvider
 import com.convergencelabs.convergence.server.domain.{Domain, Namespace}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -59,9 +60,10 @@ class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersi
     OrientDBUtil.findDocumentFromSingleValueIndex(db, Indices.Id, id).map(_.map(docToNamespace))
   }
 
-  private[this] val GetNamespacesQuery = "SELECT FROM Namespace"
-  def getNamespaces(): Try[List[Namespace]] = withDb { db =>
-    OrientDBUtil.queryAndMap(db, GetNamespacesQuery)(docToNamespace)
+  private[this] val GetNamespacesQuery = "SELECT FROM Namespace ORDER BY id ASC"
+  def getNamespaces(offset: QueryOffset, limit: QueryLimit): Try[List[Namespace]] = withDb { db =>
+    val query = OrientDBUtil.buildPagedQuery(GetNamespacesQuery, limit, offset)
+    OrientDBUtil.queryAndMap(db, query)(docToNamespace)
   }
 
   def getAccessibleNamespaces(username: String): Try[List[Namespace]] = withDb { db =>
@@ -77,14 +79,16 @@ class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersi
     OrientDBUtil.query(db, accessQuery, Map(Params.Username -> username)).map(_.map(docToNamespace))
   }
 
-  def getNamespaceAndDomains(namespaces: Set[String]): Try[Set[NamespaceAndDomains]] = withDb { db =>
-    val query = "SELECT FROM Namespace WHERE id IN :ids AND userNamespace = false"
+  def getNamespaceAndDomains(namespaces: Set[String], offset: QueryOffset, limit: QueryLimit): Try[Set[NamespaceAndDomains]] = withDb { db =>
+    val baseQuery = "SELECT FROM Namespace WHERE id IN :ids AND userNamespace = false ORDER BY id ASC"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map("ids" -> namespaces)
     OrientDBUtil.query(db, query, params).flatMap(getNamespaceAndDomainsFromDocs(_, db))
   }
 
-  def getAllNamespacesAndDomains(): Try[Set[NamespaceAndDomains]] = withDb { db =>
-    val query = "SELECT FROM Namespace WHERE userNamespace = false"
+  def getAllNamespacesAndDomains(offset: QueryOffset, limit: QueryLimit): Try[Set[NamespaceAndDomains]] = withDb { db =>
+    val baseQuery = "SELECT FROM Namespace WHERE userNamespace = false ORDER BY id ASC"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     OrientDBUtil.query(db, query).flatMap(getNamespaceAndDomainsFromDocs(_, db))
   }
 

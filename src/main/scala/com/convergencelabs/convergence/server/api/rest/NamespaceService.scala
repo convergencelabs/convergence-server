@@ -21,6 +21,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.datastore.convergence.NamespaceStoreActor._
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,7 +43,7 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
     pathPrefix("namespaces") {
       pathEnd {
         get {
-          parameters("filter".?, "limit".as[Int].?, "offset".as[Int].?) { (filter, limit, offset) =>
+          parameters("filter".?, "limit".as[Long].?, "offset".as[Long].?) { (filter, limit, offset) =>
             complete(getNamespaces(authProfile, filter, offset, limit))
           }
         } ~ post {
@@ -72,9 +73,9 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
     }
   }
 
-  private[this] def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     namespaceActor
-      .ask[GetAccessibleNamespacesResponse](GetAccessibleNamespacesRequest(authProfile.data, filter, offset, limit, _))
+      .ask[GetAccessibleNamespacesResponse](GetAccessibleNamespacesRequest(authProfile.data, filter, QueryOffset(offset), QueryLimit(limit), _))
       .map(_.namespaces.fold(
         {
           case UnknownError() =>
@@ -100,9 +101,8 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-         namespace =>okResponse(namespace)
-        )
-      )
+        namespace => okResponse(namespace)
+      ))
   }
 
   private[this] def createNamespace(authProfile: AuthorizationProfile, create: CreateNamespacePost): Future[RestResponse] = {
@@ -116,10 +116,8 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          CreatedResponse
-        })
-      )
+        _ => CreatedResponse
+      ))
   }
 
   private[this] def updateNamespace(authProfile: AuthorizationProfile, namespaceId: String, update: UpdateNamespacePut): Future[RestResponse] = {
@@ -133,10 +131,8 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          OkResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def deleteNamespace(authProfile: AuthorizationProfile, namespaceId: String): Future[RestResponse] = {
@@ -149,10 +145,8 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
           case UnknownError() =>
             InternalServerError
         },
-        { _ =>
-          DeletedResponse
-        })
-      )
+        _ => OkResponse
+      ))
   }
 
   private[this] def namespaceNotFound(namespaceId: String): (StatusCode, ResponseMessage) =

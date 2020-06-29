@@ -67,8 +67,8 @@ class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
             "authMethod".as[String].?,
             "excludeDisconnected".as[Boolean] ?,
             "sessionType".as[String] ?,
-            "limit".as[Int].?,
-            "offset".as[Int].?) { (sessionId, sessionUsername, remoteHost, authMethod, excludeDisconnected, sessionType, limit, offset) => {
+            "limit".as[Long].?,
+            "offset".as[Long].?) { (sessionId, sessionUsername, remoteHost, authMethod, excludeDisconnected, sessionType, limit, offset) => {
             complete(getSessions(
               domain,
               sessionId,
@@ -99,8 +99,8 @@ class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
                                 authMethod: Option[String],
                                 excludeDisconnected: Option[Boolean],
                                 sessionType: Option[String],
-                                limit: Option[Int],
-                                offset: Option[Int]): Future[RestResponse] = {
+                                limit: Option[Long],
+                                offset: Option[Long]): Future[RestResponse] = {
     val st = sessionType
       .flatMap(t => SessionQueryType.withNameOpt(t))
       .getOrElse(SessionQueryType.All)

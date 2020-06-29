@@ -27,6 +27,7 @@ import com.convergencelabs.convergence.server.domain.{Domain, DomainDatabase, Do
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
@@ -232,9 +233,9 @@ class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
     val GetDomainsRequest(authProfileData, namespace, filter, offset, limit, replyTo) = listRequest
     val authProfile = AuthorizationProfile(authProfileData)
     val result = if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
-      domainStore.getDomains(namespace, filter, QueryOffset(offset), QueryLimit(limit))
+      domainStore.getDomains(namespace, filter, offset, limit)
     } else {
-      domainStore.getDomainsByAccess(authProfile.username, namespace, filter, QueryOffset(offset), QueryLimit(limit))
+      domainStore.getDomainsByAccess(authProfile.username, namespace, filter, offset, limit)
     }
 
     result
@@ -273,7 +274,7 @@ object DomainStoreActor {
             domainCreator: DomainCreator,
             provisionerActor: ActorRef[DomainProvisionerActor.Message]): Behavior[Message] =
     Behaviors.setup(context => new DomainStoreActor(
-      context, domainStore, configStore,roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor))
+      context, domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -285,11 +286,11 @@ object DomainStoreActor {
   // CreateDomain
   //
   final case class CreateDomainRequest(namespace: String,
-                                 domainId: String,
-                                 displayName: String,
-                                 anonymousAuth: Boolean,
-                                 owner: String,
-                                 replyTo: ActorRef[CreateDomainResponse]) extends Message
+                                       domainId: String,
+                                       displayName: String,
+                                       anonymousAuth: Boolean,
+                                       owner: String,
+                                       replyTo: ActorRef[CreateDomainResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -359,11 +360,13 @@ object DomainStoreActor {
   // GetDomains
   //
   final case class GetDomainsRequest(authProfile: AuthorizationProfileData,
-                               namespace: Option[String],
-                               filter: Option[String],
-                               offset: Option[Int],
-                               limit: Option[Int],
-                               replyTo: ActorRef[GetDomainsResponse]) extends Message
+                                     namespace: Option[String],
+                                     filter: Option[String],
+                                     @JsonDeserialize(contentAs = classOf[Long])
+                                     offset: QueryOffset,
+                                     @JsonDeserialize(contentAs = classOf[Long])
+                                     limit: QueryLimit,
+                                     replyTo: ActorRef[GetDomainsResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")

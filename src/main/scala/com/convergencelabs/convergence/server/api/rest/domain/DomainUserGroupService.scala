@@ -52,7 +52,7 @@ class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
     pathPrefix("groups") {
       pathEnd {
         get {
-          parameters("type".?, "filter".?, "offset".as[Int].?, "limit".as[Int].?) { (responseType, filter, offset, limit) =>
+          parameters("type".?, "filter".?, "offset".as[Long].?, "limit".as[Long].?) { (responseType, filter, offset, limit) =>
             complete(getUserGroups(domain, responseType, filter, offset, limit))
           }
         } ~ post {
@@ -96,7 +96,7 @@ class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
     }
   }
 
-  private[this] def getUserGroups(domain: DomainId, resultType: Option[String], filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getUserGroups(domain: DomainId, resultType: Option[String], filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     resultType.getOrElse("all") match {
       case "all" =>
         domainRestActor

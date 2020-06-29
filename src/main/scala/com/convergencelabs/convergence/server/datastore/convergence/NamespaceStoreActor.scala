@@ -20,7 +20,9 @@ import com.convergencelabs.convergence.server.datastore.convergence.NamespaceSto
 import com.convergencelabs.convergence.server.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.domain.Namespace
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -114,14 +116,14 @@ class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Mess
   }
 
   private[this] def onGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
-    val GetAccessibleNamespacesRequest(authProfileData, _, _, _, replyTo) = getRequest
+    val GetAccessibleNamespacesRequest(authProfileData, _, offset, limit, replyTo) = getRequest
     val authProfile = AuthorizationProfile(authProfileData)
     if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
-      namespaceStore.getAllNamespacesAndDomains()
+      namespaceStore.getAllNamespacesAndDomains(offset, limit)
     } else {
       namespaceStore
         .getAccessibleNamespaces(authProfile.username)
-        .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet))
+        .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet, offset, limit))
     }
       .map(n => GetAccessibleNamespacesResponse(Right(n)))
       .recover { cause =>
@@ -188,7 +190,10 @@ object NamespaceStoreActor {
   //
   // CreateNamespace
   //
-  final case class UpdateNamespaceRequest(requester: String, namespaceId: String, displayName: String, replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
+  final case class UpdateNamespaceRequest(requester: String,
+                                          namespaceId: String,
+                                          displayName: String,
+                                          replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
@@ -216,8 +221,10 @@ object NamespaceStoreActor {
   //
   final case class GetAccessibleNamespacesRequest(requester: AuthorizationProfileData,
                                                   filter: Option[String],
-                                                  offset: Option[Int],
-                                                  limit: Option[Int],
+                                                  @JsonDeserialize(contentAs = classOf[Long])
+                                                  offset: QueryOffset,
+                                                  @JsonDeserialize(contentAs = classOf[Long])
+                                                  limit: QueryLimit,
                                                   replyTo: ActorRef[GetAccessibleNamespacesResponse]) extends Message
 
   @JsonSubTypes(Array(

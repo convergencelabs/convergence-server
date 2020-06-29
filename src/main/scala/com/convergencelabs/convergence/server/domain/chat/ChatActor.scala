@@ -25,6 +25,7 @@ import com.convergencelabs.convergence.server.domain.chat.processors._
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.Duration
@@ -595,8 +596,11 @@ object ChatActor {
   final case class GetChatHistoryRequest(domainId: DomainId,
                                          chatId: String,
                                          requester: Option[DomainUserSessionId],
+                                         @JsonDeserialize(contentAs = classOf[Long])
                                          offset: QueryOffset,
+                                         @JsonDeserialize(contentAs = classOf[Long])
                                          limit: QueryLimit,
+                                         @JsonDeserialize(contentAs = classOf[Long])
                                          startEvent: Option[Long],
                                          forward: Option[Boolean],
                                          eventTypes: Option[Set[String]],

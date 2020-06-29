@@ -602,7 +602,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
     chatShardRegion
       .ask[ChatActor.GetChatHistoryResponse](
         ChatActor.GetChatHistoryRequest(
-          domainId, chatId, Some(session), QueryOffset(offset.map(_.intValue())), QueryLimit(limit.map(_.intValue())), startEvent, forward, Some(eventFilter.toSet), None, _))
+          domainId, chatId, Some(session), QueryOffset(offset), QueryLimit(limit), startEvent, forward, Some(eventFilter.toSet), None, _))
       .map(_.events.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -637,8 +637,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
       chatManagerActor
         .ask[ChatManagerActor.ChatsSearchResponse](
           ChatsSearchRequest(searchTerm, searchFields, chatTypes, membership,
-            QueryOffset(offset.map(_.intValue())),
-            QueryLimit(limit.map(_.intValue())), _))
+            QueryOffset(offset),
+            QueryLimit(limit), _))
         .map(_.chats.fold(
           {
             case UnknownError() =>

@@ -15,11 +15,11 @@ import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-private[realtime] final case class ProtocolConfiguration(handshakeTimeout: FiniteDuration,
+private[server] final case class ProtocolConfiguration(handshakeTimeout: FiniteDuration,
                                                          defaultRequestTimeout: FiniteDuration,
                                                          heartbeatConfig: ProtocolConfiguration.HeartbeatConfiguration)
 
-private[realtime] object ProtocolConfiguration {
+private[server] object ProtocolConfiguration {
   def apply(config: Config): ProtocolConfiguration = {
     val protoConfig = config.getConfig("convergence.realtime.protocol")
     ProtocolConfiguration(

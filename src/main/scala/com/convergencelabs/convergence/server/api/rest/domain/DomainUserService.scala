@@ -42,7 +42,7 @@ class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
     pathPrefix("users") {
       pathEnd {
         get {
-          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+          parameters("filter".?, "offset".as[Long].?, "limit".as[Long].?) { (filter, offset, limit) =>
             complete(getAllUsersRequest(domain, filter, offset, limit))
           }
         } ~ post {
@@ -74,7 +74,7 @@ class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
     }
   }
 
-  private[this] def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     domainRestActor
       .ask[GetUsersResponse](
         r => DomainRestMessage(domain, GetUsersRequest(filter, offset, limit, r)))

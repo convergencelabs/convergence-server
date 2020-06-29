@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.domain.model.Collection
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 /**
  * The [[CollectionStoreActor]] provides services to create, remove, and update
@@ -159,7 +160,9 @@ object CollectionStoreActor {
   // GetCollections
   //
   final case class GetCollectionsRequest(filter: Option[String],
+                                         @JsonDeserialize(contentAs = classOf[java.lang.Long])
                                          offset: QueryOffset,
+                                         @JsonDeserialize(contentAs = classOf[java.lang.Long])
                                          limit: QueryLimit,
                                          replyTo: ActorRef[GetCollectionsResponse]) extends Message
 
@@ -176,7 +179,9 @@ object CollectionStoreActor {
   // GetCollectionSummaries
   //
   final case class GetCollectionSummariesRequest(filter: Option[String],
+                                                 @JsonDeserialize(contentAs = classOf[java.lang.Long])
                                                  offset: QueryOffset,
+                                                 @JsonDeserialize(contentAs = classOf[java.lang.Long])
                                                  limit: QueryLimit,
                                                  replyTo: ActorRef[GetCollectionSummariesResponse]) extends Message
 

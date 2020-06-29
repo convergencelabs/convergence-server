@@ -46,7 +46,7 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
     pathPrefix("collections") {
       pathEnd {
         get {
-          parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+          parameters("filter".?, "offset".as[Long].?, "limit".as[Long].?) { (filter, offset, limit) =>
             complete(getCollections(domain, filter, offset, limit))
           }
         } ~ post {
@@ -71,14 +71,14 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
   } ~ pathPrefix("collectionSummary") {
     pathEnd {
       get {
-        parameters("filter".?, "offset".as[Int].?, "limit".as[Int].?) { (filter, offset, limit) =>
+        parameters("filter".?, "offset".as[Long].?, "limit".as[Long].?) { (filter, offset, limit) =>
           complete(getCollectionSummaries(domain, filter, offset, limit))
         }
       }
     }
   }
 
-  private[this] def getCollections(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getCollections(domain: DomainId, filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     domainRestActor
       .ask[GetCollectionsResponse](
         r => DomainRestMessage(domain, GetCollectionsRequest(filter, QueryOffset(offset), QueryLimit(limit), r)))
@@ -169,7 +169,7 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
       )
   }
 
-  private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
+  private[this] def getCollectionSummaries(domain: DomainId, filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     domainRestActor
       .ask[GetCollectionSummariesResponse](r =>
         DomainRestMessage(domain, GetCollectionSummariesRequest(filter, QueryOffset(offset), QueryLimit(limit), r)))
@@ -271,6 +271,6 @@ object DomainCollectionService {
 
   case class CollectionSummaryData(id: String,
                                    description: String,
-                                   modelCount: Int)
+                                   modelCount: Long)
 
 }
