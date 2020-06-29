@@ -19,7 +19,6 @@ import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{PongTimeout, SendUnprocessedMessage}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{ClientErrorResponseException, MessageReceived, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.WebSocketService.OutgoingBinaryMessage
-import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import com.google.protobuf.struct.Value
 import com.google.protobuf.timestamp.Timestamp
 import org.json4s.jackson.Serialization
@@ -247,7 +246,7 @@ class ProtocolConnectionSpec
         val protoConfig = ProtocolConfiguration(
           100 millis,
           100 millis,
-          HeartbeatConfiguration(
+          ProtocolConfiguration.HeartbeatConfiguration(
             enabled = true,
             10 millis,
             10 seconds))
@@ -274,7 +273,7 @@ class ProtocolConnectionSpec
         val protoConfig = ProtocolConfiguration(
           100 millis,
           100 millis,
-          HeartbeatConfiguration(
+          ProtocolConfiguration.HeartbeatConfiguration(
             enabled = true,
             10 millis,
             10 millis))
@@ -370,7 +369,7 @@ class ProtocolConnectionSpec
     val protoConfig: ProtocolConfiguration = ProtocolConfiguration(
       100 millis,
       100 millis,
-      HeartbeatConfiguration(
+      ProtocolConfiguration.HeartbeatConfiguration(
         enabled = false,
         5 seconds,
         10 seconds))

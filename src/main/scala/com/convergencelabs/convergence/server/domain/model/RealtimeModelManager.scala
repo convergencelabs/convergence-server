@@ -18,7 +18,6 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.UnknownErrorResponse
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.ForceModelCloseReasonCode
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceProvider, ModelDataGenerator}
@@ -36,7 +35,6 @@ import scala.concurrent.{ExecutionContextExecutor, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
 object RealtimeModelManager {
-  val DatabaseInitializationFailure: UnknownErrorResponse = UnknownErrorResponse("Unexpected persistence error initializing the model.")
 
   trait EventHandler {
     def onInitializationError(): Unit

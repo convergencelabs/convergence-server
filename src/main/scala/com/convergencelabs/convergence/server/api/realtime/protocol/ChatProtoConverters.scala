@@ -18,12 +18,22 @@ import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProt
 import com.convergencelabs.convergence.server.datastore.domain._
 import com.convergencelabs.convergence.server.domain.chat.{GroupPermissions, UserPermissions}
 
+/**
+ * A collection of helper methods to translate domain objects to and from
+ * the protocol buffer message classes.
+ */
 object ChatProtoConverters {
-  def chatInfoToMessage(info: ChatInfo): ChatInfoData =
-    com.convergencelabs.convergence.proto.chat.ChatInfoData(
+  /**
+   * Converts a ChatInfo object to the corresponding Protocol Buffer object.
+   *
+   * @param info The ChatInfo domain object.
+   * @return The corresponding Protocol Buffer representation.
+   */
+  def chatInfoToProto(info: ChatInfo): ChatInfoData =
+    ChatInfoData(
       info.id,
-      info.chatType.toString.toLowerCase(),
-      info.membership.toString.toLowerCase(),
+      chatTypeToProto(info.chatType),
+      chatMembershipToProto(info.membership),
       info.name,
       info.topic,
       Some(instanceToTimestamp(info.created)),
@@ -31,41 +41,89 @@ object ChatProtoConverters {
       info.lastEventNumber,
       info.members.map(member => ChatMemberData(Some(domainUserIdToProto(member.userId)), member.seen)).toSeq)
 
-  def channelEventToMessage(event: ChatEvent): ChatEventData = event match {
-    case ChatCreatedEvent(eventNumber, channel, user, timestamp, name, topic, members) =>
-      ChatEventData().withCreated(
-        ChatCreatedEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name, topic, members.map(domainUserIdToProto).toSeq));
-    case ChatMessageEvent(eventNumber, channel, user, timestamp, message) =>
-      ChatEventData().withMessage(
-        ChatMessageEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), message))
-    case ChatUserJoinedEvent(eventNumber, channel, user, timestamp) =>
-      ChatEventData().withUserJoined(
-        ChatUserJoinedEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
-    case ChatUserLeftEvent(eventNumber, channel, user, timestamp) =>
-      ChatEventData().withUserLeft(
-        ChatUserLeftEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
-    case ChatUserAddedEvent(eventNumber, channel, user, timestamp, addedUser) =>
-      ChatEventData().withUserAdded(
-        ChatUserAddedEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(addedUser))))
-    case ChatUserRemovedEvent(eventNumber, channel, user, timestamp, removedUser) =>
-      ChatEventData().withUserRemoved(
-        ChatUserRemovedEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(removedUser))))
-    case ChatNameChangedEvent(eventNumber, channel, user, timestamp, name) =>
-      ChatEventData().withNameChanged(
-        ChatNameChangedEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name))
-    case ChatTopicChangedEvent(eventNumber, channel, user, timestamp, topic) =>
-      ChatEventData().withTopicChanged(
-        ChatTopicChangedEventData(channel, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), topic))
+  /**
+   * Converts a [[ChatType]] to a String for inclusion in the Protocol
+   * Buffers message.
+   *
+   * @param chatType The [[ChatType]] to convert.
+   * @return The proper string representation of the [[ChatType]].
+   */
+  def chatTypeToProto(chatType: ChatType.Value): String = {
+    chatType match {
+      case ChatType.Channel => "channel"
+      case ChatType.Room => "room"
+      case ChatType.Direct => "direct"
+    }
   }
 
+  /**
+   * Converts a [[ChatMembership]] to a String for inclusion in the Protocol
+   * Buffers message.
+   *
+   * @param membership The [[ChatMembership]] to convert.
+   * @return The proper string representation of the [[ChatMembership]].
+   */
+  def chatMembershipToProto(membership: ChatMembership.Value): String = {
+    membership match {
+      case ChatMembership.Public => "public"
+      case ChatMembership.Private => "private"
+    }
+  }
 
-  def mapGroupPermissions(groupPermissionData: Map[String, PermissionsList]): Set[GroupPermissions] = {
+  /**
+   * Converts a ChatEvent into a Protocol Buffer representation.
+   *
+   * @param event The chat event to convert.
+   * @return The Protocol Buffer representation of the Chat Event.
+   */
+  def chatEventToProto(event: ChatEvent): ChatEventData = event match {
+    case ChatCreatedEvent(eventNumber, chatId, user, timestamp, name, topic, members) =>
+      ChatEventData().withCreated(
+        ChatCreatedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name, topic, members.map(domainUserIdToProto).toSeq));
+    case ChatMessageEvent(eventNumber, chatId, user, timestamp, message) =>
+      ChatEventData().withMessage(
+        ChatMessageEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), message))
+    case ChatUserJoinedEvent(eventNumber, chatId, user, timestamp) =>
+      ChatEventData().withUserJoined(
+        ChatUserJoinedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
+    case ChatUserLeftEvent(eventNumber, chatId, user, timestamp) =>
+      ChatEventData().withUserLeft(
+        ChatUserLeftEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
+    case ChatUserAddedEvent(eventNumber, chatId, user, timestamp, addedUser) =>
+      ChatEventData().withUserAdded(
+        ChatUserAddedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(addedUser))))
+    case ChatUserRemovedEvent(eventNumber, chatId, user, timestamp, removedUser) =>
+      ChatEventData().withUserRemoved(
+        ChatUserRemovedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(removedUser))))
+    case ChatNameChangedEvent(eventNumber, chatId, user, timestamp, name) =>
+      ChatEventData().withNameChanged(
+        ChatNameChangedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name))
+    case ChatTopicChangedEvent(eventNumber, chatId, user, timestamp, topic) =>
+      ChatEventData().withTopicChanged(
+        ChatTopicChangedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), topic))
+  }
+
+  /**
+   * Converts a map of group permissions in a Protocol Buffer representation
+   * into a Set of domain GroupPermissions.
+   *
+   * @param groupPermissionData The Protocol Buffer group permissions map.
+   * @return A Set of domain GroupPermission.
+   */
+  def protoToGroupPermissions(groupPermissionData: Map[String, PermissionsList]): Set[GroupPermissions] = {
     groupPermissionData.map {
       case (groupId, permissions) => (groupId, GroupPermissions(groupId, permissions.values.toSet))
     }.values.toSet
   }
 
-  def mapUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
+  /**
+   * Converts a Seq of user permissions in a Protocol Buffer representation
+   * into a Set of domain UserPermissions.
+   *
+   * @param userPermissionData The Protocol Buffer group permissions map.
+   * @return A Set of domain UserPermissions.
+   */
+  def protoToUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
     userPermissionData
       .map(p => UserPermissions(protoToDomainUserId(p.user.get), p.permissions.toSet)).toSet
   }

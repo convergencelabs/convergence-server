@@ -14,7 +14,6 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.http.scaladsl.model.RemoteAddress
-import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor}

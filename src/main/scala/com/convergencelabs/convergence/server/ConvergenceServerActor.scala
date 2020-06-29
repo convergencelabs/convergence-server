@@ -19,7 +19,7 @@ import akka.cluster.typed._
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
-import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi}
+import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi, ProtocolConfiguration}
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.db.ConvergenceDatabaseInitializerActor
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
@@ -267,7 +267,7 @@ class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBeh
                                            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Future[Unit] = {
 
     info("Role 'realtimeApi' detected, activating the Realtime API...")
-    val protoConfig = ProtocolConfigUtil.loadConfig(context.system.settings.config)
+    val protoConfig = ProtocolConfiguration(context.system.settings.config)
     val clientCreator = context.spawn(ClientActorCreator(
       protoConfig,
       domainRegion,

@@ -17,6 +17,15 @@ package com.convergencelabs.convergence.server
  */
 object ConvergenceServerConstants {
   /**
+   * Defines the string constants for the Convergence Server roles.
+   */
+  object ServerClusterRoles {
+    val Backend = "backend"
+    val RestApi = "restApi"
+    val RealtimeApi = "realtimeApi"
+  }
+
+  /**
    * String constants for various Akka baseConfig keys that are used during
    * initialization.
    */

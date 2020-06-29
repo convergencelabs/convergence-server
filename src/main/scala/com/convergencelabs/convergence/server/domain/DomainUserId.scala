@@ -56,8 +56,16 @@ object DomainUserId {
   /**
    * Creates a convergence domain user id.
    *
-   * @param username The username of the normal user.
+   * @param username The username of the convergence user.
    * @return A DomainUserId with the specified username and a convergence type.
    */
   def convergence(username: String): DomainUserId = DomainUserId(DomainUserType.Convergence, username)
+
+  /**
+   * Creates a anonymous domain user id.
+   *
+   * @param username The username of the anonymous user.
+   * @return A DomainUserId with the specified username and a anonymous type.
+   */
+  def anonymous(username: String): DomainUserId = DomainUserId(DomainUserType.Anonymous, username)
 }

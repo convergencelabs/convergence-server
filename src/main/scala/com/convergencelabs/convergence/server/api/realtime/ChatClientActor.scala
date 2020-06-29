@@ -240,7 +240,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.expectedError(ErrorCodes.ChatAlreadyJoined, "The current user or session is already joined to this chat")
         },
         { info =>
-          cb.reply(JoinChatResponseMessage(Some(chatInfoToMessage(info))))
+          cb.reply(JoinChatResponseMessage(Some(chatInfoToProto(info))))
         }))
       .recover(_ => cb.timeoutError())
   }
@@ -357,8 +357,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   private[this] def onAddChatPermissions(message: AddPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val AddPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
-    val groupPermissions = mapGroupPermissions(groupPermissionData)
-    val userPermissions = mapUserPermissions(userPermissionData)
+    val groupPermissions = protoToGroupPermissions(groupPermissionData)
+    val userPermissions = protoToUserPermissions(userPermissionData)
     chatShardRegion
       .ask[ChatActor.AddChatPermissionsResponse](
         ChatActor.AddChatPermissionsRequest(domainId, id, session, Some(worldPermissionData.toSet), Some(userPermissions), Some(groupPermissions), _))
@@ -376,8 +376,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   private[this] def onRemoveChatPermissions(message: RemovePermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val RemovePermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
-    val groupPermissions = mapGroupPermissions(groupPermissionData)
-    val userPermissions = mapUserPermissions(userPermissionData)
+    val groupPermissions = protoToGroupPermissions(groupPermissionData)
+    val userPermissions = protoToUserPermissions(userPermissionData)
     chatShardRegion
       .ask[ChatActor.RemoveChatPermissionsResponse](
         ChatActor.RemoveChatPermissionsRequest(domainId, id, session, Some(worldPermissionData.toSet), Some(userPermissions), Some(groupPermissions), _))
@@ -396,8 +396,8 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
   private[this] def onSetChatPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
     val SetPermissionsRequestMessage(_, id, worldPermissionData, userPermissionData, groupPermissionData, _) = message
-    val groupPermissions = mapGroupPermissions(groupPermissionData)
-    val userPermissions = mapUserPermissions(userPermissionData)
+    val groupPermissions = protoToGroupPermissions(groupPermissionData)
+    val userPermissions = protoToUserPermissions(userPermissionData)
     chatShardRegion
       .ask[ChatActor.SetChatPermissionsResponse](
         ChatActor.SetChatPermissionsRequest(domainId, id, session, Some(worldPermissionData.toSet), Some(userPermissions), Some(groupPermissions), _))
@@ -559,7 +559,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.unknownError()
         },
         { chatInfo =>
-          val info = chatInfo.map(chatInfoToMessage)
+          val info = chatInfo.map(chatInfoToProto)
           cb.reply(GetChatsResponseMessage(info.toList))
         }))
       .recover(_ => cb.timeoutError())
@@ -576,7 +576,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.unknownError()
         },
         { chatInfo =>
-          val info = chatInfo.map(chatInfoToMessage)
+          val info = chatInfo.map(chatInfoToProto)
           cb.reply(GetDirectChatsResponseMessage(info.toList))
         }))
       .recover(_ => cb.timeoutError())
@@ -591,7 +591,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.unknownError()
         },
         { chatInfo =>
-          val info = chatInfo.map(chatInfoToMessage)
+          val info = chatInfo.map(chatInfoToProto)
           cb.reply(GetJoinedChatsResponseMessage(info.toList))
         }))
       .recover(_ => cb.timeoutError())
@@ -611,7 +611,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             chatNotJoined(chatId, cb)
         },
         { case PagedChatEvents(events, startIndex, totalResults) =>
-          val eventData = events.map(channelEventToMessage)
+          val eventData = events.map(chatEventToProto)
           val reply = ChatHistoryResponseMessage(eventData, startIndex, totalResults)
           cb.reply(reply)
         }))
@@ -645,7 +645,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
               cb.unknownError()
           },
           { case PagedData(chats, startIndex, totalResults) =>
-            val chatInfoData = chats.map(chatInfoToMessage)
+            val chatInfoData = chats.map(chatInfoToProto)
             val reply = ChatsSearchResponseMessage(chatInfoData, startIndex, totalResults)
             cb.reply(reply)
           }))

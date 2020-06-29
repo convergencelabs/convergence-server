@@ -9,25 +9,24 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.api.realtime
+package com.convergencelabs.convergence.server.api.realtime.protocol
 
-import com.convergencelabs.convergence.server.api.realtime.protocol.OperationConverters
 import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
 import com.convergencelabs.convergence.server.domain.model.ot._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 // scalastyle:off magic.number
-class OperationMapperSpec extends AnyWordSpec with Matchers {
+class OperationConvertersSpec extends AnyWordSpec with Matchers {
 
-  val X = "X"
+  private[this] val X = "X"
 
-  val Id = "testId"
-  val NoOp = true
-  val Value = DoubleValue("vid", 2)
-  val Prop = "prop"
+  private[this] val Id = "testId"
+  private[this] val NoOp = true
+  private[this] val Value = DoubleValue("vid", 2)
+  private[this] val Prop = "prop"
 
-  val operations = List(
+  private[this] val operations = List(
     ObjectSetPropertyOperation(Id, NoOp, Prop, Value),
     ObjectAddPropertyOperation(Id, NoOp, Prop, Value),
     ObjectRemovePropertyOperation(Id, NoOp, Prop),
@@ -50,7 +49,7 @@ class OperationMapperSpec extends AnyWordSpec with Matchers {
 
     CompoundOperation(List(NumberSetOperation(Id, NoOp, 3))))
 
-  "An OperationMapper" when {
+  "An OperationConverter" when {
     "mapping an unmapping operations" must {
       "correctly map and unmap operations" in {
         operations.foreach { op =>

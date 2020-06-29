@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.domain
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
-import com.convergencelabs.convergence.server.ServerClusterRoles
+import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
 import com.convergencelabs.convergence.server.actor.ActorSharding
 import com.convergencelabs.convergence.server.datastore.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
 import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic

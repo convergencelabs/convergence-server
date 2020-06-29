@@ -26,7 +26,6 @@ import com.convergencelabs.convergence.server.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
 import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.domain.presence.PresenceServiceActor
-import com.convergencelabs.convergence.server.{HeartbeatConfiguration, ProtocolConfiguration}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -62,7 +61,7 @@ class ClientActorSpec
     val protoConfig: ProtocolConfiguration = ProtocolConfiguration(
       2 seconds,
       250 millis,
-      HeartbeatConfiguration(
+      ProtocolConfiguration.HeartbeatConfiguration(
         enabled = false,
         0 seconds,
         0 seconds))

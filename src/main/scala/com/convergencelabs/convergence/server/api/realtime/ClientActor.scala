@@ -24,7 +24,6 @@ import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.
 import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.ErrorData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
-import com.convergencelabs.convergence.server.ProtocolConfiguration
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
