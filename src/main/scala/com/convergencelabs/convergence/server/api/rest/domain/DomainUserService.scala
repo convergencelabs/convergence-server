@@ -26,6 +26,7 @@ import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.domain.{DomainId, DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
+import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -77,7 +78,7 @@ class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
   private[this] def getAllUsersRequest(domain: DomainId, filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     domainRestActor
       .ask[GetUsersResponse](
-        r => DomainRestMessage(domain, GetUsersRequest(filter, offset, limit, r)))
+        r => DomainRestMessage(domain, GetUsersRequest(filter, QueryOffset(offset), QueryLimit(limit), r)))
       .map(_.users.fold(
         {
           case UnknownError() =>

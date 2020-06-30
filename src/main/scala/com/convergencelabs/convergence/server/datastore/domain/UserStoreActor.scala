@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.datastore.{DuplicateValueException
 import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.util.Success
 
@@ -57,10 +58,10 @@ class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
           filterString,
           Some(DomainUserField.Username),
           Some(SortOrder.Ascending),
-          QueryOffset(offset),
-          QueryLimit(limit))
+          offset,
+          limit)
       case None =>
-        userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), QueryOffset(offset), QueryLimit(limit))
+        userStore.getAllDomainUsers(Some(DomainUserField.Username), Some(SortOrder.Ascending), offset, limit)
     })
       .map(Right(_))
       .recover { cause =>
@@ -180,9 +181,11 @@ object UserStoreActor {
   // GetUsers
   //
   final case class GetUsersRequest(filter: Option[String],
-                             offset: Option[Long],
-                             limit: Option[Long],
-                             replyTo: ActorRef[GetUsersResponse]) extends Message
+                                   @JsonDeserialize(contentAs = classOf[Long])
+                                   offset: QueryOffset,
+                                   @JsonDeserialize(contentAs = classOf[Long])
+                                   limit: QueryLimit,
+                                   replyTo: ActorRef[GetUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -247,12 +250,12 @@ object UserStoreActor {
   // UpdateUser
   //
   final case class UpdateUserRequest(username: String,
-                               firstName: Option[String],
-                               lastName: Option[String],
-                               displayName: Option[String],
-                               email: Option[String],
-                               disabled: Option[Boolean],
-                               replyTo: ActorRef[UpdateUserResponse]) extends Message
+                                     firstName: Option[String],
+                                     lastName: Option[String],
+                                     displayName: Option[String],
+                                     email: Option[String],
+                                     disabled: Option[Boolean],
+                                     replyTo: ActorRef[UpdateUserResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -267,8 +270,8 @@ object UserStoreActor {
   // SetPassword
   //
   final case class SetPasswordRequest(uid: String,
-                                password: String,
-                                replyTo: ActorRef[SetPasswordResponse]) extends Message
+                                      password: String,
+                                      replyTo: ActorRef[SetPasswordResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -296,4 +299,5 @@ object UserStoreActor {
     with UpdateUserError
     with DeleteUserError
     with SetPasswordError
+
 }
