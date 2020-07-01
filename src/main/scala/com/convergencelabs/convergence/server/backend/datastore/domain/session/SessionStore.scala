@@ -35,55 +35,6 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
-object SessionStore {
-
-  import schema.DomainSessionClass._
-
-  private def sessionToDoc(session: DomainSession, db: ODatabaseDocument): Try[ODocument] = {
-    DomainUserStore.getUserRid(session.userId, db).recoverWith {
-      case cause: Throwable =>
-        Failure(new IllegalArgumentException(
-          s"Could not create session because the user could not be found: ${session.userId}", cause))
-    }.map { userLink =>
-      val doc: ODocument = db.newInstance(ClassName)
-      doc.setProperty(Fields.Id, session.id)
-      doc.setProperty(Fields.User, userLink)
-      doc.setProperty(Fields.Connected, Date.from(session.connected))
-      session.disconnected.foreach(d => doc.setProperty(Fields.Disconnected, Date.from(d)))
-      doc.setProperty(Fields.AuthMethod, session.authMethod)
-      doc.setProperty(Fields.Client, session.client)
-      doc.setProperty(Fields.ClientVersion, session.clientVersion)
-      doc.setProperty(Fields.ClientMetaData, session.clientMetaData)
-      doc.setProperty(Fields.RemoteHost, session.remoteHost)
-      doc
-    }
-  }
-
-  private def docToSession(doc: ODocument): DomainSession = {
-    val username: String = doc.eval("user.username").asInstanceOf[String]
-    val userType: String = doc.eval("user.userType").asInstanceOf[String]
-    val connected: Date = doc.field(Fields.Connected, OType.DATE)
-    val disconnected: Option[Date] = Option(doc.field(Fields.Disconnected, OType.DATE).asInstanceOf[Date])
-
-    session.DomainSession(
-      doc.field(Fields.Id),
-      DomainUserId(DomainUserType.withName(userType), username),
-      connected.toInstant,
-      disconnected map {
-        _.toInstant()
-      },
-      doc.field(Fields.AuthMethod),
-      doc.field(Fields.Client),
-      doc.field(Fields.ClientVersion),
-      doc.field(Fields.ClientMetaData),
-      doc.field(Fields.RemoteHost))
-  }
-
-  private[domain ]def getDomainSessionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
-  }
-}
-
 class SessionStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
@@ -224,5 +175,55 @@ class SessionStore(dbProvider: DatabaseProvider)
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object SessionStore {
+
+  import schema.DomainSessionClass._
+
+  private def sessionToDoc(session: DomainSession, db: ODatabaseDocument): Try[ODocument] = {
+    DomainUserStore.getUserRid(session.userId, db).recoverWith {
+      case cause: Throwable =>
+        Failure(new IllegalArgumentException(
+          s"Could not create session because the user could not be found: ${session.userId}", cause))
+    }.map { userLink =>
+      val doc: ODocument = db.newInstance(ClassName)
+      doc.setProperty(Fields.Id, session.id)
+      doc.setProperty(Fields.User, userLink)
+      doc.setProperty(Fields.Connected, Date.from(session.connected))
+      session.disconnected.foreach(d => doc.setProperty(Fields.Disconnected, Date.from(d)))
+      doc.setProperty(Fields.AuthMethod, session.authMethod)
+      doc.setProperty(Fields.Client, session.client)
+      doc.setProperty(Fields.ClientVersion, session.clientVersion)
+      doc.setProperty(Fields.ClientMetaData, session.clientMetaData)
+      doc.setProperty(Fields.RemoteHost, session.remoteHost)
+      doc
+    }
+  }
+
+  private def docToSession(doc: ODocument): DomainSession = {
+    val username: String = doc.eval("user.username").asInstanceOf[String]
+    val userType: String = doc.eval("user.userType").asInstanceOf[String]
+    val connected: Date = doc.field(Fields.Connected, OType.DATE)
+    val disconnected: Option[Date] = Option(doc.field(Fields.Disconnected, OType.DATE).asInstanceOf[Date])
+
+    session.DomainSession(
+      doc.field(Fields.Id),
+      DomainUserId(DomainUserType.withName(userType), username),
+      connected.toInstant,
+      disconnected map {
+        _.toInstant()
+      },
+      doc.field(Fields.AuthMethod),
+      doc.field(Fields.Client),
+      doc.field(Fields.ClientVersion),
+      doc.field(Fields.ClientMetaData),
+      doc.field(Fields.RemoteHost))
+  }
+
+  private[domain ]def getDomainSessionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
 }

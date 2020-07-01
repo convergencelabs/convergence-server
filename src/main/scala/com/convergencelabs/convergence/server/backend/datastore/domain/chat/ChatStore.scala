@@ -35,109 +35,6 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-object ChatStore {
-
-  import DomainSchema._
-
-  private def chatToDoc(chat: CreateChat): ODocument = {
-    val doc = new ODocument(Classes.Chat.ClassName)
-    doc.setProperty(Classes.Chat.Fields.Id, chat.id)
-    doc.setProperty(Classes.Chat.Fields.Type, chat.chatType.toString.toLowerCase)
-    doc.setProperty(Classes.Chat.Fields.Created, Date.from(chat.created))
-    doc.setProperty(Classes.Chat.Fields.Private, chat.membership == ChatMembership.Private)
-    doc.setProperty(Classes.Chat.Fields.Name, chat.name)
-    doc.setProperty(Classes.Chat.Fields.Topic, chat.topic)
-    doc.setProperty(Classes.Chat.Fields.Members, new java.util.HashSet[ORID]())
-    doc
-  }
-
-  private def docToChatEvent(doc: ODocument): ChatEvent = {
-    val eventNo: Long = doc.getProperty(Classes.ChatEvent.Fields.EventNo)
-    val chatId = doc.eval("chat.id").asInstanceOf[String]
-    val user = extractUserId(doc)
-    val timestamp: Date = doc.getProperty(Classes.ChatEvent.Fields.Timestamp)
-    val className = doc.getClassName
-
-    className match {
-      case Classes.ChatCreatedEvent.ClassName =>
-        val name: String = doc.getProperty(Classes.ChatCreatedEvent.Fields.Name)
-        val topic: String = doc.getProperty(Classes.ChatCreatedEvent.Fields.Topic)
-        val members: JavaSet[ODocument] = doc.getProperty(Classes.ChatCreatedEvent.Fields.Members)
-        val userIds: Set[DomainUserId] = members.asScala.toSet.map { doc: ODocument =>
-          val username = doc.getProperty(Classes.User.Fields.Username).asInstanceOf[String]
-          val userType = doc.getProperty(Classes.User.Fields.UserType).asInstanceOf[String]
-          DomainUserId(DomainUserType.withName(userType), username)
-        }
-        ChatCreatedEvent(eventNo, chatId, user, timestamp.toInstant, name, topic, userIds)
-      case Classes.ChatMessageEvent.ClassName =>
-        val message: String = doc.getProperty(Classes.ChatMessageEvent.Fields.Message)
-        ChatMessageEvent(eventNo, chatId, user, timestamp.toInstant, message)
-      case Classes.ChatUserJoinedEvent.ClassName =>
-        ChatUserJoinedEvent(eventNo, chatId, user, timestamp.toInstant)
-      case Classes.ChatUserLeftEvent.ClassName =>
-        ChatUserLeftEvent(eventNo, chatId, user, timestamp.toInstant)
-      case Classes.ChatUserAddedEvent.ClassName =>
-        val userAdded = doc.eval("userAdded.username").asInstanceOf[String]
-        val userType = doc.eval("userAdded.userType").asInstanceOf[String]
-        ChatUserAddedEvent(eventNo, chatId, user, timestamp.toInstant, DomainUserId(DomainUserType.withName(userType), userAdded))
-      case Classes.ChatUserRemovedEvent.ClassName =>
-        val userRemoved = doc.eval("userRemoved.username").asInstanceOf[String]
-        val userType = doc.eval("userRemoved.userType").asInstanceOf[String]
-        ChatUserRemovedEvent(eventNo, chatId, user, timestamp.toInstant, DomainUserId(DomainUserType.withName(userType), userRemoved))
-      case Classes.ChatTopicChangedEvent.ClassName =>
-        val topic: String = doc.getProperty(Classes.ChatTopicChangedEvent.Fields.Topic)
-        ChatTopicChangedEvent(eventNo, chatId, user, timestamp.toInstant, topic)
-      case Classes.ChatNameChangedEvent.ClassName =>
-        val name: String = doc.getProperty(Classes.ChatNameChangedEvent.Fields.Name)
-        ChatNameChangedEvent(eventNo, chatId, user, timestamp.toInstant, name)
-      case _ =>
-        throw new IllegalArgumentException(s"Unknown Chat Event class name: $className")
-    }
-  }
-
-  private def toChatInfo(doc: ODocument): ChatInfo = {
-    val id: String = doc.getProperty(Classes.Chat.Fields.Id)
-    val chatType: String = doc.getProperty(Classes.Chat.Fields.Type)
-    val created: Instant = doc.getProperty(Classes.Chat.Fields.Created).asInstanceOf[Date].toInstant
-    val isPrivate: Boolean = doc.getProperty(Classes.Chat.Fields.Private)
-    val name: String = doc.getProperty(Classes.Chat.Fields.Name)
-    val topic: String = doc.getProperty(Classes.Chat.Fields.Topic)
-    val members: JavaSet[OIdentifiable] = doc.getProperty(Classes.Chat.Fields.Members)
-    val chatMembers: Set[ChatMember] = members.asScala.map(member => {
-      val doc = member.getRecord.asInstanceOf[ODocument]
-      val userId = extractUserId(doc)
-      val seen = doc.getProperty("seen").asInstanceOf[Long]
-      chat.ChatMember(id, userId, seen)
-    }).toSet
-    val lastEventNo: Long = doc.getProperty(Classes.ChatEvent.Fields.EventNo)
-    val lastEventTime: Instant = doc.getProperty(Classes.ChatEvent.Fields.Timestamp).asInstanceOf[Date].toInstant
-    chat.ChatInfo(
-      id,
-      ChatType.parse(chatType).get,
-      created,
-      if (isPrivate) {
-        ChatMembership.Private
-      } else {
-        ChatMembership.Public
-      },
-      name,
-      topic,
-      lastEventNo,
-      lastEventTime,
-      chatMembers)
-  }
-
-  private def extractUserId(doc: ODocument): DomainUserId = {
-    val username = doc.eval("user.username").asInstanceOf[String]
-    val userType = doc.eval("user.userType").asInstanceOf[String]
-    DomainUserId(DomainUserType.withName(userType), username)
-  }
-
-  private[domain] def getChatRid(chatId: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, chatId)
-  }
-}
-
 class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import ChatStore._
@@ -148,7 +45,7 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
                   types: Option[Set[ChatType.Value]],
                   membership: Option[ChatMembership.Value],
                   offset: QueryOffset,
-                  limit: QueryLimit): Try[PagedData[ChatInfo]] = withDb { db =>
+                  limit: QueryLimit): Try[PagedData[ChatState]] = withDb { db =>
     val chatTypes: Set[String] = types.getOrElse(Set(ChatType.Channel, ChatType.Room, ChatType.Direct)).map(_.toString.toLowerCase)
 
     val whereClauses = mutable.ListBuffer("chat.type IN :chatTypes")
@@ -203,7 +100,7 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     val params = whereParams.toMap
     for {
       count <- OrientDBUtil.getDocument(db, countQuery, params).map(doc => doc.getProperty("count").asInstanceOf[Long])
-      data <- OrientDBUtil.queryAndMap(db, query, params) { doc => toChatInfo(doc) }
+      data <- OrientDBUtil.queryAndMap(db, query, params) { doc => toChatState(doc) }
     } yield {
       PagedData(data, offset.getOrZero, count)
     }
@@ -227,44 +124,44 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
        |GROUP BY (chat)
        |ORDER BY chat""".stripMargin
 
-  def getChatInfo(chatIds: List[String]): Try[List[ChatInfo]] = withDb { db =>
+  def getChatState(chatIds: List[String]): Try[List[ChatState]] = withDb { db =>
     val params = Map("chatIds" -> chatIds.asJava)
     OrientDBUtil.queryAndMap(db, GetChatInfosQuery, params) { doc =>
-      toChatInfo(doc)
+      toChatState(doc)
     }
   }
 
   private[this] val GetChatInfoQuery =
-    """|SELECT 
-       |  max(eventNo) as eventNo, 
+    """|SELECT
+       |  max(eventNo) as eventNo,
        |  max(timestamp) as timestamp,
-       |  chat.id as id, 
-       |  chat.type as type, 
+       |  chat.id as id,
+       |  chat.type as type,
        |  chat.created as created,
        |  chat.private as private,
-       |  chat.name as name, 
+       |  chat.name as name,
        |  chat.topic as topic,
        |  chat.members as members
        |FROM
-       |  ChatEvent 
+       |  ChatEvent
        |WHERE
        |  chat.id == :chatId""".stripMargin
 
-  def getChatInfo(chatId: String): Try[ChatInfo] = withDb { db =>
+  def getChatState(chatId: String): Try[ChatState] = withDb { db =>
     val params = Map("chatId" -> chatId)
     OrientDBUtil
       .getDocument(db, GetChatInfoQuery, params)
-      .map(toChatInfo)
+      .map(toChatState)
       .recoverWith {
         case _: EntityNotFoundException =>
           Failure(EntityNotFoundException(s"A chat with id '$chatId' does not exist", Some(chatId)))
       }
   }
 
-  def findChatInfo(chatId: String): Try[Option[ChatInfo]] = withDb { db =>
+  def findChatInfo(chatId: String): Try[Option[ChatState]] = withDb { db =>
     val params = Map("chatId" -> chatId)
     OrientDBUtil.findDocumentAndMap(db, GetChatInfoQuery, params) {
-      toChatInfo
+      toChatState
     }
   }
 
@@ -319,7 +216,7 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
       }
   }
 
-  def getDirectChatInfoByUsers(userIds: Set[DomainUserId]): Try[Option[ChatInfo]] = withDb { db =>
+  def getDirectChatInfoByUsers(userIds: Set[DomainUserId]): Try[Option[ChatState]] = withDb { db =>
     // TODO is there a better way to do this using ChatMember class, like maybe with
     // a group by / count WHERE'd on the Channel Link?
 
@@ -342,14 +239,14 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
         .flatMap {
           case Some(doc) =>
             val id: String = doc.getProperty("id")
-            this.getChatInfo(id).map(Some(_))
+            this.getChatState(id).map(Some(_))
           case None =>
             Success(None)
         }
     }
   }
 
-  def getJoinedChannels(userId: DomainUserId): Try[Set[ChatInfo]] = withDb { db =>
+  def getJoinedChannels(userId: DomainUserId): Try[Set[ChatState]] = withDb { db =>
     val query =
       """
         |SELECT
@@ -363,7 +260,7 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     val params = Map("username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil
       .query(db, query, params)
-      .flatMap(docs => getChatInfo(docs.map(_.getProperty("chatId").asInstanceOf[String]))
+      .flatMap(docs => getChatState(docs.map(_.getProperty("chatId").asInstanceOf[String]))
         .map(_.toSet))
   }
 
@@ -737,5 +634,109 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     case "name_changed" => Some(Classes.ChatNameChangedEvent.ClassName)
     case "topic_changed" => Some(Classes.ChatTopicChangedEvent.ClassName)
     case _ => None
+  }
+}
+
+
+object ChatStore {
+
+  import DomainSchema._
+
+  private def chatToDoc(chat: CreateChat): ODocument = {
+    val doc = new ODocument(Classes.Chat.ClassName)
+    doc.setProperty(Classes.Chat.Fields.Id, chat.id)
+    doc.setProperty(Classes.Chat.Fields.Type, chat.chatType.toString.toLowerCase)
+    doc.setProperty(Classes.Chat.Fields.Created, Date.from(chat.created))
+    doc.setProperty(Classes.Chat.Fields.Private, chat.membership == ChatMembership.Private)
+    doc.setProperty(Classes.Chat.Fields.Name, chat.name)
+    doc.setProperty(Classes.Chat.Fields.Topic, chat.topic)
+    doc.setProperty(Classes.Chat.Fields.Members, new java.util.HashSet[ORID]())
+    doc
+  }
+
+  private def docToChatEvent(doc: ODocument): ChatEvent = {
+    val eventNo: Long = doc.getProperty(Classes.ChatEvent.Fields.EventNo)
+    val chatId = doc.eval("chat.id").asInstanceOf[String]
+    val user = extractUserId(doc)
+    val timestamp: Date = doc.getProperty(Classes.ChatEvent.Fields.Timestamp)
+    val className = doc.getClassName
+
+    className match {
+      case Classes.ChatCreatedEvent.ClassName =>
+        val name: String = doc.getProperty(Classes.ChatCreatedEvent.Fields.Name)
+        val topic: String = doc.getProperty(Classes.ChatCreatedEvent.Fields.Topic)
+        val members: JavaSet[ODocument] = doc.getProperty(Classes.ChatCreatedEvent.Fields.Members)
+        val userIds: Set[DomainUserId] = members.asScala.toSet.map { doc: ODocument =>
+          val username = doc.getProperty(Classes.User.Fields.Username).asInstanceOf[String]
+          val userType = doc.getProperty(Classes.User.Fields.UserType).asInstanceOf[String]
+          DomainUserId(DomainUserType.withName(userType), username)
+        }
+        ChatCreatedEvent(eventNo, chatId, user, timestamp.toInstant, name, topic, userIds)
+      case Classes.ChatMessageEvent.ClassName =>
+        val message: String = doc.getProperty(Classes.ChatMessageEvent.Fields.Message)
+        ChatMessageEvent(eventNo, chatId, user, timestamp.toInstant, message)
+      case Classes.ChatUserJoinedEvent.ClassName =>
+        ChatUserJoinedEvent(eventNo, chatId, user, timestamp.toInstant)
+      case Classes.ChatUserLeftEvent.ClassName =>
+        ChatUserLeftEvent(eventNo, chatId, user, timestamp.toInstant)
+      case Classes.ChatUserAddedEvent.ClassName =>
+        val userAdded = doc.eval("userAdded.username").asInstanceOf[String]
+        val userType = doc.eval("userAdded.userType").asInstanceOf[String]
+        ChatUserAddedEvent(eventNo, chatId, user, timestamp.toInstant, DomainUserId(DomainUserType.withName(userType), userAdded))
+      case Classes.ChatUserRemovedEvent.ClassName =>
+        val userRemoved = doc.eval("userRemoved.username").asInstanceOf[String]
+        val userType = doc.eval("userRemoved.userType").asInstanceOf[String]
+        ChatUserRemovedEvent(eventNo, chatId, user, timestamp.toInstant, DomainUserId(DomainUserType.withName(userType), userRemoved))
+      case Classes.ChatTopicChangedEvent.ClassName =>
+        val topic: String = doc.getProperty(Classes.ChatTopicChangedEvent.Fields.Topic)
+        ChatTopicChangedEvent(eventNo, chatId, user, timestamp.toInstant, topic)
+      case Classes.ChatNameChangedEvent.ClassName =>
+        val name: String = doc.getProperty(Classes.ChatNameChangedEvent.Fields.Name)
+        ChatNameChangedEvent(eventNo, chatId, user, timestamp.toInstant, name)
+      case _ =>
+        throw new IllegalArgumentException(s"Unknown Chat Event class name: $className")
+    }
+  }
+
+  private def toChatState(doc: ODocument): ChatState = {
+    val id: String = doc.getProperty(Classes.Chat.Fields.Id)
+    val chatType: String = doc.getProperty(Classes.Chat.Fields.Type)
+    val created: Instant = doc.getProperty(Classes.Chat.Fields.Created).asInstanceOf[Date].toInstant
+    val isPrivate: Boolean = doc.getProperty(Classes.Chat.Fields.Private)
+    val name: String = doc.getProperty(Classes.Chat.Fields.Name)
+    val topic: String = doc.getProperty(Classes.Chat.Fields.Topic)
+    val members: JavaSet[OIdentifiable] = doc.getProperty(Classes.Chat.Fields.Members)
+    val chatMembers: Set[ChatMember] = members.asScala.map(member => {
+      val doc = member.getRecord.asInstanceOf[ODocument]
+      val userId = extractUserId(doc)
+      val seen = doc.getProperty("seen").asInstanceOf[Long]
+      chat.ChatMember(id, userId, seen)
+    }).toSet
+    val lastEventNo: Long = doc.getProperty(Classes.ChatEvent.Fields.EventNo)
+    val lastEventTime: Instant = doc.getProperty(Classes.ChatEvent.Fields.Timestamp).asInstanceOf[Date].toInstant
+    ChatState(
+      id,
+      ChatType.parse(chatType).get,
+      created,
+      if (isPrivate) {
+        ChatMembership.Private
+      } else {
+        ChatMembership.Public
+      },
+      name,
+      topic,
+      lastEventTime,
+      lastEventNo,
+      chatMembers.map(m => (m.userId, m)).toMap)
+  }
+
+  private def extractUserId(doc: ODocument): DomainUserId = {
+    val username = doc.eval("user.username").asInstanceOf[String]
+    val userType = doc.eval("user.userType").asInstanceOf[String]
+    DomainUserId(DomainUserType.withName(userType), username)
+  }
+
+  private[domain] def getChatRid(chatId: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Classes.Chat.Indices.Id, chatId)
   }
 }

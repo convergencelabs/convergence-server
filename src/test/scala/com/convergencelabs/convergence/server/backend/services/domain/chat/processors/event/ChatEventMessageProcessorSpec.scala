@@ -19,8 +19,8 @@ import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatState}
-import com.convergencelabs.convergence.server.model.domain.chat.ChatUserJoinedEvent
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatState, ChatUserJoinedEvent}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -49,8 +49,7 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
   private val updateState = (_: ChatUserJoinedEvent, _: ChatState) => newState
 
   private def createSuccessReply(r: JoinChatRequest, e: ChatUserJoinedEvent, state: ChatState): ReplyAndBroadcastTask[JoinChatResponse] = {
-    val info = JoinEventProcessor.stateToInfo(state)
-    ReplyAndBroadcastTask(MessageReplyTask(r.replyTo, JoinChatResponse(Right(info))), None)
+    ReplyAndBroadcastTask(MessageReplyTask(r.replyTo, JoinChatResponse(Right(state))), None)
   }
 
   private val createErrorReply = (e: CommonErrors) => JoinChatResponse(Left(e))
@@ -73,8 +72,7 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
         result.newState shouldBe Some(newState)
         result.task.reply.replyTo shouldBe replyTo.ref
 
-        val info = JoinEventProcessor.stateToInfo(result.newState.get)
-        result.task.reply.response shouldBe JoinChatResponse(Right(info))
+        result.task.reply.response shouldBe JoinChatResponse(Right(newState))
 
         result.task.broadcast shouldBe None
       }

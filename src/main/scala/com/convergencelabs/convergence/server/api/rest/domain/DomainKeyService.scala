@@ -30,10 +30,10 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
-                       scheduler: Scheduler,
-                       executionContext: ExecutionContext,
-                       timeout: Timeout)
+private[domain] final class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
+                                             scheduler: Scheduler,
+                                             executionContext: ExecutionContext,
+                                             timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainKeyService._

@@ -27,10 +27,10 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import scala.concurrent.{ExecutionContext, Future}
 
 
-private[rest] class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Message],
-                                             scheduler: Scheduler,
-                                             executionContext: ExecutionContext,
-                                             defaultTimeout: Timeout)
+private[rest] final class CurrentUserApiKeyService(userApiKeyStoreActor: ActorRef[Message],
+                                                   scheduler: Scheduler,
+                                                   executionContext: ExecutionContext,
+                                                   defaultTimeout: Timeout)
   extends JsonSupport {
 
   import CurrentUserApiKeyService._

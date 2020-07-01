@@ -11,8 +11,12 @@
 
 package com.convergencelabs.convergence.server.backend.datastore
 
+import com.fasterxml.jackson.core.`type`.TypeReference
+
 object SortOrder extends Enumeration {
   type SortOder = Value
   val Ascending: SortOder = Value("ASC")
   val Descending: SortOder = Value("DESC")
 }
+
+final class SortOrderTypeReference extends TypeReference[SortOrder.Value] {}

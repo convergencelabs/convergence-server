@@ -11,4 +11,4 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
-case class UnauthorizedException(message: String = "") extends Exception(message)
+final case class UnauthorizedException(message: String = "") extends Exception(message)

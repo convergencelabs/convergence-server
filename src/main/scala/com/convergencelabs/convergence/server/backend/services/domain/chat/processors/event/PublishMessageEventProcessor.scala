@@ -16,8 +16,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat.Chat
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{CommonErrors, PublishChatMessageAck, PublishChatMessageRequest, PublishChatMessageResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.ReplyAndBroadcastTask
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatState}
-import com.convergencelabs.convergence.server.model.domain.chat.ChatMessageEvent
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatMessageEvent, ChatState}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Success, Try}

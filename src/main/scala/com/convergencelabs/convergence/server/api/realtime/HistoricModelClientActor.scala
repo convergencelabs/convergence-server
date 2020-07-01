@@ -31,11 +31,11 @@ import scalapb.GeneratedMessage
 import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 
-class HistoricModelClientActor private(context: ActorContext[HistoricModelClientActor.Message],
-                                       domain: DomainId,
-                                       operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
-                                       modelShardRegion: ActorRef[RealtimeModelActor.Message],
-                                       defaultTimeout: Timeout)
+private final class HistoricModelClientActor(context: ActorContext[HistoricModelClientActor.Message],
+                                             domain: DomainId,
+                                             operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                                             modelShardRegion: ActorRef[RealtimeModelActor.Message],
+                                             defaultTimeout: Timeout)
   extends AbstractBehavior[HistoricModelClientActor.Message](context) with Logging with AskUtils {
 
   import HistoricModelClientActor._
@@ -105,9 +105,9 @@ class HistoricModelClientActor private(context: ActorContext[HistoricModelClient
 
 object HistoricModelClientActor {
   private[realtime] def apply(domain: DomainId,
-            operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
-            modelShardRegion: ActorRef[RealtimeModelActor.Message],
-            defaultTimeout: Timeout): Behavior[Message] =
+                              operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                              modelShardRegion: ActorRef[RealtimeModelActor.Message],
+                              defaultTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new HistoricModelClientActor(
       context, domain, operationStoreActor, modelShardRegion, defaultTimeout))
 

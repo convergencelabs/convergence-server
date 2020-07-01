@@ -23,7 +23,7 @@ import akka.actor.typed.ActorRef
  * @tparam T The type of message that will be sent, as well as the type
  *           of the ActorRef to send the message to.
  */
-case class MessageReplyTask[T](replyTo: ActorRef[T], response: T) {
+final case class MessageReplyTask[T](replyTo: ActorRef[T], response: T) {
 
   /**
    * Execute the side effecting task to send the response to the

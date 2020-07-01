@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.general
 
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatState
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 

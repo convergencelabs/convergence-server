@@ -41,7 +41,7 @@ import scala.util.{Failure, Success, Try}
  * authenticating users into the domain and handling client connections
  * and disconnections.
  */
-class DomainActor private(context: ActorContext[DomainActor.Message],
+private class DomainActor(context: ActorContext[DomainActor.Message],
                           shardRegion: ActorRef[DomainActor.Message],
                           shard: ActorRef[ClusterSharding.ShardCommand],
                           domainPersistenceManager: DomainPersistenceManager,

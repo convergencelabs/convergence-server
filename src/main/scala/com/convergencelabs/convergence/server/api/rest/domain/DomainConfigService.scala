@@ -30,10 +30,10 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainConfigService(domainRestActor: ActorRef[Message],
-                          scheduler: Scheduler,
-                          executionContext: ExecutionContext,
-                          timeout: Timeout)
+private[domain] final class DomainConfigService(domainRestActor: ActorRef[Message],
+                                                scheduler: Scheduler,
+                                                executionContext: ExecutionContext,
+                                                timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainConfigService._
@@ -182,4 +182,5 @@ object DomainConfigService {
                                      maximumTimeInterval: Long,
                                      limitByTime: Boolean,
                                      minimumTimeInterval: Long)
+
 }

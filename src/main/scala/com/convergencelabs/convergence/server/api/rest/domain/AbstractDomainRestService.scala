@@ -20,9 +20,9 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Pe
 
 import scala.concurrent.ExecutionContext
 
-class AbstractDomainRestService(scheduler: Scheduler,
-                                executionContext: ExecutionContext,
-                                defaultTimeout: Timeout)
+private[domain] class AbstractDomainRestService(scheduler: Scheduler,
+                                                executionContext: ExecutionContext,
+                                                defaultTimeout: Timeout)
   extends JsonSupport with AskUtils with PermissionChecks {
 
   protected implicit val ec: ExecutionContext = executionContext

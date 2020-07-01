@@ -17,7 +17,7 @@ import com.fasterxml.jackson.databind.{DeserializationContext, JsonSerializer, K
 
 object DomainUserIdSerialization {
 
-  class MapKeySerializer extends JsonSerializer[DomainUserId] {
+  final class MapKeySerializer extends JsonSerializer[DomainUserId] {
     override def serialize(userId: DomainUserId, gen: JsonGenerator, serializers: SerializerProvider): Unit = {
       val userType = userId.userType.toString
       val username = userId.username
@@ -25,7 +25,7 @@ object DomainUserIdSerialization {
     }
   }
 
-  class MapKeyDeserializer extends KeyDeserializer {
+  final class MapKeyDeserializer extends KeyDeserializer {
     override def deserializeKey(key: String, ctxt: DeserializationContext): DomainUserId = {
       val sepIndex = key.indexOf(':')
       val userType = key.substring(0, sepIndex)

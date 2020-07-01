@@ -30,53 +30,7 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
-
-object UserGroupStore {
-
-  import schema.UserGroupClass._
-
-  def getGroupRid(id: String, db: ODatabaseDocument): Try[ORID] = {
-    // FIXME use index
-    val query = "SELECT @RID as rid FROM UserGroup WHERE id = :id"
-    val params = Map("id" -> id)
-    OrientDBUtil
-      .getDocument(db, query, params)
-      .map(_.eval("rid").asInstanceOf[ORID])
-  }
-
-  def groupToDoc(group: UserGroup, db: ODatabaseDocument): Try[ODocument] = {
-    Try {
-      val UserGroup(id, description, members) = group
-      val doc: ODocument = db.newInstance(ClassName)
-      doc.setProperty(Fields.Id, id)
-      doc.setProperty(Fields.Description, description)
-
-      val memberRids = members.map { m =>
-        DomainUserStore.getUserRid(m, db).get
-      }
-
-      doc.setProperty(Fields.Members, memberRids.asJava)
-
-      doc
-    }
-  }
-
-  def docToGroup(doc: ODocument): UserGroup = {
-    val members: util.Set[ODocument] = doc.getProperty(Fields.Members)
-    val membersScala = members.asScala.toSet
-
-    UserGroup(
-      doc.field(Fields.Id),
-      doc.field(Fields.Description),
-      membersScala.map { m =>
-        DomainUserId(
-          DomainUserType.withName(m.getProperty(DomainSchema.Classes.User.Fields.UserType)),
-          m.getProperty(DomainSchema.Classes.User.Fields.Username).asInstanceOf[String])
-      })
-  }
-}
-
-class UserGroupStore private[domain](private[this] val dbProvider: DatabaseProvider)
+class UserGroupStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -297,5 +251,51 @@ class UserGroupStore private[domain](private[this] val dbProvider: DatabaseProvi
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object UserGroupStore {
+
+  import schema.UserGroupClass._
+
+  def getGroupRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    // FIXME use index
+    val query = "SELECT @RID as rid FROM UserGroup WHERE id = :id"
+    val params = Map("id" -> id)
+    OrientDBUtil
+      .getDocument(db, query, params)
+      .map(_.eval("rid").asInstanceOf[ORID])
+  }
+
+  def groupToDoc(group: UserGroup, db: ODatabaseDocument): Try[ODocument] = {
+    Try {
+      val UserGroup(id, description, members) = group
+      val doc: ODocument = db.newInstance(ClassName)
+      doc.setProperty(Fields.Id, id)
+      doc.setProperty(Fields.Description, description)
+
+      val memberRids = members.map { m =>
+        DomainUserStore.getUserRid(m, db).get
+      }
+
+      doc.setProperty(Fields.Members, memberRids.asJava)
+
+      doc
+    }
+  }
+
+  def docToGroup(doc: ODocument): UserGroup = {
+    val members: util.Set[ODocument] = doc.getProperty(Fields.Members)
+    val membersScala = members.asScala.toSet
+
+    UserGroup(
+      doc.field(Fields.Id),
+      doc.field(Fields.Description),
+      membersScala.map { m =>
+        DomainUserId(
+          DomainUserType.withName(m.getProperty(DomainSchema.Classes.User.Fields.UserType)),
+          m.getProperty(DomainSchema.Classes.User.Fields.Username).asInstanceOf[String])
+      })
   }
 }

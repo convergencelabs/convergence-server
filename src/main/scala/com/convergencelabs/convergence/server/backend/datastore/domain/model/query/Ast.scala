@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model.query
+package com.convergencelabs.convergence.server.backend.datastore.domain.model.query
 
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 

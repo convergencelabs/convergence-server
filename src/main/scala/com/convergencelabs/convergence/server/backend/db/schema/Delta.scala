@@ -30,36 +30,36 @@ object SequenceType extends Enumeration {
   val Cached, Ordered = Value
 }
 
-case class DeltaScript(rawScript: String, delta: Delta)
-case class Delta(version: Int, description: Option[String], actions: List[DeltaAction])
+final case class DeltaScript(rawScript: String, delta: Delta)
+final case class Delta(version: Int, description: Option[String], actions: List[DeltaAction])
 
 sealed trait DeltaAction
 
-case class CreateClass(name: String, superclass: Option[String], `abstract`: Option[Boolean], properties: List[Property]) extends DeltaAction
-case class AlterClass(name: String, newName: Option[String], superclass: Option[String]) extends DeltaAction
-case class DropClass(name: String) extends DeltaAction
+final case class CreateClass(name: String, superclass: Option[String], `abstract`: Option[Boolean], properties: List[Property]) extends DeltaAction
+final case class AlterClass(name: String, newName: Option[String], superclass: Option[String]) extends DeltaAction
+final case class DropClass(name: String) extends DeltaAction
 
-case class AddProperty(className: String, property: Property) extends DeltaAction
-case class AlterProperty(className: String, name: String, property: PropertyOptions) extends DeltaAction
-case class DropProperty(className: String, name: String) extends DeltaAction
+final case class AddProperty(className: String, property: Property) extends DeltaAction
+final case class AlterProperty(className: String, name: String, property: PropertyOptions) extends DeltaAction
+final case class DropProperty(className: String, name: String) extends DeltaAction
 
-case class CreateIndex(className: String, name: String, `type`: IndexType.Value, properties: List[String], metaData: Option[Map[String, Any]]) extends DeltaAction
-case class DropIndex(name: String) extends DeltaAction
+final case class CreateIndex(className: String, name: String, `type`: IndexType.Value, properties: List[String], metaData: Option[Map[String, Any]]) extends DeltaAction
+final case class DropIndex(name: String) extends DeltaAction
 
-case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Long], increment: Option[Int], cacheSize: Option[Int]) extends DeltaAction
-case class DropSequence(name: String) extends DeltaAction
+final case class CreateSequence(name: String, sequenceType: SequenceType.Value, start: Option[Long], increment: Option[Int], cacheSize: Option[Int]) extends DeltaAction
+final case class DropSequence(name: String) extends DeltaAction
 
-case class RunSqlCommand(command: String) extends DeltaAction
+final case class RunSqlCommand(command: String) extends DeltaAction
 
-case class CreateFunction(name: String, code: String, parameters: List[String], language: Option[String], idempotent: Option[Boolean]) extends DeltaAction
-case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends DeltaAction
-case class DropFunction(name: String) extends DeltaAction
+final case class CreateFunction(name: String, code: String, parameters: List[String], language: Option[String], idempotent: Option[Boolean]) extends DeltaAction
+final case class AlterFunction(name: String, newName: Option[String], code: Option[String], parameters: Option[List[String]], language: Option[String], idempotent: Option[Boolean]) extends DeltaAction
+final case class DropFunction(name: String) extends DeltaAction
 
-case class Property(name: String, `type`: OrientType.Value, linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
-case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
+final case class Property(name: String, `type`: OrientType.Value, linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
+final case class PropertyOptions(name: Option[String], orientType: Option[OrientType.Value], linkedType: Option[OrientType.Value], linkedClass: Option[String], constraints: Option[Constraints])
 
 
-case class Constraints(
+final case class Constraints(
     min: Option[String],
     max: Option[String],
     mandatory: Option[Boolean],
@@ -70,4 +70,4 @@ case class Constraints(
     custom: Option[CustomProperty],
     default: Option[String])
 
-case class CustomProperty(name: String, value: String)    
+final case class CustomProperty(name: String, value: String)    

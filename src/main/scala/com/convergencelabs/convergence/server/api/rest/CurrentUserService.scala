@@ -28,11 +28,11 @@ import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-private[rest] class CurrentUserService(convergenceUserActor: ActorRef[UserStoreActor.Message],
-                                       favoriteDomainsActor: ActorRef[UserFavoriteDomainStoreActor.Message],
-                                       executionContext: ExecutionContext,
-                                       scheduler: Scheduler,
-                                       defaultTimeout: Timeout)
+private[rest] final class CurrentUserService(convergenceUserActor: ActorRef[UserStoreActor.Message],
+                                             favoriteDomainsActor: ActorRef[UserFavoriteDomainStoreActor.Message],
+                                             executionContext: ExecutionContext,
+                                             scheduler: Scheduler,
+                                             defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import CurrentUserService._

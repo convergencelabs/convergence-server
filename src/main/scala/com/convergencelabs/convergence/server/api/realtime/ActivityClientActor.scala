@@ -44,12 +44,12 @@ import scala.language.postfixOps
  * @param domain              The id of the domain that the user connected to.
  * @param session             The session id of the connected client.
  */
-class ActivityClientActor private(context: ActorContext[Message],
-                                  activityShardRegion: ActorRef[ActivityActor.Message],
-                                  clientActor: ActorRef[ClientActor.SendServerMessage],
-                                  domain: DomainId,
-                                  session: DomainSessionAndUserId,
-                                  defaultTimeout: Timeout)
+private final class ActivityClientActor private(context: ActorContext[Message],
+                                                activityShardRegion: ActorRef[ActivityActor.Message],
+                                                clientActor: ActorRef[ClientActor.SendServerMessage],
+                                                domain: DomainId,
+                                                session: DomainSessionAndUserId,
+                                                defaultTimeout: Timeout)
   extends AbstractBehavior[Message](context) with Logging with AskUtils {
 
   import ActivityClientActor._
@@ -143,7 +143,7 @@ class ActivityClientActor private(context: ActorContext[Message],
         ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _))
       .map(_.response.fold({
         case ActivityActor.NotJoinedError() =>
-         cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity '$activityId'.")
+          cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity '$activityId'.")
       }, { _ =>
         cb.reply(ActivityLeaveResponseMessage())
       }))
@@ -178,7 +178,7 @@ object ActivityClientActor {
                               clientActor: ActorRef[ClientActor.SendServerMessage],
                               activityServiceActor: ActorRef[ActivityActor.Message],
                               defaultTimeout: Timeout
-           ): Behavior[ActivityClientActor.Message] =
+                             ): Behavior[ActivityClientActor.Message] =
     Behaviors.setup(context => new ActivityClientActor(context, activityServiceActor, clientActor, domain, session, defaultTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
@@ -211,9 +211,9 @@ object ActivityClientActor {
   final case class ActivitySessionLeft(activityId: String, sessionId: String) extends OutgoingMessage
 
   final case class ActivityStateUpdated(activityId: String,
-                                  sessionId: String,
-                                  state: Map[String, JValue],
-                                  complete: Boolean,
-                                  removed: List[String]) extends OutgoingMessage
+                                        sessionId: String,
+                                        state: Map[String, JValue],
+                                        complete: Boolean,
+                                        removed: List[String]) extends OutgoingMessage
 
 }

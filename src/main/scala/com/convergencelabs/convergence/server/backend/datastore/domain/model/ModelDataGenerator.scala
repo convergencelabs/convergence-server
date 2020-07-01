@@ -22,7 +22,7 @@ object ModelDataGenerator {
   }
 }
 
-class ModelDataGenerator() {
+final class ModelDataGenerator() {
   val ServerIdPrefix = "0:"
   var id: Int = 0
 

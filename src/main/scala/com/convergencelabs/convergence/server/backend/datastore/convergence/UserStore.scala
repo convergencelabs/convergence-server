@@ -36,9 +36,7 @@ import scala.util.{Failure, Try}
  *              connect to the database
  * @param dbProvider The database pool to use.
  */
-class UserStore(dbProvider: DatabaseProvider)
-  extends AbstractDatabasePersistence(dbProvider)
-    with Logging {
+class UserStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import UserStore._
 

@@ -34,11 +34,11 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 
 //  TODO: Add connect / disconnect logic
-class PresenceClientActor private(context: ActorContext[PresenceClientActor.Message],
-                                  session: DomainSessionAndUserId,
-                                  clientActor: ActorRef[ClientActor.SendServerMessage],
-                                  presenceServiceActor: ActorRef[PresenceServiceActor.Message],
-                                  private[this] implicit val defaultTimeout: Timeout)
+private final class PresenceClientActor(context: ActorContext[PresenceClientActor.Message],
+                                        session: DomainSessionAndUserId,
+                                        clientActor: ActorRef[ClientActor.SendServerMessage],
+                                        presenceServiceActor: ActorRef[PresenceServiceActor.Message],
+                                        private[this] implicit val defaultTimeout: Timeout)
   extends AbstractBehavior[PresenceClientActor.Message](context) with Logging with AskUtils {
 
   import PresenceClientActor._
@@ -61,7 +61,7 @@ class PresenceClientActor private(context: ActorContext[PresenceClientActor.Mess
     msg match {
       case IncomingProtocolMessage(message) =>
         onMessageReceived(message)
-      case IncomingProtocolRequest(message, replyPromise)  =>
+      case IncomingProtocolRequest(message, replyPromise) =>
         onRequestReceived(message, replyPromise)
     }
 
@@ -112,14 +112,14 @@ class PresenceClientActor private(context: ActorContext[PresenceClientActor.Mess
     val PresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(protoToDomainUserId)
     presenceServiceActor.ask[PresenceServiceActor.GetPresencesResponse](PresenceServiceActor.GetPresencesRequest(userIds.toList, _))
-        .map(_.presence.fold({
-          case PresenceServiceActor.UserNotFoundError(userId) =>
-            userNotFound(userId, cb)
-          case _ =>
-            cb.unexpectedError("An unexpected error occurred getting presence.")
-        }, { presences =>
-          cb.reply(PresenceResponseMessage(presences.map(userPresenceToMessage)))
-        }))
+      .map(_.presence.fold({
+        case PresenceServiceActor.UserNotFoundError(userId) =>
+          userNotFound(userId, cb)
+        case _ =>
+          cb.unexpectedError("An unexpected error occurred getting presence.")
+      }, { presences =>
+        cb.reply(PresenceResponseMessage(presences.map(userPresenceToMessage)))
+      }))
       .recoverWith(handleAskFailure(_, cb))
   }
 
@@ -168,7 +168,7 @@ object PresenceClientActor {
                               clientActor: ActorRef[ClientActor.SendServerMessage],
                               presenceServiceActor: ActorRef[PresenceServiceActor.Message],
                               defaultTimeout: Timeout
-           ): Behavior[Message] =
+                             ): Behavior[Message] =
     Behaviors.setup(context => new PresenceClientActor(context, session, clientActor, presenceServiceActor, defaultTimeout))
 
   /////////////////////////////////////////////////////////////////////////////

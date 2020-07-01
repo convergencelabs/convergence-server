@@ -11,4 +11,8 @@
 
 package com.convergencelabs.convergence.server.model.domain.collection
 
-case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+final case class CollectionPermissions(create: Boolean,
+                                       read: Boolean,
+                                       write: Boolean,
+                                       remove: Boolean,
+                                       manage: Boolean)

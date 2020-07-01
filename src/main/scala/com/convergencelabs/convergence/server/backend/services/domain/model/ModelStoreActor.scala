@@ -26,8 +26,8 @@ import grizzled.slf4j.Logging
 
 import scala.util.Success
 
-class ModelStoreActor private(context: ActorContext[ModelStoreActor.Message],
-                                         private[this] val persistenceProvider: DomainPersistenceProvider)
+private final class ModelStoreActor(context: ActorContext[ModelStoreActor.Message],
+                                    persistenceProvider: DomainPersistenceProvider)
   extends AbstractBehavior[ModelStoreActor.Message](context) with Logging {
 
   import ModelStoreActor._

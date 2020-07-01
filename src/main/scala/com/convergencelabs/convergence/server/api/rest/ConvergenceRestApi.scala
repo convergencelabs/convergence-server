@@ -54,12 +54,12 @@ import scala.language.postfixOps
  * @param chatClusterRegion  The shard region that hosts the
  *                           ChatActors.
  */
-class ConvergenceRestApi(interface: String,
-                         port: Int,
-                         context: ActorContext[_],
-                         domainRestRegion: ActorRef[DomainRestActor.Message],
-                         modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                         chatClusterRegion: ActorRef[ChatActor.Message])
+private[server] final class ConvergenceRestApi(interface: String,
+                                               port: Int,
+                                               context: ActorContext[_],
+                                               domainRestRegion: ActorRef[DomainRestActor.Message],
+                                               modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                                               chatClusterRegion: ActorRef[ChatActor.Message])
   extends Logging with JsonSupport {
 
   private[this] implicit val system: ActorSystem[_] = context.system

@@ -22,4 +22,4 @@ object DomainUserType extends Enumeration {
   def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
 }
 
-class DomainUserTypeReference extends TypeReference[DomainUserType.type]
+final class DomainUserTypeReference extends TypeReference[DomainUserType.type]

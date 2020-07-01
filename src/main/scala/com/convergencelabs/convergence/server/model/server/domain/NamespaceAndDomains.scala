@@ -11,4 +11,4 @@
 
 package com.convergencelabs.convergence.server.model.server.domain
 
-case class NamespaceAndDomains(id: String, displayName: String, domains: Set[Domain])
+final case class NamespaceAndDomains(id: String, displayName: String, domains: Set[Domain])

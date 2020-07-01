@@ -18,8 +18,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.permissio
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{AddUserToChatRequest, AddUserToChatResponse, CommonErrors}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.ReplyAndBroadcastTask
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions, ChatState}
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatUserAddedEvent}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions}
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatState, ChatUserAddedEvent}
 
 import scala.util.Try
 

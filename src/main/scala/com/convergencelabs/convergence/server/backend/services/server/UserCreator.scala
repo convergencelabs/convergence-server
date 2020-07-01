@@ -21,10 +21,10 @@ import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-class UserCreator(dbProvider: DatabaseProvider) extends Logging {
-  val userStore = new UserStore(dbProvider);
-  val namespaceStore = new NamespaceStore(dbProvider);
-  val roleStore = new RoleStore(dbProvider);
+final class UserCreator(dbProvider: DatabaseProvider) extends Logging {
+  private val userStore = new UserStore(dbProvider)
+  private val namespaceStore = new NamespaceStore(dbProvider)
+  private val roleStore = new RoleStore(dbProvider)
 
   val bearerTokenGen = new RandomStringGenerator(32)
 

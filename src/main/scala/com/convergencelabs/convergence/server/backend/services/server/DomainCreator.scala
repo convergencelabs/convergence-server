@@ -40,8 +40,8 @@ import scala.util.{Failure, Success, Try}
  * @param executionContext An execution context for asynchronous operations.
  */
 abstract class DomainCreator(dbProvider: DatabaseProvider,
-                             config: Config,
-                             implicit val executionContext: ExecutionContext) extends Logging {
+                                             config: Config,
+                                             implicit val executionContext: ExecutionContext) extends Logging {
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)

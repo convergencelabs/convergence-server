@@ -27,9 +27,9 @@ import scala.collection.mutable
  *                              operations with.
  * @param initialContextVersion The initial context version this object will be set to.
  */
-private[model] class ServerConcurrencyControl(private[this] val operationTransformer: OperationTransformer,
-                                              private[this] val referenceTransformer: ReferenceTransformer,
-                                              initialContextVersion: Long) extends Logging {
+private[model] final class ServerConcurrencyControl(operationTransformer: OperationTransformer,
+                                                    referenceTransformer: ReferenceTransformer,
+                                                    initialContextVersion: Long) extends Logging {
 
   Validate.isTrue(initialContextVersion >= 0, "initialContextVersion must be >= 0: ", initialContextVersion)
 

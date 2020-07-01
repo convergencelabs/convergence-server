@@ -23,8 +23,8 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
-class UserGroupStoreActor private(context: ActorContext[UserGroupStoreActor.Message],
-                                  groupStore: UserGroupStore)
+private final class UserGroupStoreActor(context: ActorContext[UserGroupStoreActor.Message],
+                                        groupStore: UserGroupStore)
   extends AbstractBehavior[UserGroupStoreActor.Message](context) {
 
   import UserGroupStoreActor._

@@ -25,8 +25,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import scala.language.postfixOps
 
 
-class UserFavoriteDomainStoreActor private(context: ActorContext[UserFavoriteDomainStoreActor.Message],
-                                           favoriteStore: UserFavoriteDomainStore)
+private final class UserFavoriteDomainStoreActor(context: ActorContext[UserFavoriteDomainStoreActor.Message],
+                                                 favoriteStore: UserFavoriteDomainStore)
   extends AbstractBehavior[UserFavoriteDomainStoreActor.Message](context) {
 
   import UserFavoriteDomainStoreActor._

@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.model.server.role
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.Role
 
-class RoleProfile(private[this] val roles: Set[Role]) {
+final class RoleProfile(private[this] val roles: Set[Role]) {
   
   private[this] val permissions: Set[String] = roles.flatMap(_.permissions)
   

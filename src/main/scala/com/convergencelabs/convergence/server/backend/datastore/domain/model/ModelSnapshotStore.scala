@@ -26,63 +26,13 @@ import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-object ModelSnapshotStore {
-
-  import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema._
-
-  object Constants {
-    val CollectionId = "collectionId"
-    val ModelId = "modelId"
-  }
-
-  def docToModelSnapshot(doc: ODocument): ModelSnapshot = {
-    val dataDoc: ODocument = doc.getProperty(Classes.ModelSnapshot.Fields.Data)
-    val data = dataDoc.asObjectValue
-    model.ModelSnapshot(docToModelSnapshotMetaData(doc), data)
-  }
-
-  def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocument): Try[ODocument] = {
-    val md = modelSnapshot.metaData
-    ModelStore.getModelRid(md.modelId, db).flatMap { modelRid =>
-      Try {
-        val doc: ODocument = db.newInstance(Classes.ModelSnapshot.ClassName)
-        doc.setProperty(Classes.ModelSnapshot.Fields.Model, modelRid)
-        doc.setProperty(Classes.ModelSnapshot.Fields.Version, modelSnapshot.metaData.version)
-        doc.setProperty(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli))
-        doc.setProperty(Classes.ModelSnapshot.Fields.Data, modelSnapshot.data.asODocument)
-        doc
-      }
-    }
-  }
-
-  def docToModelSnapshotMetaData(doc: ODocument): ModelSnapshotMetaData = {
-    val timestamp: java.util.Date = doc.getProperty(Classes.ModelSnapshot.Fields.Timestamp)
-    model.ModelSnapshotMetaData(
-      doc.getProperty(Constants.ModelId),
-      doc.getProperty(Classes.ModelSnapshot.Fields.Version),
-      Instant.ofEpochMilli(timestamp.getTime))
-  }
-
-  /**
-   * Removes all snapshot for all models in a collection.
-   *
-   * @param collectionId The collection id of the collection to remove snapshots for.
-   */
-  def removeAllSnapshotsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
-    val command = "DELETE FROM ModelSnapshot WHERE model.collection.id = :collectionId"
-    val params = Map(Constants.CollectionId -> collectionId)
-    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
-  }
-}
-
 /**
  * Manages the persistence of model snapshots.
  *
  * @constructor Creates a new ModelSnapshotStore using the provided database pool.
  * @param dbProvider The database pool to use for connections.
  */
-class ModelSnapshotStore private[domain](
-                                          private[this] val dbProvider: DatabaseProvider)
+class ModelSnapshotStore private[domain](dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -261,5 +211,55 @@ class ModelSnapshotStore private[domain](
    */
   def removeAllSnapshotsForCollection(collectionId: String): Try[Unit] = withDb { db =>
     ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)
+  }
+}
+
+
+object ModelSnapshotStore {
+
+  import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema._
+
+  object Constants {
+    val CollectionId = "collectionId"
+    val ModelId = "modelId"
+  }
+
+  def docToModelSnapshot(doc: ODocument): ModelSnapshot = {
+    val dataDoc: ODocument = doc.getProperty(Classes.ModelSnapshot.Fields.Data)
+    val data = dataDoc.asObjectValue
+    model.ModelSnapshot(docToModelSnapshotMetaData(doc), data)
+  }
+
+  def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocument): Try[ODocument] = {
+    val md = modelSnapshot.metaData
+    ModelStore.getModelRid(md.modelId, db).flatMap { modelRid =>
+      Try {
+        val doc: ODocument = db.newInstance(Classes.ModelSnapshot.ClassName)
+        doc.setProperty(Classes.ModelSnapshot.Fields.Model, modelRid)
+        doc.setProperty(Classes.ModelSnapshot.Fields.Version, modelSnapshot.metaData.version)
+        doc.setProperty(Classes.ModelSnapshot.Fields.Timestamp, new Date(modelSnapshot.metaData.timestamp.toEpochMilli))
+        doc.setProperty(Classes.ModelSnapshot.Fields.Data, modelSnapshot.data.asODocument)
+        doc
+      }
+    }
+  }
+
+  def docToModelSnapshotMetaData(doc: ODocument): ModelSnapshotMetaData = {
+    val timestamp: java.util.Date = doc.getProperty(Classes.ModelSnapshot.Fields.Timestamp)
+    model.ModelSnapshotMetaData(
+      doc.getProperty(Constants.ModelId),
+      doc.getProperty(Classes.ModelSnapshot.Fields.Version),
+      Instant.ofEpochMilli(timestamp.getTime))
+  }
+
+  /**
+   * Removes all snapshot for all models in a collection.
+   *
+   * @param collectionId The collection id of the collection to remove snapshots for.
+   */
+  def removeAllSnapshotsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command = "DELETE FROM ModelSnapshot WHERE model.collection.id = :collectionId"
+    val params = Map(Constants.CollectionId -> collectionId)
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 }

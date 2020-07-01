@@ -22,8 +22,8 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
-class SessionStoreActor private(context: ActorContext[SessionStoreActor.Message],
-                                sessionStore: SessionStore)
+private final class SessionStoreActor(context: ActorContext[SessionStoreActor.Message],
+                                      sessionStore: SessionStore)
   extends AbstractBehavior[SessionStoreActor.Message](context) {
 
   import SessionStoreActor._

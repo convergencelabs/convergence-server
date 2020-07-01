@@ -13,19 +13,19 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence.sch
 
 object ConvergenceSchema {
   object Classes {
-    val Config = ConfigClass
-    val ConvergenceDelta = ConvergenceDeltaClass
-    val ConvergenceDeltaHistory = ConvergenceDeltaHistoryClass
-    val Domain = DomainClass
-    val DomainDelta = DomainDeltaClass
-    val DomainDeltaHistory = DomainDeltaHistoryClass
-    val Namespace = NamespaceClass
-    val Permission = PermissionClass
-    val Role = RoleClass
-    val User = UserClass
-    val UserApiKey = UserApiKeyClass
-    val UserRole = UserRoleClass
-    val UserSessionToken = UserSessionTokenClass
+    val Config: ConfigClass.type = ConfigClass
+    val ConvergenceDelta: ConvergenceDeltaClass.type = ConvergenceDeltaClass
+    val ConvergenceDeltaHistory: ConvergenceDeltaHistoryClass.type = ConvergenceDeltaHistoryClass
+    val Domain: DomainClass.type = DomainClass
+    val DomainDelta: DomainDeltaClass.type = DomainDeltaClass
+    val DomainDeltaHistory: DomainDeltaHistoryClass.type = DomainDeltaHistoryClass
+    val Namespace: NamespaceClass.type = NamespaceClass
+    val Permission: PermissionClass.type = PermissionClass
+    val Role: RoleClass.type = RoleClass
+    val User: UserClass.type = UserClass
+    val UserApiKey: UserApiKeyClass.type = UserApiKeyClass
+    val UserRole: UserRoleClass.type = UserRoleClass
+    val UserSessionToken: UserSessionTokenClass.type = UserSessionTokenClass
   }
 
   object Sequences {

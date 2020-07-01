@@ -17,9 +17,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.permissio
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions, ChatState}
-import com.convergencelabs.convergence.server.model.domain.chat
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatInfo, ChatMember, ChatMembership, ChatUserJoinedEvent}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions}
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatState, ChatUserJoinedEvent}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Success, Try}
@@ -87,9 +86,8 @@ private[chat] object JoinEventProcessor
   def createSuccessReply(message: JoinChatRequest,
                          event: ChatUserJoinedEvent,
                          state: ChatState): ReplyAndBroadcastTask[JoinChatResponse] = {
-    val info = stateToInfo(state)
     ReplyAndBroadcastTask(
-      MessageReplyTask(message.replyTo, JoinChatResponse(Right(info))),
+      MessageReplyTask(message.replyTo, JoinChatResponse(Right(state))),
       Some(ChatClientActor.UserJoinedChat(event.id, event.eventNumber, event.timestamp, event.user))
     )
   }
@@ -98,8 +96,4 @@ private[chat] object JoinEventProcessor
     ChatActor.JoinChatResponse(Left(error))
   }
 
-  def stateToInfo(state: ChatState): ChatInfo = {
-    val ChatState(id, chatType, created, membership, name, topic, lastEventTime, lastEventNo, members) = state
-    chat.ChatInfo(id, chatType, created, membership, name, topic, lastEventNo, lastEventTime, members.values.toSet)
-  }
 }

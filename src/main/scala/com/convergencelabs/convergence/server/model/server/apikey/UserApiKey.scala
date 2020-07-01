@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.model.server.apikey
 import java.time.Instant
 
 final case class UserApiKey(username: String,
-                      name: String,
-                      key: String,
-                      enabled: Boolean,
-                      lastUsed: Option[Instant])
+                            name: String,
+                            key: String,
+                            enabled: Boolean,
+                            lastUsed: Option[Instant])

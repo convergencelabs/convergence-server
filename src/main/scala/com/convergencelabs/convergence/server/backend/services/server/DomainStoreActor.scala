@@ -39,14 +39,14 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-class DomainStoreActor private(context: ActorContext[DomainStoreActor.Message],
-                               domainStore: DomainStore,
-                               configStore: ConfigStore,
-                               roleStore: RoleStore,
-                               favoriteDomainStore: UserFavoriteDomainStore,
-                               deltaHistoryStore: DeltaHistoryStore,
-                               domainCreator: DomainCreator,
-                               domainProvisioner: ActorRef[DomainProvisionerActor.Message])
+private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Message],
+                                     domainStore: DomainStore,
+                                     configStore: ConfigStore,
+                                     roleStore: RoleStore,
+                                     favoriteDomainStore: UserFavoriteDomainStore,
+                                     deltaHistoryStore: DeltaHistoryStore,
+                                     domainCreator: DomainCreator,
+                                     domainProvisioner: ActorRef[DomainProvisionerActor.Message])
   extends AbstractBehavior[DomainStoreActor.Message](context) with Logging {
 
   import DomainStoreActor._

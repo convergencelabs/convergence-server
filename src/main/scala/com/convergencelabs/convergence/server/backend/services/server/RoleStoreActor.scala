@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.language.postfixOps
 
-class RoleStoreActor private(context: ActorContext[RoleStoreActor.Message],
-                             roleStore: RoleStore)
+private final class RoleStoreActor(context: ActorContext[RoleStoreActor.Message],
+                                   roleStore: RoleStore)
   extends AbstractBehavior[RoleStoreActor.Message](context) {
 
   import RoleStoreActor._
@@ -283,7 +283,7 @@ object RoleStoreActor {
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
-  new JsonSubTypes.Type(value = classOf[TargetNotFoundError], name = "target_not_found")
+    new JsonSubTypes.Type(value = classOf[TargetNotFoundError], name = "target_not_found")
   ))
   sealed trait UpdateRolesForTargetError
 

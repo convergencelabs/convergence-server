@@ -23,20 +23,6 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
 
-object DeltaHistoryStore {
-
-  object Params {
-    val Namespace = "namespace"
-    val Id = "id"
-    val Status = "status"
-  }
-
-  object Status {
-    val Error = "error"
-    val Success = "success"
-  }
-}
-
 class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
   import DeltaHistoryStore._
 
@@ -222,5 +208,20 @@ class DeltaHistoryStore(dbProvider: DatabaseProvider) extends AbstractDatabasePe
           Success(())
         }
       }
+  }
+}
+
+
+object DeltaHistoryStore {
+
+  object Params {
+    val Namespace = "namespace"
+    val Id = "id"
+    val Status = "status"
+  }
+
+  object Status {
+    val Error = "error"
+    val Success = "success"
   }
 }

@@ -31,20 +31,11 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-object DomainUserGroupService {
 
-  case class UserGroupData(id: String, description: String, members: Set[String])
-
-  case class UserGroupSummaryData(id: String, description: String, members: Int)
-
-  case class UserGroupInfoData(id: String, description: String)
-
-}
-
-class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
-                             scheduler: Scheduler,
-                             executionContext: ExecutionContext,
-                             timeout: Timeout)
+private[domain] final class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
+                                                   scheduler: Scheduler,
+                                                   executionContext: ExecutionContext,
+                                                   timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainUserGroupService._
@@ -284,4 +275,14 @@ class DomainUserGroupService(domainRestActor: ActorRef[DomainRestActor.Message],
   private[this] def userNotFound(): RestResponse = notFoundResponse("The specified user does not exist.")
 
   private[this] def groupNotFound(): RestResponse = notFoundResponse("The specified group does not exist.")
+}
+
+object DomainUserGroupService {
+
+  final case class UserGroupData(id: String, description: String, members: Set[String])
+
+  final case class UserGroupSummaryData(id: String, description: String, members: Int)
+
+  final case class UserGroupInfoData(id: String, description: String)
+
 }

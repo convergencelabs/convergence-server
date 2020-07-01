@@ -35,11 +35,11 @@ import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
  * @param modelWorld         The model world permissions.
  * @param modelUsers         User specific permissions.
  */
-private[model] case class RealtimeModelPermissions(overrideCollection: Boolean,
-                                                   collectionWorld: CollectionPermissions,
-                                                   collectionUsers: Map[DomainUserId, CollectionPermissions],
-                                                   modelWorld: ModelPermissions,
-                                                   modelUsers: Map[DomainUserId, ModelPermissions]) {
+private[model] final case class RealtimeModelPermissions(overrideCollection: Boolean,
+                                                         collectionWorld: CollectionPermissions,
+                                                         collectionUsers: Map[DomainUserId, CollectionPermissions],
+                                                         modelWorld: ModelPermissions,
+                                                         modelUsers: Map[DomainUserId, ModelPermissions]) {
 
   def resolveSessionPermissions(userId: DomainUserId): ModelPermissions = {
     if (userId.isConvergence) {

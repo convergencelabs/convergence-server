@@ -38,9 +38,9 @@ import scala.util.{Failure, Success, Try}
  *
  * @param identityServiceActor The actor to use to resolve user identity requests.
  */
-class IdentityClientActor private(context: ActorContext[IdentityClientActor.Message],
-                                  identityServiceActor: ActorRef[IdentityServiceActor.Message],
-                                  private[this] implicit val requestTimeout: Timeout)
+private final class IdentityClientActor(context: ActorContext[IdentityClientActor.Message],
+                                        identityServiceActor: ActorRef[IdentityServiceActor.Message],
+                                        private[this] implicit val requestTimeout: Timeout)
   extends AbstractBehavior[IdentityClientActor.Message](context) with Logging with AskUtils {
 
   import IdentityClientActor._
@@ -174,8 +174,8 @@ class IdentityClientActor private(context: ActorContext[IdentityClientActor.Mess
 }
 
 object IdentityClientActor {
-   private[realtime] def apply(identityServiceActor: ActorRef[IdentityServiceActor.Message],
-            requestTimeout: Timeout): Behavior[Message] =
+  private[realtime] def apply(identityServiceActor: ActorRef[IdentityServiceActor.Message],
+                              requestTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new IdentityClientActor(context, identityServiceActor, requestTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
@@ -189,4 +189,5 @@ object IdentityClientActor {
   private[realtime] type IncomingRequest = GeneratedMessage with RequestMessage with IdentityMessage with ClientMessage
 
   private[realtime] final case class IncomingProtocolRequest(message: IncomingRequest, replyCallback: ReplyCallback) extends IncomingMessage
+
 }

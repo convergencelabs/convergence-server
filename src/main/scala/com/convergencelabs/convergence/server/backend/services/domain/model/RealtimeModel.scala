@@ -31,10 +31,10 @@ import scala.util.{Failure, Success, Try}
  * @param cc       the server side concurrency control that will transform operations.
  * @param root     The root value of this model.
  */
-private[model] class RealtimeModel(val domainId: DomainId,
-                                   val modelId: String,
-                                   cc: ServerConcurrencyControl,
-                                   root: ObjectValue) extends RealtimeValueFactory {
+private[model] final class RealtimeModel(val domainId: DomainId,
+                                         val modelId: String,
+                                         cc: ServerConcurrencyControl,
+                                         root: ObjectValue) extends RealtimeValueFactory {
 
   val idToValue: collection.mutable.HashMap[String, RealtimeValue] = collection.mutable.HashMap[String, RealtimeValue]()
   private val elementReferenceManager = new ModelReferenceManager(source = this)

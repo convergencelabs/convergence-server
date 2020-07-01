@@ -23,4 +23,4 @@ object DomainStatus extends Enumeration {
   val Deleting: DomainStatus = Value("deleting")
 }
 
-class DomainStatusTypeReference extends TypeReference[DomainStatus.type]
+final class DomainStatusTypeReference extends TypeReference[DomainStatus.type]

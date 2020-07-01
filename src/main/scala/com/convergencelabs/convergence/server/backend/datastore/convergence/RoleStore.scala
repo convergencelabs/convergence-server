@@ -26,82 +26,6 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-object RoleStore {
-
-  case class Role(name: String, targetClass: Option[RoleTargetType.Value], permissions: Set[String])
-  case class UserRole(role: Role, target: RoleTarget)
-  case class UserRoles(username: String, roles: Set[UserRole])
-
-  object Params {
-    val Name = "name"
-    val Description = "description"
-
-    val Permissions = "permissions"
-    val Namespace = "namespace"
-
-    val User = "user"
-    val Username = "username"
-    val Target = "target"
-    val Role = "role"
-  }
-
-  def docToRole(doc: ODocument): Role = {
-    val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
-    Role(
-      doc.getProperty(RoleClass.Fields.Name),
-      Option(doc.getProperty(RoleClass.Fields.TargetClass).asInstanceOf[String]).map(RoleTargetType.withName),
-      permissions)
-  }
-
-  def docToUserRole(doc: ODocument): UserRole = {
-    val roleDoc = OrientDBUtil.resolveLink(doc.getProperty(UserRoleClass.Fields.Role))
-    val role = docToRole(roleDoc)
-    val targetLink = doc.getProperty(UserRoleClass.Fields.Target).asInstanceOf[OIdentifiable]
-    val targetDoc = OrientDBUtil.resolveOptionalLink(targetLink)
-    UserRole(role, docToRoleTarget(targetDoc))
-  }
-
-  def docToRoleTarget(targetDoc: Option[ODocument]): RoleTarget = {
-    targetDoc.map { d =>
-      d.getClassName match {
-        case DomainClass.ClassName =>
-          val namespace = d.eval(DomainClass.Eval.NamespaceId).asInstanceOf[String]
-          val id = d.getProperty(DomainClass.Fields.Id).asInstanceOf[String]
-          DomainRoleTarget(DomainId(namespace, id))
-        case NamespaceClass.ClassName =>
-          val id = d.getProperty(NamespaceClass.Fields.Id).asInstanceOf[String]
-          NamespaceRoleTarget(id)
-      }
-    }.getOrElse(ServerRoleTarget())
-  }
-
-  def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
-    target match {
-      case DomainRoleTarget(domainId) =>
-        val whereClause = "target IN (SELECT FROM Domain WHERE namespace.id = :target_namespace AND id = :target_id)"
-        val params = Map("target_namespace" -> domainId.namespace, "target_id" -> domainId.domainId)
-        (whereClause, params)
-      case NamespaceRoleTarget(id) =>
-        val whereClause = "target IN (SELECT FROM Namespace WHERE id = :target_id)"
-        val params = Map("target_id" -> id)
-        (whereClause, params)
-      case ServerRoleTarget() =>
-        ("target IS NULL", Map.empty)
-    }
-  }
-
-  def selectTarget(target: RoleTarget, db: ODatabaseDocument): Try[Option[ORID]] = {
-    target match {
-      case DomainRoleTarget(domainFqn) =>
-        DomainStore.getDomainRid(domainFqn, db).map(Some(_))
-      case NamespaceRoleTarget(id) =>
-        NamespaceStore.getNamespaceRid(id, db).map(Some(_))
-      case ServerRoleTarget() =>
-        Success(None)
-    }
-  }
-}
-
 /**
  * Manages the persistence of Users.  This class manages both user profile records
  * as well as user credentials for users authenticated by Convergence itself.
@@ -284,5 +208,82 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object RoleStore {
+
+  case class Role(name: String, targetClass: Option[RoleTargetType.Value], permissions: Set[String])
+  case class UserRole(role: Role, target: RoleTarget)
+  case class UserRoles(username: String, roles: Set[UserRole])
+
+  object Params {
+    val Name = "name"
+    val Description = "description"
+
+    val Permissions = "permissions"
+    val Namespace = "namespace"
+
+    val User = "user"
+    val Username = "username"
+    val Target = "target"
+    val Role = "role"
+  }
+
+  def docToRole(doc: ODocument): Role = {
+    val permissions = doc.getProperty(RoleClass.Fields.Permissions).asInstanceOf[java.util.Set[String]].asScala.toSet
+    Role(
+      doc.getProperty(RoleClass.Fields.Name),
+      Option(doc.getProperty(RoleClass.Fields.TargetClass).asInstanceOf[String]).map(RoleTargetType.withName),
+      permissions)
+  }
+
+  def docToUserRole(doc: ODocument): UserRole = {
+    val roleDoc = OrientDBUtil.resolveLink(doc.getProperty(UserRoleClass.Fields.Role))
+    val role = docToRole(roleDoc)
+    val targetLink = doc.getProperty(UserRoleClass.Fields.Target).asInstanceOf[OIdentifiable]
+    val targetDoc = OrientDBUtil.resolveOptionalLink(targetLink)
+    UserRole(role, docToRoleTarget(targetDoc))
+  }
+
+  def docToRoleTarget(targetDoc: Option[ODocument]): RoleTarget = {
+    targetDoc.map { d =>
+      d.getClassName match {
+        case DomainClass.ClassName =>
+          val namespace = d.eval(DomainClass.Eval.NamespaceId).asInstanceOf[String]
+          val id = d.getProperty(DomainClass.Fields.Id).asInstanceOf[String]
+          DomainRoleTarget(DomainId(namespace, id))
+        case NamespaceClass.ClassName =>
+          val id = d.getProperty(NamespaceClass.Fields.Id).asInstanceOf[String]
+          NamespaceRoleTarget(id)
+      }
+    }.getOrElse(ServerRoleTarget())
+  }
+
+  def buildTargetWhere(target: RoleTarget): (String, Map[String, Any]) = {
+    target match {
+      case DomainRoleTarget(domainId) =>
+        val whereClause = "target IN (SELECT FROM Domain WHERE namespace.id = :target_namespace AND id = :target_id)"
+        val params = Map("target_namespace" -> domainId.namespace, "target_id" -> domainId.domainId)
+        (whereClause, params)
+      case NamespaceRoleTarget(id) =>
+        val whereClause = "target IN (SELECT FROM Namespace WHERE id = :target_id)"
+        val params = Map("target_id" -> id)
+        (whereClause, params)
+      case ServerRoleTarget() =>
+        ("target IS NULL", Map.empty)
+    }
+  }
+
+  def selectTarget(target: RoleTarget, db: ODatabaseDocument): Try[Option[ORID]] = {
+    target match {
+      case DomainRoleTarget(domainFqn) =>
+        DomainStore.getDomainRid(domainFqn, db).map(Some(_))
+      case NamespaceRoleTarget(id) =>
+        NamespaceStore.getNamespaceRid(id, db).map(Some(_))
+      case ServerRoleTarget() =>
+        Success(None)
+    }
   }
 }

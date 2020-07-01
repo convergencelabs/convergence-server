@@ -26,74 +26,6 @@ import grizzled.slf4j.Logging
 import scala.util.{Failure, Try}
 
 
-object DomainStore {
-
-  object Params {
-    val Namespace = "namespace"
-    val Id = "id"
-    val DisplayName = "displayName"
-    val Status = "status"
-    val StatusMessage = "statusMessage"
-    val Filter = "filter"
-    val Username = "username"
-  }
-
-  def domainToDoc(domain: Domain, db: ODatabaseDocument): Try[ODocument] = {
-    val Domain(DomainId(namespace, id), displayName, status, statusMessage) = domain
-    NamespaceStore.getNamespaceRid(namespace, db).map { nsRid =>
-      val doc = db.newInstance(DomainClass.ClassName).asInstanceOf[ODocument]
-      doc.setProperty(DomainClass.Fields.Id, id)
-      doc.setProperty(DomainClass.Fields.Namespace, nsRid)
-      doc.setProperty(DomainClass.Fields.DisplayName, displayName)
-      doc.setProperty(DomainClass.Fields.Status, status.toString)
-      doc.setProperty(DomainClass.Fields.StatusMessage, statusMessage)
-      doc
-    }.recoverWith {
-      case _: EntityNotFoundException =>
-        Failure(NamespaceNotFoundException(namespace))
-    }
-  }
-
-  def docToDomain(doc: ODocument): Domain = {
-    val status: DomainStatus.Value = DomainStatus.withName(doc.field(DomainClass.Fields.Status))
-    val namespace = doc.eval("namespace.id").asInstanceOf[String]
-    val fqn = DomainId(namespace, doc.getProperty(DomainClass.Fields.Id))
-    val displayName = doc.getProperty(DomainClass.Fields.DisplayName).asInstanceOf[String]
-    val statusMessage = doc.field(DomainClass.Fields.StatusMessage).asInstanceOf[String]
-    Domain(fqn, displayName, status, statusMessage)
-  }
-
-  def getDomainRid(domainId: DomainId, db: ODatabaseDocument): Try[ORID] = {
-    getDomainRid(domainId.namespace, domainId.domainId, db)
-  }
-
-  private[this] val DomainRidQuery = "SELECT @rid FROM Domain WHERE id = :id AND namespace.id = :namespace"
-
-  def getDomainRid(namespace: String, domainId: String, db: ODatabaseDocument): Try[ORID] = {
-    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
-    OrientDBUtil.getDocument(db, DomainRidQuery, params).map(_.getProperty("@rid").asInstanceOf[ORID])
-  }
-
-  def addDomainDatabaseFields(doc: ODocument, domainDatabase: DomainDatabase): Unit = {
-    val DomainDatabase(database, username, password, adminUsername, adminPassword) = domainDatabase
-    doc.field(DomainClass.Fields.DatabaseName, database)
-    doc.field(DomainClass.Fields.DatabaseUsername, username)
-    doc.field(DomainClass.Fields.DatabasePassword, password)
-    doc.field(DomainClass.Fields.DatabaseAdminUsername, adminUsername)
-    doc.field(DomainClass.Fields.DatabaseAdminPassword, adminPassword)
-    ()
-  }
-
-  def docToDomainDatabase(doc: ODocument): DomainDatabase = {
-    DomainDatabase(
-      doc.field(DomainClass.Fields.DatabaseName),
-      doc.field(DomainClass.Fields.DatabaseUsername),
-      doc.field(DomainClass.Fields.DatabasePassword),
-      doc.field(DomainClass.Fields.DatabaseAdminUsername),
-      doc.field(DomainClass.Fields.DatabaseAdminPassword))
-  }
-}
-
 class DomainStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
@@ -265,5 +197,74 @@ class DomainStore(dbProvider: DatabaseProvider)
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object DomainStore {
+
+  object Params {
+    val Namespace = "namespace"
+    val Id = "id"
+    val DisplayName = "displayName"
+    val Status = "status"
+    val StatusMessage = "statusMessage"
+    val Filter = "filter"
+    val Username = "username"
+  }
+
+  def domainToDoc(domain: Domain, db: ODatabaseDocument): Try[ODocument] = {
+    val Domain(DomainId(namespace, id), displayName, status, statusMessage) = domain
+    NamespaceStore.getNamespaceRid(namespace, db).map { nsRid =>
+      val doc = db.newInstance(DomainClass.ClassName).asInstanceOf[ODocument]
+      doc.setProperty(DomainClass.Fields.Id, id)
+      doc.setProperty(DomainClass.Fields.Namespace, nsRid)
+      doc.setProperty(DomainClass.Fields.DisplayName, displayName)
+      doc.setProperty(DomainClass.Fields.Status, status.toString)
+      doc.setProperty(DomainClass.Fields.StatusMessage, statusMessage)
+      doc
+    }.recoverWith {
+      case _: EntityNotFoundException =>
+        Failure(NamespaceNotFoundException(namespace))
+    }
+  }
+
+  def docToDomain(doc: ODocument): Domain = {
+    val status: DomainStatus.Value = DomainStatus.withName(doc.field(DomainClass.Fields.Status))
+    val namespace = doc.eval("namespace.id").asInstanceOf[String]
+    val fqn = DomainId(namespace, doc.getProperty(DomainClass.Fields.Id))
+    val displayName = doc.getProperty(DomainClass.Fields.DisplayName).asInstanceOf[String]
+    val statusMessage = doc.field(DomainClass.Fields.StatusMessage).asInstanceOf[String]
+    Domain(fqn, displayName, status, statusMessage)
+  }
+
+  def getDomainRid(domainId: DomainId, db: ODatabaseDocument): Try[ORID] = {
+    getDomainRid(domainId.namespace, domainId.domainId, db)
+  }
+
+  private[this] val DomainRidQuery = "SELECT @rid FROM Domain WHERE id = :id AND namespace.id = :namespace"
+
+  def getDomainRid(namespace: String, domainId: String, db: ODatabaseDocument): Try[ORID] = {
+    val params = Map(Params.Id -> domainId, Params.Namespace -> namespace)
+    OrientDBUtil.getDocument(db, DomainRidQuery, params).map(_.getProperty("@rid").asInstanceOf[ORID])
+  }
+
+  def addDomainDatabaseFields(doc: ODocument, domainDatabase: DomainDatabase): Unit = {
+    val DomainDatabase(database, username, password, adminUsername, adminPassword) = domainDatabase
+    doc.field(DomainClass.Fields.DatabaseName, database)
+    doc.field(DomainClass.Fields.DatabaseUsername, username)
+    doc.field(DomainClass.Fields.DatabasePassword, password)
+    doc.field(DomainClass.Fields.DatabaseAdminUsername, adminUsername)
+    doc.field(DomainClass.Fields.DatabaseAdminPassword, adminPassword)
+    ()
+  }
+
+  def docToDomainDatabase(doc: ODocument): DomainDatabase = {
+    DomainDatabase(
+      doc.field(DomainClass.Fields.DatabaseName),
+      doc.field(DomainClass.Fields.DatabaseUsername),
+      doc.field(DomainClass.Fields.DatabasePassword),
+      doc.field(DomainClass.Fields.DatabaseAdminUsername),
+      doc.field(DomainClass.Fields.DatabaseAdminPassword))
   }
 }

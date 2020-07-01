@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
  * and produces an instance of B.  The value passed into the first argument
  * will be called by name, and passed into the method passed into the second.
  */
-class TryWithResource[A <: AutoCloseable](r: => A) {
+final class TryWithResource[A <: AutoCloseable](r: => A) {
 
   private def tryWithResource[B](block: A => B): Try[B] = {
     // This outer try catches the case where we can't get the resource

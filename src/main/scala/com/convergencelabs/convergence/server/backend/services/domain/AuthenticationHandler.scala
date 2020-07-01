@@ -42,13 +42,13 @@ object AuthenticationHandler {
   val AllowedClockSkew = 30
 }
 
-class AuthenticationHandler(domainFqn: DomainId,
-                            domainConfigStore: DomainConfigStore,
-                            keyStore: JwtAuthKeyStore,
-                            userStore: DomainUserStore,
-                            userGroupStore: UserGroupStore,
-                            sessionStore: SessionStore,
-                            private[this] implicit val ec: ExecutionContext)
+final class AuthenticationHandler(domainFqn: DomainId,
+                                  domainConfigStore: DomainConfigStore,
+                                  keyStore: JwtAuthKeyStore,
+                                  userStore: DomainUserStore,
+                                  userGroupStore: UserGroupStore,
+                                  sessionStore: SessionStore,
+                                  private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
   def authenticate(request: AuthenticationCredentials): Either[Unit, DomainActor.AuthenticationSuccess] = {

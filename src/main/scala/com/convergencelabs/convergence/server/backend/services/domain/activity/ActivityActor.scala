@@ -33,9 +33,9 @@ import scala.util.{Success, Try}
  * @param shardRegion The shard region ActivityActors are created in.
  * @param shard       The specific shard this actor resides in.
  */
-class ActivityActor private(context: ActorContext[Message],
-                            shardRegion: ActorRef[Message],
-                            shard: ActorRef[ClusterSharding.ShardCommand])
+private final class ActivityActor(context: ActorContext[Message],
+                                  shardRegion: ActorRef[Message],
+                                  shard: ActorRef[ClusterSharding.ShardCommand])
   extends ShardedActor[Message](context, shardRegion, shard) {
 
   import ActivityActor._

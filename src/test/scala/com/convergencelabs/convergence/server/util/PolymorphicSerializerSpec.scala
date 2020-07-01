@@ -24,7 +24,7 @@ class PolymorphicSerializerSpec extends AnyWordSpecLike with Matchers {
     "Being constructed" must {
       "Disallow duplicate classes" in {
         intercept[IllegalArgumentException] {
-          val ser = new PolymorphicSerializer[Person]("t", Map("c" -> classOf[Customer], "r" -> classOf[Customer]))
+          new PolymorphicSerializer[Person]("t", Map("c" -> classOf[Customer], "r" -> classOf[Customer]))
         }
       }
     }
@@ -34,12 +34,12 @@ class PolymorphicSerializerSpec extends AnyWordSpecLike with Matchers {
         val ser = new PolymorphicSerializer[Person]("tpe", Map("c" -> classOf[Customer], "e" -> classOf[Employee]))
         implicit val formats: Formats = DefaultFormats + ser
         val jValue = Extraction.decompose(Employee("test", "id1"))
-        jValue shouldBe JObject(("tpe" -> "e"), ("name" -> "test"), ("employeeId" -> "id1"))
+        jValue shouldBe JObject("tpe" -> "e", "name" -> "test", "employeeId" -> "id1")
       }
     }
   }
 }
 
 sealed trait Person
-case class Customer(name: String, customerId: String) extends Person
-case class Employee(name: String, employeeId: String) extends Person
+final case class Customer(name: String, customerId: String) extends Person
+final case class Employee(name: String, employeeId: String) extends Person

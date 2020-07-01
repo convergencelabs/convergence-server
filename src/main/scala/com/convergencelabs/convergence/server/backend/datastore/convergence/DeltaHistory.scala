@@ -15,8 +15,8 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.model.DomainId
 
-case class ConvergenceDelta(deltaNo: Int, value: String)
-case class ConvergenceDeltaHistory(delta: ConvergenceDelta, status: String, message: Option[String], date: Instant)
+final case class ConvergenceDelta(deltaNo: Int, value: String)
+final case class ConvergenceDeltaHistory(delta: ConvergenceDelta, status: String, message: Option[String], date: Instant)
 
-case class DomainDelta(deltaNo: Int, value: String)
-case class DomainDeltaHistory(domain: DomainId, delta: DomainDelta, status: String, message: Option[String], date: Instant)
+final case class DomainDelta(deltaNo: Int, value: String)
+final case class DomainDeltaHistory(domain: DomainId, delta: DomainDelta, status: String, message: Option[String], date: Instant)

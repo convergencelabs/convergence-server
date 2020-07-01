@@ -56,13 +56,13 @@ private[model] object RealtimeModelPersistenceStream {
 
 }
 
-private[model] class RealtimeModelPersistenceStream(handler: PersistenceEventHandler,
-                                                    domainId: DomainId,
-                                                    modelId: String,
-                                                    system: ActorSystem[_],
-                                                    modelStore: ModelStore,
-                                                    modelSnapshotStore: ModelSnapshotStore,
-                                                    modelOperationProcessor: ModelOperationProcessor)
+private[model] final class RealtimeModelPersistenceStream(handler: PersistenceEventHandler,
+                                                          domainId: DomainId,
+                                                          modelId: String,
+                                                          system: ActorSystem[_],
+                                                          modelStore: ModelStore,
+                                                          modelSnapshotStore: ModelSnapshotStore,
+                                                          modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistence
     with Logging {
 
@@ -150,12 +150,12 @@ private[model] trait RealtimeModelPersistenceFactory {
   def create(handler: PersistenceEventHandler): RealtimeModelPersistence
 }
 
-private[model]class RealtimeModelPersistenceStreamFactory(domainFqn: DomainId,
-                                            modelId: String,
-                                            system: ActorSystem[_],
-                                            modelStore: ModelStore,
-                                            modelSnapshotStore: ModelSnapshotStore,
-                                            modelOperationProcessor: ModelOperationProcessor)
+private[model] class RealtimeModelPersistenceStreamFactory(domainFqn: DomainId,
+                                                           modelId: String,
+                                                           system: ActorSystem[_],
+                                                           modelStore: ModelStore,
+                                                           modelSnapshotStore: ModelSnapshotStore,
+                                                           modelOperationProcessor: ModelOperationProcessor)
   extends RealtimeModelPersistenceFactory {
 
   def create(handler: PersistenceEventHandler): RealtimeModelPersistence = {

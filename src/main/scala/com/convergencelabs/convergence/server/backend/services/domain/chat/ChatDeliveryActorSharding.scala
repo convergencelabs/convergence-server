@@ -27,7 +27,7 @@ object ChatDeliveryActorSharding  {
 /**
  * Configures the sharding of the [[ChatDeliveryActor]].
  */
-private class ChatDeliveryActorSharding(sharding: ClusterSharding, numberOfShards: Int)
+private final class ChatDeliveryActorSharding(sharding: ClusterSharding, numberOfShards: Int)
   extends NoPropsActorSharding[ChatDeliveryActor.Message](ChatDeliveryActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   def extractEntityId(msg: ChatDeliveryActor.Message): String =

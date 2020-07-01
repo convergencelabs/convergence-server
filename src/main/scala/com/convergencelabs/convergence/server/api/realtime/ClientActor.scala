@@ -68,19 +68,19 @@ import scala.util.{Failure, Success}
  * @param modelSyncInterval       The interval at which this client should
  *                                check for model updates.
  */
-class ClientActor private(context: ActorContext[ClientActor.Message],
-                          timers: TimerScheduler[ClientActor.Message],
-                          domainId: DomainId,
-                          protocolConfig: ProtocolConfiguration,
-                          remoteHost: RemoteAddress,
-                          userAgent: String,
-                          domainRegion: ActorRef[DomainActor.Message],
-                          activityShardRegion: ActorRef[ActivityActor.Message],
-                          modelShardRegion: ActorRef[RealtimeModelActor.Message],
-                          chatShardRegion: ActorRef[ChatActor.Message],
-                          chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-                          domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
-                          modelSyncInterval: FiniteDuration)
+private final class ClientActor(context: ActorContext[ClientActor.Message],
+                                timers: TimerScheduler[ClientActor.Message],
+                                domainId: DomainId,
+                                protocolConfig: ProtocolConfiguration,
+                                remoteHost: RemoteAddress,
+                                userAgent: String,
+                                domainRegion: ActorRef[DomainActor.Message],
+                                activityShardRegion: ActorRef[ActivityActor.Message],
+                                modelShardRegion: ActorRef[RealtimeModelActor.Message],
+                                chatShardRegion: ActorRef[ChatActor.Message],
+                                chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
+                                domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage],
+                                modelSyncInterval: FiniteDuration)
   extends AbstractBehavior[ClientActor.Message](context) with Logging {
 
   import ClientActor._

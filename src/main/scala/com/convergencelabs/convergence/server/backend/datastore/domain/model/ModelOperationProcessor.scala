@@ -25,20 +25,11 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
-object ModelOperationProcessor {
-  sealed trait DataValueDeleteStrategy
-  case class DeleteObjectKey(key: String) extends DataValueDeleteStrategy
-  case class DeleteArrayIndex(index: Int) extends DataValueDeleteStrategy
-  case object DeleteAllArrayChildren extends DataValueDeleteStrategy
-  case object DeleteAllObjectChildren extends DataValueDeleteStrategy
-}
-
-class ModelOperationProcessor private[domain] (
-  private[this] val dbProvider: DatabaseProvider,
-  private[this] val modelOpStore: ModelOperationStore,
-  private[this] val modelStore: ModelStore)
+class ModelOperationProcessor private[domain](dbProvider: DatabaseProvider,
+                                                    modelOpStore: ModelOperationStore,
+                                                    modelStore: ModelStore)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import ModelOperationProcessor._
 
@@ -109,6 +100,7 @@ class ModelOperationProcessor private[domain] (
       case op: AppliedDateSetOperation => applyDateSetOperation(modelId, op, db)
     }
   }
+
   // scalastyle:on cyclomatic.complexity
 
   //
@@ -127,7 +119,7 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyArrayRemoveOperation(
-    modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocument): Try[Unit] = {
+                                               modelId: String, operation: AppliedArrayRemoveOperation, db: ODatabaseDocument): Try[Unit] = {
 
     val script = createUpdate("SET children = arrayRemove(children, :index)", Some(DeleteArrayIndex(operation.index)))
     val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index)
@@ -135,7 +127,7 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyArrayReplaceOperation(
-    modelId: String, operation: AppliedArrayReplaceOperation, db: ODatabaseDocument): Try[Unit] = {
+                                                modelId: String, operation: AppliedArrayReplaceOperation, db: ODatabaseDocument): Try[Unit] = {
     Try {
       val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
       value.save()
@@ -191,7 +183,7 @@ class ModelOperationProcessor private[domain] (
   }
 
   private[this] def applyObjectSetPropertyOperation(
-    modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocument): Try[Unit] = {
+                                                     modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocument): Try[Unit] = {
     Try {
       val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
       value.save()
@@ -327,4 +319,18 @@ class ModelOperationProcessor private[domain] (
   private[this] def getModelRid(modelId: String, db: ODatabaseDocument): ORID = {
     ModelStore.getModelRid(modelId, db).get
   }
+}
+
+object ModelOperationProcessor {
+
+  sealed trait DataValueDeleteStrategy
+
+  final case class DeleteObjectKey(key: String) extends DataValueDeleteStrategy
+
+  final case class DeleteArrayIndex(index: Int) extends DataValueDeleteStrategy
+
+  case object DeleteAllArrayChildren extends DataValueDeleteStrategy
+
+  case object DeleteAllObjectChildren extends DataValueDeleteStrategy
+
 }

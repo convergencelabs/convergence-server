@@ -46,7 +46,7 @@ import scala.util.{Failure, Success, Try}
  *                       heartbeats.
  * @param ec             The execution context to use for asynchronous work.
  */
-private[realtime] class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnection],
+private[realtime] final class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnection],
                                            webSocketActor: ActorRef[WebSocketService.OutgoingBinaryMessage],
                                            protocolConfig: ProtocolConfiguration,
                                            scheduler: Scheduler,

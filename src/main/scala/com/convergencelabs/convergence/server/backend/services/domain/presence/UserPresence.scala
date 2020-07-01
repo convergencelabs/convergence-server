@@ -16,7 +16,7 @@ import com.convergencelabs.convergence.server.api.realtime.PresenceClientActor
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import org.json4s.JsonAST.JValue
 
-case class UserPresence(userId: DomainUserId,
-                        available: Boolean,
-                        state: Map[String, JValue],
-                        clients: Set[ActorRef[PresenceClientActor.OutgoingMessage]])
+final case class UserPresence(userId: DomainUserId,
+                              available: Boolean,
+                              state: Map[String, JValue],
+                              clients: Set[ActorRef[PresenceClientActor.OutgoingMessage]])

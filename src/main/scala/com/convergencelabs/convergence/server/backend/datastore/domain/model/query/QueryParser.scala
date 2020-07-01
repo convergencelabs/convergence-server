@@ -9,25 +9,15 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model.query
+package com.convergencelabs.convergence.server.backend.datastore.domain.model.query
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.query.Ast._
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.query.Ast._
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.parboiled2._
 
 import scala.util.Try
 
-object QueryParser {
-  def apply(input: ParserInput): QueryParser = {
-    new QueryParser(input)
-  }
-
-  def parse(input: ParserInput): Try[SelectStatement] = {
-    QueryParser(input).InputLine.run()
-  }
-}
-
-class QueryParser(val input: ParserInput) extends Parser {
+private[model] final class QueryParser(val input: ParserInput) extends Parser {
   def InputLine = rule {
     SelectStatementRule ~ EOI
   }
@@ -381,5 +371,15 @@ class QueryParser(val input: ParserInput) extends Parser {
 
   def Keywords = rule {
     Keyword.Select | Keyword.From | Keyword.Limit | Keyword.Offset | Keyword.Where
+  }
+}
+
+private[model] object QueryParser {
+  def apply(input: ParserInput): QueryParser = {
+    new QueryParser(input)
+  }
+
+  def parse(input: ParserInput): Try[SelectStatement] = {
+    QueryParser(input).InputLine.run()
   }
 }

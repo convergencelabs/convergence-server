@@ -26,6 +26,83 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Try}
 
+class JwtAuthKeyStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider)
+  with Logging {
+
+  import JwtAuthKeyStore._
+
+
+  def getKeys(offset: QueryOffset, limit: QueryLimit): Try[List[JwtAuthKey]] = withDb { db =>
+    val query = OrientDBUtil.buildPagedQuery(GetKeysQuery, limit, offset)
+    OrientDBUtil
+      .query(db, query)
+      .map(_.map(docToJwtAuthKey))
+  }
+
+  private[this] val GetKeysQuery = "SELECT * FROM JwtAuthKey ORDER BY id ASC"
+
+
+  def getKey(id: String): Try[Option[JwtAuthKey]] = withDb { db =>
+    val params = Map(Fields.Id -> id)
+    OrientDBUtil
+      .findDocument(db, GetKeyQuery, params)
+      .map(_.map(docToJwtAuthKey))
+  }
+
+  private[this] val GetKeyQuery = "SELECT * FROM JwtAuthKey WHERE id = :id"
+
+  def createKey(key: CreateOrUpdateJwtAuthKey): Try[Unit] = {
+    val CreateOrUpdateJwtAuthKey(id, description, publicKey, enabled) = key
+    val jwtAuthKey = jwt.JwtAuthKey(id, description, Instant.now(), publicKey, enabled)
+    importKey(jwtAuthKey)
+  }
+
+  def importKey(jwtAuthKey: JwtAuthKey): Try[Unit] = tryWithDb { db =>
+    val doc = JwtAuthKeyStore.jwtAuthKeyToDoc(jwtAuthKey)
+    db.save(doc)
+    ()
+  } recoverWith handleDuplicateValue
+
+
+  def updateKey(info: CreateOrUpdateJwtAuthKey): Try[Unit] = withDb { db =>
+    val CreateOrUpdateJwtAuthKey(keyId, descr, key, enabled) = info
+    val updateKey = jwt.JwtAuthKey(keyId, descr, Instant.now(), key, enabled)
+    val updatedDoc = JwtAuthKeyStore.jwtAuthKeyToDoc(updateKey)
+    val params = Map(Fields.Id -> keyId)
+    OrientDBUtil
+      .getDocument(db, UpdateKeyCommand, params)
+      .flatMap { doc =>
+        Try {
+          doc.merge(updatedDoc, false, false)
+          db.save(doc)
+          ()
+        }
+      }
+  }
+
+  private[this] val UpdateKeyCommand = "SELECT FROM JwtAuthKey WHERE id = :id"
+
+
+  def deleteKey(id: String): Try[Unit] = withDb { db =>
+    val params = Map(Fields.Id -> id)
+    OrientDBUtil
+      .mutateOneDocument(db, DeleteKeyCommand, params)
+  }
+
+  private[this] val DeleteKeyCommand = "DELETE FROM JwtAuthKey WHERE id = :id"
+
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
+    case e: ORecordDuplicatedException =>
+      e.getIndexName match {
+        case Indices.Id =>
+          Failure(DuplicateValueException(Fields.Id))
+        case _ =>
+          Failure(e)
+      }
+  }
+}
+
+
 object JwtAuthKeyStore {
 
   def jwtAuthKeyToDoc(jwtAuthKey: JwtAuthKey): ODocument = {
@@ -46,75 +123,5 @@ object JwtAuthKeyStore {
       Instant.ofEpochMilli(createdDate.getTime),
       doc.getProperty(Fields.Key),
       doc.getProperty(Fields.Enabled))
-  }
-}
-
-class JwtAuthKeyStore private[datastore](
-  private[this] val dbProvider: DatabaseProvider)
-  extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
-
-  import JwtAuthKeyStore._
-
-  val GetKeysQuery = "SELECT * FROM JwtAuthKey ORDER BY id ASC"
-  def getKeys(offset: QueryOffset, limit: QueryLimit): Try[List[JwtAuthKey]] = withDb { db =>
-    val query = OrientDBUtil.buildPagedQuery(GetKeysQuery, limit, offset)
-    OrientDBUtil
-      .query(db, query)
-      .map(_.map(docToJwtAuthKey))
-  }
-
-  private[this] val GetKeyQuery = "SELECT * FROM JwtAuthKey WHERE id = :id"
-  def getKey(id: String): Try[Option[JwtAuthKey]] = withDb { db =>
-    val params = Map(Fields.Id -> id)
-    OrientDBUtil
-      .findDocument(db, GetKeyQuery, params)
-      .map(_.map(docToJwtAuthKey))
-  }
-
-  def createKey(key: CreateOrUpdateJwtAuthKey): Try[Unit] = {
-    val CreateOrUpdateJwtAuthKey(id, description, publicKey, enabled) = key
-    val jwtAuthKey = jwt.JwtAuthKey(id, description, Instant.now(), publicKey, enabled)
-    importKey(jwtAuthKey)
-  }
-
-  def importKey(jwtAuthKey: JwtAuthKey): Try[Unit] = tryWithDb { db =>
-    val doc = JwtAuthKeyStore.jwtAuthKeyToDoc(jwtAuthKey)
-    db.save(doc)
-    ()
-  } recoverWith handleDuplicateValue
-
-  private[this] val UpdateKeyQuery = "SELECT FROM JwtAuthKey WHERE id = :id"
-  def updateKey(info: CreateOrUpdateJwtAuthKey): Try[Unit] = withDb { db =>
-    val CreateOrUpdateJwtAuthKey(keyId, descr, key, enabled) = info
-    val updateKey = jwt.JwtAuthKey(keyId, descr, Instant.now(), key, enabled)
-    val updatedDoc = JwtAuthKeyStore.jwtAuthKeyToDoc(updateKey)
-    val params = Map(Fields.Id -> keyId)
-    OrientDBUtil
-      .getDocument(db, UpdateKeyQuery, params)
-      .flatMap { doc =>
-        Try {
-          doc.merge(updatedDoc, false, false)
-          db.save(doc)
-          ()
-        }
-      }
-  }
-
-  private[this] val DeleteKeyCommand = "DELETE FROM JwtAuthKey WHERE id = :id"
-  def deleteKey(id: String): Try[Unit] = withDb { db =>
-    val params = Map(Fields.Id -> id)
-     OrientDBUtil
-      .mutateOneDocument(db, DeleteKeyCommand, params)
-  }
-
-  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
-    case e: ORecordDuplicatedException =>
-      e.getIndexName match {
-        case Indices.Id =>
-          Failure(DuplicateValueException(Fields.Id))
-        case _ =>
-          Failure(e)
-      }
   }
 }

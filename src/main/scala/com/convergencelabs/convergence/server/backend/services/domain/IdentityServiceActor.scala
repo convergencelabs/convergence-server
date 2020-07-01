@@ -33,8 +33,8 @@ import scala.util.Success
  * @param context             The ActorContext for this actor.
  * @param persistenceProvider The persistence provider to use.
  */
-class IdentityServiceActor private[domain](context: ActorContext[IdentityServiceActor.Message],
-                                           persistenceProvider: DomainPersistenceProvider)
+private class IdentityServiceActor(context: ActorContext[IdentityServiceActor.Message],
+                                   persistenceProvider: DomainPersistenceProvider)
 
   extends AbstractBehavior[IdentityServiceActor.Message](context)
     with Logging {

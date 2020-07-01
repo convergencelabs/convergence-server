@@ -35,9 +35,9 @@ import scala.util.{Success, Try}
  * @param shardRegion The ActorRef to send messages to the chat share region.
  * @param shard       The ActorRef to send messages to this sharded actors host shard.
  */
-class ChatDeliveryActor private(context: ActorContext[ChatDeliveryActor.Message],
-                                shardRegion: ActorRef[ChatDeliveryActor.Message],
-                                shard: ActorRef[ClusterSharding.ShardCommand])
+private final class ChatDeliveryActor(context: ActorContext[ChatDeliveryActor.Message],
+                                      shardRegion: ActorRef[ChatDeliveryActor.Message],
+                                      shard: ActorRef[ClusterSharding.ShardCommand])
   extends ShardedActor[ChatDeliveryActor.Message](context, shardRegion, shard) with Logging {
 
   import ChatDeliveryActor._

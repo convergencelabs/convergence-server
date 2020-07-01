@@ -33,51 +33,6 @@ import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-object CollectionStore {
-
-  private val DefaultSnapshotConfig = domain.ModelSnapshotConfig(
-    snapshotsEnabled = false,
-    triggerByVersion = false,
-    limitedByVersion = false,
-    1000,
-    1000,
-    triggerByTime = false,
-    limitedByTime = false,
-    Duration.ofMillis(600000),
-    Duration.ofMillis(600000))
-
-  private val DefaultWorldPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
-
-  def collectionToDoc(collection: Collection): ODocument = {
-    val doc = new ODocument(ClassName)
-    setCollectionFieldsInDoc(collection, doc)
-    doc
-  }
-
-  def setCollectionFieldsInDoc(collection: Collection, doc: ODocument): Unit = {
-    doc.setProperty(Fields.Id, collection.id)
-    doc.setProperty(Fields.Description, collection.description)
-    doc.setProperty(Fields.OverrideSnapshotConfig, collection.overrideSnapshotConfig)
-    doc.setProperty(Fields.SnapshotConfig, collection.snapshotConfig.asODocument, OType.EMBEDDED)
-    doc.setProperty(Fields.WorldPermissions, ModelPermissionsStore.collectionPermissionToDoc(collection.worldPermissions))
-  }
-
-  def docToCollection(doc: ODocument): Collection = {
-    val snapshotConfigDoc: ODocument = doc.getProperty(Fields.SnapshotConfig)
-    val snapshotConfig = Option(snapshotConfigDoc) map (_.asModelSnapshotConfig) getOrElse CollectionStore.DefaultSnapshotConfig
-    domain.collection.Collection(
-      doc.getProperty(Fields.Id),
-      doc.getProperty(Fields.Description),
-      doc.getProperty(Fields.OverrideSnapshotConfig),
-      snapshotConfig,
-      ModelPermissionsStore.docToCollectionPermissions(doc.getProperty(Fields.WorldPermissions)))
-  }
-
-  def getCollectionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
-  }
-}
-
 class CollectionStore private[domain](dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider) {
 
@@ -206,5 +161,51 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider)
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object CollectionStore {
+
+  private val DefaultSnapshotConfig = domain.ModelSnapshotConfig(
+    snapshotsEnabled = false,
+    triggerByVersion = false,
+    limitedByVersion = false,
+    1000,
+    1000,
+    triggerByTime = false,
+    limitedByTime = false,
+    Duration.ofMillis(600000),
+    Duration.ofMillis(600000))
+
+  private val DefaultWorldPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
+
+  def collectionToDoc(collection: Collection): ODocument = {
+    val doc = new ODocument(ClassName)
+    setCollectionFieldsInDoc(collection, doc)
+    doc
+  }
+
+  def setCollectionFieldsInDoc(collection: Collection, doc: ODocument): Unit = {
+    doc.setProperty(Fields.Id, collection.id)
+    doc.setProperty(Fields.Description, collection.description)
+    doc.setProperty(Fields.OverrideSnapshotConfig, collection.overrideSnapshotConfig)
+    doc.setProperty(Fields.SnapshotConfig, collection.snapshotConfig.asODocument, OType.EMBEDDED)
+    doc.setProperty(Fields.WorldPermissions, ModelPermissionsStore.collectionPermissionToDoc(collection.worldPermissions))
+  }
+
+  def docToCollection(doc: ODocument): Collection = {
+    val snapshotConfigDoc: ODocument = doc.getProperty(Fields.SnapshotConfig)
+    val snapshotConfig = Option(snapshotConfigDoc) map (_.asModelSnapshotConfig) getOrElse CollectionStore.DefaultSnapshotConfig
+    domain.collection.Collection(
+      doc.getProperty(Fields.Id),
+      doc.getProperty(Fields.Description),
+      doc.getProperty(Fields.OverrideSnapshotConfig),
+      snapshotConfig,
+      ModelPermissionsStore.docToCollectionPermissions(doc.getProperty(Fields.WorldPermissions)))
+  }
+
+  def getCollectionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
 }

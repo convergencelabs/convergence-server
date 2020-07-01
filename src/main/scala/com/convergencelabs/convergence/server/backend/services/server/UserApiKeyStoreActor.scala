@@ -23,8 +23,8 @@ import com.convergencelabs.convergence.server.util.serialization.akka.CborSerial
 import com.fasterxml.jackson.annotation.JsonSubTypes
 
 
-class UserApiKeyStoreActor private(context: ActorContext[UserApiKeyStoreActor.Message],
-                                   userApiKeyStore: UserApiKeyStore)
+private final class UserApiKeyStoreActor(context: ActorContext[UserApiKeyStoreActor.Message],
+                                         userApiKeyStore: UserApiKeyStore)
   extends AbstractBehavior[UserApiKeyStoreActor.Message](context) {
 
   import UserApiKeyStoreActor._

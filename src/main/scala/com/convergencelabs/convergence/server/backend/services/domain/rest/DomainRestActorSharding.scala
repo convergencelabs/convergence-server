@@ -29,7 +29,7 @@ object DomainRestActorSharding {
   }
 }
 
-private class DomainRestActorSharding private(config: Config, sharding: ClusterSharding, numberOfShards: Int)
+private final class DomainRestActorSharding private(config: Config, sharding: ClusterSharding, numberOfShards: Int)
   extends ActorSharding[DomainRestActor.Message, Props](DomainRestActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   def extractEntityId(msg: DomainRestActor.Message): String =

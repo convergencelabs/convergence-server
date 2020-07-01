@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event
 
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatState
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.ReplyAndBroadcastTask
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 
 /**
  * The ChatEventMessageProcessorResult represents the result of processing a

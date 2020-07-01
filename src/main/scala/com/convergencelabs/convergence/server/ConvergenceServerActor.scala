@@ -45,7 +45,7 @@ import scala.util.{Failure, Success}
  *
  * @param context ActorContext for this actor / behavior.
  */
-private[server] class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBehavior[Message](context) with Logging {
+private[server] final class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBehavior[Message](context) with Logging {
 
   import ConvergenceServerActor._
   import ConvergenceServerConstants._

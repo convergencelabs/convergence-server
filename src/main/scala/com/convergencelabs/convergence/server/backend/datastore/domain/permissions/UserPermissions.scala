@@ -13,4 +13,4 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.permissi
 
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-case class UserPermissions(user: DomainUserId, permissions: Set[String])
+final case class UserPermissions(user: DomainUserId, permissions: Set[String])

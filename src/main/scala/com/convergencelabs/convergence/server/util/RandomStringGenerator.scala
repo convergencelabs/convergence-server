@@ -32,10 +32,9 @@ object RandomStringGenerator {
  * @param symbols
  * The symbols to draw upon to generate the random string.
  */
-class RandomStringGenerator(
-                             val length: Int,
-                             private[this] val random: Random,
-                             val symbols: String) {
+final class RandomStringGenerator(val length: Int,
+                                  random: Random,
+                                  val symbols: String) {
 
   if (length < 1) {
     throw new IllegalArgumentException("length must be >= 1")
@@ -49,7 +48,7 @@ class RandomStringGenerator(
 
   def this(length: Int, symbols: String) = this(length, new SecureRandom(), symbols)
 
-  def this(length: Int, random: Random) = this (length, random, RandomStringGenerator.Base64)
+  def this(length: Int, random: Random) = this(length, random, RandomStringGenerator.Base64)
 
   def this(length: Int) = this(length, new SecureRandom())
 

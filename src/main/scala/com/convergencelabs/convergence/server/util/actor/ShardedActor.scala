@@ -19,12 +19,6 @@ import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-sealed trait ShardedActorStatUpPlan
-
-case object StartUpRequired extends ShardedActorStatUpPlan
-
-case object StartUpNotRequired extends ShardedActorStatUpPlan
-
 object ShardedActor {
   val Uninitialized = "<uninitialized>"
 }

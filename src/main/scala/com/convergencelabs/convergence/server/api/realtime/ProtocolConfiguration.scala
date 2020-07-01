@@ -16,8 +16,8 @@ import com.typesafe.config.Config
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 private[server] final case class ProtocolConfiguration(handshakeTimeout: FiniteDuration,
-                                                         defaultRequestTimeout: FiniteDuration,
-                                                         heartbeatConfig: ProtocolConfiguration.HeartbeatConfiguration)
+                                                       defaultRequestTimeout: FiniteDuration,
+                                                       heartbeatConfig: ProtocolConfiguration.HeartbeatConfiguration)
 
 private[server] object ProtocolConfiguration {
   def apply(config: Config): ProtocolConfiguration = {

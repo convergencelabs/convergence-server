@@ -36,11 +36,11 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
-                        chatSharding: ActorRef[ChatActor.Message],
-                        scheduler: Scheduler,
-                        executionContext: ExecutionContext,
-                        timeout: Timeout)
+private[domain] final class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
+                                              chatSharding: ActorRef[ChatActor.Message],
+                                              scheduler: Scheduler,
+                                              executionContext: ExecutionContext,
+                                              timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) with Logging {
 
   import DomainChatService._
@@ -97,7 +97,7 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
             InternalServerError
         },
         { case PagedData(chatInfo, offset, total) =>
-          val data = chatInfo.map { chat => toChatInfoData(chat) }
+          val data = chatInfo.map { chat => toChatStateData(chat) }
           val response = PagedRestResponse(data, offset, total)
           okResponse(response)
         }))
@@ -113,7 +113,7 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
           case UnknownError() =>
             InternalServerError
         },
-        chat => okResponse(toChatInfoData(chat))
+        chat => okResponse(toChatStateData(chat))
       ))
 
   }
@@ -203,7 +203,7 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
     val types = eventTypes.map(t => t.split(",").toSet)
     chatSharding
       .ask[ChatActor.GetChatHistoryResponse](r =>
-      ChatActor.GetChatHistoryRequest(domain, chatId, None, QueryOffset(offset), QueryLimit(limit), startEvent, forward, types, messageFilter, r))
+        ChatActor.GetChatHistoryRequest(domain, chatId, None, QueryOffset(offset), QueryLimit(limit), startEvent, forward, types, messageFilter, r))
       .map(_.events.fold(
         {
           case error: ChatActor.CommonErrors =>
@@ -211,22 +211,22 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
           case ChatActor.ChatNotJoinedError() =>
             ForbiddenError
         },
-        {events =>
+        { events =>
           val response = PagedRestResponse(events.data.map(toChatEventData), events.offset, events.count)
           okResponse(response)
         }
       ))
   }
 
-  private[this] def toChatInfoData(chatInfo: ChatInfo): ChatInfoData = {
-    val ChatInfo(id, chatType, created, membership, name, topic, lastEventNumber, lastEventTimestamp, members) = chatInfo
-    ChatInfoData(
+  private[this] def toChatStateData(chatState: ChatState): ChatStateRestData = {
+    val ChatState(id, chatType, created, membership, name, topic, lastEventTimestamp, lastEventNumber, members) = chatState
+    ChatStateRestData(
       id,
       chatType.toString.toLowerCase,
       membership.toString.toLowerCase(),
       name,
       topic,
-      members.map(m => m.userId),
+      members.keySet,
       created,
       lastEventNumber,
       lastEventTimestamp)
@@ -273,21 +273,21 @@ class DomainChatService(domainRestActor: ActorRef[DomainRestActor.Message],
 
 object DomainChatService {
 
-  case class ChatInfoData(chatId: String,
-                          chatType: String,
-                          membership: String,
-                          name: String,
-                          topic: String,
-                          members: Set[DomainUserId],
-                          created: Instant,
-                          lastEventNumber: Long,
-                          lastEventTimestamp: Instant)
+  final case class ChatStateRestData(chatId: String,
+                                     chatType: String,
+                                     membership: String,
+                                     name: String,
+                                     topic: String,
+                                     members: Set[DomainUserId],
+                                     created: Instant,
+                                     lastEventNumber: Long,
+                                     lastEventTimestamp: Instant)
 
-  case class CreateChatData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
+  final case class CreateChatData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
 
-  case class SetNameData(name: String)
+  final case class SetNameData(name: String)
 
-  case class SetTopicData(topic: String)
+  final case class SetTopicData(topic: String)
 
   sealed trait ChatEventData {
     val `type`: String
@@ -297,70 +297,67 @@ object DomainChatService {
     val timestamp: Instant
   }
 
-  case class ChatCreatedEventData(eventNumber: Long,
-                                  id: String,
-                                  user: DomainUserId,
-                                  timestamp: Instant,
-                                  name: String,
-                                  topic: String,
-                                  members: Set[DomainUserId]) extends ChatEventData {
-    val `type` = "created"
-  }
-
-  case class ChatMessageEventData(eventNumber: Long,
-                                  id: String,
-                                  user: DomainUserId,
-                                  timestamp: Instant,
-                                  message: String) extends ChatEventData {
-    val `type` = "message"
-  }
-
-  case class ChatUserJoinedEventData(eventNumber: Long,
-                                     id: String,
-                                     user: DomainUserId,
-                                     timestamp: Instant) extends ChatEventData {
-    val `type` = "user_joined"
-  }
-
-  case class ChatUserLeftEventData(eventNumber: Long,
-                                   id: String,
-                                   user: DomainUserId,
-                                   timestamp: Instant) extends ChatEventData {
-    val `type` = "user_left"
-  }
-
-  case class ChatUserAddedEventData(eventNumber: Long,
-                                    id: String,
-                                    user: DomainUserId,
-                                    timestamp: Instant,
-                                    userAdded: DomainUserId) extends ChatEventData {
-    val `type` = "user_added"
-  }
-
-  case class ChatUserRemovedEventData(
-                                       eventNumber: Long,
-                                       id: String,
-                                       user: DomainUserId,
-                                       timestamp: Instant,
-                                       userRemoved: DomainUserId) extends ChatEventData {
-    val `type` = "user_removed"
-  }
-
-  case class ChatNameChangedEventData(
-                                       eventNumber: Long,
-                                       id: String,
-                                       user: DomainUserId,
-                                       timestamp: Instant,
-                                       name: String) extends ChatEventData {
-    val `type` = "name_changed"
-  }
-
-  case class ChatTopicChangedEventData(
-                                        eventNumber: Long,
+  final case class ChatCreatedEventData(eventNumber: Long,
                                         id: String,
                                         user: DomainUserId,
                                         timestamp: Instant,
-                                        topic: String) extends ChatEventData {
+                                        name: String,
+                                        topic: String,
+                                        members: Set[DomainUserId]) extends ChatEventData {
+    val `type` = "created"
+  }
+
+  final case class ChatMessageEventData(eventNumber: Long,
+                                        id: String,
+                                        user: DomainUserId,
+                                        timestamp: Instant,
+                                        message: String) extends ChatEventData {
+    val `type` = "message"
+  }
+
+  final case class ChatUserJoinedEventData(eventNumber: Long,
+                                           id: String,
+                                           user: DomainUserId,
+                                           timestamp: Instant) extends ChatEventData {
+    val `type` = "user_joined"
+  }
+
+  final case class ChatUserLeftEventData(eventNumber: Long,
+                                         id: String,
+                                         user: DomainUserId,
+                                         timestamp: Instant) extends ChatEventData {
+    val `type` = "user_left"
+  }
+
+  final case class ChatUserAddedEventData(eventNumber: Long,
+                                          id: String,
+                                          user: DomainUserId,
+                                          timestamp: Instant,
+                                          userAdded: DomainUserId) extends ChatEventData {
+    val `type` = "user_added"
+  }
+
+  final case class ChatUserRemovedEventData(eventNumber: Long,
+                                            id: String,
+                                            user: DomainUserId,
+                                            timestamp: Instant,
+                                            userRemoved: DomainUserId) extends ChatEventData {
+    val `type` = "user_removed"
+  }
+
+  final case class ChatNameChangedEventData(eventNumber: Long,
+                                            id: String,
+                                            user: DomainUserId,
+                                            timestamp: Instant,
+                                            name: String) extends ChatEventData {
+    val `type` = "name_changed"
+  }
+
+  final case class ChatTopicChangedEventData(eventNumber: Long,
+                                             id: String,
+                                             user: DomainUserId,
+                                             timestamp: Instant,
+                                             topic: String) extends ChatEventData {
     val `type` = "topic_changed"
   }
 

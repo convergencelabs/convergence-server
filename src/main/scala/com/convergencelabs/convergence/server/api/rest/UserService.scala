@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-private[rest] class UserService(userManagerActor: ActorRef[Message],
+private[rest] final class UserService(userManagerActor: ActorRef[Message],
                                 scheduler: Scheduler,
                                 executionContext: ExecutionContext,
                                 defaultTimeout: Timeout) extends JsonSupport {
@@ -206,14 +206,14 @@ private[rest] class UserService(userManagerActor: ActorRef[Message],
 
 private[rest] object UserService {
 
-  case class CreateUserRequestData(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
+  final case class CreateUserRequestData(username: String, firstName: Option[String], lastName: Option[String], displayName: String, email: String, serverRole: String, password: String)
 
-  case class UserPublicData(username: String, displayName: String)
+  final case class UserPublicData(username: String, displayName: String)
 
-  case class UserData(username: String, firstName: String, lastName: String, displayName: String, email: Option[String], lastLogin: Option[Instant], serverRole: String)
+  final case class UserData(username: String, firstName: String, lastName: String, displayName: String, email: Option[String], lastLogin: Option[Instant], serverRole: String)
 
-  case class PasswordData(password: String)
+  final case class PasswordData(password: String)
 
-  case class UpdateUserData(firstName: String, lastName: String, displayName: String, email: String, serverRole: String)
+  final case class UpdateUserData(firstName: String, lastName: String, displayName: String, email: String, serverRole: String)
 
 }

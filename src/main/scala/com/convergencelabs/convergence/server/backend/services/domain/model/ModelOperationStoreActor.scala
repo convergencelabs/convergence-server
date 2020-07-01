@@ -18,8 +18,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.Mod
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-class ModelOperationStoreActor private(context: ActorContext[ModelOperationStoreActor.Message],
-                                       operationStore: ModelOperationStore)
+private final class ModelOperationStoreActor(context: ActorContext[ModelOperationStoreActor.Message],
+                                             operationStore: ModelOperationStore)
   extends AbstractBehavior[ModelOperationStoreActor.Message](context) {
 
   import ModelOperationStoreActor._

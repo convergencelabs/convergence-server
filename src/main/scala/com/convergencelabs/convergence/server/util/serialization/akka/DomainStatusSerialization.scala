@@ -17,13 +17,13 @@ import com.fasterxml.jackson.databind.{DeserializationContext, JsonDeserializer,
 
 object DomainStatusSerialization {
 
-  class Serializer extends JsonSerializer[DomainStatus.Value] {
+  final class Serializer extends JsonSerializer[DomainStatus.Value] {
     override def serialize(t: DomainStatus.Value, gen: JsonGenerator, serializers: SerializerProvider): Unit = {
       gen.writeString(t.toString)
     }
   }
 
-  class Deserializer extends JsonDeserializer[DomainStatus.Value] {
+  final class Deserializer extends JsonDeserializer[DomainStatus.Value] {
     override def deserialize(jp: JsonParser, ctxt: DeserializationContext): DomainStatus.Value = {
       val t = jp.getText
       DomainStatus.withName(t)

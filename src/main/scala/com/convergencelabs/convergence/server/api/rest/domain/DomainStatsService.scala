@@ -28,10 +28,10 @@ import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainStatsService(domainRestActor: ActorRef[DomainRestActor.Message],
-                         scheduler: Scheduler,
-                         executionContext: ExecutionContext,
-                         timeout: Timeout)
+private[domain] final class DomainStatsService(domainRestActor: ActorRef[DomainRestActor.Message],
+                                               scheduler: Scheduler,
+                                               executionContext: ExecutionContext,
+                                               timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainStatsService._
@@ -43,13 +43,13 @@ class DomainStatsService(domainRestActor: ActorRef[DomainRestActor.Message],
 
   private[this] def getStats(domain: DomainId): Future[RestResponse] = {
     domainRestActor
-      .ask[GetStatsResponse](r => DomainRestMessage(domain,  GetStatsRequest(r)))
+      .ask[GetStatsResponse](r => DomainRestMessage(domain, GetStatsRequest(r)))
       .map(_.stats.fold(
         {
           case UnknownError() =>
             InternalServerError
         },
-        {stats =>
+        { stats =>
           val DomainStats(activeSessionCount, userCount, modelCount, dbSize) = stats
           val response = DomainStatsRestData(activeSessionCount, userCount, modelCount, dbSize)
           okResponse(response)

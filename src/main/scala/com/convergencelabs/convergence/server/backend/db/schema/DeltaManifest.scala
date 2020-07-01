@@ -23,31 +23,7 @@ import org.json4s.{DefaultFormats, Extraction, Formats}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-object DeltaManifest {
-  val Formats: Formats = DefaultFormats +
-    SimpleNamePolymorphicSerializer[DeltaAction]("action", List(
-      classOf[CreateClass],
-      classOf[AlterClass],
-      classOf[DropClass],
-      classOf[AddProperty],
-      classOf[AlterProperty],
-      classOf[DropProperty],
-      classOf[CreateIndex],
-      classOf[DropIndex],
-      classOf[CreateSequence],
-      classOf[DropSequence],
-      classOf[RunSqlCommand],
-      classOf[CreateFunction],
-      classOf[AlterFunction],
-      classOf[DropFunction])) +
-    new EnumNameSerializer(OrientType) +
-    new EnumNameSerializer(IndexType) +
-    new EnumNameSerializer(SequenceType)
-}
-
-class DeltaManifest(
-    private[this] val basePath: String,
-    private[this] val index: DeltaIndex) {
+final class DeltaManifest(basePath: String, index: DeltaIndex) {
 
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
 
@@ -167,4 +143,27 @@ class DeltaManifest(
       Source.fromInputStream(in).mkString
     }
   }
+}
+
+
+object DeltaManifest {
+  val Formats: Formats = DefaultFormats +
+    SimpleNamePolymorphicSerializer[DeltaAction]("action", List(
+      classOf[CreateClass],
+      classOf[AlterClass],
+      classOf[DropClass],
+      classOf[AddProperty],
+      classOf[AlterProperty],
+      classOf[DropProperty],
+      classOf[CreateIndex],
+      classOf[DropIndex],
+      classOf[CreateSequence],
+      classOf[DropSequence],
+      classOf[RunSqlCommand],
+      classOf[CreateFunction],
+      classOf[AlterFunction],
+      classOf[DropFunction])) +
+    new EnumNameSerializer(OrientType) +
+    new EnumNameSerializer(IndexType) +
+    new EnumNameSerializer(SequenceType)
 }

@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 
 final case class Domain(domainId: DomainId,
-                  displayName: String,
-                  @JsonScalaEnumeration(classOf[DomainStatusTypeReference])
-                  status: DomainStatus.Value,
-                  statusMessage: String)
+                        displayName: String,
+                        @JsonScalaEnumeration(classOf[DomainStatusTypeReference])
+                        status: DomainStatus.Value,
+                        statusMessage: String)

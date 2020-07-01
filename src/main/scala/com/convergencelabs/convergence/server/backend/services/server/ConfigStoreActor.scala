@@ -28,7 +28,7 @@ import scala.language.postfixOps
  * @param context     The ActorContext for this actor.
  * @param configStore The configuration store for getting and setting configs.
  */
-class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
+private final class ConfigStoreActor(context: ActorContext[ConfigStoreActor.Message],
                                configStore: ConfigStore)
   extends AbstractBehavior[ConfigStoreActor.Message](context) {
 

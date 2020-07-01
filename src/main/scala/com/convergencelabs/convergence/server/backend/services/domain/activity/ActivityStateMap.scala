@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.activity
 
 import org.json4s.JsonAST.JValue
 
-class ActivityStateMap private[activity] () {
+private[activity] final class ActivityStateMap() {
   private[this] var state = Map[String, Map[String, JValue]]()
 
   def setState(sessionId: String, key: String, value: JValue): Unit = {
@@ -25,8 +25,8 @@ class ActivityStateMap private[activity] () {
     val sessionState = state(sessionId)
     state += (sessionId -> (sessionState - key))
   }
-  
-  def clear(): Unit ={
+
+  def clear(): Unit = {
     state = Map()
   }
 

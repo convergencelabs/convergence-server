@@ -29,10 +29,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
-class NamespaceStoreActor private(context: ActorContext[NamespaceStoreActor.Message],
-                                  namespaceStore: NamespaceStore,
-                                  roleStore: RoleStore,
-                                  configStore: ConfigStore)
+private final class NamespaceStoreActor(context: ActorContext[NamespaceStoreActor.Message],
+                                        namespaceStore: NamespaceStore,
+                                        roleStore: RoleStore,
+                                        configStore: ConfigStore)
   extends AbstractBehavior[NamespaceStoreActor.Message](context) {
 
   import NamespaceStoreActor._

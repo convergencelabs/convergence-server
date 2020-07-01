@@ -35,11 +35,11 @@ import org.json4s.JsonAST.JObject
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
-                         modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                         scheduler: Scheduler,
-                         executionContext: ExecutionContext,
-                         timeout: Timeout)
+private[domain] final class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
+                                               modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                                               scheduler: Scheduler,
+                                               executionContext: ExecutionContext,
+                                               timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainModelService._

@@ -34,10 +34,10 @@ import scala.concurrent.{ExecutionContext, Future}
  * tokens / API keys. It provides a Akka HTTP Route Directive that an protect
  * routes by validating the Authorization header in HTTP Requests.
  */
-private[rest] class Authenticator(authActor: ActorRef[AuthenticationActor.Message],
-                                  private[this] implicit val scheduler: Scheduler,
-                                  private[this] implicit val ec: ExecutionContext,
-                                  private[this] implicit val timeout: Timeout)
+private[rest] final class Authenticator(authActor: ActorRef[AuthenticationActor.Message],
+                                        private[this] implicit val scheduler: Scheduler,
+                                        private[this] implicit val ec: ExecutionContext,
+                                        private[this] implicit val timeout: Timeout)
   extends JsonSupport {
 
   import Authenticator._
@@ -47,16 +47,16 @@ private[rest] class Authenticator(authActor: ActorRef[AuthenticationActor.Messag
    * the built in extractRequest directive) and validates the user credentials
    * using one of several authentication schemes.  This directive will examine
    * the HTTP Authorization header (see
-   *  https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html.). It will look
-   *  for one of the following schemes: "SessionToken", "BearerToken",
-   *  "UserApiKey"; and validate them appropriately using the
-   *  AuthenticationActor supplied to the constructor of this class.
+   * https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html.). It will look
+   * for one of the following schemes: "SessionToken", "BearerToken",
+   * "UserApiKey"; and validate them appropriately using the
+   * AuthenticationActor supplied to the constructor of this class.
    *
-   *  If the authentication succeeds, the user's AuthenticationProfile will
-   *  be provided to the child route. If the authentication fails the
-   *  route will be completed with either an 401 (unauthorized) or
-   *  a 500 (internal server error) in the case that there was an
-   *  error in the authentication process.
+   * If the authentication succeeds, the user's AuthenticationProfile will
+   * be provided to the child route. If the authentication fails the
+   * route will be completed with either an 401 (unauthorized) or
+   * a 500 (internal server error) in the case that there was an
+   * error in the authentication process.
    *
    * @param request The HttpRequest to interrogate.
    * @return

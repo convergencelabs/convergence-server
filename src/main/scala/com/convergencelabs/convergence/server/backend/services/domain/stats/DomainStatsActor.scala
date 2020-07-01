@@ -21,8 +21,8 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import scala.annotation.nowarn
 import scala.util.Try
 
-class DomainStatsActor private(context: ActorContext[DomainStatsActor.Message],
-                               persistence: DomainPersistenceProvider)
+private final class DomainStatsActor(context: ActorContext[DomainStatsActor.Message],
+                                     persistence: DomainPersistenceProvider)
   extends AbstractBehavior[DomainStatsActor.Message](context) {
 
   import DomainStatsActor._
@@ -97,4 +97,5 @@ object DomainStatsActor {
 
   final case class UnknownError() extends AnyRef
     with GetStatsError
+
 }

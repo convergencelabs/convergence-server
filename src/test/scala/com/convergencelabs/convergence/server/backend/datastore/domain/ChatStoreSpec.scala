@@ -13,14 +13,12 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
-import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.chat
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatMessageEvent, ChatNameChangedEvent, ChatTopicChangedEvent, ChatType, ChatUserAddedEvent, ChatUserJoinedEvent, ChatUserLeftEvent, ChatUserRemovedEvent}
+import com.convergencelabs.convergence.server.model.domain.chat._
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
@@ -82,8 +80,8 @@ class ChatStoreSpec
       }
     }
 
-    "getting a chat channel info" must {
-      "return chat channel for valid id" in withTestData { provider =>
+    "getting a chat chat state" must {
+      "return chat state for valid id" in withTestData { provider =>
         val name = "testName"
         val topic = "testTopic"
         val members = Set(user1Id, user2Id)
@@ -92,16 +90,16 @@ class ChatStoreSpec
         val id = provider.chatStore.createChat(
           Some(channel1Id), ChatType.Direct, timestamp, ChatMembership.Public, name, topic, Some(members), user1Id).get
 
-        val chatChannelInfo = provider.chatStore.getChatInfo(id).get
+        val chatChannelInfo = provider.chatStore.getChatState(id).get
         chatChannelInfo.id shouldEqual id
         chatChannelInfo.name shouldEqual "testName"
         chatChannelInfo.topic shouldEqual "testTopic"
         chatChannelInfo.chatType shouldEqual ChatType.Direct
         chatChannelInfo.lastEventNumber shouldEqual 0L
         chatChannelInfo.lastEventTime.toEpochMilli shouldEqual timestamp.toEpochMilli
-        chatChannelInfo.members shouldEqual Set(
-          ChatMember(channel1Id, user1Id, 0),
-          chat.ChatMember(channel1Id, user2Id, 0))
+        chatChannelInfo.members shouldEqual Map(
+          user1Id -> ChatMember(channel1Id, user1Id, 0),
+          user2Id -> ChatMember(channel1Id, user2Id, 0))
       }
 
       "return the correct max event no" in withTestData { provider =>
@@ -114,7 +112,7 @@ class ChatStoreSpec
           Some(channel1Id), ChatType.Channel, timestamp, ChatMembership.Public, name, topic, Some(members), user1Id).get
 
         provider.chatStore.addChatMessageEvent(ChatMessageEvent(1, id, user1Id, timestamp, "foo"))
-        val chatChannelInfo = provider.chatStore.getChatInfo(id).get
+        val chatChannelInfo = provider.chatStore.getChatState(id).get
 
         chatChannelInfo.id shouldEqual id
         chatChannelInfo.name shouldEqual "testName"
@@ -122,11 +120,11 @@ class ChatStoreSpec
         chatChannelInfo.chatType shouldEqual ChatType.Channel
         chatChannelInfo.lastEventNumber shouldEqual 1L
         chatChannelInfo.lastEventTime.toEpochMilli shouldEqual timestamp.toEpochMilli
-        chatChannelInfo.members shouldEqual Set(chat.ChatMember(channel1Id, user1Id, 0))
+        chatChannelInfo.members shouldEqual Map(user1Id -> ChatMember(channel1Id, user1Id, 0))
       }
 
       "throw error for invalid id" in withTestData { provider =>
-        an[EntityNotFoundException] should be thrownBy provider.chatStore.getChatInfo("does_not_exist").get
+        an[EntityNotFoundException] should be thrownBy provider.chatStore.getChatState("does_not_exist").get
       }
     }
 

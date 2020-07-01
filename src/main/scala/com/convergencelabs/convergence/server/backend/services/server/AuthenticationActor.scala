@@ -36,12 +36,12 @@ import scala.util.{Success, Try}
  * @param configStore           The config store that provide authentication configuration.
  * @param userSessionTokenStore The store to create and update HTTP API Sessions
  */
-class AuthenticationActor private(context: ActorContext[AuthenticationActor.Message],
-                                  userStore: UserStore,
-                                  userApiKeyStore: UserApiKeyStore,
-                                  roleStore: RoleStore,
-                                  configStore: ConfigStore,
-                                  userSessionTokenStore: UserSessionTokenStore)
+private final class AuthenticationActor(context: ActorContext[AuthenticationActor.Message],
+                                        userStore: UserStore,
+                                        userApiKeyStore: UserApiKeyStore,
+                                        roleStore: RoleStore,
+                                        configStore: ConfigStore,
+                                        userSessionTokenStore: UserSessionTokenStore)
   extends AbstractBehavior[AuthenticationActor.Message](context) {
 
   import AuthenticationActor._

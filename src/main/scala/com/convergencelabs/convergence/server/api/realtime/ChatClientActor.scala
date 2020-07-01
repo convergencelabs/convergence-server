@@ -43,14 +43,14 @@ import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
-                              domainId: DomainId,
-                              chatShardRegion: ActorRef[ChatActor.Message],
-                              chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-                              chatManagerActor: ActorRef[ChatManagerActor.Message],
-                              clientActor: ActorRef[ClientActor.SendServerMessage],
-                              session: DomainSessionAndUserId,
-                              requestTimeout: Timeout)
+private final class ChatClientActor(context: ActorContext[ChatClientActor.Message],
+                                    domainId: DomainId,
+                                    chatShardRegion: ActorRef[ChatActor.Message],
+                                    chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
+                                    chatManagerActor: ActorRef[ChatManagerActor.Message],
+                                    clientActor: ActorRef[ClientActor.SendServerMessage],
+                                    session: DomainSessionAndUserId,
+                                    requestTimeout: Timeout)
   extends AbstractBehavior[ChatClientActor.Message](context) with Logging {
 
   import ChatClientActor._
@@ -242,7 +242,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.expectedError(ErrorCodes.ChatAlreadyJoined, "The current user or session is already joined to this chat")
         },
         { info =>
-          cb.reply(JoinChatResponseMessage(Some(chatInfoToProto(info))))
+          cb.reply(JoinChatResponseMessage(Some(chatStateToProto(info))))
         }))
       .recover(_ => cb.timeoutError())
   }
@@ -561,7 +561,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.unknownError()
         },
         { chatInfo =>
-          val info = chatInfo.map(chatInfoToProto)
+          val info = chatInfo.map(chatStateToProto)
           cb.reply(GetChatsResponseMessage(info.toList))
         }))
       .recover(_ => cb.timeoutError())
@@ -578,7 +578,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.unknownError()
         },
         { chatInfo =>
-          val info = chatInfo.map(chatInfoToProto)
+          val info = chatInfo.map(chatStateToProto)
           cb.reply(GetDirectChatsResponseMessage(info.toList))
         }))
       .recover(_ => cb.timeoutError())
@@ -593,7 +593,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
             cb.unknownError()
         },
         { chatInfo =>
-          val info = chatInfo.map(chatInfoToProto)
+          val info = chatInfo.map(chatStateToProto)
           cb.reply(GetJoinedChatsResponseMessage(info.toList))
         }))
       .recover(_ => cb.timeoutError())
@@ -647,7 +647,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
               cb.unknownError()
           },
           { case PagedData(chats, startIndex, totalResults) =>
-            val chatInfoData = chats.map(chatInfoToProto)
+            val chatInfoData = chats.map(chatStateToProto)
             val reply = ChatsSearchResponseMessage(chatInfoData, startIndex, totalResults)
             cb.reply(reply)
           }))
@@ -684,13 +684,13 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 }
 
 object ChatClientActor {
-  private[realtime]  def apply(domain: DomainId,
-                               session: DomainSessionAndUserId,
-                               clientActor: ActorRef[ClientActor.SendServerMessage],
-                               chatShardRegion: ActorRef[ChatActor.Message],
-                               chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-                               chatManagerActor: ActorRef[ChatManagerActor.Message],
-                               requestTimeout: Timeout): Behavior[Message] =
+  private[realtime] def apply(domain: DomainId,
+                              session: DomainSessionAndUserId,
+                              clientActor: ActorRef[ClientActor.SendServerMessage],
+                              chatShardRegion: ActorRef[ChatActor.Message],
+                              chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
+                              chatManagerActor: ActorRef[ChatManagerActor.Message],
+                              requestTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(new ChatClientActor(_, domain, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, clientActor, session, requestTimeout))
 
   /////////////////////////////////////////////////////////////////////////////

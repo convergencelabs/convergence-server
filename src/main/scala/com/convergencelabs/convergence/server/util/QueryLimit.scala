@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
  *
  * @param value The limit, or None if no limit is set.
  */
-class QueryLimit(val value: Option[Long]) extends AnyVal {
+final class QueryLimit(val value: Option[Long]) extends AnyVal {
   @JsonIgnore()
   def getOrElse(v: Long): QueryLimit = QueryLimit(value.getOrElse(v))
 

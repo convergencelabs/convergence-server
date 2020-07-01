@@ -13,8 +13,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.model.ot.
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 
-private[model] class OperationTransformer(
-    private[this] val tfr: TransformationFunctionRegistry) {
+private[model] class OperationTransformer(tfr: TransformationFunctionRegistry) {
 
   def transform(s: Operation, c: Operation): (Operation, Operation) = {
     (s, c) match {

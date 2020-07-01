@@ -25,22 +25,22 @@ import com.convergencelabs.convergence.server.model.domain.chat._
  */
 object ChatProtoConverters {
   /**
-   * Converts a ChatInfo object to the corresponding Protocol Buffer object.
+   * Converts a [[ChatState]] object to the corresponding Protocol Buffer object.
    *
-   * @param info The ChatInfo domain object.
+   * @param state The [[ChatState]] domain object.
    * @return The corresponding Protocol Buffer representation.
    */
-  def chatInfoToProto(info: ChatInfo): ChatInfoData =
+  def chatStateToProto(state: ChatState): ChatInfoData =
     ChatInfoData(
-      info.id,
-      chatTypeToProto(info.chatType),
-      chatMembershipToProto(info.membership),
-      info.name,
-      info.topic,
-      Some(instanceToTimestamp(info.created)),
-      Some(instanceToTimestamp(info.lastEventTime)),
-      info.lastEventNumber,
-      info.members.map(member => ChatMemberData(Some(domainUserIdToProto(member.userId)), member.seen)).toSeq)
+      state.id,
+      chatTypeToProto(state.chatType),
+      chatMembershipToProto(state.membership),
+      state.name,
+      state.topic,
+      Some(instanceToTimestamp(state.created)),
+      Some(instanceToTimestamp(state.lastEventTime)),
+      state.lastEventNumber,
+      state.members.values.map(member => ChatMemberData(Some(domainUserIdToProto(member.userId)), member.maxSeenEvent)).toSeq)
 
   /**
    * Converts a [[ChatType]] to a String for inclusion in the Protocol

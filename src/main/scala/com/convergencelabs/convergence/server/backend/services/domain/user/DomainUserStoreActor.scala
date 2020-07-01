@@ -24,8 +24,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.util.Success
 
-class DomainUserStoreActor private(context: ActorContext[DomainUserStoreActor.Message],
-                                   userStore: DomainUserStore)
+private final class DomainUserStoreActor(context: ActorContext[DomainUserStoreActor.Message],
+                                         userStore: DomainUserStore)
   extends AbstractBehavior[DomainUserStoreActor.Message](context) {
 
   import DomainUserStoreActor._

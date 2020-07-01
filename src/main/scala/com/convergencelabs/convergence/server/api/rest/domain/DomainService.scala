@@ -30,14 +30,14 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainService(schedule: Scheduler,
-                    executionContext: ExecutionContext,
-                    domainStoreActor: ActorRef[DomainStoreActor.Message],
-                    domainRestActor: ActorRef[DomainRestActor.Message],
-                    roleStoreActor: ActorRef[RoleStoreActor.Message],
-                    modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                    chatClusterRegion: ActorRef[ChatActor.Message],
-                    defaultTimeout: Timeout)
+private[rest] final class DomainService(schedule: Scheduler,
+                                        executionContext: ExecutionContext,
+                                        domainStoreActor: ActorRef[DomainStoreActor.Message],
+                                        domainRestActor: ActorRef[DomainRestActor.Message],
+                                        roleStoreActor: ActorRef[RoleStoreActor.Message],
+                                        modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                                        chatClusterRegion: ActorRef[ChatActor.Message],
+                                        defaultTimeout: Timeout)
   extends AbstractDomainRestService(schedule, executionContext, defaultTimeout) {
 
   import DomainService._

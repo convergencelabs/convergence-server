@@ -17,7 +17,6 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.{Ok, PagedDataResult}
-import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.{ChatNotFoundException, ChatStore}
@@ -25,9 +24,10 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.permissio
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors._
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatEvent, ChatInfo, ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatEvent, ChatMembership, ChatState, ChatType}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
@@ -175,11 +175,9 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
   }
 
   private[this] def createState(chatId: String, chatStore: ChatStore): Try[ChatState] = {
-    chatStore.getChatInfo(chatId) map { info =>
-      val ChatInfo(id, chatType, created, isPrivate, name, topic, lastEventNo, lastEventTime, members) = info
-      val memberMap = members.map(member => (member.userId, member)).toMap
-      ChatState(id, chatType, created, isPrivate, name, topic, lastEventTime, lastEventNo, memberMap)
-    } recoverWith {
+    chatStore
+      .getChatState(chatId)
+      .recoverWith {
       case cause: EntityNotFoundException =>
         logger.error(cause)
         Failure(ChatNotFoundException(chatId))
@@ -242,7 +240,7 @@ object ChatActor {
   ))
   sealed trait JoinChatError
 
-  final case class JoinChatResponse(info: Either[JoinChatError, ChatInfo]) extends CborSerializable
+  final case class JoinChatResponse(info: Either[JoinChatError, ChatState]) extends CborSerializable
 
   //
   // LeaveChannel

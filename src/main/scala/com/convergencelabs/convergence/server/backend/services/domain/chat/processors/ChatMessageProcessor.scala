@@ -19,7 +19,8 @@ import com.convergencelabs.convergence.server.backend.services.domain.chat.proce
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.general.{GetHistoryMessageProcessor, RemoveChatMessageProcessor}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions._
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatPermissionResolver, ChatState}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 import grizzled.slf4j.Logging
 
 abstract class ChatMessageProcessor(protected var state: ChatState,

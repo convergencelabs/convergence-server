@@ -27,10 +27,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  *                this reference.
  * @param initial The initial values to set.
  */
-private[model] class IndexReference(target: RealtimeValue,
-                                    session: DomainSessionAndUserId,
-                                    key: String,
-                                    initial: List[Int])
+private[model] final class IndexReference(target: RealtimeValue,
+                                          session: DomainSessionAndUserId,
+                                          key: String,
+                                          initial: List[Int])
   extends ModelReference[Int, RealtimeValue](target, session, key, initial)
     with PositionalInsertAwareReference
     with PositionalRemoveAwareReference

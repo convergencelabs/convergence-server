@@ -17,10 +17,10 @@ import com.convergencelabs.convergence.server.model.domain.model.{ArrayValue, Da
 
 import scala.util.{Failure, Success, Try}
 
-private[model] class RealtimeArray(value: ArrayValue,
-                                   parent: Option[RealtimeContainerValue],
-                                   parentField: Option[Any],
-                                   valueFactory: RealtimeValueFactory)
+private[model] final class RealtimeArray(value: ArrayValue,
+                                         parent: Option[RealtimeContainerValue],
+                                         parentField: Option[Any],
+                                         valueFactory: RealtimeValueFactory)
   extends RealtimeContainerValue(value.id, parent, parentField, List()) {
 
   private[this] var childValues: List[RealtimeValue] = _

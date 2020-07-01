@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.model.valu
 import com.convergencelabs.convergence.server.model.domain.model.PropertyReferenceValues
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
-private[model] class PropertyReference(target: RealtimeValue,
+private[model] final class PropertyReference(target: RealtimeValue,
                                        session: DomainSessionAndUserId,
                                        key: String,
                                        initialValues: List[String])

@@ -18,10 +18,10 @@ import com.convergencelabs.convergence.server.model.domain.model.{ObjectValue, P
 
 import scala.util.{Failure, Success, Try}
 
-private[model] class RealtimeObject(value: ObjectValue,
-                                    parent: Option[RealtimeContainerValue],
-                                    parentField: Option[Any],
-                                    valueFactory: RealtimeValueFactory)
+private[model] final class RealtimeObject(value: ObjectValue,
+                                          parent: Option[RealtimeContainerValue],
+                                          parentField: Option[Any],
+                                          valueFactory: RealtimeValueFactory)
   extends RealtimeContainerValue(value.id, parent, parentField, List(classOf[PropertyReferenceValues])) {
 
   private[this] var childValues: Map[String, RealtimeValue] = value.children.map {

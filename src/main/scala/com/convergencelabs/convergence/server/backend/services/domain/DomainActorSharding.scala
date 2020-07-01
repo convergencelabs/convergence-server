@@ -20,7 +20,7 @@ import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-class DomainActorSharding private(config: Config,
+private final class DomainActorSharding(config: Config,
                                   sharding: ClusterSharding,
                                   numberOfShards: Int,
                                   domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage])
@@ -49,7 +49,7 @@ class DomainActorSharding private(config: Config,
 }
 
 
-case class Props(domainPersistenceManager: DomainPersistenceManager,
+final case class Props(domainPersistenceManager: DomainPersistenceManager,
                  domainPassivationTimeout: FiniteDuration,
                  domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
 

@@ -16,9 +16,9 @@ import com.convergencelabs.convergence.server.model.domain.model.NullValue
 
 import scala.util.{Failure, Try}
 
-private[model] class RealtimeNull(value: NullValue,
-                                  parent: Option[RealtimeContainerValue],
-                                  parentField: Option[Any])
+private[model] final class RealtimeNull(value: NullValue,
+                                        parent: Option[RealtimeContainerValue],
+                                        parentField: Option[Any])
   extends RealtimeValue(value.id, parent, parentField, List()) {
 
   def data(): Null = {

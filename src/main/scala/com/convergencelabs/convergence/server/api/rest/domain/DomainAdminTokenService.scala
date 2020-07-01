@@ -32,7 +32,7 @@ object DomainAdminTokenService {
 
 }
 
-class DomainAdminTokenService(domainRestActor: ActorRef[DomainRestActor.Message],
+private[domain] final class DomainAdminTokenService(domainRestActor: ActorRef[DomainRestActor.Message],
                               scheduler: Scheduler,
                               executionContext: ExecutionContext,
                               timeout: Timeout)

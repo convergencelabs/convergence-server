@@ -19,11 +19,10 @@ import com.convergencelabs.convergence.server.model.domain.session
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class ModelOperationReplayHelper(private[this] val modelOperationStore: ModelOperationStore,
-                                 private[this] val modelId: String,
-                                 private[this] val clientActor: ActorRef[ModelClientActor.OutgoingMessage],
-                                 private[this] implicit val ec: ExecutionContext
-                                ) {
+final class ModelOperationReplayHelper(modelOperationStore: ModelOperationStore,
+                                       modelId: String,
+                                       clientActor: ActorRef[ModelClientActor.OutgoingMessage],
+                                       private[this] implicit val ec: ExecutionContext) {
 
   def sendOperationsInRange(firstVersion: Long, lastVersion: Long): Future[Unit] = {
     Future {

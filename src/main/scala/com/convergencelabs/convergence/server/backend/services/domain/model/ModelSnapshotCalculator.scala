@@ -15,7 +15,7 @@ import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 
-class ModelSnapshotCalculator(snapshotConfig: ModelSnapshotConfig) {
+final class ModelSnapshotCalculator(snapshotConfig: ModelSnapshotConfig) {
   def snapshotRequired(previousVersion: Long,
                        currentVersion: Long,
                        previousTime: Instant,

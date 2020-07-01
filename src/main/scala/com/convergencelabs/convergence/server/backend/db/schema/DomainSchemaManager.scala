@@ -21,7 +21,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.util.{Failure, Try}
 
-class DomainSchemaManager(
+final class DomainSchemaManager(
   domainFqn: DomainId,
   db: ODatabaseDocument,
   historyStore: DeltaHistoryStore,

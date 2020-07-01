@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Ro
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
+private[domain] final class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
                            scheduler: Scheduler,
                            executionContext: ExecutionContext,
                            timeout: Timeout)

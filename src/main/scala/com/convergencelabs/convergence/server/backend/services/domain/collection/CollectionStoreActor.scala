@@ -30,8 +30,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
  * @param collectionStore The [[CollectionStore]] to user for persistence of
  *                        collections.
  */
-class CollectionStoreActor private(context: ActorContext[CollectionStoreActor.Message],
-                                   collectionStore: CollectionStore)
+private final class CollectionStoreActor(context: ActorContext[CollectionStoreActor.Message],
+                                         collectionStore: CollectionStore)
   extends AbstractBehavior[CollectionStoreActor.Message](context) {
 
   import CollectionStoreActor._

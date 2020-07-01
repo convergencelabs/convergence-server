@@ -40,10 +40,10 @@ import scala.util.{Failure, Success}
  * @param identityServiceActor The actor that is used to resolve identity.
  * @param timeout              The timeout to user for identity resolution requests.
  */
-class IdentityCacheManagerActor private(context: ActorContext[IdentityCacheManagerActor.Message],
-                                        clientActor: ActorRef[ClientActor.FromIdentityResolver],
-                                        identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
-                                        private[this] implicit val timeout: Timeout)
+private final class IdentityCacheManagerActor(context: ActorContext[IdentityCacheManagerActor.Message],
+                                              clientActor: ActorRef[ClientActor.FromIdentityResolver],
+                                              identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
+                                              private[this] implicit val timeout: Timeout)
   extends AbstractBehavior[IdentityCacheManagerActor.Message](context) with Logging {
 
   import IdentityCacheManagerActor._

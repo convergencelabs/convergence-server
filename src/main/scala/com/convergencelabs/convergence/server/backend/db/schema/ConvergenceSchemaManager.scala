@@ -19,7 +19,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.util.Try
 
-class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistoryStore, preRelease: Boolean)
+final class ConvergenceSchemaManager(db: ODatabaseDocument, historyStore: DeltaHistoryStore, preRelease: Boolean)
     extends AbstractSchemaManager(db, preRelease: Boolean) {
 
   def getCurrentVersion(): Try[Int] = {

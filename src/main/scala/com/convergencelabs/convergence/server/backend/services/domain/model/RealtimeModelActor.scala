@@ -46,15 +46,15 @@ import scala.util.{Failure, Success, Try}
  * An instance of the RealtimeModelActor manages the lifecycle of a single
  * realtime model.
  */
-class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
-                         shardRegion: ActorRef[RealtimeModelActor.Message],
-                         shard: ActorRef[ClusterSharding.ShardCommand],
-                         modelPermissionResolver: ModelPermissionResolver,
-                         modelCreator: ModelCreator,
-                         persistenceManager: DomainPersistenceManager,
-                         clientDataResponseTimeout: FiniteDuration,
-                         receiveTimeout: FiniteDuration,
-                         resyncTimeout: FiniteDuration)
+private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
+                                       shardRegion: ActorRef[RealtimeModelActor.Message],
+                                       shard: ActorRef[ClusterSharding.ShardCommand],
+                                       modelPermissionResolver: ModelPermissionResolver,
+                                       modelCreator: ModelCreator,
+                                       persistenceManager: DomainPersistenceManager,
+                                       clientDataResponseTimeout: FiniteDuration,
+                                       receiveTimeout: FiniteDuration,
+                                       resyncTimeout: FiniteDuration)
   extends ShardedActor(context, shardRegion, shard) {
 
   import RealtimeModelActor._
@@ -838,8 +838,6 @@ object RealtimeModelActor {
                                     session: DomainSessionAndUserId,
                                     valueId: Option[String],
                                     key: String) extends ModelReferenceEvent
-
-
 
 
   //

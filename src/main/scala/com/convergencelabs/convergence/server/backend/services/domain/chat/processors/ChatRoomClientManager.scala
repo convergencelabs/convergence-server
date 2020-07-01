@@ -15,8 +15,7 @@ import akka.actor.typed.ActorRef
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-
-private[chat] class ChatRoomClientManager {
+private[chat] final class ChatRoomClientManager {
   type Client = ActorRef[ChatClientActor.OutgoingMessage]
 
   private[this] var clients = Set[Client]()

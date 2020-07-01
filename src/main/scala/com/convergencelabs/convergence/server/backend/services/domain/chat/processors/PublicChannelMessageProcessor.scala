@@ -14,8 +14,9 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat.proc
 import akka.actor.typed.ActorRef
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatDeliveryActor, ChatState}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatDeliveryActor
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 
 
 /**
@@ -25,7 +26,7 @@ import com.convergencelabs.convergence.server.model.DomainId
  * @param chatStore        The chat persistence store
  * @param permissionsStore The permissions persistence store.
  */
-private[chat] class PublicChannelMessageProcessor(chatState: ChatState,
+private[chat] final class PublicChannelMessageProcessor(chatState: ChatState,
                                                   chatStore: ChatStore,
                                                   permissionsStore: PermissionsStore,
                                                   domainId: DomainId,

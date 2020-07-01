@@ -19,8 +19,8 @@ import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
-class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],
-                               store: DomainConfigStore)
+private final class ConfigStoreActor(context: ActorContext[ConfigStoreActor.Message],
+                                     store: DomainConfigStore)
   extends AbstractBehavior[ConfigStoreActor.Message](context) {
 
   import ConfigStoreActor._

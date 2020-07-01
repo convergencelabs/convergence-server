@@ -16,8 +16,9 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat.Chat
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event.ChatEventMessageProcessorResult
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatDeliveryActor, ChatState}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatDeliveryActor
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 
 /**
  * Processes messages for a Direct Chat.
@@ -26,7 +27,7 @@ import com.convergencelabs.convergence.server.model.DomainId
  * @param chatStore        The chat persistence store
  * @param permissionsStore The permissions persistence store.
  */
-private[chat] class DirectChatMessageProcessor(chatState: ChatState,
+private[chat] final class DirectChatMessageProcessor(chatState: ChatState,
                                                chatStore: ChatStore,
                                                permissionsStore: PermissionsStore,
                                                domainId: DomainId,

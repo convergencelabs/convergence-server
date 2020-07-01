@@ -19,7 +19,7 @@ import org.rogach.scallop.{ScallopConf, ScallopOption}
  *
  * @param arguments The command line arguments passed to the [[ConvergenceServer]]
  */
-private class ConvergenceServerCLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
+private final class ConvergenceServerCLIConf(arguments: Seq[String]) extends ScallopConf(arguments) {
   version(s"Convergence Server (${BuildInfo.version})")
   banner("Usage: -c <config-file-path>>")
 

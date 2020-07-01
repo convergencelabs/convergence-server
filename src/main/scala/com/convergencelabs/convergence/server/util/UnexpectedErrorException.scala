@@ -11,4 +11,4 @@
 
 package com.convergencelabs.convergence.server.util
 
-case class UnexpectedErrorException(message: String = "An unknown error occurred") extends Exception(message)
+final case class UnexpectedErrorException(message: String = "An unknown error occurred") extends Exception(message)

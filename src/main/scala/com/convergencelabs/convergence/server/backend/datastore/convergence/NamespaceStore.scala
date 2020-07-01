@@ -26,7 +26,6 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
-
 class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import NamespaceStore._

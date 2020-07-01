@@ -21,7 +21,7 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Try}
 
-class DatabaseManager(
+final class DatabaseManager(
   databaseUrl: String,
   convergenceDbProvider: DatabaseProvider,
   dbConfig: Config) extends Logging {

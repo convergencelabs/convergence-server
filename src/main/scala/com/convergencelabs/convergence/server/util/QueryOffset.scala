@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
  *
  * @param value The offset, or None if no offset is set.
  */
-class QueryOffset( val value: Option[Long]) extends AnyVal {
+final class QueryOffset( val value: Option[Long]) extends AnyVal {
   @JsonIgnore()
   def getOrZero: Long = value.getOrElse(0)
 

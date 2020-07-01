@@ -29,14 +29,14 @@ import scala.language.postfixOps
  * the Convergence Server Realtime API. It will start any required actors
  * and create an HTTP Binding to listen for web socket connections.
  *
- * @param system       The Akka ActorSystem .
+ * @param system        The Akka ActorSystem .
  * @param interface     The network interface to bind to.
  * @param websocketPort The network port to listen to web socket connections on.
  */
-class ConvergenceRealtimeApi(system: ActorSystem[_],
-                             clientCreator: ActorRef[ClientActorCreator.CreateClientRequest],
-                             interface: String,
-                             websocketPort: Int)
+private[server] final class ConvergenceRealtimeApi(system: ActorSystem[_],
+                                                   clientCreator: ActorRef[ClientActorCreator.CreateClientRequest],
+                                                   interface: String,
+                                                   websocketPort: Int)
   extends Logging {
 
   private[this] implicit val ec: ExecutionContextExecutor = system.executionContext

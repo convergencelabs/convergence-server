@@ -17,9 +17,9 @@ import com.convergencelabs.convergence.server.model.domain.model.{IndexReference
 
 import scala.util.{Failure, Success, Try}
 
-private[model] class RealtimeString(value: StringValue,
-                                    parent: Option[RealtimeContainerValue],
-                                    parentField: Option[Any])
+private[model] final class RealtimeString(value: StringValue,
+                                          parent: Option[RealtimeContainerValue],
+                                          parentField: Option[Any])
   extends RealtimeValue(
     value.id,
     parent,

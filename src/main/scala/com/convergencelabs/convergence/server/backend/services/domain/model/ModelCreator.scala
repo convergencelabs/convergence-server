@@ -20,11 +20,11 @@ import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Failure, Success, Try}
 
-case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
+final case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
 
-case class NoCreatePermissions(message: String) extends Exception(message)
+final case class NoCreatePermissions(message: String) extends Exception(message)
 
-class ModelCreator {
+private[model] class ModelCreator {
 
   def generateModelId(): String = UUID.randomUUID().toString
 

@@ -36,74 +36,6 @@ import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
-object DomainUserStore {
-
-  import schema.UserClass._
-
-  val UserDoesNotExistMessage = "User does not exist"
-
-  object Params {
-    val Username = "username"
-    val UserType = "userType"
-    val LastLogin = "lastLogin"
-  }
-
-  private[domain] def findUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[Option[ORID]] = {
-    OrientDBUtil.findIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
-  }
-
-  private[domain] def getUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[ORID] = {
-    this.getUserRid(userId.username, userId.userType, db)
-  }
-
-  private[domain] def getUserRid(username: String, userType: DomainUserType.Value, db: ODatabaseDocument): Try[ORID] = {
-    db.activateOnCurrentThread()
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(username, userType.toString.toLowerCase))
-  }
-
-  private[domain] def getDomainUsersRids(userIds: List[DomainUserId], db: ODatabaseDocument): Try[List[ORID]] = {
-    val keys = userIds.map(userId => new OCompositeKey(List(userId.username, userId.userType.toString.toLowerCase).asJava))
-    OrientDBUtil.getIdentitiesFromSingleValueIndex(db, Indices.UsernameUserType, keys)
-  }
-
-  private[domain] def domainUserToDoc(obj: DomainUser): ODocument = {
-    val doc = new ODocument(ClassName)
-    doc.setProperty(Fields.UserType, obj.userType.toString.toLowerCase)
-    doc.setProperty(Fields.Username, obj.username)
-    obj.firstName.foreach(doc.setProperty(Fields.FirstName, _))
-    obj.lastName.foreach(doc.setProperty(Fields.LastName, _))
-    obj.displayName.foreach(doc.setProperty(Fields.DisplayName, _))
-    obj.email.foreach(doc.setProperty(Fields.Email, _))
-    obj.lastLogin.foreach(d => doc.setProperty(Fields.LastLogin, Date.from(d)))
-    doc.setProperty(Fields.Disabled, obj.disabled)
-    doc.setProperty(Fields.Deleted, obj.deleted)
-    obj.deletedUsername.foreach(doc.setProperty(Fields.DeletedUsername, _))
-    doc
-  }
-
-  private[domain] def docToDomainUser(doc: ODocument): DomainUser = {
-    DomainUser(
-      DomainUserType.withName(doc.getProperty(Fields.UserType)),
-      doc.getProperty(Fields.Username),
-      Option(doc.getProperty(Fields.FirstName)),
-      Option(doc.getProperty(Fields.LastName)),
-      Option(doc.getProperty(Fields.DisplayName)),
-      Option(doc.getProperty(Fields.Email)),
-      Option(doc.getProperty(Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant),
-      doc.getProperty(Fields.Disabled),
-      doc.getProperty(Fields.Deleted),
-      Option(doc.getProperty(Fields.DeletedUsername)))
-  }
-
-  private val ReconnectTokenGenerator = new RandomStringGenerator(32)
-
-  private[this] val DeletedUsernameGenerator = new RandomStringGenerator(36, RandomStringGenerator.Base64)
-
-  private def generateDeletedUsername(): String = {
-    DeletedUsernameGenerator.nextString()
-  }
-}
-
 /**
  * Manages the persistence of Domain Users.  This class manages both user profile records
  * as well as user credentials for users authenticated by Convergence itself.
@@ -563,5 +495,74 @@ class DomainUserStore private[domain](dbProvider: DatabaseProvider)
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object DomainUserStore {
+
+  import schema.UserClass._
+
+  val UserDoesNotExistMessage = "User does not exist"
+
+  object Params {
+    val Username = "username"
+    val UserType = "userType"
+    val LastLogin = "lastLogin"
+  }
+
+  private[domain] def findUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[Option[ORID]] = {
+    OrientDBUtil.findIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(userId.username, userId.userType.toString.toLowerCase))
+  }
+
+  private[domain] def getUserRid(userId: DomainUserId, db: ODatabaseDocument): Try[ORID] = {
+    this.getUserRid(userId.username, userId.userType, db)
+  }
+
+  private[domain] def getUserRid(username: String, userType: DomainUserType.Value, db: ODatabaseDocument): Try[ORID] = {
+    db.activateOnCurrentThread()
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.UsernameUserType, List(username, userType.toString.toLowerCase))
+  }
+
+  private[domain] def getDomainUsersRids(userIds: List[DomainUserId], db: ODatabaseDocument): Try[List[ORID]] = {
+    val keys = userIds.map(userId => new OCompositeKey(List(userId.username, userId.userType.toString.toLowerCase).asJava))
+    OrientDBUtil.getIdentitiesFromSingleValueIndex(db, Indices.UsernameUserType, keys)
+  }
+
+  private[domain] def domainUserToDoc(obj: DomainUser): ODocument = {
+    val doc = new ODocument(ClassName)
+    doc.setProperty(Fields.UserType, obj.userType.toString.toLowerCase)
+    doc.setProperty(Fields.Username, obj.username)
+    obj.firstName.foreach(doc.setProperty(Fields.FirstName, _))
+    obj.lastName.foreach(doc.setProperty(Fields.LastName, _))
+    obj.displayName.foreach(doc.setProperty(Fields.DisplayName, _))
+    obj.email.foreach(doc.setProperty(Fields.Email, _))
+    obj.lastLogin.foreach(d => doc.setProperty(Fields.LastLogin, Date.from(d)))
+    doc.setProperty(Fields.Disabled, obj.disabled)
+    doc.setProperty(Fields.Deleted, obj.deleted)
+    obj.deletedUsername.foreach(doc.setProperty(Fields.DeletedUsername, _))
+    doc
+  }
+
+  private[domain] def docToDomainUser(doc: ODocument): DomainUser = {
+    DomainUser(
+      DomainUserType.withName(doc.getProperty(Fields.UserType)),
+      doc.getProperty(Fields.Username),
+      Option(doc.getProperty(Fields.FirstName)),
+      Option(doc.getProperty(Fields.LastName)),
+      Option(doc.getProperty(Fields.DisplayName)),
+      Option(doc.getProperty(Fields.Email)),
+      Option(doc.getProperty(Fields.LastLogin).asInstanceOf[Date]).map(_.toInstant),
+      doc.getProperty(Fields.Disabled),
+      doc.getProperty(Fields.Deleted),
+      Option(doc.getProperty(Fields.DeletedUsername)))
+  }
+
+  private val ReconnectTokenGenerator = new RandomStringGenerator(32)
+
+  private[this] val DeletedUsernameGenerator = new RandomStringGenerator(36, RandomStringGenerator.Base64)
+
+  private def generateDeletedUsername(): String = {
+    DeletedUsernameGenerator.nextString()
   }
 }

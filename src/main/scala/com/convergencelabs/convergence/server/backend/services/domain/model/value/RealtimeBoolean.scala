@@ -16,9 +16,9 @@ import com.convergencelabs.convergence.server.model.domain.model.BooleanValue
 
 import scala.util.{Failure, Success, Try}
 
-private[model] class RealtimeBoolean(value: BooleanValue,
-                                     parent: Option[RealtimeContainerValue],
-                                     parentField: Option[Any])
+private[model] final class RealtimeBoolean(value: BooleanValue,
+                                           parent: Option[RealtimeContainerValue],
+                                           parentField: Option[Any])
   extends RealtimeValue(value.id, parent, parentField, List()) {
 
   private[this] var boolean = value.value

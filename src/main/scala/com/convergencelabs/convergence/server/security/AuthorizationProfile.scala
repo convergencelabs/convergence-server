@@ -26,7 +26,7 @@ object AuthorizationProfile {
   }
 }
 
-class AuthorizationProfile(val data: AuthorizationProfileData) extends Serializable {
+final class AuthorizationProfile(val data: AuthorizationProfileData) extends Serializable {
 
   val username: String = data.username
   val userRoles: UserRoles = data.userRoles

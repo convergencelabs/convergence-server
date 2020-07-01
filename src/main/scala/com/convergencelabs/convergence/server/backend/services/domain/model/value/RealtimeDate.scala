@@ -18,9 +18,9 @@ import com.convergencelabs.convergence.server.model.domain.model.DateValue
 
 import scala.util.{Failure, Success, Try}
 
-private[model] class RealtimeDate(value: DateValue,
-                                  parent: Option[RealtimeContainerValue],
-                                  parentField: Option[Any])
+private[model] final class RealtimeDate(value: DateValue,
+                                        parent: Option[RealtimeContainerValue],
+                                        parentField: Option[Any])
   extends RealtimeValue(value.id, parent, parentField, List()) {
 
   private[this] var date = value.value

@@ -11,4 +11,4 @@
 
 package com.convergencelabs.convergence.server.model.domain.model
 
-case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
+final case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)

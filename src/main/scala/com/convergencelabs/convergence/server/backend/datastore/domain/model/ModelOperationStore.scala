@@ -28,58 +28,6 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.util.Try
 
-object ModelOperationStore {
-
-  import schema.ModelOperationClass._
-
-  object Constants {
-    val CollectionId = "collectionId"
-    val ModelId = "modelId"
-    val Username = "username"
-  }
-
-  def modelOperationToDoc(opEvent: NewModelOperation, db: ODatabaseDocument): Try[ODocument] = {
-    for {
-      session <- SessionStore.getDomainSessionRid(opEvent.sessionId, db)
-      model <- ModelStore.getModelRid(opEvent.modelId, db)
-    } yield {
-      val doc: ODocument = db.newInstance(ClassName)
-      doc.setProperty(Fields.Model, model, OType.LINK)
-      doc.setProperty(Fields.Version, opEvent.version, OType.LONG)
-      doc.setProperty(Fields.Timestamp, Date.from(opEvent.timestamp), OType.DATETIME)
-      doc.setProperty(Fields.Session, session, OType.LINK)
-
-      val opDoc = OrientDBOperationMapper.operationToODocument(opEvent.op)
-      doc.setProperty(Fields.Operation, opDoc, OType.LINK)
-      doc
-    }
-  }
-
-  def docToModelOperation(doc: ODocument): ModelOperation = {
-    val docDate: java.util.Date = doc.getProperty(Fields.Timestamp)
-    val timestamp = Instant.ofEpochMilli(docDate.getTime)
-    val opDoc: ODocument = doc.getProperty(Fields.Operation)
-    val op = OrientDBOperationMapper.oDocumentToOperation(opDoc)
-    val userType = doc.eval("session.user.userType").toString
-    val username = doc.eval("session.user.username").toString
-    val userId = DomainUserId(userType, username)
-
-    ModelOperation(
-      doc.eval("model.id").toString,
-      doc.getProperty(Fields.Version),
-      timestamp,
-      userId,
-      doc.eval("session.id").toString,
-      op)
-  }
-
-  def deleteAllOperationsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
-    val command = "DELETE FROM ModelOperation WHERE model.collection.id = :collectionId"
-    val params = Map(Constants.CollectionId -> collectionId)
-    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
-  }
-}
-
 class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider) {
 
@@ -179,5 +127,58 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
 
   def createModelOperation(modelOperation: NewModelOperation, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     ModelOperationStore.modelOperationToDoc(modelOperation, db).flatMap(doc => Try(doc.save()))
+  }
+}
+
+
+object ModelOperationStore {
+
+  import schema.ModelOperationClass._
+
+  object Constants {
+    val CollectionId = "collectionId"
+    val ModelId = "modelId"
+    val Username = "username"
+  }
+
+  def modelOperationToDoc(opEvent: NewModelOperation, db: ODatabaseDocument): Try[ODocument] = {
+    for {
+      session <- SessionStore.getDomainSessionRid(opEvent.sessionId, db)
+      model <- ModelStore.getModelRid(opEvent.modelId, db)
+    } yield {
+      val doc: ODocument = db.newInstance(ClassName)
+      doc.setProperty(Fields.Model, model, OType.LINK)
+      doc.setProperty(Fields.Version, opEvent.version, OType.LONG)
+      doc.setProperty(Fields.Timestamp, Date.from(opEvent.timestamp), OType.DATETIME)
+      doc.setProperty(Fields.Session, session, OType.LINK)
+
+      val opDoc = OrientDBOperationMapper.operationToODocument(opEvent.op)
+      doc.setProperty(Fields.Operation, opDoc, OType.LINK)
+      doc
+    }
+  }
+
+  def docToModelOperation(doc: ODocument): ModelOperation = {
+    val docDate: java.util.Date = doc.getProperty(Fields.Timestamp)
+    val timestamp = Instant.ofEpochMilli(docDate.getTime)
+    val opDoc: ODocument = doc.getProperty(Fields.Operation)
+    val op = OrientDBOperationMapper.oDocumentToOperation(opDoc)
+    val userType = doc.eval("session.user.userType").toString
+    val username = doc.eval("session.user.username").toString
+    val userId = DomainUserId(userType, username)
+
+    ModelOperation(
+      doc.eval("model.id").toString,
+      doc.getProperty(Fields.Version),
+      timestamp,
+      userId,
+      doc.eval("session.id").toString,
+      op)
+  }
+
+  def deleteAllOperationsForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command = "DELETE FROM ModelOperation WHERE model.collection.id = :collectionId"
+    val params = Map(Constants.CollectionId -> collectionId)
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
   }
 }

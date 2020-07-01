@@ -21,7 +21,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat.Chat
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions}
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatInfo, ChatMember, ChatUserJoinedEvent}
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatUserJoinedEvent}
 import org.mockito.{Matchers, Mockito}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
@@ -139,8 +139,7 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
         val task = JoinEventProcessor.createSuccessReply(message, event, state)
         task.reply.replyTo shouldBe message.replyTo
 
-        val info = JoinEventProcessor.stateToInfo(state)
-        task.reply.response shouldBe JoinChatResponse(Right(info))
+        task.reply.response shouldBe JoinChatResponse(Right(state))
         task.broadcast shouldBe Some(ChatClientActor.UserJoinedChat(
           event.id, event.eventNumber, event.timestamp, event.user))
       }
@@ -150,22 +149,6 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
       "compute the correct reply" in {
         val reply = JoinEventProcessor.createErrorReply(UnknownError())
         reply shouldBe JoinChatResponse(Left(UnknownError()))
-      }
-    }
-
-    "creating chat info" must {
-      "compute the correct info for the state" in {
-        val info = JoinEventProcessor.stateToInfo(state)
-        info shouldBe ChatInfo(
-          state.id,
-          state.chatType,
-          state.created,
-          state.membership,
-          state.name,
-          state.topic,
-          state.lastEventNumber,
-          state.lastEventTime,
-          state.members.values.toSet)
       }
     }
   }

@@ -35,10 +35,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
-class DomainRestActor(context: ActorContext[DomainRestActor.Message],
-                      shardRegion: ActorRef[DomainRestActor.Message],
-                      shard: ActorRef[ClusterSharding.ShardCommand],
-                      domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
+private final class DomainRestActor(context: ActorContext[DomainRestActor.Message],
+                                    shardRegion: ActorRef[DomainRestActor.Message],
+                                    shard: ActorRef[ClusterSharding.ShardCommand],
+                                    domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
   extends ShardedActor[DomainRestActor.Message](context, shardRegion, shard) {
 
   import DomainRestActor._

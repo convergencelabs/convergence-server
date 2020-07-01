@@ -26,7 +26,7 @@ object InfoService {
   val InfoRestResponse: (StatusCode, RestResponseEntity) = okResponse(InfoResponse(BuildInfo.version))
 }
 
-class InfoService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
+private[rest] final class InfoService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {
 
   import InfoService._
 

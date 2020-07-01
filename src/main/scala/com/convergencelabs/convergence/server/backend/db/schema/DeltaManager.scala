@@ -21,34 +21,7 @@ import org.json4s.{DefaultFormats, Extraction}
 
 import scala.util.Try
 
-object DeltaCategory extends Enumeration {
-  val Convergence: DeltaCategory.Value = Value("convergence")
-  val Domain: DeltaCategory.Value = Value("domain")
-}
-
-object DeltaManager {
-  val DeltaBasePath = "/com/convergencelabs/convergence/server/db/schema/"
-  val IndexFileName = "index.yaml"
-
-  def convergenceManifest(): Try[DeltaManifest] = {
-    new DeltaManager(None).manifest(DeltaCategory.Convergence)
-  }
-
-  def domainManifest(): Try[DeltaManifest] = {
-    new DeltaManager(None).manifest(DeltaCategory.Domain)
-  }
-
-  def manifest(category: DeltaCategory.Value): Try[DeltaManifest] = {
-    category match {
-      case DeltaCategory.Convergence =>
-        DeltaManager.convergenceManifest()
-      case DeltaCategory.Domain =>
-        DeltaManager.domainManifest()
-    }
-  }
-}
-
-class DeltaManager(alternateBasePath: Option[String]) {
+final class DeltaManager(alternateBasePath: Option[String]) {
 
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
   private[this] implicit val format: DefaultFormats.type = DefaultFormats
@@ -71,6 +44,28 @@ class DeltaManager(alternateBasePath: Option[String]) {
         Extraction.extract[DeltaIndex](jValue)
       case None =>
         throw new FileNotFoundException(indexPath)
+    }
+  }
+}
+
+object DeltaManager {
+  val DeltaBasePath = "/com/convergencelabs/convergence/server/db/schema/"
+  val IndexFileName = "index.yaml"
+
+  def convergenceManifest(): Try[DeltaManifest] = {
+    new DeltaManager(None).manifest(DeltaCategory.Convergence)
+  }
+
+  def domainManifest(): Try[DeltaManifest] = {
+    new DeltaManager(None).manifest(DeltaCategory.Domain)
+  }
+
+  def manifest(category: DeltaCategory.Value): Try[DeltaManifest] = {
+    category match {
+      case DeltaCategory.Convergence =>
+        DeltaManager.convergenceManifest()
+      case DeltaCategory.Domain =>
+        DeltaManager.domainManifest()
     }
   }
 }

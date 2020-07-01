@@ -22,8 +22,8 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
-class JwtAuthKeyStoreActor private(context: ActorContext[JwtAuthKeyStoreActor.Message],
-                                   keyStore: JwtAuthKeyStore)
+private final class JwtAuthKeyStoreActor(context: ActorContext[JwtAuthKeyStoreActor.Message],
+                                         keyStore: JwtAuthKeyStore)
   extends AbstractBehavior[JwtAuthKeyStoreActor.Message](context) {
 
   import JwtAuthKeyStoreActor._

@@ -19,7 +19,7 @@ import scala.collection.mutable.ListBuffer
  * A utility class that stores references by session and key. Each session owns
  * a set of references. Each reference owned by a session has a unique key.
  */
-private[reference] class ReferenceMap {
+private[reference] final class ReferenceMap {
 
   /**
    * Stores references as a nested map. First by sessionId and then by key.

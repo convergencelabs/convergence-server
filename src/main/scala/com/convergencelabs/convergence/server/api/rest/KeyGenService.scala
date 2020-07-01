@@ -21,13 +21,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-private[rest] object KeyGenService {
-
-  case class CreateTokenResponse(publicKey: String, privateKey: String)
-
-}
-
-private[rest] class KeyGenService(executionContext: ExecutionContext) extends JsonSupport {
+private[rest] final class KeyGenService(executionContext: ExecutionContext) extends JsonSupport {
 
   private[this] implicit val ec: ExecutionContext = executionContext
 
@@ -55,4 +49,10 @@ private[rest] class KeyGenService(executionContext: ExecutionContext) extends Js
       case Failure(fail) => Future.failed(fail)
     }
   }
+}
+
+private[rest] object KeyGenService {
+
+  final case class CreateTokenResponse(publicKey: String, privateKey: String)
+
 }

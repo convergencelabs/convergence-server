@@ -24,10 +24,10 @@ import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-private[rest] class ConfigService(configActor: ActorRef[Message],
-                                  scheduler: Scheduler,
-                                  executionContext: ExecutionContext,
-                                  defaultTimeout: Timeout)
+private[rest] final class ConfigService(configActor: ActorRef[Message],
+                                        scheduler: Scheduler,
+                                        executionContext: ExecutionContext,
+                                        defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   private[this] implicit val ec: ExecutionContext = executionContext

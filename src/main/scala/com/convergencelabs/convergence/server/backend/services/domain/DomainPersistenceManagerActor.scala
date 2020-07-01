@@ -45,10 +45,10 @@ import scala.util.{Failure, Success, Try}
  * @param baseDbUri   The base uri of the database.
  * @param domainStore The domain store to look up domain databases with.
  */
-class DomainPersistenceManagerActor private(context: ActorContext[DomainPersistenceManagerActor.Message],
-                                            baseDbUri: String,
-                                            domainStore: DomainStore,
-                                            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+private final class DomainPersistenceManagerActor(context: ActorContext[DomainPersistenceManagerActor.Message],
+                                                  baseDbUri: String,
+                                                  domainStore: DomainStore,
+                                                  domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
   extends AbstractBehavior[DomainPersistenceManagerActor.Message](context) with Logging {
 
   import DomainPersistenceManagerActor._

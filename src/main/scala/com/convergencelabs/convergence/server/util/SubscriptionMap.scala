@@ -17,7 +17,7 @@ object SubscriptionMap {
   }
 }
 
-class SubscriptionMap[S, T] {
+final class SubscriptionMap[S, T] {
 
   private[this] var subscribersToTargets = Map[S, Set[T]]()
   private[this]var targetsToSubscribers = Map[T, Set[S]]()

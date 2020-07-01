@@ -24,13 +24,7 @@ import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-private[rest] object ServerStatusService {
-
-  case class ServerStatus(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
-
-}
-
-private[rest] class ServerStatusService(statusActor: ActorRef[Message],
+private[rest] final class ServerStatusService(statusActor: ActorRef[Message],
                                         scheduler: Scheduler,
                                         executionContext: ExecutionContext,
                                         defaultTimeout: Timeout)
@@ -66,4 +60,10 @@ private[rest] class ServerStatusService(statusActor: ActorRef[Message],
         })
       )
   }
+}
+
+private[rest] object ServerStatusService {
+
+  final case class ServerStatus(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
+
 }

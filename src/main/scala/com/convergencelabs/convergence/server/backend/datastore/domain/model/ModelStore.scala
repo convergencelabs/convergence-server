@@ -20,8 +20,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.map
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.services.domain.model.query.Ast.SelectStatement
-import com.convergencelabs.convergence.server.backend.services.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.query.Ast.SelectStatement
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ModelQueryResult
 import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.model
@@ -41,74 +41,9 @@ import org.parboiled2.ParseError
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
-object ModelStore {
-
-  import com.convergencelabs.convergence.server.backend.datastore.domain.schema.ModelClass._
-
-  object Params {
-    val CollectionId = "collectionId"
-  }
-
-  private val FindModel = "SELECT * FROM Model WHERE id = :id"
-
-  def getModelDocument(id: String, db: ODatabaseDocument): Try[ODocument] = {
-    OrientDBUtil.getDocumentFromSingleValueIndex(db, Indices.Id, id)
-  }
-
-  private def findModelDocument(id: String, db: ODatabaseDocument): Try[Option[ODocument]] = {
-    OrientDBUtil.findDocumentFromSingleValueIndex(db, Indices.Id, id)
-  }
-
-  def docToModelMetaData(doc: ODocument): ModelMetaData = {
-    val createdTime: Date = doc.getProperty(Fields.CreatedTime)
-    val modifiedTime: Date = doc.getProperty(Fields.ModifiedTime)
-    val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.getProperty(Fields.WorldPermissions))
-    model.ModelMetaData(
-      doc.getProperty(Fields.Id),
-      doc.eval("collection.id").asInstanceOf[String],
-      doc.getProperty(Fields.Version),
-      createdTime.toInstant,
-      modifiedTime.toInstant,
-      doc.getProperty(Fields.OverridePermissions),
-      worldPermissions,
-      doc.getProperty(Fields.ValuePrefix))
-  }
-
-  def docToModel(doc: ODocument): Model = {
-    // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
-    // and in other cases an ODocument. This handles both cases.  We should figure out what
-    // is supposed to come back and why it might be coming back as the other.
-    val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument]
-    model.Model(docToModelMetaData(doc), data.asObjectValue)
-  }
-
-  def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
-    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
-  }
-
-  def deleteAllModelsInCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
-    for {
-      _ <- ModelOperationStore.deleteAllOperationsForCollection(collectionId, db)
-      _ <- ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)
-      _ <- deleteDataValuesForCollection(collectionId, db)
-      _ <- {
-        val command = "DELETE FROM Model WHERE collection.id = :collectionId"
-        val params = Map(Params.CollectionId -> collectionId)
-        OrientDBUtil.commandReturningCount(db, command, params)
-      }
-    } yield ()
-  }
-
-  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
-    val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
-    val params = Map(Params.CollectionId -> collectionId)
-    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
-  }
-}
-
 class ModelStore private[domain](dbProvider: DatabaseProvider,
-                                 operationStore: ModelOperationStore,
-                                 snapshotStore: ModelSnapshotStore)
+                                       operationStore: ModelOperationStore,
+                                       snapshotStore: ModelSnapshotStore)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -379,4 +314,68 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   }
 }
 
-case class QueryParsingException(message: String, query: String, index: Option[Int]) extends Exception(message)
+
+object ModelStore {
+
+  import com.convergencelabs.convergence.server.backend.datastore.domain.schema.ModelClass._
+
+  object Params {
+    val CollectionId = "collectionId"
+  }
+
+  private val FindModel = "SELECT * FROM Model WHERE id = :id"
+
+  def getModelDocument(id: String, db: ODatabaseDocument): Try[ODocument] = {
+    OrientDBUtil.getDocumentFromSingleValueIndex(db, Indices.Id, id)
+  }
+
+  private def findModelDocument(id: String, db: ODatabaseDocument): Try[Option[ODocument]] = {
+    OrientDBUtil.findDocumentFromSingleValueIndex(db, Indices.Id, id)
+  }
+
+  def docToModelMetaData(doc: ODocument): ModelMetaData = {
+    val createdTime: Date = doc.getProperty(Fields.CreatedTime)
+    val modifiedTime: Date = doc.getProperty(Fields.ModifiedTime)
+    val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.getProperty(Fields.WorldPermissions))
+    model.ModelMetaData(
+      doc.getProperty(Fields.Id),
+      doc.eval("collection.id").asInstanceOf[String],
+      doc.getProperty(Fields.Version),
+      createdTime.toInstant,
+      modifiedTime.toInstant,
+      doc.getProperty(Fields.OverridePermissions),
+      worldPermissions,
+      doc.getProperty(Fields.ValuePrefix))
+  }
+
+  def docToModel(doc: ODocument): Model = {
+    // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
+    // and in other cases an ODocument. This handles both cases.  We should figure out what
+    // is supposed to come back and why it might be coming back as the other.
+    val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument]
+    model.Model(docToModelMetaData(doc), data.asObjectValue)
+  }
+
+  def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+    OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
+  }
+
+  def deleteAllModelsInCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    for {
+      _ <- ModelOperationStore.deleteAllOperationsForCollection(collectionId, db)
+      _ <- ModelSnapshotStore.removeAllSnapshotsForCollection(collectionId, db)
+      _ <- deleteDataValuesForCollection(collectionId, db)
+      _ <- {
+        val command = "DELETE FROM Model WHERE collection.id = :collectionId"
+        val params = Map(Params.CollectionId -> collectionId)
+        OrientDBUtil.commandReturningCount(db, command, params)
+      }
+    } yield ()
+  }
+
+  def deleteDataValuesForCollection(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command = "DELETE FROM DataValue WHERE model.collection.id = :collectionId"
+    val params = Map(Params.CollectionId -> collectionId)
+    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
+  }
+}

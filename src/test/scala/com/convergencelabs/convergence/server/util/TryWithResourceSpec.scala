@@ -17,10 +17,7 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-// scalastyle:off magic.number null
-class TryWithResourceSpec
-    extends AnyWordSpec
-    with Matchers {
+class TryWithResourceSpec extends AnyWordSpec with Matchers {
 
   val executionMessage = "execution"
   val closeMessage = "close"

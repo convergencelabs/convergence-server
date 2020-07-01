@@ -27,10 +27,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  *                this reference.
  * @param initial The initial values to set.
  */
-private[model] class RangeReference(target: RealtimeValue,
-                                    session: DomainSessionAndUserId,
-                                    key: String,
-                                    initial: List[RangeReference.Range])
+private[model] final class RangeReference(target: RealtimeValue,
+                                          session: DomainSessionAndUserId,
+                                          key: String,
+                                          initial: List[RangeReference.Range])
   extends ModelReference[RangeReference.Range, RealtimeValue](target, session, key, initial)
     with PositionalInsertAwareReference
     with PositionalRemoveAwareReference
@@ -62,5 +62,7 @@ private[model] class RangeReference(target: RealtimeValue,
 }
 
 object RangeReference {
+
   final case class Range(from: Int, to: Int)
+
 }

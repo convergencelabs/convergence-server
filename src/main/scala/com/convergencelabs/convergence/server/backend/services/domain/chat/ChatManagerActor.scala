@@ -21,12 +21,13 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, GlobalPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissions.ChatPermission
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatInfo, ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.model.domain.chat._
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success, Try}
@@ -157,7 +158,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
       .foreach(replyTo ! _)
   }
 
-  private[this] def getOrCreateDirectChat(requester: DomainUserId, userIds: Set[DomainUserId]): Try[ChatInfo] = {
+  private[this] def getOrCreateDirectChat(requester: DomainUserId, userIds: Set[DomainUserId]): Try[ChatState] = {
     chatStore.getDirectChatInfoByUsers(userIds) flatMap {
       case Some(c) =>
         // The channel exists, just return it.
@@ -166,7 +167,7 @@ class ChatManagerActor private(context: ActorContext[ChatManagerActor.Message],
         // Does not exists, so create it.
         createChat(None, ChatType.Direct, ChatMembership.Private, None, None, userIds, requester) flatMap { chatId =>
           // Create was successful, now let's just get the channel.
-          chatStore.getChatInfo(chatId)
+          chatStore.getChatState(chatId)
         } recoverWith {
           case DuplicateValueException(ChatClass.Fields.Members, _, _) =>
             // The channel already exists based on the members, this must have been a race condition.
@@ -266,7 +267,7 @@ object ChatManagerActor {
   ))
   sealed trait ChatsSearchError
 
-  final case class ChatsSearchResponse(chats: Either[ChatsSearchError, PagedData[ChatInfo]]) extends CborSerializable
+  final case class ChatsSearchResponse(chats: Either[ChatsSearchError, PagedData[ChatState]]) extends CborSerializable
 
   //
   // GetChatInfo
@@ -282,14 +283,16 @@ object ChatManagerActor {
 
   final case class ChatNotFound() extends GetChatInfoError
 
-  final case class GetChatInfoResponse(chat: Either[GetChatInfoError, ChatInfo]) extends CborSerializable
+  final case class GetChatInfoResponse(chat: Either[GetChatInfoError, ChatState]) extends CborSerializable
 
   //
   // Create Chat
   //
   final case class CreateChatRequest(chatId: Option[String],
                                      createdBy: DomainUserId,
+                                     @JsonScalaEnumeration(classOf[ChatTypeReference])
                                      chatType: ChatType.Value,
+                                     @JsonScalaEnumeration(classOf[ChatMembershipTypeReference])
                                      membership: ChatMembership.Value,
                                      name: Option[String],
                                      topic: Option[String],
@@ -319,7 +322,7 @@ object ChatManagerActor {
   ))
   sealed trait GetChatsError
 
-  final case class GetChatsResponse(chatInfo: Either[GetChatsError, Set[ChatInfo]]) extends CborSerializable
+  final case class GetChatsResponse(chatInfo: Either[GetChatsError, Set[ChatState]]) extends CborSerializable
 
   //
   // Chat Exists
@@ -345,7 +348,7 @@ object ChatManagerActor {
   ))
   sealed trait GetJoinedChatsError
 
-  final case class GetJoinedChatsResponse(chatInfo: Either[GetJoinedChatsError, Set[ChatInfo]]) extends CborSerializable
+  final case class GetJoinedChatsResponse(chatInfo: Either[GetJoinedChatsError, Set[ChatState]]) extends CborSerializable
 
   //
   // GetDirectChats
@@ -360,7 +363,7 @@ object ChatManagerActor {
   ))
   sealed trait GetDirectChatsError
 
-  final case class GetDirectChatsResponse(chatInfo: Either[GetDirectChatsError, Set[ChatInfo]]) extends CborSerializable
+  final case class GetDirectChatsResponse(chatInfo: Either[GetDirectChatsError, Set[ChatState]]) extends CborSerializable
 
   //
   // Common Errors

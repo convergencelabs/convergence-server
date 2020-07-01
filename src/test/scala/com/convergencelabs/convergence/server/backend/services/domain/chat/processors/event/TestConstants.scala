@@ -14,10 +14,9 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat.proc
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatState
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatState, ChatType}
 
 trait TestConstants {
   val domainId: DomainId = DomainId("ns", "d")
@@ -29,7 +28,7 @@ trait TestConstants {
   val member2: ChatMember = chat.ChatMember(chatId, DomainUserId.normal("user2"), 0)
   val nonMember: DomainUserId = DomainUserId.normal("user3")
 
-  val state: ChatState = ChatState(chatId,
+  val state: ChatState = chat.ChatState(chatId,
     ChatType.Channel,
     Instant.now(),
     ChatMembership.Public,

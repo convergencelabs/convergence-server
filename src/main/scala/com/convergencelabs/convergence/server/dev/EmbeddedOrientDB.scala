@@ -22,10 +22,10 @@ import grizzled.slf4j.Logging
  * This class starts up and embedded instance of OrientDB as a "in process" database.
  *
  * @param databasesPath The path of the desired OrientDB "databases" directory.
- * @param persistent Whether data  should be kept between runs.
+ * @param persistent    Whether data  should be kept between runs.
  */
-class EmbeddedOrientDB(databasesPath: String,
-                       persistent: Boolean)
+private[dev] final class EmbeddedOrientDB(databasesPath: String,
+                                          persistent: Boolean)
   extends Logging {
 
   OLogManager.instance().setWarnEnabled(false)

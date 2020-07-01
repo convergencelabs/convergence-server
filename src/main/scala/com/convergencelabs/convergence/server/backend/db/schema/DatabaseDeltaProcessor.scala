@@ -29,7 +29,7 @@ object DatabaseDeltaProcessor {
   def apply(delta: Delta, db: ODatabaseDocument): Try[Unit] = new DatabaseDeltaProcessor(delta, db).apply()
 }
 
-class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Logging {
+final class DatabaseDeltaProcessor(delta: Delta, db: ODatabaseDocument) extends Logging {
 
   private[this] var deferredLinkedProperties = Map[OProperty, String]()
 

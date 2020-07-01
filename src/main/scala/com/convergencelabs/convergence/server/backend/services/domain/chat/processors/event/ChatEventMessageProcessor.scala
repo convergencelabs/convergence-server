@@ -19,7 +19,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat.Chat
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{ChatEventRequest, CommonErrors}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatState}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import grizzled.slf4j.Logging
 

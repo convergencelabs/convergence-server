@@ -33,22 +33,7 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-object DomainSessionService {
-
-  case class DomainSessionData(id: String,
-                               username: String,
-                               userType: String,
-                               connected: Instant,
-                               disconnected: Option[Instant],
-                               authMethod: String,
-                               client: String,
-                               clientVersion: String,
-                               clientMetaData: String,
-                               remoteHost: String)
-
-}
-
-class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
+private[domain] final class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
                            scheduler: Scheduler,
                            executionContext: ExecutionContext,
                            timeout: Timeout)
@@ -165,4 +150,19 @@ class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
       clientMetaData,
       remoteHost)
   }
+}
+
+object DomainSessionService {
+
+  case class DomainSessionData(id: String,
+                               username: String,
+                               userType: String,
+                               connected: Instant,
+                               disconnected: Option[Instant],
+                               authMethod: String,
+                               client: String,
+                               clientVersion: String,
+                               clientMetaData: String,
+                               remoteHost: String)
+
 }

@@ -70,15 +70,15 @@ import scala.language.postfixOps
  * @param offlineModelSyncInterval Specifies how often should offline model
  *                                 synchronization should occur.
  */
-class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
-                               timers: TimerScheduler[ModelClientActor.Message],
-                               domainId: DomainId,
-                               session: DomainSessionAndUserId,
-                               clientActor: ActorRef[ClientActor.SendToClient],
-                               modelStoreActor: ActorRef[ModelStoreActor.Message],
-                               modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                               requestTimeout: Timeout,
-                               offlineModelSyncInterval: FiniteDuration)
+private final class ModelClientActor(context: ActorContext[ModelClientActor.Message],
+                                     timers: TimerScheduler[ModelClientActor.Message],
+                                     domainId: DomainId,
+                                     session: DomainSessionAndUserId,
+                                     clientActor: ActorRef[ClientActor.SendToClient],
+                                     modelStoreActor: ActorRef[ModelStoreActor.Message],
+                                     modelClusterRegion: ActorRef[RealtimeModelActor.Message],
+                                     requestTimeout: Timeout,
+                                     offlineModelSyncInterval: FiniteDuration)
   extends AbstractBehavior[ModelClientActor.Message](context) with Logging {
 
   import ModelClientActor._

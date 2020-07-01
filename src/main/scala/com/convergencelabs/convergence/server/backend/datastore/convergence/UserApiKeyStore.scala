@@ -25,36 +25,6 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Try}
 
-object UserApiKeyStore {
-
-  object Params {
-    val Key = "key"
-    val Username = "username"
-    val Name = "name"
-    val Enabled = "enabled"
-    val LastUsed = "lastUsed"
-  }
-
-  def docToApiKey(doc: ODocument): UserApiKey = {
-    UserApiKey(
-      doc.eval("user.username").asInstanceOf[String],
-      doc.getProperty(UserApiKeyClass.Fields.Name),
-      doc.getProperty(UserApiKeyClass.Fields.Key),
-      doc.getProperty(UserApiKeyClass.Fields.Enabled),
-      Option(doc.getProperty(UserApiKeyClass.Fields.LastUsed).asInstanceOf[Date]).map(_.toInstant()))
-  }
-
-  def userApiKeyToDoc(apiKey: UserApiKey, userRid: ORID): ODocument = {
-    val doc = new ODocument(UserApiKeyClass.ClassName)
-    doc.setProperty(UserApiKeyClass.Fields.User, userRid)
-    doc.setProperty(UserApiKeyClass.Fields.Name, apiKey.name)
-    doc.setProperty(UserApiKeyClass.Fields.Key, apiKey.key)
-    doc.setProperty(UserApiKeyClass.Fields.Enabled, apiKey.enabled)
-    apiKey.lastUsed.foreach(l => doc.setProperty(UserApiKeyClass.Fields.LastUsed, Date.from(l)))
-    doc
-  }
-}
-
 /**
  * Manages the persistence of User API Keys.
  *
@@ -140,5 +110,36 @@ class UserApiKeyStore(val dbProvider: DatabaseProvider)
         case _ =>
           Failure(e)
       }
+  }
+}
+
+
+object UserApiKeyStore {
+
+  object Params {
+    val Key = "key"
+    val Username = "username"
+    val Name = "name"
+    val Enabled = "enabled"
+    val LastUsed = "lastUsed"
+  }
+
+  def docToApiKey(doc: ODocument): UserApiKey = {
+    UserApiKey(
+      doc.eval("user.username").asInstanceOf[String],
+      doc.getProperty(UserApiKeyClass.Fields.Name),
+      doc.getProperty(UserApiKeyClass.Fields.Key),
+      doc.getProperty(UserApiKeyClass.Fields.Enabled),
+      Option(doc.getProperty(UserApiKeyClass.Fields.LastUsed).asInstanceOf[Date]).map(_.toInstant()))
+  }
+
+  def userApiKeyToDoc(apiKey: UserApiKey, userRid: ORID): ODocument = {
+    val doc = new ODocument(UserApiKeyClass.ClassName)
+    doc.setProperty(UserApiKeyClass.Fields.User, userRid)
+    doc.setProperty(UserApiKeyClass.Fields.Name, apiKey.name)
+    doc.setProperty(UserApiKeyClass.Fields.Key, apiKey.key)
+    doc.setProperty(UserApiKeyClass.Fields.Enabled, apiKey.enabled)
+    apiKey.lastUsed.foreach(l => doc.setProperty(UserApiKeyClass.Fields.LastUsed, Date.from(l)))
+    doc
   }
 }

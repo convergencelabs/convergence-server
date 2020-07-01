@@ -23,41 +23,18 @@ import org.jose4j.jwt.JwtClaims
 
 import scala.util.Try
 
-object ConvergenceJwtUtil {
+/**
+ * The [[ConvergenceJwtUtil]] creates JavaScript Web Tokens for Convergence.
+ * See https://jwt.io/. This utility creates JWTs that are specifically
+ * intended for Convergence and sets several JWT fields on behalf of the
+ * consumer to minimize the work the consumer needs to do.
+ *
+ * @param keyId      The id of the key in th Convergence Server to use to
+ *                   validate the JWT.
+ * @param privateKey The private key to use to sign / encrypt the JWT.
+ */
+final class ConvergenceJwtUtil(keyId: String, privateKey: PrivateKey) {
 
-  val DefaultExpirationMinutes = 10
-  val DefaultNotBeforeMinutes = 10
-
-  Security.addProvider(new BouncyCastleProvider())
-
-  def fromString(keyId: String, text: String): Try[ConvergenceJwtUtil] = {
-    fromReader(keyId, new StringReader(text))
-  }
-
-  def fromFile(keyId: String, file: String): Try[ConvergenceJwtUtil] = {
-    fromReader(keyId, new FileReader(new File(file)))
-  }
-
-  def fromFile(keyId: String, file: File): Try[ConvergenceJwtUtil] = {
-    fromReader(keyId, new FileReader(file))
-  }
-
-  private[this] def fromReader(keyId: String, keyReader: Reader): Try[ConvergenceJwtUtil] = Try {
-    val pemReader = new PemReader(keyReader)
-    val obj = pemReader.readPemObject()
-    pemReader.close()
-
-    val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
-    val privateKeySpec = new PKCS8EncodedKeySpec(obj.getContent)
-    val privateKey = keyFactory.generatePrivate(privateKeySpec)
-    new ConvergenceJwtUtil(keyId, privateKey)
-  }
-}
-
-class ConvergenceJwtUtil(
-    private[this] val keyId: String,
-    private[this] val privateKey: PrivateKey) {
-  
   import ConvergenceJwtUtil._
 
   private[this] var expirationMinutes = DefaultExpirationMinutes
@@ -114,5 +91,37 @@ class ConvergenceJwtUtil(
     jws.setKeyIdHeaderValue(keyId)
     jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.RSA_USING_SHA256)
     jws.getCompactSerialization
+  }
+}
+
+
+object ConvergenceJwtUtil {
+
+  val DefaultExpirationMinutes = 10
+  val DefaultNotBeforeMinutes = 10
+
+  Security.addProvider(new BouncyCastleProvider())
+
+  def fromString(keyId: String, text: String): Try[ConvergenceJwtUtil] = {
+    fromReader(keyId, new StringReader(text))
+  }
+
+  def fromFile(keyId: String, file: String): Try[ConvergenceJwtUtil] = {
+    fromReader(keyId, new FileReader(new File(file)))
+  }
+
+  def fromFile(keyId: String, file: File): Try[ConvergenceJwtUtil] = {
+    fromReader(keyId, new FileReader(file))
+  }
+
+  private[this] def fromReader(keyId: String, keyReader: Reader): Try[ConvergenceJwtUtil] = Try {
+    val pemReader = new PemReader(keyReader)
+    val obj = pemReader.readPemObject()
+    pemReader.close()
+
+    val keyFactory = KeyFactory.getInstance("RSA", new BouncyCastleProvider())
+    val privateKeySpec = new PKCS8EncodedKeySpec(obj.getContent)
+    val privateKey = keyFactory.generatePrivate(privateKeySpec)
+    new ConvergenceJwtUtil(keyId, privateKey)
   }
 }

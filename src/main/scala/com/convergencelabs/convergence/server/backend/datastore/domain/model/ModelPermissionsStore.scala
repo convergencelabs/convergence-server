@@ -33,59 +33,7 @@ import grizzled.slf4j.Logging
 import scala.jdk.CollectionConverters._
 import scala.util.{Success, Try}
 
-private[domain] object ModelPermissionsStore {
-
-  import schema.DomainSchema._
-
-  def collectionDocToCollectionWorldPermissions(doc: ODocument): CollectionPermissions = {
-    val worldDoc: ODocument = doc.field(Classes.Collection.Fields.WorldPermissions)
-    docToCollectionPermissions(worldDoc)
-
-  }
-
-  def modelDocToWorldPermissions(doc: ODocument): ModelPermissions = {
-    val worldDoc: ODocument = doc.field(Classes.Model.Fields.WorldPermissions)
-    docToModelPermissions(worldDoc)
-  }
-
-  def docToCollectionPermissions(doc: ODocument): CollectionPermissions = {
-    CollectionPermissions(
-      doc.getProperty(Classes.CollectionPermissions.Fields.Create),
-      doc.getProperty(Classes.CollectionPermissions.Fields.Read),
-      doc.getProperty(Classes.CollectionPermissions.Fields.Write),
-      doc.getProperty(Classes.CollectionPermissions.Fields.Remove),
-      doc.getProperty(Classes.CollectionPermissions.Fields.Manage))
-  }
-
-  def docToModelPermissions(doc: ODocument): ModelPermissions = {
-    ModelPermissions(
-      doc.getProperty(Classes.ModelPermissions.Fields.Read),
-      doc.getProperty(Classes.ModelPermissions.Fields.Write),
-      doc.getProperty(Classes.ModelPermissions.Fields.Remove),
-      doc.getProperty(Classes.ModelPermissions.Fields.Manage))
-  }
-
-  def collectionPermissionToDoc(permissions: CollectionPermissions): ODocument = {
-    val doc = new ODocument(Classes.CollectionPermissions.ClassName)
-    doc.setProperty(Classes.CollectionPermissions.Fields.Create, permissions.create)
-    doc.setProperty(Classes.CollectionPermissions.Fields.Read, permissions.read)
-    doc.setProperty(Classes.CollectionPermissions.Fields.Write, permissions.write)
-    doc.setProperty(Classes.CollectionPermissions.Fields.Remove, permissions.remove)
-    doc.setProperty(Classes.CollectionPermissions.Fields.Manage, permissions.manage)
-    doc
-  }
-
-  def modelPermissionToDoc(permissions: ModelPermissions): ODocument = {
-    val doc = new ODocument(Classes.ModelPermissions.ClassName)
-    doc.setProperty(Classes.ModelPermissions.Fields.Read, permissions.read)
-    doc.setProperty(Classes.ModelPermissions.Fields.Write, permissions.write)
-    doc.setProperty(Classes.ModelPermissions.Fields.Remove, permissions.remove)
-    doc.setProperty(Classes.ModelPermissions.Fields.Manage, permissions.manage)
-    doc
-  }
-}
-
-class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+class ModelPermissionsStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import ModelPermissionsStore._
   import schema.DomainSchema._
@@ -502,5 +450,58 @@ class ModelPermissionsStore(private[this] val dbProvider: DatabaseProvider) exte
             }
         }
     }
+  }
+}
+
+
+private[domain] object ModelPermissionsStore {
+
+  import schema.DomainSchema._
+
+  def collectionDocToCollectionWorldPermissions(doc: ODocument): CollectionPermissions = {
+    val worldDoc: ODocument = doc.field(Classes.Collection.Fields.WorldPermissions)
+    docToCollectionPermissions(worldDoc)
+
+  }
+
+  def modelDocToWorldPermissions(doc: ODocument): ModelPermissions = {
+    val worldDoc: ODocument = doc.field(Classes.Model.Fields.WorldPermissions)
+    docToModelPermissions(worldDoc)
+  }
+
+  def docToCollectionPermissions(doc: ODocument): CollectionPermissions = {
+    CollectionPermissions(
+      doc.getProperty(Classes.CollectionPermissions.Fields.Create),
+      doc.getProperty(Classes.CollectionPermissions.Fields.Read),
+      doc.getProperty(Classes.CollectionPermissions.Fields.Write),
+      doc.getProperty(Classes.CollectionPermissions.Fields.Remove),
+      doc.getProperty(Classes.CollectionPermissions.Fields.Manage))
+  }
+
+  def docToModelPermissions(doc: ODocument): ModelPermissions = {
+    ModelPermissions(
+      doc.getProperty(Classes.ModelPermissions.Fields.Read),
+      doc.getProperty(Classes.ModelPermissions.Fields.Write),
+      doc.getProperty(Classes.ModelPermissions.Fields.Remove),
+      doc.getProperty(Classes.ModelPermissions.Fields.Manage))
+  }
+
+  def collectionPermissionToDoc(permissions: CollectionPermissions): ODocument = {
+    val doc = new ODocument(Classes.CollectionPermissions.ClassName)
+    doc.setProperty(Classes.CollectionPermissions.Fields.Create, permissions.create)
+    doc.setProperty(Classes.CollectionPermissions.Fields.Read, permissions.read)
+    doc.setProperty(Classes.CollectionPermissions.Fields.Write, permissions.write)
+    doc.setProperty(Classes.CollectionPermissions.Fields.Remove, permissions.remove)
+    doc.setProperty(Classes.CollectionPermissions.Fields.Manage, permissions.manage)
+    doc
+  }
+
+  def modelPermissionToDoc(permissions: ModelPermissions): ODocument = {
+    val doc = new ODocument(Classes.ModelPermissions.ClassName)
+    doc.setProperty(Classes.ModelPermissions.Fields.Read, permissions.read)
+    doc.setProperty(Classes.ModelPermissions.Fields.Write, permissions.write)
+    doc.setProperty(Classes.ModelPermissions.Fields.Remove, permissions.remove)
+    doc.setProperty(Classes.ModelPermissions.Fields.Manage, permissions.manage)
+    doc
   }
 }

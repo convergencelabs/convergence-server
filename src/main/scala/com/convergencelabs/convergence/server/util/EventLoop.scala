@@ -23,7 +23,7 @@ object ActorBackedEventLoop {
   case class TaskScheduled(task: () => Unit)
 }
 
-class ActorBackedEventLoop(actor: ActorRef[TaskScheduled]) extends EventLoop {
+final class ActorBackedEventLoop(actor: ActorRef[TaskScheduled]) extends EventLoop {
   import ActorBackedEventLoop._
 
   def schedule(task: => Unit): Unit = {

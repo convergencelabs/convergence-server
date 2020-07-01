@@ -22,8 +22,8 @@ import com.convergencelabs.convergence.server.util.serialization.akka.CborSerial
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
-class ModelPermissionsStoreActor private(context: ActorContext[ModelPermissionsStoreActor.Message],
-                                                    modelPermissionsStore: ModelPermissionsStore)
+private final class ModelPermissionsStoreActor(context: ActorContext[ModelPermissionsStoreActor.Message],
+                                               modelPermissionsStore: ModelPermissionsStore)
   extends AbstractBehavior[ModelPermissionsStoreActor.Message](context) with Logging {
 
   import ModelPermissionsStoreActor._
@@ -373,4 +373,5 @@ object ModelPermissionsStoreActor {
     with SetModelWorldPermissionsError
     with SetModelUserPermissionsError
     with RemoveModelUserPermissionsError
+
 }

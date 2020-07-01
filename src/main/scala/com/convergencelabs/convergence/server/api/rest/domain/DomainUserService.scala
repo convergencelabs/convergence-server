@@ -32,10 +32,10 @@ import com.convergencelabs.convergence.server.backend.services.domain.user.Domai
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
-                        scheduler: Scheduler,
-                        executionContext: ExecutionContext,
-                        timeout: Timeout)
+private[domain] final class DomainUserService(domainRestActor: ActorRef[DomainRestActor.Message],
+                                              scheduler: Scheduler,
+                                              executionContext: ExecutionContext,
+                                              timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainUserService._

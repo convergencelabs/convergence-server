@@ -29,7 +29,7 @@ object RealtimeModelSharding {
   }
 }
 
-private class RealtimeModelSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int)
+private final class RealtimeModelSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int)
   extends ActorSharding[RealtimeModelActor.Message, Props](RealtimeModelSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   override def extractEntityId(message: RealtimeModelActor.Message): String =

@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Pe
 import scala.concurrent.{ExecutionContext, Future}
 
 
-private[rest] class UserRoleService(roleActor: ActorRef[Message],
+private[rest] final class UserRoleService(roleActor: ActorRef[Message],
                                     scheduler: Scheduler,
                                     executionContext: ExecutionContext,
                                     defaultTimeout: Timeout) extends JsonSupport {

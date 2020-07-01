@@ -568,7 +568,6 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
     val paramsWithForRecord = addForRecordParam(sb, Map(), forRecord)
     val paramsWithGrantee = addGranteeParam(sb, paramsWithForRecord, grantee)
     val query = sb.toString()
-    println(query)
     OrientDBUtil
       .queryAndMap(db, query, paramsWithGrantee)(mapper)
       .map(_.toSet)

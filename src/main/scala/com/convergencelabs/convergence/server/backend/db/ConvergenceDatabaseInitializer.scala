@@ -44,8 +44,8 @@ import scala.util.{Failure, Success, Try}
  * @param config The Config object for the Convergence Server
  * @param ec     An execution context to use for asynchronous operations.
  */
-private[db] class ConvergenceDatabaseInitializer(private[this] val config: Config,
-                                                 private[this] val ec: ExecutionContextExecutor) extends Logging {
+private[db] final class ConvergenceDatabaseInitializer(config: Config,
+                                                       ec: ExecutionContextExecutor) extends Logging {
 
   private[this] val persistenceConfig = config.getConfig("convergence.persistence")
   private[this] val dbServerConfig = persistenceConfig.getConfig("server")
@@ -233,8 +233,8 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
 
     val configs =
       defaultConfigs.entrySet().asScala
-      .map(e => (e.getKey, e.getValue.unwrapped))
-      .toMap
+        .map(e => (e.getKey, e.getValue.unwrapped))
+        .toMap
 
     val configStore = new ConfigStore(dbProvider)
     val favoriteStore = new UserFavoriteDomainStore(dbProvider)
@@ -284,7 +284,7 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
                 val username = config.getString("convergence.default-server-admin.username")
                 favoriteStore.addFavorite(username, DomainId(namespace, id)).get
               }
-          }
+            }
         }).get
     }
     Success(())

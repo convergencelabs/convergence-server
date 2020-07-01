@@ -19,7 +19,7 @@ import com.convergencelabs.convergence.server.model.DomainId
 object DomainLifecycleTopic {
   sealed trait Message
 
-  case class DomainDeleted(domainId: DomainId) extends Message
+  final case class DomainDeleted(domainId: DomainId) extends Message
 
   val TopicName: String = "DomainLifecycle"
 

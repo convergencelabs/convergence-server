@@ -25,10 +25,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  *                this reference.
  * @param initial The initial values to set.
  */
-private[model] class ElementReference(target: RealtimeModel,
-                                      session: DomainSessionAndUserId,
-                                      key: String,
-                                      initial: List[String])
+private[model] final class ElementReference(target: RealtimeModel,
+                                            session: DomainSessionAndUserId,
+                                            key: String,
+                                            initial: List[String])
   extends ModelReference[String, RealtimeModel](target, session, key, initial) {
 
   /**

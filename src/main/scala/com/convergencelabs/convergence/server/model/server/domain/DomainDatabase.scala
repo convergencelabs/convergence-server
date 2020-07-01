@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.model.server.domain
 
 final case class DomainDatabase(database: String,
-                          username: String,
-                          password: String,
-                          adminUsername: String,
-                          adminPassword: String)
+                                username: String,
+                                password: String,
+                                adminUsername: String,
+                                adminPassword: String)

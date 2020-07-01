@@ -28,7 +28,7 @@ import scala.util.{Failure, Success, Try}
  *                          references for.
  * @param validValueClasses The valid value types that this instance accepts.
  */
-private[model] class ValueReferenceManager(source: RealtimeValue, validValueClasses: List[Class[_ <: ModelReferenceValues]])
+private[model] final class ValueReferenceManager(source: RealtimeValue, validValueClasses: List[Class[_ <: ModelReferenceValues]])
   extends AbstractReferenceManager[RealtimeValue](source) {
 
   override protected def processReferenceShared(event: ShareReference): Try[Unit] = {

@@ -22,7 +22,7 @@ import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActor.Message],
+final class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActor.Message],
                                      provisioner: DomainProvisioner,
                                      domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
   extends AbstractBehavior[DomainProvisionerActor.Message](context) with Logging {

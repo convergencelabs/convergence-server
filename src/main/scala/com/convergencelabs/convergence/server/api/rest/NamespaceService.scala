@@ -27,10 +27,10 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 
-private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
-                                     scheduler: Scheduler,
-                                     executionContext: ExecutionContext,
-                                     defaultTimeout: Timeout)
+private[rest] final class NamespaceService(namespaceActor: ActorRef[Message],
+                                           scheduler: Scheduler,
+                                           executionContext: ExecutionContext,
+                                           defaultTimeout: Timeout)
   extends JsonSupport with Logging {
 
   import NamespaceService._

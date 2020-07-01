@@ -9,13 +9,25 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.chat
+package com.convergencelabs.convergence.server.model.domain.chat
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
+object ChatState {
+  def apply(id: String,
+            chatType: ChatType.Value,
+            created: Instant,
+            membership: ChatMembership.Value,
+            name: String,
+            topic: String,
+            lastEventTime: Instant,
+            lastEventNumber: Long,
+            members: Set[ChatMember]): ChatState = {
+    ChatState(id, chatType, created, membership, name, topic, lastEventTime, lastEventNumber, members.map(m => (m.userId, m)).toMap)
+  }
+}
 
 final case class ChatState(id: String,
                            chatType: ChatType.Value,

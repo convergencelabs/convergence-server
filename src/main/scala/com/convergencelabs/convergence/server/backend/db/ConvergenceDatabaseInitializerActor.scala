@@ -23,7 +23,7 @@ import scala.util.{Failure, Success}
  * initialized.  This actor will be a singleton created by the
  * backend.
  */
-object ConvergenceDatabaseInitializerActor extends Logging {
+private[server] object ConvergenceDatabaseInitializerActor extends Logging {
 
   sealed trait Command extends CborSerializable
 

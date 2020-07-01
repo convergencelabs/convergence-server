@@ -28,15 +28,7 @@ import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-private[rest] object DatabaseManagerRestService {
-
-  case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
-
-  case class VersionResponse(databaseVersion: Int)
-
-}
-
-private[rest] class DatabaseManagerRestService(executionContext: ExecutionContext,
+private[rest] final class DatabaseManagerRestService(executionContext: ExecutionContext,
                                                scheduler: Scheduler,
                                                databaseManager: ActorRef[DatabaseManagerActor.Message],
                                                defaultTimeout: Timeout)
@@ -136,4 +128,12 @@ private[rest] class DatabaseManagerRestService(executionContext: ExecutionContex
     }
     s"$v ($p)"
   }
+}
+
+private[rest] object DatabaseManagerRestService {
+
+  case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
+
+  case class VersionResponse(databaseVersion: Int)
+
 }

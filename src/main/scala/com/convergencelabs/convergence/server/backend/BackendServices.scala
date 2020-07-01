@@ -41,9 +41,9 @@ import scala.util.{Success, Try}
  * @param context              The Akka ActorContext to start Actors in.
  * @param domainLifecycleTopic The topic to use for domain lifecycle events.
  */
-class BackendServices(context: ActorContext[_],
-                      domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]
-                     ) extends Logging {
+private[server] final class BackendServices(context: ActorContext[_],
+                                            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]
+                                           ) extends Logging {
 
   private[this] var convergenceDbProvider: Option[DatabaseProvider] = None
 

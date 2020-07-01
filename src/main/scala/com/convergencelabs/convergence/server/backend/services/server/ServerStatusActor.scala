@@ -21,9 +21,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 
 import scala.util.Try
 
-class ServerStatusActor private(context: ActorContext[ServerStatusActor.Message],
-                                domainStore: DomainStore,
-                                namespaceStore: NamespaceStore)
+private final class ServerStatusActor(context: ActorContext[ServerStatusActor.Message],
+                                      domainStore: DomainStore,
+                                      namespaceStore: NamespaceStore)
   extends AbstractBehavior[ServerStatusActor.Message](context) {
 
   import ServerStatusActor._

@@ -32,11 +32,11 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 
-class UserStoreActor private(context: ActorContext[UserStoreActor.Message],
-                             userStore: UserStore,
-                             roleStore: RoleStore,
-                             userCreator: UserCreator,
-                             domainStoreActor: ActorRef[DomainStoreActor.Message])
+private final class UserStoreActor(context: ActorContext[UserStoreActor.Message],
+                                   userStore: UserStore,
+                                   roleStore: RoleStore,
+                                   userCreator: UserCreator,
+                                   domainStoreActor: ActorRef[DomainStoreActor.Message])
   extends AbstractBehavior[UserStoreActor.Message](context) {
 
   import UserStoreActor._

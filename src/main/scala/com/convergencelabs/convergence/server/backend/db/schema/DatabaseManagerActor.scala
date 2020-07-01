@@ -19,8 +19,8 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
-class DatabaseManagerActor private(context: ActorContext[DatabaseManagerActor.Message],
-                                   databaseManager: DatabaseManager)
+private final class DatabaseManagerActor(context: ActorContext[DatabaseManagerActor.Message],
+                                         databaseManager: DatabaseManager)
   extends AbstractBehavior[DatabaseManagerActor.Message](context) with Logging {
 
   import DatabaseManagerActor._
@@ -32,14 +32,14 @@ class DatabaseManagerActor private(context: ActorContext[DatabaseManagerActor.Me
       case GetConvergenceVersionRequest(replyTo) =>
         databaseManager.getConvergenceVersion()
           .map(version => GetConvergenceVersionResponse(Right(version)))
-          .recover( _ => GetConvergenceVersionResponse(Left(UnknownError())))
+          .recover(_ => GetConvergenceVersionResponse(Left(UnknownError())))
           .foreach(replyTo ! _)
 
       case GetDomainVersionRequest(fqn, replyTo) =>
         // TODO handle Domain Not Found in the get domain version
         databaseManager.getDomainVersion(fqn)
           .map(version => GetDomainVersionResponse(Right(version)))
-          .recover( _ => GetDomainVersionResponse(Left(UnknownError())))
+          .recover(_ => GetDomainVersionResponse(Left(UnknownError())))
           .foreach(replyTo ! _)
 
       case UpgradeConvergenceRequest(version, preRelease, replyTo) =>
@@ -125,7 +125,7 @@ object DatabaseManagerActor {
   final case class UpgradeDomainsRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainsResponse]) extends Message
 
   final case class UpgradeDomainsResponse(response: Either[UnknownError, Ok]) extends CborSerializable
-  
+
   final case class UnknownError()
 
 }

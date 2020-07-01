@@ -9,18 +9,18 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model.query
+package com.convergencelabs.convergence.server.backend.datastore.domain.model.query
 
 import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
-import com.convergencelabs.convergence.server.backend.services.domain.model.query.Ast._
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.query.Ast._
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
-case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
+final case class ModelQueryParameters(query: String, params: Map[String, Any], as: Map[String, String])
 
 object ModelQueryBuilder {
 

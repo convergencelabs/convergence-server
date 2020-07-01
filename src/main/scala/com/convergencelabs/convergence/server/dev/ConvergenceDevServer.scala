@@ -64,7 +64,7 @@ object ConvergenceDevServer {
  * Convergence from their IDE when developing Convergence. It is not intended
  * to be used in any kind of production use case.
  */
-class ConvergenceDevServer() extends Logging {
+private[dev] final class ConvergenceDevServer() extends Logging {
 
   import ConvergenceServerConstants._
 

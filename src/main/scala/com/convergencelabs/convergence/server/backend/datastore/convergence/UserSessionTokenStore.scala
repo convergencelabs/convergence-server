@@ -21,18 +21,7 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
 
-object UserSessionTokenStore {
-  object Params {
-    val User = "user"
-    val Username = "username"
-    val Token = "token"
-    val ExpiresAt = "expiresAt"
-  }
-}
-
-class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
-  extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+class UserSessionTokenStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import UserSessionTokenStore._
 
@@ -99,3 +88,13 @@ class UserSessionTokenStore(private[this] val dbProvider: DatabaseProvider)
     OrientDBUtil.mutateOneDocument(db, UpdateTokenCommand, params)
   }
 }
+
+object UserSessionTokenStore {
+  object Params {
+    val User = "user"
+    val Username = "username"
+    val Token = "token"
+    val ExpiresAt = "expiresAt"
+  }
+}
+

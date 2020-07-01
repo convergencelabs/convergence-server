@@ -21,7 +21,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
 import com.convergencelabs.convergence.server.model.domain.chat
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatCreatedEvent, ChatInfo, ChatMember, ChatMembership, ChatMessageEvent, ChatNameChangedEvent, ChatTopicChangedEvent, ChatType, ChatUserAddedEvent, ChatUserJoinedEvent, ChatUserLeftEvent, ChatUserRemovedEvent}
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatCreatedEvent, ChatMember, ChatMembership, ChatMessageEvent, ChatNameChangedEvent, ChatState, ChatTopicChangedEvent, ChatType, ChatUserAddedEvent, ChatUserJoinedEvent, ChatUserLeftEvent, ChatUserRemovedEvent}
 import com.google.protobuf.timestamp.Timestamp
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -46,31 +46,31 @@ class ChatProtoConvertersSpec extends AnyWordSpec with Matchers {
   private[this] val protoUserId2 = DomainUserIdData(DomainUserTypeData.Convergence, userId2.username)
   private[this] val protoUserId3 = DomainUserIdData(DomainUserTypeData.Anonymous, userId3.username)
 
-  private[this] val protoMember1 = ChatMemberData(Some(protoUserId1), member1.seen)
-  private[this] val protoMember2 = ChatMemberData(Some(protoUserId2), member2.seen)
-  private[this] val protoMember3 = ChatMemberData(Some(protoUserId3), member3.seen)
+  private[this] val protoMember1 = ChatMemberData(Some(protoUserId1), member1.maxSeenEvent)
+  private[this] val protoMember2 = ChatMemberData(Some(protoUserId2), member2.maxSeenEvent)
+  private[this] val protoMember3 = ChatMemberData(Some(protoUserId3), member3.maxSeenEvent)
 
   "An ChatProtoConverters" when {
     "converting a ChatInfo to protocol buffers" must {
-      "correctly convert the chat info" in {
-        val info = ChatInfo(chatId,
+      "correctly convert the chat state" in {
+        val state = ChatState(chatId,
           ChatType.Channel,
           created,
           ChatMembership.Public,
           name,
           topic,
-          lastEventNumber,
           lastEventTime,
+          lastEventNumber,
           Set(member1, member2, member3))
 
-        val proto = chatInfoToProto(info)
+        val proto = chatStateToProto(state)
 
-        proto.id shouldBe info.id
+        proto.id shouldBe state.id
         proto.chatType shouldBe "channel"
         proto.createdTime shouldBe Some(Timestamp(created.getEpochSecond, created.getNano))
-        proto.name shouldBe info.name
-        proto.topic shouldBe info.topic
-        proto.lastEventNumber shouldBe info.lastEventNumber
+        proto.name shouldBe state.name
+        proto.topic shouldBe state.topic
+        proto.lastEventNumber shouldBe state.lastEventNumber
         proto.lastEventTime shouldBe Some(Timestamp(lastEventTime.getEpochSecond, lastEventTime.getNano))
         proto.members shouldBe Seq(protoMember1, protoMember2, protoMember3)
       }

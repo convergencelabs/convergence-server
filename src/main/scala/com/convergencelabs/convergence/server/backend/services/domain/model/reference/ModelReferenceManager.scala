@@ -25,7 +25,7 @@ import scala.util.{Failure, Success, Try}
  * @param source The [[RealtimeModel]] this ModelReferenceManager manages
  *               references for.
  */
-private[model] class ModelReferenceManager(source: RealtimeModel) extends AbstractReferenceManager[RealtimeModel](source) {
+private[model] final class ModelReferenceManager(source: RealtimeModel) extends AbstractReferenceManager[RealtimeModel](source) {
 
   override protected def processReferenceShared(event: ShareReference): Try[Unit] = Try {
     val reference = event.values match {

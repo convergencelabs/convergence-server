@@ -80,17 +80,17 @@ private[model] object RealtimeModelManager {
  * determine when it time to shut down. This class is delegated to from the
  * [[com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor]].
  */
-private[model] class RealtimeModelManager(persistenceFactory: RealtimeModelPersistenceFactory,
-                           workQueue: EventLoop,
-                           domainFqn: DomainId,
-                           modelId: String,
-                           persistenceProvider: DomainPersistenceProvider,
-                           permissionsResolver: ModelPermissionResolver,
-                           modelCreator: ModelCreator,
-                           clientDataResponseTimeout: Timeout,
-                           resyncTimeout: FiniteDuration,
-                           system: ActorSystem[_],
-                           eventHandler: RealtimeModelManager.EventHandler) extends Logging {
+private[model] final class RealtimeModelManager(persistenceFactory: RealtimeModelPersistenceFactory,
+                                                workQueue: EventLoop,
+                                                domainFqn: DomainId,
+                                                modelId: String,
+                                                persistenceProvider: DomainPersistenceProvider,
+                                                permissionsResolver: ModelPermissionResolver,
+                                                modelCreator: ModelCreator,
+                                                clientDataResponseTimeout: Timeout,
+                                                resyncTimeout: FiniteDuration,
+                                                system: ActorSystem[_],
+                                                eventHandler: RealtimeModelManager.EventHandler) extends Logging {
 
   import RealtimeModelActor._
   import RealtimeModelManager._
@@ -638,7 +638,7 @@ private[model] class RealtimeModelManager(persistenceFactory: RealtimeModelPersi
   }
 
   private[this] def createResyncTimeout(session: DomainSessionAndUserId, clientActor: ActorRef[ModelClientActor.OutgoingMessage]): Cancellable = {
-    system.scheduler.scheduleOnce(resyncTimeout, ()=> {
+    system.scheduler.scheduleOnce(resyncTimeout, () => {
       workQueue.schedule {
         warn("A timeout occurred waiting for the client to complete the resynchronization request")
         clientActor ! ModelClientActor.ModelForceClose(

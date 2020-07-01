@@ -33,10 +33,10 @@ import scala.concurrent.{ExecutionContext, Future}
  * @param defaultTimeout   The default timeout the service will use for async requests
  *                         to the backend.
  */
-class AuthService(authActor: ActorRef[AuthenticationActor.Message],
-                  scheduler: Scheduler,
-                  executionContext: ExecutionContext,
-                  defaultTimeout: Timeout)
+private[rest] final class AuthService(authActor: ActorRef[AuthenticationActor.Message],
+                                      scheduler: Scheduler,
+                                      executionContext: ExecutionContext,
+                                      defaultTimeout: Timeout)
   extends JsonSupport {
 
   import AuthService._

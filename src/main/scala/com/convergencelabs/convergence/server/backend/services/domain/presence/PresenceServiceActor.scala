@@ -25,7 +25,7 @@ import org.json4s.JsonAST.JValue
 //  we probably need to store presence state / data in the database so that
 //  this can become stateless. Then we can use distributed pub-sub as mechanism
 //  for persistence subscriptions.
-class PresenceServiceActor private[domain](context: ActorContext[PresenceServiceActor.Message])
+private final class PresenceServiceActor(context: ActorContext[PresenceServiceActor.Message])
   extends AbstractBehavior[PresenceServiceActor.Message](context) with Logging {
 
   private var presences = Map[DomainUserId, UserPresence]()
@@ -118,7 +118,7 @@ class PresenceServiceActor private[domain](context: ActorContext[PresenceService
     Behaviors.same
   }
 
-  private[this] def onSetState(msg: SetUserPresenceState): Behavior[Message]  = {
+  private[this] def onSetState(msg: SetUserPresenceState): Behavior[Message] = {
     val SetUserPresenceState(userId, state) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
@@ -178,6 +178,7 @@ class PresenceServiceActor private[domain](context: ActorContext[PresenceService
 
   private[this] def lookupPresence(userId: DomainUserId): UserPresence = {
     def defaultPresence: UserPresence = UserPresence(userId, available = false, Map(), Set())
+
     this.presences.getOrElse(userId, default = defaultPresence)
   }
 
@@ -230,8 +231,8 @@ object PresenceServiceActor {
   // SubscribePresence
   //
   final case class SubscribePresenceRequest(userIds: List[DomainUserId],
-                                      client: ActorRef[PresenceClientActor.OutgoingMessage],
-                                      replyTo: ActorRef[SubscribePresenceResponse]) extends Message
+                                            client: ActorRef[PresenceClientActor.OutgoingMessage],
+                                            replyTo: ActorRef[SubscribePresenceResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -281,4 +282,5 @@ object PresenceServiceActor {
   final case class UnknownError() extends GetPresenceError
     with GetPresencesError
     with SubscribePresenceError
+
 }

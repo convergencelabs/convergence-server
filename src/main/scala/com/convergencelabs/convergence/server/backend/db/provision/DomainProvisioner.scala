@@ -31,32 +31,6 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Try}
 
-object DomainProvisioner {
-  case class ProvisionRequest(domainId: DomainId,
-                              databaseName: String,
-                              dbUsername: String,
-                              dbPassword: String,
-                              dbAdminUsername: String,
-                              dbAdminPassword: String,
-                              anonymousAuth: Boolean)
-
-  val DefaultSnapshotConfig: ModelSnapshotConfig = domain.ModelSnapshotConfig(
-    snapshotsEnabled = false,
-    triggerByVersion = false,
-    limitedByVersion = false,
-    250,
-    1000,
-    triggerByTime = false,
-    limitedByTime = false,
-    JavaDuration.of(0, ChronoUnit.MINUTES),
-    JavaDuration.of(0, ChronoUnit.MINUTES))
-
-  val OrientDefaultAdmin = "admin"
-  val OrientDefaultReader = "reader"
-  val OrientDefaultWriter = "writer"
-
-  val StorageMode = ODatabaseType.PLOCAL
-}
 
 class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Logging {
 
@@ -197,4 +171,32 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
     orientDb.drop(dbName)
     orientDb.close()
   }
+}
+
+
+object DomainProvisioner {
+  case class ProvisionRequest(domainId: DomainId,
+                              databaseName: String,
+                              dbUsername: String,
+                              dbPassword: String,
+                              dbAdminUsername: String,
+                              dbAdminPassword: String,
+                              anonymousAuth: Boolean)
+
+  val DefaultSnapshotConfig: ModelSnapshotConfig = domain.ModelSnapshotConfig(
+    snapshotsEnabled = false,
+    triggerByVersion = false,
+    limitedByVersion = false,
+    250,
+    1000,
+    triggerByTime = false,
+    limitedByTime = false,
+    JavaDuration.of(0, ChronoUnit.MINUTES),
+    JavaDuration.of(0, ChronoUnit.MINUTES))
+
+  val OrientDefaultAdmin = "admin"
+  val OrientDefaultReader = "reader"
+  val OrientDefaultWriter = "writer"
+
+  val StorageMode = ODatabaseType.PLOCAL
 }

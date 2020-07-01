@@ -34,7 +34,7 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message],
+private[domain] final class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message],
                               scheduler: Scheduler,
                               executionContext: ExecutionContext,
                               timeout: Timeout)

@@ -19,11 +19,14 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.chat.Chat
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.backend.services.domain.chat._
-import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event.{ChatEventMessageProcessorResult, JoinEventProcessor}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event.ChatEventMessageProcessorResult
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 import grizzled.slf4j.Logging
 
 /**
+ * Processes the messages of a ChatActor when the ChatActor represents a
+ * Chat Room.
  *
  * @param chatState        The current state of the chat.
  * @param chatStore        The chat persistence store
@@ -32,7 +35,7 @@ import grizzled.slf4j.Logging
  * @param clientManager    The ActorContext used to create child actors.
  * @param clientWatcher    A helper actor that will watch joined clients.
  */
-private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
+private[chat] final class ChatRoomMessageProcessor(chatState: ChatState,
                                              chatStore: ChatStore,
                                              permissionsStore: PermissionsStore,
                                              domainId: DomainId,
@@ -81,7 +84,7 @@ private[chat] class ChatRoomMessageProcessor(chatState: ChatState,
         clientWatcher ! ChatRoomClientWatcher.Watch(client)
 
         val action = ReplyAndBroadcastTask(
-          MessageReplyTask(message.replyTo, JoinChatResponse(Right(JoinEventProcessor.stateToInfo(chatState)))),
+          MessageReplyTask(message.replyTo, JoinChatResponse(Right(chatState))),
           None
         )
 

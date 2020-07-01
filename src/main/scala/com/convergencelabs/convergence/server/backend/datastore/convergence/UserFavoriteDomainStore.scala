@@ -20,14 +20,6 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}
 
-object UserFavoriteDomainStore {
-  object Params {
-    val Username = "username"
-    val DomainId = "domainId"
-    val NamespaceId = "namespaceId"
-  }
-}
-
 class UserFavoriteDomainStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
   import UserFavoriteDomainStore._
@@ -74,5 +66,13 @@ class UserFavoriteDomainStore(dbProvider: DatabaseProvider) extends AbstractData
   def removeFavoritesForDomain(domain: DomainId): Try[Unit] = withDb { db =>
     val params = Map(Params.DomainId -> domain.domainId, Params.NamespaceId -> domain.namespace)
     OrientDBUtil.commandReturningCount(db, DeleteFavoritesForDomainCommand, params).map(_ => ())
+  }
+}
+
+object UserFavoriteDomainStore {
+  object Params {
+    val Username = "username"
+    val DomainId = "domainId"
+    val NamespaceId = "namespaceId"
   }
 }

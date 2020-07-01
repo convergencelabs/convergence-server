@@ -40,8 +40,8 @@ import scala.util.{Failure, Success}
  *
  * @param system The actor system this service is running in.
  */
-private[realtime] class WebSocketService(system: ActorSystem[_],
-                                         clientCreator: ActorRef[ClientActorCreator.CreateClientRequest])
+private[realtime] final class WebSocketService(system: ActorSystem[_],
+                                               clientCreator: ActorRef[ClientActorCreator.CreateClientRequest])
   extends Directives with Logging with JsonSupport {
 
   private[this] val config = system.settings.config

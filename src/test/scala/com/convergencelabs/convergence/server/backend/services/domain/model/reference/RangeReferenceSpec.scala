@@ -12,10 +12,9 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeString
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
