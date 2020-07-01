@@ -19,9 +19,10 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.UserStore.User
-import com.convergencelabs.convergence.server.datastore.convergence.{UserFavoriteDomainStoreActor, UserStoreActor}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.backend.services.server.UserStoreActor
+import com.convergencelabs.convergence.server.backend.services.server.UserFavoriteDomainStoreActor
+import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 

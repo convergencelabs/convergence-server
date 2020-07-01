@@ -11,9 +11,10 @@
 
 package com.convergencelabs.convergence.server.security
 
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
-import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.UserRoles
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.role
+import com.convergencelabs.convergence.server.model.server.role.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
 
 object AuthorizationProfile {
   def apply(username: String, userRoles: UserRoles): AuthorizationProfile = {
@@ -68,6 +69,6 @@ class AuthorizationProfile(val data: AuthorizationProfileData) extends Serializa
   }
   
   def hasDomainPermission(permission: String, domainFqn: DomainId): Boolean = {
-    hasPermissionForTarget(permission, DomainRoleTarget(domainFqn))
+    hasPermissionForTarget(permission, role.DomainRoleTarget(domainFqn))
   }
 }

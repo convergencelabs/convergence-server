@@ -16,7 +16,7 @@ import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.convergencelabs.convergence.server.api.rest.KeyGenService.CreateTokenResponse
-import com.convergencelabs.convergence.server.domain.JwtUtil
+import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}

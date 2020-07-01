@@ -18,7 +18,7 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorSystem, Scheduler}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
-import com.convergencelabs.convergence.server.util.SystemOutRedirector
+import com.convergencelabs.convergence.server.util.{LoggingConfigManager, SystemOutRedirector}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
@@ -39,7 +39,7 @@ import scala.util.{Failure, Success, Try}
  * clustered, the various roles of the system can be horizontally scaled
  * independently.
  */
-object ConvergenceServer extends Logging {
+private[server] object ConvergenceServer extends Logging {
 
   import ConvergenceServerConstants._
 

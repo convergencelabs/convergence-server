@@ -19,13 +19,15 @@ import akka.actor.typed.ActorRef
 import akka.http.scaladsl.model.RemoteAddress.IP
 import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.PasswordAuthRequestData
 import com.convergencelabs.convergence.proto.core._
-import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
-import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.domain._
-import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
-import com.convergencelabs.convergence.server.domain.presence.PresenceServiceActor
+import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
+import com.convergencelabs.convergence.server.backend.services.domain._
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -126,7 +128,7 @@ class ClientActorSpec
 
       val authRequest = domainActor.expectMessageType[DomainActor.AuthenticationRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-      val success = DomainActor.AuthenticationSuccess(DomainUserSessionId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123"))
+      val success = DomainActor.AuthenticationSuccess(DomainSessionAndUserId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123"))
       authRequest.replyTo ! DomainActor.AuthenticationResponse(Right(success))
 
       val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]

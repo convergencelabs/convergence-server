@@ -20,10 +20,10 @@ import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, comple
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.DomainStatsActor._
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.backend.services.domain.stats.DomainStatsActor._
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}

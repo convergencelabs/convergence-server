@@ -20,6 +20,7 @@ import akka.actor.typed.{ActorSystem, Scheduler}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server._
+import com.convergencelabs.convergence.server.util.LoggingConfigManager
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging

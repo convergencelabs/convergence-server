@@ -19,9 +19,10 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor._
-import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, RoleStoreActor}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.backend.services.server.RoleStoreActor
+import com.convergencelabs.convergence.server.backend.services.server.RoleStoreActor._
+import com.convergencelabs.convergence.server.model.server.role
+import com.convergencelabs.convergence.server.model.{DomainId, server}
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Roles}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -65,7 +66,7 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
   }
 
   private[this] def getAllMembers(domain: DomainId): Future[RestResponse] = {
-    roleStoreActor.ask[GetAllUserRolesResponse](GetAllUserRolesRequest(DomainRoleTarget(domain), _))
+    roleStoreActor.ask[GetAllUserRolesResponse](GetAllUserRolesRequest(role.DomainRoleTarget(domain), _))
       .map(_.userRoles.fold(
         {
           case TargetNotFoundError() =>
@@ -85,7 +86,7 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
     val mapped = userRoles.map { case (username, role) => (username, Set(role)) } +
       (authProfile.username -> Set(Roles.Domain.Owner))
     roleStoreActor
-      .ask[SetAllUserRolesForTargetResponse](SetAllUserRolesForTargetRequest(DomainRoleTarget(domain), mapped, _))
+      .ask[SetAllUserRolesForTargetResponse](SetAllUserRolesForTargetRequest(role.DomainRoleTarget(domain), mapped, _))
       .map(_.response.fold(
         {
           case TargetNotFoundError() =>
@@ -103,7 +104,7 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
 
   private[this] def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
     roleStoreActor
-      .ask[GetUserRolesForTargetResponse](GetUserRolesForTargetRequest(username, DomainRoleTarget(domain), _))
+      .ask[GetUserRolesForTargetResponse](GetUserRolesForTargetRequest(username, role.DomainRoleTarget(domain), _))
       .map(_.roles.fold(
         {
           case UserNotFoundError() =>
@@ -127,7 +128,7 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
       Future.successful(forbiddenResponse(Some("You can not set your own user's role.")))
     } else {
       roleStoreActor
-        .ask[SetUsersRolesForTargetResponse](SetUsersRolesForTargetRequest(username, DomainRoleTarget(domain), Set(role), _))
+        .ask[SetUsersRolesForTargetResponse](SetUsersRolesForTargetRequest(username, server.role.DomainRoleTarget(domain), Set(role), _))
         .map(_.response.fold(
           {
             case UserNotFoundError() =>
@@ -147,7 +148,7 @@ class DomainMembersService(roleStoreActor: ActorRef[RoleStoreActor.Message],
       Future.successful(forbiddenResponse(Some("You can not remove your own user.")))
     } else {
       roleStoreActor
-        .ask[RemoveUserFromTargetResponse](RemoveUserFromTargetRequest(DomainRoleTarget(domain), username, _))
+        .ask[RemoveUserFromTargetResponse](RemoveUserFromTargetRequest(role.DomainRoleTarget(domain), username, _))
         .map(_.response.fold(
           {
             case TargetNotFoundError() =>

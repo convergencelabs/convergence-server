@@ -14,7 +14,8 @@ package com.convergencelabs.convergence.server.api.rest
 import java.util.concurrent.TimeUnit
 
 import akka.actor
-import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.receptionist.ServiceKey
+import akka.actor.typed.scaladsl.{ActorContext, Routers}
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
@@ -27,12 +28,11 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
-import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.convergence.server.domain.chat.ChatActor
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.util.AkkaRouterUtils._
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManagerActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.server._
 import grizzled.slf4j.Logging
 
 import scala.collection.mutable.ListBuffer
@@ -221,5 +221,10 @@ class ConvergenceRestApi(interface: String,
       Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
       logger.info("Convergence Rest API shut down")
     }
+  }
+
+  private[this] def createBackendRouter[T](context: ActorContext[_], serviceKey: ServiceKey[T], localName: String): ActorRef[T] = {
+    val group = Routers.group(serviceKey).withRoundRobinRouting()
+    context.spawn(group, localName)
   }
 }

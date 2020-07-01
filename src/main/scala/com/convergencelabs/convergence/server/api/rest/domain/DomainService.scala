@@ -19,12 +19,12 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.convergence.DomainStoreActor._
-import com.convergencelabs.convergence.server.datastore.convergence.{DomainStoreActor, RoleStoreActor}
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.chat.ChatActor
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.server.{DomainStoreActor, RoleStoreActor}
+import com.convergencelabs.convergence.server.backend.services.server.DomainStoreActor._
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 

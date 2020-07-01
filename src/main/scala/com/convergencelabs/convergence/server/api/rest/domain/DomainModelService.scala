@@ -22,19 +22,18 @@ import akka.http.scaladsl.server.Directives.{Segment, _}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissionsStoreActor.{ModelPermissionsData, ModelUserPermissions}
-import com.convergencelabs.convergence.server.datastore.domain.ModelStoreActor._
-import com.convergencelabs.convergence.server.datastore.domain.{ModelDataGenerator, ModelPermissions, ModelPermissionsStoreActor, ModelStoreActor}
-import com.convergencelabs.convergence.server.domain.model._
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelDataGenerator
+import com.convergencelabs.convergence.server.backend.services.domain.model._
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model.{ModelMetaData, ModelPermissions, ModelPermissionsData, ModelUserPermissions}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.json4s.JsonAST.JObject
 
 import scala.concurrent.{ExecutionContext, Future}
-
 
 class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
                          modelClusterRegion: ActorRef[RealtimeModelActor.Message],
@@ -127,8 +126,8 @@ class DomainModelService(domainRestActor: ActorRef[DomainRestActor.Message],
 
   private[this] def getModels(domain: DomainId, offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     domainRestActor
-      .ask[GetModelsResponse](r => DomainRestMessage(domain,
-        GetModelsRequest(QueryOffset(offset.getOrElse(0)), QueryLimit(limit.getOrElse(10)), r)))
+      .ask[ModelStoreActor.GetModelsResponse](r => DomainRestMessage(domain,
+        ModelStoreActor.GetModelsRequest(QueryOffset(offset.getOrElse(0)), QueryLimit(limit.getOrElse(10)), r)))
       .map(_.models.fold(
         _ => InternalServerError,
         models => okResponse(models.map(mapMetaData))
@@ -453,7 +452,9 @@ object DomainModelService {
 
   final case class CreateModelResponse(id: String)
 
-  final case class ModelPermissionsSummary(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
+  final case class ModelPermissionsSummary(overrideWorld: Boolean,
+                                           worldPermissions: ModelPermissions,
+                                           userPermissions: List[ModelUserPermissions])
 
   final case class GetPermissionsResponseData(permissions: Option[ModelPermissions])
 

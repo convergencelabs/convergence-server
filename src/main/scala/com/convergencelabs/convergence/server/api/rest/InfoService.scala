@@ -23,7 +23,7 @@ object InfoService {
 
   case class InfoResponse(version: String)
 
-  val InfoRestResponse: (StatusCode, ResponseMessage) = okResponse(InfoResponse(BuildInfo.version))
+  val InfoRestResponse: (StatusCode, RestResponseEntity) = okResponse(InfoResponse(BuildInfo.version))
 }
 
 class InfoService(executionContext: ExecutionContext, defaultTimeout: Timeout) extends JsonSupport {

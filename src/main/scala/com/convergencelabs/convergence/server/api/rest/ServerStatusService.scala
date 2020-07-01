@@ -18,7 +18,7 @@ import akka.http.scaladsl.server.Directive.addByNameNullaryApply
 import akka.http.scaladsl.server.Directives.{_segmentStringToPathMatcher, complete, get, pathEnd, pathPrefix}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ServerStatusActor._
+import com.convergencelabs.convergence.server.backend.services.server.ServerStatusActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 

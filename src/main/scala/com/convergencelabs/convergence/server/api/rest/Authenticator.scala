@@ -23,8 +23,8 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.directives.OnSuccessMagnet.apply
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor
-import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor._
+import com.convergencelabs.convergence.server.backend.services.server.AuthenticationActor
+import com.convergencelabs.convergence.server.backend.services.server.AuthenticationActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}

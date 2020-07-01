@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instanceToTimestamp, timestampToInstant}
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
-import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 
 private[realtime] object OperationConverters {
 

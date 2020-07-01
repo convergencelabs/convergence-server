@@ -20,9 +20,9 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest.DatabaseManagerRestService.{UpgradeRequest, VersionResponse}
-import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor
-import com.convergencelabs.convergence.server.db.schema.DatabaseManagerActor._
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManagerActor
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManagerActor._
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 

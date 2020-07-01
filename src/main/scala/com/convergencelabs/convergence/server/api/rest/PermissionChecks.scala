@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions, Roles}
 
 trait PermissionChecks {

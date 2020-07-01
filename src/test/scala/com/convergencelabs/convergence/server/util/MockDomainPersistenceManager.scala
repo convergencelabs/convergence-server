@@ -11,9 +11,19 @@
 
 package com.convergencelabs.convergence.server.util
 import akka.actor.typed.{ActorRef, ActorSystem}
-import com.convergencelabs.convergence.server.datastore.domain._
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.backend.datastore.domain._
+import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationProcessor, ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManager
+import com.convergencelabs.convergence.server.model.DomainId
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.{Failure, Success, Try}

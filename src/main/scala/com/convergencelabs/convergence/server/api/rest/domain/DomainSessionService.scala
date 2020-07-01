@@ -21,12 +21,12 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.DomainSession
-import com.convergencelabs.convergence.server.datastore.domain.SessionStore.SessionQueryType
-import com.convergencelabs.convergence.server.datastore.domain.SessionStoreActor._
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionQueryType
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.backend.services.domain.session.SessionStoreActor._
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
@@ -143,7 +143,7 @@ class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
 
   private[this] def sessionToSessionData(session: DomainSession): DomainSessionData = {
     val DomainSession(
-    id,
+    sessionId,
     userId,
     connected,
     disconnected,
@@ -154,7 +154,7 @@ class DomainSessionService(domainRestActor: ActorRef[DomainRestActor.Message],
     remoteHost) = session
 
     DomainSessionData(
-      id,
+      sessionId,
       userId.username,
       userId.userType.toString.toLowerCase,
       connected,

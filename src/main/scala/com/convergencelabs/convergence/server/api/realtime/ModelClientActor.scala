@@ -25,7 +25,7 @@ import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.Mo
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
 import com.convergencelabs.convergence.proto.model.{ReferenceValues, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.util.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
@@ -34,12 +34,13 @@ import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProt
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
 import com.convergencelabs.convergence.server.api.rest.badRequest
-import com.convergencelabs.convergence.server.datastore.domain.{ModelPermissions, ModelStoreActor}
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.ot.Operation
-import com.convergencelabs.convergence.server.domain.model.reference.RangeReference
-import com.convergencelabs.convergence.server.domain.model.{ElementReferenceValues, IndexReferenceValues, PropertyReferenceValues, RangeReferenceValues, RealtimeModelActor, _}
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.Operation
+import com.convergencelabs.convergence.server.backend.services.domain.model.reference.RangeReference
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelStoreActor, RealtimeModelActor, _}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model.{ElementReferenceValues, IndexReferenceValues, ModelPermissions, ModelReferenceValues, ObjectValue, PropertyReferenceValues, RangeReferenceValues, ReferenceState}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.google.protobuf.struct.Value
 import com.google.protobuf.struct.Value.Kind.{StringValue => ProtoString}
@@ -72,7 +73,7 @@ import scala.language.postfixOps
 class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
                                timers: TimerScheduler[ModelClientActor.Message],
                                domainId: DomainId,
-                               session: DomainUserSessionId,
+                               session: DomainSessionAndUserId,
                                clientActor: ActorRef[ClientActor.SendToClient],
                                modelStoreActor: ActorRef[ModelStoreActor.Message],
                                modelClusterRegion: ActorRef[RealtimeModelActor.Message],
@@ -1054,7 +1055,7 @@ class ModelClientActor private(context: ActorContext[ModelClientActor.Message],
 
 object ModelClientActor {
   private[realtime] def apply(domain: DomainId,
-                              session: DomainUserSessionId,
+                              session: DomainSessionAndUserId,
                               clientActor: ActorRef[ClientActor.SendToClient],
                               modelStoreActor: ActorRef[ModelStoreActor.Message],
                               modelShardRegion: ActorRef[RealtimeModelActor.Message],
@@ -1153,22 +1154,22 @@ object ModelClientActor {
   final case class OperationAcknowledgement(modelId: String, seqNo: Int, contextVersion: Long, timestamp: Instant) extends OutgoingMessage
 
   final case class OutgoingOperation(modelId: String,
-                                     session: DomainUserSessionId,
+                                     session: DomainSessionAndUserId,
                                      contextVersion: Long,
                                      timestamp: Instant,
                                      operation: Operation) extends OutgoingMessage
 
-  final case class RemoteClientClosed(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientClosed(modelId: String, session: DomainSessionAndUserId) extends OutgoingMessage
 
-  final case class RemoteClientOpened(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientOpened(modelId: String, session: DomainSessionAndUserId) extends OutgoingMessage
 
-  final case class RemoteClientResyncStarted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientResyncStarted(modelId: String, session: DomainSessionAndUserId) extends OutgoingMessage
 
-  final case class RemoteClientResyncCompleted(modelId: String, session: DomainUserSessionId) extends OutgoingMessage
+  final case class RemoteClientResyncCompleted(modelId: String, session: DomainSessionAndUserId) extends OutgoingMessage
 
   final case class ModelResyncServerComplete(modelId: String,
-                                             connectedClients: Set[DomainUserSessionId],
-                                             resyncingClients: Set[DomainUserSessionId],
+                                             connectedClients: Set[DomainSessionAndUserId],
+                                             resyncingClients: Set[DomainSessionAndUserId],
                                              references: Set[ReferenceState]) extends OutgoingMessage
 
   object ForceModelCloseReasonCode extends Enumeration {
@@ -1207,20 +1208,20 @@ object ModelClientActor {
 
   sealed trait RemoteReferenceEvent extends OutgoingMessage
 
-  final case class RemoteReferenceShared(modelId: String, session: DomainUserSessionId,
+  final case class RemoteReferenceShared(modelId: String, session: DomainSessionAndUserId,
                                          id: Option[String],
                                          key: String,
                                          values: ModelReferenceValues) extends RemoteReferenceEvent
 
   final case class RemoteReferenceSet(modelId: String,
-                                      session: DomainUserSessionId,
+                                      session: DomainSessionAndUserId,
                                       id: Option[String],
                                       key: String,
                                       values: ModelReferenceValues) extends RemoteReferenceEvent
 
-  final case class RemoteReferenceCleared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
+  final case class RemoteReferenceCleared(modelId: String, session: DomainSessionAndUserId, id: Option[String], key: String) extends RemoteReferenceEvent
 
-  final case class RemoteReferenceUnshared(modelId: String, session: DomainUserSessionId, id: Option[String], key: String) extends RemoteReferenceEvent
+  final case class RemoteReferenceUnshared(modelId: String, session: DomainSessionAndUserId, id: Option[String], key: String) extends RemoteReferenceEvent
 
   private final case class ModelClosed(modelId: String, resourceId: String, cb: ReplyCallback) extends Message
 

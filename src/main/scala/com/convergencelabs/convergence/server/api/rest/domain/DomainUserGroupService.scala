@@ -20,11 +20,12 @@ import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.UserGroupStoreActor._
-import com.convergencelabs.convergence.server.datastore.domain.{UserGroup, UserGroupInfo, UserGroupSummary}
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.group.{UserGroup, UserGroupInfo, UserGroupSummary}
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.backend.services.domain.group.UserGroupStoreActor._
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 

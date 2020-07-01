@@ -25,7 +25,7 @@ import akka.util.{ByteString, ByteStringBuilder, Timeout}
 import com.convergencelabs.convergence.server.api.realtime.ClientActorCreator.CreateClientResponse
 import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
 import com.convergencelabs.convergence.server.api.rest.{ErrorResponse, JsonSupport, OkResponse}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.Duration

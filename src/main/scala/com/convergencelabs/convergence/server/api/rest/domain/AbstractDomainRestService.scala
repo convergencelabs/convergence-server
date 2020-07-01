@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.api.rest.domain
 
 import akka.actor.typed.Scheduler
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.actor.AskUtils
+import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.api.rest.{JsonSupport, PermissionChecks}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 
 import scala.concurrent.ExecutionContext

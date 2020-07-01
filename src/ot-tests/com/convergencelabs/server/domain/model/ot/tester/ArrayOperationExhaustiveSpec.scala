@@ -1,13 +1,10 @@
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 
 import scala.reflect.ClassTag
-
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-
 import ArrayOperationExhaustiveSpec.ArrayLength
 import ArrayOperationExhaustiveSpec.Value1
 import ArrayOperationExhaustiveSpec.Value2
+import com.convergencelabs.convergence.server.model.domain.model.{DataValue, StringValue}
 
 object ArrayOperationExhaustiveSpec {
   val ArrayLength: Int = 15

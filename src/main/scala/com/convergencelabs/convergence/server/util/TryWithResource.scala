@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.util
 
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 
 /**

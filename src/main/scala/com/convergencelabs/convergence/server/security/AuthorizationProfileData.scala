@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.security
 
-import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
+import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.UserRoles
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 
 final case class AuthorizationProfileData(username: String, userRoles: UserRoles) extends CborSerializable

@@ -18,14 +18,11 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.ConfigStoreActor._
+import com.convergencelabs.convergence.server.backend.services.server.ConfigStoreActor._
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
-
-object ConfigService {
-}
 
 private[rest] class ConfigService(configActor: ActorRef[Message],
                                   scheduler: Scheduler,

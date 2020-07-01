@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
-import com.convergencelabs.convergence.server.domain.model.data.DoubleValue
-import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
+import com.convergencelabs.convergence.server.model.domain.model.DoubleValue
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

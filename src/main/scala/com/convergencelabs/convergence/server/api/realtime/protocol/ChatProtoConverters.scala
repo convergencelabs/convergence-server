@@ -15,8 +15,9 @@ import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core.{PermissionsList, UserPermissionsEntry}
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.instanceToTimestamp
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.datastore.domain._
-import com.convergencelabs.convergence.server.domain.chat.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.model.domain.chat._
 
 /**
  * A collection of helper methods to translate domain objects to and from
@@ -125,6 +126,6 @@ object ChatProtoConverters {
    */
   def protoToUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
     userPermissionData
-      .map(p => UserPermissions(protoToDomainUserId(p.user.get), p.permissions.toSet)).toSet
+      .map(p => permissions.UserPermissions(protoToDomainUserId(p.user.get), p.permissions.toSet)).toSet
   }
 }

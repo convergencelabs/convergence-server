@@ -17,12 +17,12 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.identity._
-import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.util.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.datastore.SortOrder
-import com.convergencelabs.convergence.server.datastore.domain.UserGroup
-import com.convergencelabs.convergence.server.domain.IdentityServiceActor
+import com.convergencelabs.convergence.server.backend.datastore.SortOrder
+import com.convergencelabs.convergence.server.backend.services.domain.IdentityServiceActor
+import com.convergencelabs.convergence.server.model.domain.group.UserGroup
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JString

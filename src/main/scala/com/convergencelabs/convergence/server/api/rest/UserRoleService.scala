@@ -18,9 +18,10 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _segmentStringToPathMatcher, as, authorize, complete, concat, delete, entity, get, path, pathEnd, pathPrefix, post}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStoreActor._
-import com.convergencelabs.convergence.server.datastore.convergence.{DomainRoleTarget, NamespaceRoleTarget, RoleTarget, ServerRoleTarget}
-import com.convergencelabs.convergence.server.domain.DomainId
+import com.convergencelabs.convergence.server.backend.services.server.RoleStoreActor._
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.role
+import com.convergencelabs.convergence.server.model.server.role._
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -75,11 +76,11 @@ private[rest] class UserRoleService(roleActor: ActorRef[Message],
                 complete(getUserRolesForTarget(DomainRoleTarget(DomainId(namespace, domain))))
               } ~ post {
                 entity(as[Map[String, String]]) { userRoles =>
-                  complete(updateUserRolesForTarget(DomainRoleTarget(DomainId(namespace, domain)), userRoles))
+                  complete(updateUserRolesForTarget(role.DomainRoleTarget(DomainId(namespace, domain)), userRoles))
                 }
               }
             } ~ path(Segment) { username =>
-              complete(deleteUserRoleForTarget(DomainRoleTarget(DomainId(namespace, domain)), username))
+              complete(deleteUserRoleForTarget(role.DomainRoleTarget(DomainId(namespace, domain)), username))
             }
           }
         })

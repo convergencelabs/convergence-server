@@ -21,7 +21,7 @@ import grizzled.slf4j.Logging
  * A helper Actor that will listen to Akka Cluster events and log debug
  * messages to the console.
  */
-object AkkaClusterDebugListener extends Logging {
+private[server] object AkkaClusterDebugListener extends Logging {
   def apply(cluster: Cluster): Behavior[MemberEvent] =
     Behaviors.setup { context =>
       cluster.subscriptions ! Subscribe(context.self, classOf[MemberEvent])

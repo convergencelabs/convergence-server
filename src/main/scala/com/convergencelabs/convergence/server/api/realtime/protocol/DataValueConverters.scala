@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 import com.convergencelabs.convergence.proto.model
 import com.convergencelabs.convergence.proto.model.{ArrayValue => ProtoArrayValue, BooleanValue => ProtoBooleanValue, DataValue => ProtoDataValue, DateValue => ProtoDateValue, DoubleValue => ProtoDoubleValue, NullValue => ProtoNullValue, ObjectValue => ProtoObjectValue, StringValue => ProtoStringValue}
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instanceToTimestamp, timestampToInstant}
-import com.convergencelabs.convergence.server.domain.model.data._
+import com.convergencelabs.convergence.server.model.domain.model._
 
 private[realtime] object DataValueConverters {
   def dataValueToProto(dataValue: DataValue): ProtoDataValue =

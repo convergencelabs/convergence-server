@@ -42,6 +42,6 @@ private class ConvergenceServerCLIConf(arguments: Seq[String]) extends ScallopCo
   }
 }
 
-private object ConvergenceServerCLIConf {
+private[server] object ConvergenceServerCLIConf {
   def apply(arguments: Seq[String]): ConvergenceServerCLIConf = new ConvergenceServerCLIConf(arguments)
 }

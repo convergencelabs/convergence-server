@@ -27,13 +27,15 @@ import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
-import com.convergencelabs.convergence.server.datastore.domain.{ModelOperationStoreActor, ModelStoreActor}
-import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.domain._
-import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
-import com.convergencelabs.convergence.server.domain.presence.{PresenceServiceActor, UserPresence}
+import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
+import com.convergencelabs.convergence.server.backend.services.domain._
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.presence.{PresenceServiceActor, UserPresence}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUser
 import com.convergencelabs.convergence.server.util.UnexpectedErrorException
 import com.convergencelabs.convergence.server.util.concurrent.AskHandler
 import grizzled.slf4j.Logging
@@ -392,7 +394,7 @@ class ClientActor private(context: ActorContext[ClientActor.Message],
     Behaviors.same
   }
 
-  private[this] def obtainPresenceAfterAuth(session: DomainUserSessionId, reconnectToken: Option[String], cb: ReplyCallback): Unit = {
+  private[this] def obtainPresenceAfterAuth(session: DomainSessionAndUserId, reconnectToken: Option[String], cb: ReplyCallback): Unit = {
     // Note these are created outside of the for comprehension so that they
     // can execute in parallel.
 
@@ -665,7 +667,7 @@ object ClientActor {
   private[realtime] final case class IdentityResolutionError() extends FromIdentityResolver
 
   private final case class InternalAuthSuccess(user: DomainUser,
-                                               session: DomainUserSessionId,
+                                               session: DomainSessionAndUserId,
                                                reconnectToken: Option[String],
                                                presence: UserPresence,
                                                cb: ReplyCallback) extends Message

@@ -17,13 +17,14 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.presence._
-import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.util.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters
 import com.convergencelabs.convergence.server.api.realtime.protocol.PresenceProtoConverters._
-import com.convergencelabs.convergence.server.domain.presence._
-import com.convergencelabs.convergence.server.domain.{DomainUserId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.backend.services.domain.presence._
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
@@ -33,7 +34,7 @@ import scala.language.postfixOps
 
 //  TODO: Add connect / disconnect logic
 class PresenceClientActor private(context: ActorContext[PresenceClientActor.Message],
-                                  session: DomainUserSessionId,
+                                  session: DomainSessionAndUserId,
                                   clientActor: ActorRef[ClientActor.SendServerMessage],
                                   presenceServiceActor: ActorRef[PresenceServiceActor.Message],
                                   private[this] implicit val defaultTimeout: Timeout)
@@ -162,10 +163,10 @@ class PresenceClientActor private(context: ActorContext[PresenceClientActor.Mess
 }
 
 object PresenceClientActor {
-  private[realtime] def apply(session: DomainUserSessionId,
-            clientActor: ActorRef[ClientActor.SendServerMessage],
-            presenceServiceActor: ActorRef[PresenceServiceActor.Message],
-            defaultTimeout: Timeout
+  private[realtime] def apply(session: DomainSessionAndUserId,
+                              clientActor: ActorRef[ClientActor.SendServerMessage],
+                              presenceServiceActor: ActorRef[PresenceServiceActor.Message],
+                              defaultTimeout: Timeout
            ): Behavior[Message] =
     Behaviors.setup(context => new PresenceClientActor(context, session, clientActor, presenceServiceActor, defaultTimeout))
 

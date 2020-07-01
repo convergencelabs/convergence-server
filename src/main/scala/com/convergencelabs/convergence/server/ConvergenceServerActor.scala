@@ -21,13 +21,14 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi, ProtocolConfiguration}
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
-import com.convergencelabs.convergence.server.db.ConvergenceDatabaseInitializerActor
-import com.convergencelabs.convergence.server.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.domain.activity.{ActivityActor, ActivityActorSharding}
-import com.convergencelabs.convergence.server.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
-import com.convergencelabs.convergence.server.domain.model.{RealtimeModelActor, RealtimeModelSharding}
-import com.convergencelabs.convergence.server.domain.rest.{DomainRestActor, DomainRestActorSharding}
-import com.convergencelabs.convergence.server.domain.{DomainActor, DomainActorSharding}
+import com.convergencelabs.convergence.server.backend.BackendServices
+import com.convergencelabs.convergence.server.backend.db.ConvergenceDatabaseInitializerActor
+import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
+import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{RealtimeModelActor, RealtimeModelSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.rest.{DomainRestActor, DomainRestActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainActor, DomainActorSharding}
 import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
 
@@ -44,7 +45,7 @@ import scala.util.{Failure, Success}
  *
  * @param context ActorContext for this actor / behavior.
  */
-class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBehavior[Message](context) with Logging {
+private[server] class ConvergenceServerActor(context: ActorContext[Message]) extends AbstractBehavior[Message](context) with Logging {
 
   import ConvergenceServerActor._
   import ConvergenceServerConstants._

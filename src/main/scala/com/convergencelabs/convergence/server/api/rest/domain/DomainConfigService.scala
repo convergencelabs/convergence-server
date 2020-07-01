@@ -21,9 +21,11 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.ConfigStoreActor.{GetModelSnapshotPolicyResponse, _}
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.{DomainRestMessage, Message}
-import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor._
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.{DomainRestMessage, Message}
+import com.convergencelabs.convergence.server.model
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -139,7 +141,7 @@ class DomainConfigService(domainRestActor: ActorRef[Message],
     ) = policyData
 
     val policy =
-      ModelSnapshotConfig(
+      model.domain.ModelSnapshotConfig(
         snapshotsEnabled,
         triggerByVersion,
         limitByVersion,

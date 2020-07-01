@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.util.serialization.akka
 
-import com.convergencelabs.convergence.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
 import com.fasterxml.jackson.databind.{DeserializationContext, JsonDeserializer, JsonSerializer, SerializerProvider}
 

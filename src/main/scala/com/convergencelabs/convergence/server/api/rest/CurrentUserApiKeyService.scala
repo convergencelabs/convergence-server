@@ -20,8 +20,8 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.UserApiKey
-import com.convergencelabs.convergence.server.datastore.convergence.UserApiKeyStoreActor.{CreateUserApiKeyResponse, _}
+import com.convergencelabs.convergence.server.backend.services.server.UserApiKeyStoreActor._
+import com.convergencelabs.convergence.server.model.server.apikey.UserApiKey
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
 import scala.concurrent.{ExecutionContext, Future}

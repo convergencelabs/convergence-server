@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.core.{DomainUserData, DomainUserIdData, DomainUserTypeData}
-import com.convergencelabs.convergence.server.domain.{DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 
 object IdentityProtoConverters {
 

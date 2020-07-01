@@ -17,14 +17,13 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
-import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.util.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelOperationConverters._
-import com.convergencelabs.convergence.server.datastore.domain.ModelOperationStoreActor
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 

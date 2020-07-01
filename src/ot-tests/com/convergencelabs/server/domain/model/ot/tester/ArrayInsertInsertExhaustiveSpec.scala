@@ -1,4 +1,4 @@
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 
 import ArrayOperationExhaustiveSpec.Value1
 import ArrayOperationExhaustiveSpec.Value2

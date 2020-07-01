@@ -20,11 +20,11 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStore.KeyInfo
-import com.convergencelabs.convergence.server.datastore.domain.JwtAuthKeyStoreActor._
-import com.convergencelabs.convergence.server.domain.DomainId
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.CreateOrUpdateJwtAuthKey
+import com.convergencelabs.convergence.server.backend.services.domain.jwt.JwtAuthKeyStoreActor._
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
@@ -44,7 +44,7 @@ class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
         get {
           complete(getKeys(domain))
         } ~ post {
-          entity(as[KeyInfo]) { key =>
+          entity(as[CreateKeyData]) { key =>
             complete(createKey(domain, key))
           }
         }
@@ -88,10 +88,12 @@ class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
       ))
   }
 
-  private[this] def createKey(domain: DomainId, key: KeyInfo): Future[RestResponse] = {
+  private[this] def createKey(domain: DomainId, data: CreateKeyData): Future[RestResponse] = {
+    val CreateKeyData(id, description, key, enabled) = data
+    val create = CreateOrUpdateJwtAuthKey(id, description, key, enabled)
     domainRestActor
       .ask[CreateJwtAuthKeyResponse](
-        r => DomainRestMessage(domain, CreateJwtAuthKeyRequest(key, r)))
+        r => DomainRestMessage(domain, CreateJwtAuthKeyRequest(create, r)))
       .map(_.response.fold(
         {
           case JwtAuthKeyExistsError() =>
@@ -105,7 +107,7 @@ class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
 
   private[this] def updateKey(domain: DomainId, keyId: String, update: UpdateInfo): Future[RestResponse] = {
     val UpdateInfo(description, key, enabled) = update
-    val info = KeyInfo(keyId, description, key, enabled)
+    val info = CreateOrUpdateJwtAuthKey(keyId, description, key, enabled)
     domainRestActor
       .ask[UpdateJwtAuthKeyResponse](
         r => DomainRestMessage(domain, UpdateJwtAuthKeyRequest(info, r)))
@@ -141,5 +143,7 @@ class DomainKeyService(domainRestActor: ActorRef[DomainRestActor.Message],
 object DomainKeyService {
 
   case class UpdateInfo(description: String, key: String, enabled: Boolean)
+
+  case class CreateKeyData(id: String, description: String, key: String, enabled: Boolean)
 
 }

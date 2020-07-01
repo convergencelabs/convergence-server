@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.presence.UserPresenceData
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.domain.presence.UserPresence
+import com.convergencelabs.convergence.server.backend.services.domain.presence.UserPresence
 
 object PresenceProtoConverters {
   def userPresenceToMessage(userPresence: UserPresence): UserPresenceData =

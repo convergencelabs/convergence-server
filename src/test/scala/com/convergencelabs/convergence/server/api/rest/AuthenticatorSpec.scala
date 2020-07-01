@@ -20,8 +20,8 @@ import akka.http.scaladsl.server.Directives.{complete, extractRequest}
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.testkit.{TestDuration, TestProbe}
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor
-import com.convergencelabs.convergence.server.datastore.convergence.RoleStore.UserRoles
+import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.UserRoles
+import com.convergencelabs.convergence.server.backend.services.server.AuthenticationActor
 import com.convergencelabs.convergence.server.security.AuthorizationProfileData
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

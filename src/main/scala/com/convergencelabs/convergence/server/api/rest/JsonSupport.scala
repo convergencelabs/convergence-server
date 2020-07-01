@@ -14,9 +14,9 @@ package com.convergencelabs.convergence.server.api.rest
 import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.api.rest.domain.DomainChatService.ChatEventData
-import com.convergencelabs.convergence.server.domain.DomainUserType
-import com.convergencelabs.convergence.server.domain.DomainUserType.DomainUserType
-import com.convergencelabs.convergence.server.domain.model.data.DataValue
+import com.convergencelabs.convergence.server.model.domain.model.DataValue
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserType
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserType.DomainUserType
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import org.json4s.JsonAST.{JInt, JLong, JString}
 import org.json4s.jackson.Serialization

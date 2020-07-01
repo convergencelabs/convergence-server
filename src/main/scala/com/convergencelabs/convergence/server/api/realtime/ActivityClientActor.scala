@@ -17,12 +17,13 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.activity._
-import com.convergencelabs.convergence.server.actor.{AskUtils, CborSerializable}
+import com.convergencelabs.convergence.server.util.actor.{AskUtils, CborSerializable}
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters
-import com.convergencelabs.convergence.server.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
@@ -46,7 +47,7 @@ class ActivityClientActor private(context: ActorContext[Message],
                                   activityShardRegion: ActorRef[ActivityActor.Message],
                                   clientActor: ActorRef[ClientActor.SendServerMessage],
                                   domain: DomainId,
-                                  session: DomainUserSessionId,
+                                  session: DomainSessionAndUserId,
                                   defaultTimeout: Timeout)
   extends AbstractBehavior[Message](context) with Logging with AskUtils {
 
@@ -172,10 +173,10 @@ class ActivityClientActor private(context: ActorContext[Message],
 
 object ActivityClientActor {
   private[realtime] def apply(domain: DomainId,
-            session: DomainUserSessionId,
-            clientActor: ActorRef[ClientActor.SendServerMessage],
-            activityServiceActor: ActorRef[ActivityActor.Message],
-            defaultTimeout: Timeout
+                              session: DomainSessionAndUserId,
+                              clientActor: ActorRef[ClientActor.SendServerMessage],
+                              activityServiceActor: ActorRef[ActivityActor.Message],
+                              defaultTimeout: Timeout
            ): Behavior[ActivityClientActor.Message] =
     Behaviors.setup(context => new ActivityClientActor(context, activityServiceActor, clientActor, domain, session, defaultTimeout))
 

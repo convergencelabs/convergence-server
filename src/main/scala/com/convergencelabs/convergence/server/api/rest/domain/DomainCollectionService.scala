@@ -22,13 +22,13 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.api.rest.domain.DomainConfigService.ModelSnapshotPolicyData
-import com.convergencelabs.convergence.server.datastore.domain.CollectionPermissions
-import com.convergencelabs.convergence.server.datastore.domain.CollectionStore.CollectionSummary
-import com.convergencelabs.convergence.server.datastore.domain.CollectionStoreActor._
-import com.convergencelabs.convergence.server.domain.model.Collection
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.domain.rest.DomainRestActor.DomainRestMessage
-import com.convergencelabs.convergence.server.domain.{DomainId, ModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor._
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
+import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
+import com.convergencelabs.convergence.server.model
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions, CollectionSummary}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
@@ -206,7 +206,7 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
     minimumTimeInterval
     )
     ) = collectionData
-    val snapshotConfig = ModelSnapshotConfig(
+    val snapshotConfig = model.domain.ModelSnapshotConfig(
       snapshotsEnabled,
       triggerByVersion,
       limitByVersion,
@@ -216,7 +216,7 @@ class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message]
       limitByTime,
       Duration.ofMillis(minimumTimeInterval),
       Duration.ofMillis(maximumTimeInterval))
-    val collection = Collection(id, description, overrideSnapshotConfig, snapshotConfig, CollectionPermissions(create, read, write, remove, manage))
+    val collection = model.domain.collection.Collection(id, description, overrideSnapshotConfig, snapshotConfig, CollectionPermissions(create, read, write, remove, manage))
     collection
   }
 

@@ -19,7 +19,7 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.NamespaceStoreActor._
+import com.convergencelabs.convergence.server.backend.services.server.NamespaceStoreActor._
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, Permissions}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
@@ -73,7 +73,10 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
     }
   }
 
-  private[this] def getNamespaces(authProfile: AuthorizationProfile, filter: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
+  private[this] def getNamespaces(authProfile: AuthorizationProfile,
+                                  filter: Option[String],
+                                  offset: Option[Long],
+                                  limit: Option[Long]): Future[RestResponse] = {
     namespaceActor
       .ask[GetAccessibleNamespacesResponse](GetAccessibleNamespacesRequest(authProfile.data, filter, QueryOffset(offset), QueryLimit(limit), _))
       .map(_.namespaces.fold(

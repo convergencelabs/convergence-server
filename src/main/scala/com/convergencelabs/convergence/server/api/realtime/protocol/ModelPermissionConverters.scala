@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.model.{ModelPermissionsData, UserModelPermissionsData}
-import com.convergencelabs.convergence.server.datastore.domain.ModelPermissions
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.model.domain.model.ModelPermissions
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 object ModelPermissionConverters {
    def modelPermissionsToProto(permissions: ModelPermissions): ModelPermissionsData =

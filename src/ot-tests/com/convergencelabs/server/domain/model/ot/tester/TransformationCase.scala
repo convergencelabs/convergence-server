@@ -1,4 +1,4 @@
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 
 object TransformationCase {
   def apply[S <: DiscreteOperation, C <: DiscreteOperation](serverOp: S, clientOp: C): TransformationCase[S, C] = new TransformationCase(serverOp, clientOp)

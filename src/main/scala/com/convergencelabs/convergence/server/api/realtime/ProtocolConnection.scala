@@ -18,7 +18,7 @@ import akka.actor.typed.{ActorRef, Scheduler}
 import com.convergencelabs.convergence.proto.ConvergenceMessage._
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.core._
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.util.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.protocol.{ConvergenceMessageBodyUtils, JsonProtoConverters}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue

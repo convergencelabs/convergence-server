@@ -21,17 +21,19 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.util.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.ChatProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.datastore.domain.ChatMembership.InvalidChatMembershipValue
-import com.convergencelabs.convergence.server.datastore.domain.ChatType.InvalidChatTypeValue
-import com.convergencelabs.convergence.server.datastore.domain.{ChatMembership, ChatType}
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.PagedChatEvents
-import com.convergencelabs.convergence.server.domain.chat.ChatManagerActor._
-import com.convergencelabs.convergence.server.domain.chat._
-import com.convergencelabs.convergence.server.domain.{DomainId, DomainUserId, DomainUserSessionId}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.PagedChatEvents
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor._
+import com.convergencelabs.convergence.server.backend.services.domain.chat._
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.chat.ChatMembership.InvalidChatMembershipValue
+import com.convergencelabs.convergence.server.model.domain.chat.ChatType.InvalidChatTypeValue
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.google.protobuf.timestamp.Timestamp
 import grizzled.slf4j.Logging
@@ -47,7 +49,7 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
                               chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
                               chatManagerActor: ActorRef[ChatManagerActor.Message],
                               clientActor: ActorRef[ClientActor.SendServerMessage],
-                              session: DomainUserSessionId,
+                              session: DomainSessionAndUserId,
                               requestTimeout: Timeout)
   extends AbstractBehavior[ChatClientActor.Message](context) with Logging {
 
@@ -683,12 +685,12 @@ class ChatClientActor private(context: ActorContext[ChatClientActor.Message],
 
 object ChatClientActor {
   private[realtime]  def apply(domain: DomainId,
-            session: DomainUserSessionId,
-            clientActor: ActorRef[ClientActor.SendServerMessage],
-            chatShardRegion: ActorRef[ChatActor.Message],
-            chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-            chatManagerActor: ActorRef[ChatManagerActor.Message],
-            requestTimeout: Timeout): Behavior[Message] =
+                               session: DomainSessionAndUserId,
+                               clientActor: ActorRef[ClientActor.SendServerMessage],
+                               chatShardRegion: ActorRef[ChatActor.Message],
+                               chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
+                               chatManagerActor: ActorRef[ChatManagerActor.Message],
+                               requestTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(new ChatClientActor(_, domain, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, clientActor, session, requestTimeout))
 
   /////////////////////////////////////////////////////////////////////////////

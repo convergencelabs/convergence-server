@@ -12,7 +12,6 @@
 package com.convergencelabs.convergence.server.util
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 /**
  * A value class that wraps and optional integer representing an

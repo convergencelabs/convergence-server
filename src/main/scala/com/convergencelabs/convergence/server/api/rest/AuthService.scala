@@ -16,7 +16,7 @@ import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence.AuthenticationActor
+import com.convergencelabs.convergence.server.backend.services.server.AuthenticationActor
 
 import scala.concurrent.{ExecutionContext, Future}
 

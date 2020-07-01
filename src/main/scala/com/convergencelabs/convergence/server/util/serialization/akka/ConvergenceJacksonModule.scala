@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.util.serialization.akka
 
-import com.convergencelabs.convergence.server.domain.DomainUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.fasterxml.jackson.databind.module.SimpleModule
 
 /**

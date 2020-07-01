@@ -13,12 +13,15 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import java.time.Instant
 
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core.{DomainUserIdData, DomainUserTypeData, PermissionsList, UserPermissionsEntry}
 import com.convergencelabs.convergence.server.api.realtime.protocol.ChatProtoConverters._
-import com.convergencelabs.convergence.server.datastore.domain._
-import com.convergencelabs.convergence.server.domain.DomainUserId
-import com.convergencelabs.convergence.server.domain.chat.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.model.domain.chat
+import com.convergencelabs.convergence.server.model.domain.chat.{ChatCreatedEvent, ChatInfo, ChatMember, ChatMembership, ChatMessageEvent, ChatNameChangedEvent, ChatTopicChangedEvent, ChatType, ChatUserAddedEvent, ChatUserJoinedEvent, ChatUserLeftEvent, ChatUserRemovedEvent}
 import com.google.protobuf.timestamp.Timestamp
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -36,8 +39,8 @@ class ChatProtoConvertersSpec extends AnyWordSpec with Matchers {
   private[this] val userId3 = DomainUserId.anonymous("user3")
 
   private[this] val member1 = ChatMember(chatId, userId1, 0L)
-  private[this] val member2 = ChatMember(chatId, userId2, 10L)
-  private[this] val member3 = ChatMember(chatId, userId3, 20L)
+  private[this] val member2 = chat.ChatMember(chatId, userId2, 10L)
+  private[this] val member3 = chat.ChatMember(chatId, userId3, 20L)
 
   private[this] val protoUserId1 = DomainUserIdData(DomainUserTypeData.Normal, userId1.username)
   private[this] val protoUserId2 = DomainUserIdData(DomainUserTypeData.Convergence, userId2.username)
@@ -96,7 +99,7 @@ class ChatProtoConvertersSpec extends AnyWordSpec with Matchers {
         val userPermissionData: Seq[UserPermissionsEntry] = Seq(up1, up2)
         protoToUserPermissions(userPermissionData) shouldBe Set(
           UserPermissions(userId1, up1.permissions.toSet),
-          UserPermissions(userId2, up2.permissions.toSet)
+          permissions.UserPermissions(userId2, up2.permissions.toSet)
         )
       }
     }

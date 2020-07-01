@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 import com.convergencelabs.convergence.proto.model.HistoricalOperationsResponseMessage.ModelOperationData
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
-import com.convergencelabs.convergence.server.domain.model.ModelOperation
-import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.backend.services.domain.model.ModelOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.google.protobuf.timestamp.Timestamp
 
 private[realtime] object ModelOperationConverters {

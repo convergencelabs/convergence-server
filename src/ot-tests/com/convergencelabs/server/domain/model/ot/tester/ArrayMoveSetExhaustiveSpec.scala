@@ -1,10 +1,8 @@
-package com.convergencelabs.convergence.server.domain.model.ot
+package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 
+import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import org.json4s.JsonAST.JArray
 import org.json4s.JsonAST.JString
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import OperationPairExhaustiveSpec.ValueId
-import ArrayOperationExhaustiveSpec.ArrayValue
 
 class ArrayMoveSetExhaustiveSpec extends ArrayOperationExhaustiveSpec[ArrayMoveOperation, ArraySetOperation] {
 

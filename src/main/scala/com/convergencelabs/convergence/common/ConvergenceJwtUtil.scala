@@ -12,10 +12,10 @@
 package com.convergencelabs.convergence.common
 
 import java.io.{File, FileReader, Reader, StringReader}
-import java.security.{KeyFactory, PrivateKey, Security}
 import java.security.spec.PKCS8EncodedKeySpec
+import java.security.{KeyFactory, PrivateKey, Security}
 
-import com.convergencelabs.convergence.server.domain.JwtConstants
+import com.convergencelabs.convergence.server.model.domain.jwt.JwtConstants
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.util.io.pem.PemReader
 import org.jose4j.jws.{AlgorithmIdentifiers, JsonWebSignature}
