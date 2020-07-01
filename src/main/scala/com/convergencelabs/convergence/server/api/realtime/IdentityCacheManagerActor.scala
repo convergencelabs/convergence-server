@@ -19,11 +19,11 @@ import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
-import com.convergencelabs.convergence.server.util.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.IdentityResolutionError
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.IdentityServiceActor
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
 import scala.collection.mutable

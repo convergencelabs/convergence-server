@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.convergencelabs.convergence.server.db.schema.{DeltaCategory, TestingSchemaManager}
-import com.convergencelabs.convergence.server.db.{ConnectedSingleDatabaseProvider, DatabaseProvider}
+import com.convergencelabs.convergence.server.backend.db.schema.{DeltaCategory, TestingSchemaManager}
+import com.convergencelabs.convergence.server.backend.db.{ConnectedSingleDatabaseProvider, DatabaseProvider}
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import org.scalatest.BeforeAndAfterAll

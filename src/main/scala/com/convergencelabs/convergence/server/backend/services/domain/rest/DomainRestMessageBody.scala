@@ -11,12 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.rest
 
-import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.group.UserGroupStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.jwt.JwtAuthKeyStoreActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelPermissionsStoreActor, ModelStoreActor}
+import com.convergencelabs.convergence.server.backend.services.domain.session.SessionStoreActor
+import com.convergencelabs.convergence.server.backend.services.domain.stats.DomainStatsActor
 import com.convergencelabs.convergence.server.backend.services.domain.user.DomainUserStoreActor
 
 object DomainRestMessageBody {

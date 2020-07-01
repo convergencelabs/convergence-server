@@ -9,15 +9,15 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.provision
+package com.convergencelabs.convergence.server.backend.db.provision
 
 import akka.actor.typed.pubsub.Topic.Publish
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner.ProvisionRequest
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}

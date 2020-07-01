@@ -13,11 +13,11 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{CollectionPermissions, ModelPermissions}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
+import com.convergencelabs.convergence.server.model.domain.model.{ModelPermissions, ObjectValue}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

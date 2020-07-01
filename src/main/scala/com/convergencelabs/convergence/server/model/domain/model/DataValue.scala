@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model.data
+package com.convergencelabs.convergence.server.model.domain.model
 
 import java.time.Instant
 

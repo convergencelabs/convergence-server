@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.ModelReferenceValues
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.DiscreteOperation
+import com.convergencelabs.convergence.server.model.domain.model.ModelReferenceValues
 
 private[ot] trait ReferenceTransformationFunction[O <: DiscreteOperation, V <: ModelReferenceValues] {
   def transform(serverOp: O, values: V): Option[V]

@@ -12,7 +12,6 @@
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event
 
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
@@ -21,6 +20,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatP
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.ReplyAndBroadcastTask
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions, ChatState}
 import com.convergencelabs.convergence.server.model.domain.chat.ChatMember
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.Try
 

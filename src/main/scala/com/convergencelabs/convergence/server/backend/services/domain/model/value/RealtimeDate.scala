@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import java.time.Instant
 
@@ -18,9 +18,9 @@ import com.convergencelabs.convergence.server.model.domain.model.DateValue
 
 import scala.util.{Failure, Success, Try}
 
-class RealtimeDate(private[this] val value: DateValue,
-                   private[this] val parent: Option[RealtimeContainerValue],
-                   private[this] val parentField: Option[Any])
+private[model] class RealtimeDate(value: DateValue,
+                                  parent: Option[RealtimeContainerValue],
+                                  parentField: Option[Any])
   extends RealtimeValue(value.id, parent, parentField, List()) {
 
   private[this] var date = value.value

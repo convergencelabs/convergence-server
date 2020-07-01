@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{ChatPermissionsRequest, CommonErrors, UnauthorizedError, UnknownError}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissions.ChatPermission
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}

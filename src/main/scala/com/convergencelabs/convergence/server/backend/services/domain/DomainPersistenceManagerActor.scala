@@ -23,7 +23,7 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.Doma
 import com.convergencelabs.convergence.server.backend.datastore.domain.{DomainPersistenceProvider, DomainPersistenceProviderImpl}
 import com.convergencelabs.convergence.server.backend.db.PooledDatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.FiniteDuration

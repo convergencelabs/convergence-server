@@ -14,12 +14,14 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model
 import java.util
 import java.util.{List => JavaList}
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
+import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, EntityNotFoundException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
+import com.convergencelabs.convergence.server.model.domain.model.ModelPermissions
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.{OIdentifiable, OTrackedList}
 import com.orientechnologies.orient.core.id.ORID
@@ -30,12 +32,6 @@ import grizzled.slf4j.Logging
 
 import scala.jdk.CollectionConverters._
 import scala.util.{Success, Try}
-
-case class ModelPermissions(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
-
-case class CollectionPermissions(create: Boolean, read: Boolean, write: Boolean, remove: Boolean, manage: Boolean)
-
-case class UserRoles(username: String, roles: Set[String])
 
 private[domain] object ModelPermissionsStore {
 

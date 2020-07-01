@@ -15,8 +15,8 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair

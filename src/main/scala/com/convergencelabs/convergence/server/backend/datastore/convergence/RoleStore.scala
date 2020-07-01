@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema._
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.role._
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -25,34 +25,6 @@ import grizzled.slf4j.Logging
 
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
-
-object RoleTargetType extends Enumeration {
-  val Namespace, Domain = Value
-}
-
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(
-  Array(
-    new JsonSubTypes.Type(value = classOf[DomainRoleTarget], name = "domain"),
-    new JsonSubTypes.Type(value = classOf[NamespaceRoleTarget], name = "namespace"),
-    new JsonSubTypes.Type(value = classOf[ServerRoleTarget], name = "server")
-  )
-)
-sealed trait RoleTarget {
-  def targetClass: Option[RoleTargetType.Value]
-}
-
-case class DomainRoleTarget(domainId: DomainId) extends RoleTarget {
-  val targetClass: Option[RoleTargetType.Value] = Some(RoleTargetType.Domain)
-}
-
-case class NamespaceRoleTarget(id: String) extends RoleTarget {
-  val targetClass: Option[RoleTargetType.Value] = Some(RoleTargetType.Namespace)
-}
-
-case class ServerRoleTarget() extends RoleTarget {
-  val targetClass: Option[RoleTargetType.Value] = None
-}
 
 object RoleStore {
 
@@ -139,7 +111,7 @@ object RoleStore {
  *
  * @param dbProvider The database pool to use.
  */
-class RoleStore(private[this] val dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
+class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
   import RoleStore._
 
   def createRole(role: Role): Try[Unit] = tryWithDb { db =>

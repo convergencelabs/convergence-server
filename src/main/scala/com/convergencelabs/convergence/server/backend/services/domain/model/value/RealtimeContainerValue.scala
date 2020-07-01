@@ -9,14 +9,14 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.model.domain.model.ModelReferenceValues
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 import scala.util.Try
 
-abstract class RealtimeContainerValue(id: String,
+private[model] abstract class RealtimeContainerValue(id: String,
                                       parent: Option[RealtimeContainerValue],
                                       parentField: Option[Any],
                                       validReferenceValueClasses: List[Class[_ <: ModelReferenceValues]])
@@ -35,7 +35,7 @@ abstract class RealtimeContainerValue(id: String,
 
   def children: List[RealtimeValue]
 
-  override def sessionDisconnected(session: DomainSessionId): Unit = {
+  override def sessionDisconnected(session: DomainSessionAndUserId): Unit = {
     this.children.foreach { child => child.sessionDisconnected(session) }
     super.sessionDisconnected(session)
   }

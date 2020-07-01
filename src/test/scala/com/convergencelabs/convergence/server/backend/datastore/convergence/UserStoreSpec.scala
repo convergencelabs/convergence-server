@@ -11,12 +11,12 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.convergence
 
-import com.convergencelabs.convergence.server.backend.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.UserClass
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.model.server.user.User
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers

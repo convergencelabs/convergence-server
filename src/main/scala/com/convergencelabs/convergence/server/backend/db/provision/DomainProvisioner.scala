@@ -9,20 +9,20 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.provision
+package com.convergencelabs.convergence.server.backend.db.provision
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.db.provision.DomainProvisioner._
-import com.convergencelabs.convergence.server.db.schema.DomainSchemaManager
-import com.convergencelabs.convergence.server.db.{DatabaseProvider, SingleDatabaseProvider}
-import com.convergencelabs.convergence.server.domain.JwtUtil
-import com.convergencelabs.convergence.server.model.domain
-import com.convergencelabs.convergence.server.model.domain.{DomainId, ModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner._
+import com.convergencelabs.convergence.server.backend.db.schema.DomainSchemaManager
+import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, SingleDatabaseProvider}
+import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
+import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
+import com.convergencelabs.convergence.server.model.{DomainId, domain}
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
 import com.orientechnologies.orient.core.metadata.security.{ORole, ORule}
 import com.orientechnologies.orient.core.metadata.sequence.OSequence

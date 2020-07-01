@@ -13,21 +13,19 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedOperation
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-case class ModelOperation(
-  modelId: String,
-  version: Long,
-  timestamp: Instant,
-  userId: DomainUserId,
-  sessionId: String,
-  op: AppliedOperation)
+final case class ModelOperation(modelId: String,
+                                version: Long,
+                                timestamp: Instant,
+                                userId: DomainUserId,
+                                sessionId: String,
+                                op: AppliedOperation)
 
-  
-case class NewModelOperation(
-  modelId: String,
-  version: Long,
-  timestamp: Instant,
-  sessionId: String,
-  op: AppliedOperation)
+
+final case class NewModelOperation(modelId: String,
+                                   version: Long,
+                                   timestamp: Instant,
+                                   sessionId: String,
+                                   op: AppliedOperation)

@@ -13,7 +13,6 @@ package com.convergencelabs.convergence.server.backend.services.domain.model.ot.
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.data.StringValue
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.array._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.bool._
@@ -22,7 +21,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.model.ot.x
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.obj._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.string._
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ElementReferenceValues, IndexReferenceValues, PropertyReferenceValues, RangeReferenceValues}
+import com.convergencelabs.convergence.server.model.domain.model.{ElementReferenceValues, IndexReferenceValues, PropertyReferenceValues, RangeReferenceValues, StringValue}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

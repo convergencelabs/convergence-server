@@ -9,17 +9,19 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.datastore.convergence
+package com.convergencelabs.convergence.server.backend.services.server
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.backend.datastore.convergence.NamespaceStore.{NamespaceAndDomains, NamespaceUpdates}
+import com.convergencelabs.convergence.server.backend.datastore.convergence.NamespaceStore.NamespaceUpdates
+import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
-import com.convergencelabs.convergence.server.model.domain.Namespace
+import com.convergencelabs.convergence.server.model.server.domain.{Namespace, NamespaceAndDomains}
+import com.convergencelabs.convergence.server.model.server.role.NamespaceRoleTarget
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize

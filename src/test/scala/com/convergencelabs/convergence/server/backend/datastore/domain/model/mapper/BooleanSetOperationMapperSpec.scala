@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanSetOperationMapper.{BooleanSetOperationToODocument, ODocumentToBooleanSetOperation}
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedBooleanSetOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedBooleanSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

@@ -24,7 +24,7 @@ import akka.stream.{CompletionStrategy, OverflowStrategy}
 import akka.util.{ByteString, ByteStringBuilder, Timeout}
 import com.convergencelabs.convergence.server.api.realtime.ClientActorCreator.CreateClientResponse
 import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
-import com.convergencelabs.convergence.server.api.rest.{ErrorResponse, JsonSupport, OkResponse}
+import com.convergencelabs.convergence.server.api.rest.{ErrorResponseEntity, JsonSupport, OkResponse}
 import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 
@@ -95,7 +95,7 @@ private[realtime] class WebSocketService(system: ActorSystem[_],
       onComplete(createClientActor(namespace, domain, remoteAddress, ua)) {
         case Failure(cause) =>
           logger.error("Could not create client actor for incoming web socket connection.", cause)
-          complete((StatusCodes.InternalServerError, ErrorResponse("internal_server_error")))
+          complete((StatusCodes.InternalServerError, ErrorResponseEntity("internal_server_error")))
         case Success(client) =>
           complete(upgrade.handleMessages(createBinaryMessageFlow(client), None))
       }

@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server
+package com.convergencelabs.convergence.server.backend
 
 import java.util.concurrent.TimeUnit
 
@@ -18,12 +18,13 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.datastore.convergence._
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.convergence.server.db.provision.{DomainLifecycleTopic, DomainProvisioner, DomainProvisionerActor}
-import com.convergencelabs.convergence.server.db.schema.{DatabaseManager, DatabaseManagerActor}
-import com.convergencelabs.convergence.server.db.{DatabaseProvider, PooledDatabaseProvider}
-import com.convergencelabs.convergence.server.domain.DomainPersistenceManagerActor
+import com.convergencelabs.convergence.server.backend.datastore.convergence._
+import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor.ProvisionDomain
+import com.convergencelabs.convergence.server.backend.db.provision.{DomainLifecycleTopic, DomainProvisioner, DomainProvisionerActor}
+import com.convergencelabs.convergence.server.backend.db.schema.{DatabaseManager, DatabaseManagerActor}
+import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, PooledDatabaseProvider}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
+import com.convergencelabs.convergence.server.backend.services.server._
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 

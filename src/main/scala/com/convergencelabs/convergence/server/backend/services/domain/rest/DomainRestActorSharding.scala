@@ -14,9 +14,8 @@ package com.convergencelabs.convergence.server.backend.services.domain.rest
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.actor.ActorSharding
-import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceManager
-import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManager
+import com.convergencelabs.convergence.server.util.actor.ActorSharding
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
 import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}

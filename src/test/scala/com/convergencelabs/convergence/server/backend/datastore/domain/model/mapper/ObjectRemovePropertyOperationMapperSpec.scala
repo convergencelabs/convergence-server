@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectRemovePropertyOperationMapper.{ODocumentToObjectRemovePropertyOperation, ObjectRemovePropertyOperationToODocument}
-import com.convergencelabs.convergence.server.domain.model.data.StringValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectRemovePropertyOperation
+import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

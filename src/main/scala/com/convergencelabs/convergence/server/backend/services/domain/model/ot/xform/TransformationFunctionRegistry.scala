@@ -19,7 +19,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.model.ot.x
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.obj._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.string._
-import com.convergencelabs.convergence.server.backend.services.domain.model.{IndexReferenceValues, ModelReferenceValues, RangeReferenceValues}
+import com.convergencelabs.convergence.server.model.domain.model.{IndexReferenceValues, ModelReferenceValues, RangeReferenceValues}
 
 import scala.reflect.ClassTag
 

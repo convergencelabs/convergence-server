@@ -13,16 +13,15 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import java.time.{Duration, Instant}
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissions
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.data._
-import com.convergencelabs.convergence.server.domain.model.ot._
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, NewModelOperation}
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionId}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model._
+import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -41,7 +40,7 @@ class ModelOperationProcessorSpec
   private val user = DomainUser(DomainUserType.Normal, username, None, None, None, None, None)
 
   private val sid = "u1-1"
-  private val session = DomainSession(DomainSessionId(sid, DomainUserId.normal(username)), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  private val session = DomainSession(sid, DomainUserId.normal(username), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 

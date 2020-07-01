@@ -9,13 +9,13 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DeltaHistoryStore
-import com.convergencelabs.convergence.server.db.{DatabaseProvider, DomainDatabaseFactory}
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
+import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseFactory}
+import com.convergencelabs.convergence.server.model.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.db.{OrientDB, OrientDBConfig}
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 

@@ -16,7 +16,7 @@ import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.UserSessionTokenClass
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}

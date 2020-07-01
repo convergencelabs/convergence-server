@@ -17,7 +17,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.permissio
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event.ChatEventMessageProcessorResult
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatDeliveryActor, ChatState}
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 
 /**
  * Processes messages for a Private Chats. The main things this cl

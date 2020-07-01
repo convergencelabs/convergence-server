@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayValueMapper.{ArrayValueToODocument, ODocumentToArrayValue, DocumentClassName => ArrayValueDocName, OpDocumentClassName => ArrayOpValueDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanValueMapper.{BooleanValueToODocument, ODocumentToBooleanValue, DocumentClassName => BooleanValueDocName, OpDocumentClassName => BooleanOpValueDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateValueMapper.{DateValueToODocument, ODocumentToDateValue, DocumentClassName => DateValueDocName, OpDocumentClassName => DateOpValueDocName}
@@ -18,8 +19,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.map
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NullValueMapper.{NullValueToODocument, ODocumentToNullValue, DocumentClassName => NullValueDocName, OpDocumentClassName => NullOpValueDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.{ODocumentToObjectValue, ObjectValueToODocument, DocumentClassName => ObjectValueDocName, OpDocumentClassName => ObjectOpValueDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringValueMapper.{ODocumentToStringValue, StringValueToODocument, DocumentClassName => StringValueDocName, OpDocumentClassName => StringOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.data._
+import com.convergencelabs.convergence.server.model.domain.model._
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.language.implicitConversions

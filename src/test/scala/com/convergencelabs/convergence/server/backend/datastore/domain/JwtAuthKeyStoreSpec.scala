@@ -15,8 +15,8 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.model.domain.jwt
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtAuthKey
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}

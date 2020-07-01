@@ -17,17 +17,18 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.{Ok, PagedDataResult}
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.{ChatNotFoundException, ChatStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors._
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatEvent, ChatInfo, ChatMembership, ChatType}
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
@@ -407,7 +408,7 @@ object ChatActor {
 
   sealed trait ChatPermissionsRequest[R] extends ChatRequestMessage {
     val replyTo: ActorRef[R]
-    val requester: DomainSessionId
+    val requester: DomainSessionAndUserId
   }
 
   //
@@ -415,7 +416,7 @@ object ChatActor {
   //
   final case class AddChatPermissionsRequest(domainId: DomainId,
                                              chatId: String,
-                                             requester: DomainSessionId,
+                                             requester: DomainSessionAndUserId,
                                              world: Option[Set[String]],
                                              user: Option[Set[UserPermissions]],
                                              group: Option[Set[GroupPermissions]],
@@ -437,7 +438,7 @@ object ChatActor {
   //
   final case class RemoveChatPermissionsRequest(domainId: DomainId,
                                                 chatId: String,
-                                                requester: DomainSessionId,
+                                                requester: DomainSessionAndUserId,
                                                 world: Option[Set[String]],
                                                 user: Option[Set[UserPermissions]],
                                                 group: Option[Set[GroupPermissions]],
@@ -459,7 +460,7 @@ object ChatActor {
   //
   final case class SetChatPermissionsRequest(domainId: DomainId,
                                              chatId: String,
-                                             requester: DomainSessionId,
+                                             requester: DomainSessionAndUserId,
                                              world: Option[Set[String]],
                                              user: Option[Set[UserPermissions]],
                                              group: Option[Set[GroupPermissions]],
@@ -481,7 +482,7 @@ object ChatActor {
   //
   final case class GetClientChatPermissionsRequest(domainId: DomainId,
                                                    chatId: String,
-                                                   requester: DomainSessionId,
+                                                   requester: DomainSessionAndUserId,
                                                    replyTo: ActorRef[GetClientChatPermissionsResponse]) extends ChatPermissionsRequest[GetClientChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -500,7 +501,7 @@ object ChatActor {
   //
   final case class GetWorldChatPermissionsRequest(domainId: DomainId,
                                                   chatId: String,
-                                                  requester: DomainSessionId,
+                                                  requester: DomainSessionAndUserId,
                                                   replyTo: ActorRef[GetWorldChatPermissionsResponse]) extends ChatPermissionsRequest[GetWorldChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -519,7 +520,7 @@ object ChatActor {
   //
   final case class GetAllUserChatPermissionsRequest(domainId: DomainId,
                                                     chatId: String,
-                                                    requester: DomainSessionId,
+                                                    requester: DomainSessionAndUserId,
                                                     replyTo: ActorRef[GetAllUserChatPermissionsResponse]) extends ChatPermissionsRequest[GetAllUserChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -538,7 +539,7 @@ object ChatActor {
   //
   final case class GetAllGroupChatPermissionsRequest(domainId: DomainId,
                                                      chatId: String,
-                                                     requester: DomainSessionId,
+                                                     requester: DomainSessionAndUserId,
                                                      replyTo: ActorRef[GetAllGroupChatPermissionsResponse]) extends ChatPermissionsRequest[GetAllGroupChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -557,7 +558,7 @@ object ChatActor {
   //
   final case class GetUserChatPermissionsRequest(domainId: DomainId,
                                                  chatId: String,
-                                                 requester: DomainSessionId,
+                                                 requester: DomainSessionAndUserId,
                                                  userId: DomainUserId,
                                                  replyTo: ActorRef[GetUserChatPermissionsResponse]) extends ChatPermissionsRequest[GetUserChatPermissionsResponse]
 
@@ -577,7 +578,7 @@ object ChatActor {
   //
   final case class GetGroupChatPermissionsRequest(domainId: DomainId,
                                                   chatId: String,
-                                                  requester: DomainSessionId,
+                                                  requester: DomainSessionAndUserId,
                                                   groupId: String,
                                                   replyTo: ActorRef[GetGroupChatPermissionsResponse]) extends ChatPermissionsRequest[GetGroupChatPermissionsResponse]
 
@@ -600,7 +601,7 @@ object ChatActor {
   //
   final case class GetChatHistoryRequest(domainId: DomainId,
                                          chatId: String,
-                                         requester: Option[DomainSessionId],
+                                         requester: Option[DomainSessionAndUserId],
                                          @JsonDeserialize(contentAs = classOf[Long])
                                          offset: QueryOffset,
                                          @JsonDeserialize(contentAs = classOf[Long])

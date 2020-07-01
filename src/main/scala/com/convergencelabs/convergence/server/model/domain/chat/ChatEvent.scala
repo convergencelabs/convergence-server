@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.datastore.domain.chat
+package com.convergencelabs.convergence.server.model.domain.chat
 
 import java.time.Instant
 

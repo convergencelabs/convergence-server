@@ -13,8 +13,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.domain.model.data._
-
+import com.convergencelabs.convergence.server.model.domain.model._
 
 object ModelDataGenerator {
   def apply(data: Map[String, Any]): ObjectValue = {

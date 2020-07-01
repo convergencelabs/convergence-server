@@ -9,20 +9,21 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db
+package com.convergencelabs.convergence.server.backend.db
 
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.backend.datastore.convergence.UserStore.User
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
-import com.convergencelabs.convergence.server.db.provision.DomainProvisioner
-import com.convergencelabs.convergence.server.db.provision.DomainProvisioner.ProvisionRequest
-import com.convergencelabs.convergence.server.db.provision.DomainProvisionerActor.ProvisionDomainResponse
-import com.convergencelabs.convergence.server.db.schema.ConvergenceSchemaManager
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner
+import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner.ProvisionRequest
+import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor.ProvisionDomainResponse
+import com.convergencelabs.convergence.server.backend.db.schema.ConvergenceSchemaManager
+import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
@@ -44,7 +45,7 @@ import scala.util.{Failure, Success, Try}
  * @param ec     An execution context to use for asynchronous operations.
  */
 private[db] class ConvergenceDatabaseInitializer(private[this] val config: Config,
-                                     private[this] val ec: ExecutionContextExecutor) extends Logging {
+                                                 private[this] val ec: ExecutionContextExecutor) extends Logging {
 
   private[this] val persistenceConfig = config.getConfig("convergence.persistence")
   private[this] val dbServerConfig = persistenceConfig.getConfig("server")
@@ -181,7 +182,7 @@ private[db] class ConvergenceDatabaseInitializer(private[this] val config: Confi
   /**
    * Creates or updates the ConvergenceServer's default admin user.
    *
-   * @param dbProvider [[com.convergencelabs.convergence.server.db.DatabaseProvider]] that points to the convergence database.
+   * @param dbProvider [[com.convergencelabs.convergence.server.backend.db.DatabaseProvider]] that points to the convergence database.
    * @param config     The ConvergenceServer's Config.
    */
   private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {

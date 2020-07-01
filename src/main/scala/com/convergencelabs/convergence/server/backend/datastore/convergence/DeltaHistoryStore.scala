@@ -13,10 +13,10 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import java.util.Date
 
-import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.{ConvergenceDeltaClass, ConvergenceDeltaHistoryClass, DomainDeltaClass, DomainDeltaHistoryClass}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging

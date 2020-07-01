@@ -14,12 +14,12 @@ package com.convergencelabs.convergence.server.backend.services.domain
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserField
 import com.convergencelabs.convergence.server.backend.datastore.{EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.model.domain.group.UserGroup
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
@@ -98,9 +98,9 @@ class IdentityServiceActor private[domain](context: ActorContext[IdentityService
     val IdentityResolutionRequest(sessionIds, userIds, replyTo) = msg
     (for {
       sessions <- persistenceProvider.sessionStore.getSessions(sessionIds)
-      sessionMap <- Success(sessions.map(session => (session.id.sessionId, session.id.userId)).toMap)
+      sessionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
       users <- persistenceProvider.userStore.getDomainUsers(
-        (userIds ++ sessions.map(_.id.userId)).toList)
+        (userIds ++ sessions.map(_.userId)).toList)
     } yield IdentityResolution(sessionMap, users.toSet))
       .map(r => IdentityResolutionResponse(Right(r)))
       .recover { cause =>

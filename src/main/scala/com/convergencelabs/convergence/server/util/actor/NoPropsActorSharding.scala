@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.actor
+package com.convergencelabs.convergence.server.util.actor
 
 import akka.NotUsed
 import akka.actor.typed.{ActorRef, Behavior}

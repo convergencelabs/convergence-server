@@ -14,9 +14,9 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model
 import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.model.NewModelOperation
-import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument

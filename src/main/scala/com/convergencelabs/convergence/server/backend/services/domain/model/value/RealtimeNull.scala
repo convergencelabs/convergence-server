@@ -9,16 +9,16 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{AppliedDiscreteOperation, DiscreteOperation}
 import com.convergencelabs.convergence.server.model.domain.model.NullValue
 
 import scala.util.{Failure, Try}
 
-class RealtimeNull(private[this] val value: NullValue,
-                   private[this] val parent: Option[RealtimeContainerValue],
-                   private[this] val parentField: Option[Any])
+private[model] class RealtimeNull(value: NullValue,
+                                  parent: Option[RealtimeContainerValue],
+                                  parentField: Option[Any])
   extends RealtimeValue(value.id, parent, parentField, List()) {
 
   def data(): Null = {

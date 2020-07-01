@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.CompoundOperationMapper.{CompoundOperationToODocument, ODocumentToCompoundOperation}
-import com.convergencelabs.convergence.server.domain.model.data.{DataValue, StringValue}
-import com.convergencelabs.convergence.server.domain.model.ot.{AppliedArrayRemoveOperation, AppliedCompoundOperation, AppliedObjectSetOperation}
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{AppliedArrayRemoveOperation, AppliedCompoundOperation, AppliedObjectSetOperation}
+import com.convergencelabs.convergence.server.model.domain.model.{DataValue, StringValue}
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

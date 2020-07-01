@@ -13,4 +13,4 @@ package com.convergencelabs.convergence.server.model.domain.session
 
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-final case class DomainSessionId(sessionId: String, userId: DomainUserId)
+final case class DomainSessionAndUserId(sessionId: String, userId: DomainUserId)

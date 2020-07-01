@@ -20,9 +20,9 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.schema
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.session
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionId}
+import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -39,11 +39,11 @@ object SessionStore {
 
   import schema.DomainSessionClass._
 
-  def sessionToDoc(session: DomainSession, db: ODatabaseDocument): Try[ODocument] = {
-    DomainUserStore.getUserRid(session.id.userId, db).recoverWith {
+  private def sessionToDoc(session: DomainSession, db: ODatabaseDocument): Try[ODocument] = {
+    DomainUserStore.getUserRid(session.userId, db).recoverWith {
       case cause: Throwable =>
         Failure(new IllegalArgumentException(
-          s"Could not create/update session because the user could not be found: ${session.id.userId}", cause))
+          s"Could not create session because the user could not be found: ${session.userId}", cause))
     }.map { userLink =>
       val doc: ODocument = db.newInstance(ClassName)
       doc.setProperty(Fields.Id, session.id)
@@ -59,15 +59,15 @@ object SessionStore {
     }
   }
 
-  def docToSession(doc: ODocument): DomainSession = {
+  private def docToSession(doc: ODocument): DomainSession = {
     val username: String = doc.eval("user.username").asInstanceOf[String]
     val userType: String = doc.eval("user.userType").asInstanceOf[String]
     val connected: Date = doc.field(Fields.Connected, OType.DATE)
     val disconnected: Option[Date] = Option(doc.field(Fields.Disconnected, OType.DATE).asInstanceOf[Date])
 
-    val sessionId = DomainSessionId(doc.field(Fields.Id), DomainUserId(DomainUserType.withName(userType), username))
     session.DomainSession(
-      sessionId,
+      doc.field(Fields.Id),
+      DomainUserId(DomainUserType.withName(userType), username),
       connected.toInstant,
       disconnected map {
         _.toInstant()
@@ -79,16 +79,9 @@ object SessionStore {
       doc.field(Fields.RemoteHost))
   }
 
-  def getDomainSessionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
+  private[domain ]def getDomainSessionRid(id: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, Indices.Id, id)
   }
-
-  object SessionQueryType extends Enumeration {
-    val Normal, Anonymous, Convergence, All, ExcludeConvergence = Value
-
-    def withNameOpt(s: String): Option[Value] = values.find(_.toString.toLowerCase() == s.toLowerCase())
-  }
-
 }
 
 class SessionStore(dbProvider: DatabaseProvider)

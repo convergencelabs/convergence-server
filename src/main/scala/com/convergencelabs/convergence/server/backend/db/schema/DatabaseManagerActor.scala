@@ -9,14 +9,14 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
 class DatabaseManagerActor private(context: ActorContext[DatabaseManagerActor.Message],

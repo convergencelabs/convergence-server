@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.data.BooleanValue
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
+import com.convergencelabs.convergence.server.model.domain.model.BooleanValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.language.implicitConversions

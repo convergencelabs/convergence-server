@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors
 
 import akka.actor.typed.ActorRef
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 
 private[chat] class ChatRoomClientManager {

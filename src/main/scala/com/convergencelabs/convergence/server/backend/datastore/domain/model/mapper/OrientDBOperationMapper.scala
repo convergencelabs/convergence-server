@@ -28,7 +28,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.map
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringInsertOperationMapper.{ODocumentToStringInsertOperation, StringInsertOperationToODocument, DocumentClassName => StringInsertDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringRemoveOperationMapper.{ODocumentToStringRemoveOperation, StringRemoveOperationToODocument, DocumentClassName => StringRemoveDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSetOperationMapper.{ODocumentToStringSetOperation, StringSetOperationToODocument, DocumentClassName => StringSetDocName}
-import com.convergencelabs.convergence.server.domain.model.ot._
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 object OrientDBOperationMapper {

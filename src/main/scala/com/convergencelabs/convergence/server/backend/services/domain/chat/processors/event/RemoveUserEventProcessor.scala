@@ -14,8 +14,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat.proc
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ChatPermissionTarget
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{CommonErrors, RemoveUserFromChatRequest, RemoveUserFromChatResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.ReplyAndBroadcastTask

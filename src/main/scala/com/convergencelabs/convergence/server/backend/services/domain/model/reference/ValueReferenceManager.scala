@@ -13,6 +13,8 @@ package com.convergencelabs.convergence.server.backend.services.domain.model.ref
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.{SetReference, ShareReference}
 import com.convergencelabs.convergence.server.backend.services.domain.model._
+import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeValue
+import com.convergencelabs.convergence.server.model.domain.model.{IndexReferenceValues, ModelReferenceValues, PropertyReferenceValues, RangeReferenceValues}
 
 import scala.util.{Failure, Success, Try}
 
@@ -26,7 +28,7 @@ import scala.util.{Failure, Success, Try}
  *                          references for.
  * @param validValueClasses The valid value types that this instance accepts.
  */
-class ValueReferenceManager(source: RealtimeValue, validValueClasses: List[Class[_ <: ModelReferenceValues]])
+private[model] class ValueReferenceManager(source: RealtimeValue, validValueClasses: List[Class[_ <: ModelReferenceValues]])
   extends AbstractReferenceManager[RealtimeValue](source) {
 
   override protected def processReferenceShared(event: ShareReference): Try[Unit] = {

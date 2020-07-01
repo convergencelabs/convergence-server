@@ -9,12 +9,13 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db
+package com.convergencelabs.convergence.server.backend.db
 
 import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DomainStore
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.DomainClass
-import com.convergencelabs.convergence.server.model.domain.{DomainDatabase, DomainId}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.domain.DomainDatabase
 
 import scala.util.{Failure, Success, Try}
 

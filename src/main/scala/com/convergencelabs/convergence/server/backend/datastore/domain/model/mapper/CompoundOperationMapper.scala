@@ -13,8 +13,8 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 
 import java.util.{List => JavaList}
 
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedCompoundOperation
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedCompoundOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 

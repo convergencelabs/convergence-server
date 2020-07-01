@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore
 
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 
 import scala.util.Try
 

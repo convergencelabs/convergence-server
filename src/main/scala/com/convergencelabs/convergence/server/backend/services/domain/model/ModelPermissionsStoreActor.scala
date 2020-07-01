@@ -14,10 +14,11 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelPermissions, ModelPermissionsStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissionsStore
+import com.convergencelabs.convergence.server.model.domain.model.{ModelPermissions, ModelPermissionsData, ModelUserPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
@@ -372,13 +373,4 @@ object ModelPermissionsStoreActor {
     with SetModelWorldPermissionsError
     with SetModelUserPermissionsError
     with RemoveModelUserPermissionsError
-
-
-  //
-  // Data Classes
-  //
-  final case class ModelUserPermissions(userId: DomainUserId, permissions: ModelPermissions)
-
-  final case class ModelPermissionsData(overrideWorld: Boolean, worldPermissions: ModelPermissions, userPermissions: List[ModelUserPermissions])
-
 }

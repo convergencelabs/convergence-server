@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.{PositionalInsertAwareReference, PositionalRemoveAwareReference}
@@ -17,9 +17,9 @@ import com.convergencelabs.convergence.server.model.domain.model.{IndexReference
 
 import scala.util.{Failure, Success, Try}
 
-class RealtimeString(private[this] val value: StringValue,
-                     private[this] val parent: Option[RealtimeContainerValue],
-                     private[this] val parentField: Option[Any])
+private[model] class RealtimeString(value: StringValue,
+                                    parent: Option[RealtimeContainerValue],
+                                    parentField: Option[Any])
   extends RealtimeValue(
     value.id,
     parent,

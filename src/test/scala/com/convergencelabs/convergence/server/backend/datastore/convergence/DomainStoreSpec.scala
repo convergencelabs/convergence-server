@@ -13,10 +13,11 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain._
-import com.convergencelabs.convergence.server.model.domain.{DomainDatabase, DomainId, DomainStatus, Namespace}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.model.server.domain
+import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus, Namespace}
+import com.convergencelabs.convergence.server.model.{DomainId, server}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -84,7 +85,7 @@ class DomainStoreSpec
     "creating a domain" must {
       "insert the domain correct record into the database" in withTestData { stores =>
         val fqn = DomainId(Namespace1.id, "test4")
-        val domain = Domain(fqn, "Test Domain 4", DomainStatus.Initializing, "")
+        val domain = server.domain.Domain(fqn, "Test Domain 4", DomainStatus.Initializing, "")
         stores.domain.createDomain(fqn, "Test Domain 4", DomainDatabase("db", "", "", "", "")).get
         stores.domain.getDomainByFqn(fqn).get.value shouldBe domain
       }
@@ -130,7 +131,7 @@ class DomainStoreSpec
       }
 
       "fail to update an non-existing domain" in withTestData { stores =>
-        val toUpdate = Domain(DomainId(namespace1, domain3), "Updated", DomainStatus.Online, "")
+        val toUpdate = domain.Domain(DomainId(namespace1, domain3), "Updated", DomainStatus.Online, "")
         stores.domain.updateDomain(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }

@@ -14,9 +14,9 @@ package com.convergencelabs.convergence.server.backend.services.domain.config
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 class ConfigStoreActor private(context: ActorContext[ConfigStoreActor.Message],

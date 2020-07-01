@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 object OrientType extends Enumeration {
   val  Boolean, Integer, Short, Long, Float, Double,

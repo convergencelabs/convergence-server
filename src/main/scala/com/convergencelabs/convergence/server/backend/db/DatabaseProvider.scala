@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db
+package com.convergencelabs.convergence.server.backend.db
 
 import com.convergencelabs.convergence.server.util.TryWithResource
 import com.orientechnologies.orient.core.config.OGlobalConfiguration

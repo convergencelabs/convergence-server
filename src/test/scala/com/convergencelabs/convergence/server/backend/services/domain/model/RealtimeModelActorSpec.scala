@@ -18,19 +18,18 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding.Passivate
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.api.realtime
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{CollectionPermissions, ModelPermissions}
-import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.{ModelAlreadyExistsError, UnknownError}
-import com.convergencelabs.convergence.server.backend.services.domain.model.data.{NullValue, ObjectValue, StringValue}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{ObjectAddPropertyOperation, ObjectRemovePropertyOperation}
-import com.convergencelabs.convergence.server.model.domain.collection.Collection
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
-import com.convergencelabs.convergence.server.model.domain.{DomainId, ModelSnapshotConfig, session}
+import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions}
+import com.convergencelabs.convergence.server.model.domain.model._
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.model.domain.{ModelSnapshotConfig, session}
+import com.convergencelabs.convergence.server.model.{DomainId, domain}
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
 import org.mockito.Matchers.any
 import org.mockito.Mockito.{times, verify}
@@ -104,7 +103,7 @@ class RealtimeModelActorSpec
             client1.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
           assert(dataRequest1.autoConfigId == 1)
 
-          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainSessionId(session2, uid2), client2.ref, replyTo2.ref)
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), DomainSessionAndUserId(session2, uid2), client2.ref, replyTo2.ref)
           val dataRequest2: ModelClientActor.ClientAutoCreateModelConfigRequest =
             client2.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
           assert(dataRequest2.autoConfigId == 1)
@@ -140,7 +139,7 @@ class RealtimeModelActorSpec
           realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), skU1S1, client1.ref, replyTo1.ref)
           val req1 = client1.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), session.DomainSessionId(session2, uid2), client2.ref, replyTo2.ref)
+          realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), session.DomainSessionAndUserId(session2, uid2), client2.ref, replyTo2.ref)
           val req2 = client2.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
           // Now mock that the data is there.
@@ -212,7 +211,7 @@ class RealtimeModelActorSpec
 
       "respond with an error for an invalid cId" in new MockDatabaseWithModel with OneOpenClient {
         val closeReply: TestProbe[RealtimeModelActor.CloseRealtimeModelResponse] = testKit.createTestProbe()
-        realtimeModelActor ! RealtimeModelActor.CloseRealtimeModelRequest(domainFqn, modelId, session.DomainSessionId("invalidCId", uid1), closeReply.ref)
+        realtimeModelActor ! RealtimeModelActor.CloseRealtimeModelRequest(domainFqn, modelId, session.DomainSessionAndUserId("invalidCId", uid1), closeReply.ref)
         val response: RealtimeModelActor.CloseRealtimeModelResponse =
           closeReply.expectMessageType[RealtimeModelActor.CloseRealtimeModelResponse](FiniteDuration(1, TimeUnit.SECONDS))
         assert(response.response.isLeft)
@@ -232,7 +231,7 @@ class RealtimeModelActorSpec
             replyTo1.expectMessageType[RealtimeModelActor.OpenRealtimeModelResponse](FiniteDuration(1, TimeUnit.SECONDS))
           assert(client1Response.response.isRight)
 
-          val s2 = session.DomainSessionId(session2, uid2)
+          val s2 = session.DomainSessionAndUserId(session2, uid2)
           realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(
             domainFqn, modelId, Some(1), s2, client2.ref, replyTo2.ref)
           val client2Response: RealtimeModelActor.OpenRealtimeModelResponse =
@@ -348,7 +347,7 @@ class RealtimeModelActorSpec
             any(),
             any(),
             any()))
-            .thenReturn(Success(Model(ModelMetaData(noModelId, collectionId, 0, now, now, overridePermissions = true, modelPermissions, 1), data)))
+            .thenReturn(Success(domain.model.Model(domain.model.ModelMetaData(noModelId, collectionId, 0, now, now, overridePermissions = true, modelPermissions, 1), data)))
 
           Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
           val createReplyTo: TestProbe[RealtimeModelActor.CreateRealtimeModelResponse] = testKit.createTestProbe()
@@ -419,7 +418,7 @@ class RealtimeModelActorSpec
 
       "respond with a GetModelPermissionsResponse if the model exists and the user has read permissions" in new MockDatabaseWithModel {
         Mockito.when(modelPermissionsResolver.getModelPermissions(any(), any())).thenReturn(
-          Success(ModelPermissionResult(overrideCollection = false, ModelPermissions(read = true, write = true, remove = true, manage = true), Map())))
+          Success(ResolvedModelPermission(overrideCollection = false, ModelPermissions(read = true, write = true, remove = true, manage = true), Map())))
         Mockito.when(modelPermissionsResolver.getModelUserPermissions(any(), any(), any()))
           .thenReturn(Success(ModelPermissions(read = true, write = true, remove = true, manage = true)))
         val client: TestProbe[RealtimeModelActor.GetModelPermissionsResponse] = testKit.createTestProbe()
@@ -488,7 +487,7 @@ class RealtimeModelActorSpec
 
     val now: Instant = Instant.now()
 
-    val skU1S1: DomainSessionId = session.DomainSessionId(session1, uid1)
+    val skU1S1: DomainSessionAndUserId = session.DomainSessionAndUserId(session1, uid1)
 
     val modelPermissions: ModelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
@@ -497,10 +496,10 @@ class RealtimeModelActorSpec
     val modelJsonData: ObjectValue = ObjectValue("vid1", Map("key" -> StringValue("vid2", "value")))
     val modelCreateTime: Instant = Instant.ofEpochMilli(2L)
     val modelModifiedTime: Instant = Instant.ofEpochMilli(3L)
-    val modelData: Model = Model(ModelMetaData(
+    val modelData: Model = domain.model.Model(domain.model.ModelMetaData(
       modelId, collectionId, 1, modelCreateTime, modelModifiedTime, overridePermissions = true, modelPermissions, 1), modelJsonData)
     val modelSnapshotTime: Instant = Instant.ofEpochMilli(2L)
-    val modelSnapshotMetaData: ModelSnapshotMetaData = ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
+    val modelSnapshotMetaData: ModelSnapshotMetaData = domain.model.ModelSnapshotMetaData(modelId, 1L, modelSnapshotTime)
 
     val persistenceProvider = new MockDomainPersistenceProvider(domainFqn)
     val persistenceManager = new MockDomainPersistenceManager(Map(domainFqn -> persistenceProvider))
@@ -582,7 +581,7 @@ class RealtimeModelActorSpec
     val replyTo2: TestProbe[RealtimeModelActor.OpenRealtimeModelResponse] = testKit.createTestProbe()
     val client2: TestProbe[ModelClientActor.OutgoingMessage] = testKit.createTestProbe()
 
-    realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), session.DomainSessionId(session2, uid2), client2.ref, replyTo2.ref)
+    realtimeModelActor ! RealtimeModelActor.OpenRealtimeModelRequest(domainFqn, modelId, Some(1), session.DomainSessionAndUserId(session2, uid2), client2.ref, replyTo2.ref)
     val client2OpenResponse: RealtimeModelActor.OpenRealtimeModelResponse =
       replyTo2.expectMessageType[RealtimeModelActor.OpenRealtimeModelResponse](FiniteDuration(1, TimeUnit.SECONDS))
     assert(client2OpenResponse.response.isRight)
@@ -600,7 +599,7 @@ class RealtimeModelActorSpec
       any(),
       any(),
       any()))
-      .thenReturn(Success(Model(ModelMetaData(collectionId, noModelId, 0, now, now, overridePermissions = true, modelPermissions, 1), modelJsonData)))
+      .thenReturn(Success(domain.model.Model(domain.model.ModelMetaData(collectionId, noModelId, 0, now, now, overridePermissions = true, modelPermissions, 1), modelJsonData)))
 
     Mockito.when(persistenceProvider.modelStore.modelExists(modelId)).thenReturn(Success(false))
   }

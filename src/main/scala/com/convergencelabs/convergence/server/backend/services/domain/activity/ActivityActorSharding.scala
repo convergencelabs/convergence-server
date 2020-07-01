@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.activity
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.actor.NoPropsActorSharding
+import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
 
 object ActivityActorSharding  {
   private val EntityName = "Activities"

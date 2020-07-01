@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 
 case class ConvergenceDelta(deltaNo: Int, value: String)
 case class ConvergenceDeltaHistory(delta: ConvergenceDelta, status: String, message: Option[String], date: Instant)

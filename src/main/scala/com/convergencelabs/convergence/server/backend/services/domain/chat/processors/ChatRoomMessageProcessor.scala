@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.permissio
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
 import com.convergencelabs.convergence.server.backend.services.domain.chat._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event.{ChatEventMessageProcessorResult, JoinEventProcessor}
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 
 /**

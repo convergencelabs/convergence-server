@@ -9,11 +9,11 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db
+package com.convergencelabs.convergence.server.backend.db
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success}

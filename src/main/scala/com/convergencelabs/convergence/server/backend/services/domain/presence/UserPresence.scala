@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.services.domain.presence
 
 import akka.actor.typed.ActorRef
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.api.realtime.PresenceClientActor
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import org.json4s.JsonAST.JValue
 
 case class UserPresence(userId: DomainUserId,

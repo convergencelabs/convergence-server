@@ -9,12 +9,11 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.datastore.domain.chat
+package com.convergencelabs.convergence.server.model.domain.chat
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 
 import scala.util.{Failure, Success, Try}
-
 
 object ChatType extends Enumeration {
   val Channel, Room, Direct = Value

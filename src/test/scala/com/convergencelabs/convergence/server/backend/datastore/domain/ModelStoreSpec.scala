@@ -14,15 +14,15 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import java.text.SimpleDateFormat
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.api.rest.DataValueToJValue
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissions, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.data.{ObjectValue, StringValue}
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
-import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.services.domain.model.ModelQueryResult
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model._
+import com.convergencelabs.convergence.server.util.{DataValueToJValue, QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -63,7 +63,7 @@ class ModelStoreSpec
   private val person1Model = Model(person1MetaData, person1Data)
 
   private val person2Id = "person2"
-  private val person2MetaData = ModelMetaData(
+  private val person2MetaData = model.ModelMetaData(
     person2Id,
     peopleCollectionId,
     1,
@@ -73,10 +73,10 @@ class ModelStoreSpec
     modelPermissions,
     1)
   private val person2Data = ObjectValue("1:0", Map("name" -> StringValue("1:1", "person2")))
-  private val person2Model = Model(person2MetaData, person2Data)
+  private val person2Model = model.Model(person2MetaData, person2Data)
 
   private val person3Id = "person3"
-  private val person3MetaData = ModelMetaData(
+  private val person3MetaData = model.ModelMetaData(
     person3Id,
     peopleCollectionId,
     1,
@@ -86,11 +86,11 @@ class ModelStoreSpec
     modelPermissions,
     1)
   private val person3Data = ObjectValue("2:0", Map("name" -> StringValue("2:1", "person3")))
-  private val person3Model = Model(person3MetaData, person3Data)
+  private val person3Model = model.Model(person3MetaData, person3Data)
 
   private val companyCollectionId = "company"
   private val company1Id = "company1"
-  private val company1MetaData = ModelMetaData(
+  private val company1MetaData = model.ModelMetaData(
     company1Id,
     companyCollectionId,
     1,
@@ -100,7 +100,7 @@ class ModelStoreSpec
     modelPermissions,
     1)
   private val company1Data = ObjectValue("3:0", Map("name" -> StringValue("3:1", "company")))
-  private val company1Model = Model(company1MetaData, company1Data)
+  private val company1Model = model.Model(company1MetaData, company1Data)
 
   private val notRealId = "notRealModel"
 

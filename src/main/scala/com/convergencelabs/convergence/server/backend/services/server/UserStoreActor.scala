@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.datastore.convergence
+package com.convergencelabs.convergence.server.backend.services.server
 
 import java.util.concurrent.TimeUnit
 
@@ -19,10 +19,12 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
-import com.convergencelabs.convergence.server.backend.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{RoleStore, UserStore}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
+import com.convergencelabs.convergence.server.model.server.role.ServerRoleTarget
+import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize

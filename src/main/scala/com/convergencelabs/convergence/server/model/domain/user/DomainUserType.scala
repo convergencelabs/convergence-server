@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.model.domain.user
+package com.convergencelabs.convergence.server.model.domain.user
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 

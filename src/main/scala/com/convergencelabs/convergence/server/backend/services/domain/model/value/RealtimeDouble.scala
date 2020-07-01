@@ -9,16 +9,16 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.model.domain.model.DoubleValue
 
 import scala.util.{Failure, Success, Try}
 
-class RealtimeDouble(private[this] val value: DoubleValue,
-                     private[this] val parent: Option[RealtimeContainerValue],
-                     private[this] val parentField: Option[Any])
+private[model] class RealtimeDouble(value: DoubleValue,
+                                    parent: Option[RealtimeContainerValue],
+                                    parentField: Option[Any])
   extends RealtimeValue(value.id, parent, parentField, List()) {
 
   var double: Double = value.value

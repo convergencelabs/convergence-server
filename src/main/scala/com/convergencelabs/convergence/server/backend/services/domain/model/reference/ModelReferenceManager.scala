@@ -12,7 +12,8 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.{SetReference, ShareReference}
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ElementReferenceValues, RealtimeModel, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{RealtimeModel, RealtimeModelActor}
+import com.convergencelabs.convergence.server.model.domain.model.ElementReferenceValues
 
 import scala.util.{Failure, Success, Try}
 
@@ -24,7 +25,7 @@ import scala.util.{Failure, Success, Try}
  * @param source The [[RealtimeModel]] this ModelReferenceManager manages
  *               references for.
  */
-class ModelReferenceManager(source: RealtimeModel) extends AbstractReferenceManager[RealtimeModel](source) {
+private[model] class ModelReferenceManager(source: RealtimeModel) extends AbstractReferenceManager[RealtimeModel](source) {
 
   override protected def processReferenceShared(event: ShareReference): Try[Unit] = Try {
     val reference = event.values match {

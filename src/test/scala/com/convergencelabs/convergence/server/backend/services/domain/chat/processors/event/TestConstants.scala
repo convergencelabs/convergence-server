@@ -15,7 +15,8 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatState
-import com.convergencelabs.convergence.server.model.domain.{DomainId, chat}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.chat
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatType}
 
 trait TestConstants {

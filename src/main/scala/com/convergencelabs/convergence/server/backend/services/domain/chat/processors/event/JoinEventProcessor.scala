@@ -11,17 +11,16 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ChatPermissionTarget
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{CommonErrors, JoinChatRequest, JoinChatResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver.hasPermissions
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions, ChatState}
 import com.convergencelabs.convergence.server.model.domain.chat
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatInfo, ChatMember, ChatMembership, ChatUserJoinedEvent}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Success, Try}
 

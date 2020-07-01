@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateSetOperationMapper.{DateSetOperationToODocument, ODocumentToDateSetOperation}
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedDateSetOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedDateSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

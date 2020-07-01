@@ -11,10 +11,10 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.RangeReferenceValues
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.StringRemoveOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.{IndexTransformer, ReferenceTransformationFunction}
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.RangeReference
+import com.convergencelabs.convergence.server.model.domain.model.RangeReferenceValues
 
 object StringRemoveRangeTF extends ReferenceTransformationFunction[StringRemoveOperation, RangeReferenceValues] {
   def transform(op: StringRemoveOperation, values: RangeReferenceValues): Option[RangeReferenceValues] = {

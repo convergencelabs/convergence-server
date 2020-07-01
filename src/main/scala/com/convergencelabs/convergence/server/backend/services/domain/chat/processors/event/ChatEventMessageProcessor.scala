@@ -14,13 +14,13 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat.proc
 import java.time.Instant
 
 import akka.actor.typed.ActorRef
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{ChatEventRequest, CommonErrors}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatState}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success, Try}

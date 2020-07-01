@@ -13,8 +13,9 @@ package com.convergencelabs.convergence.server.backend.services.domain.stats
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
+import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionQueryType
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.annotation.nowarn

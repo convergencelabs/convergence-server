@@ -11,8 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ChatPermissionTarget
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{GetClientChatPermissionsRequest, GetClientChatPermissionsResponse, UnknownError}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatPermissionResolver, ChatPermissions}
 import grizzled.slf4j.Logging

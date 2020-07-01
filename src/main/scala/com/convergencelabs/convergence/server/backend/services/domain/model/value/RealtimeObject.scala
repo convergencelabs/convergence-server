@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.PropertyRemoveAwareReference
@@ -18,10 +18,10 @@ import com.convergencelabs.convergence.server.model.domain.model.{ObjectValue, P
 
 import scala.util.{Failure, Success, Try}
 
-class RealtimeObject(private[this] val value: ObjectValue,
-                     private[this] val parent: Option[RealtimeContainerValue],
-                     private[this] val parentField: Option[Any],
-                     private[this] val valueFactory: RealtimeValueFactory)
+private[model] class RealtimeObject(value: ObjectValue,
+                                    parent: Option[RealtimeContainerValue],
+                                    parentField: Option[Any],
+                                    valueFactory: RealtimeValueFactory)
   extends RealtimeContainerValue(value.id, parent, parentField, List(classOf[PropertyReferenceValues])) {
 
   private[this] var childValues: Map[String, RealtimeValue] = value.children.map {

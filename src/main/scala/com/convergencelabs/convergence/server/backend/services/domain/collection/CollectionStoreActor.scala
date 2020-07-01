@@ -14,10 +14,10 @@ package com.convergencelabs.convergence.server.backend.services.domain.collectio
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.{Ok, PagedData}
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionSummary}
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize

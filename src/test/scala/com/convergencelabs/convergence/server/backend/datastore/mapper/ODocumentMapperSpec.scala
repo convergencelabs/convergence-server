@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.mapper
 
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

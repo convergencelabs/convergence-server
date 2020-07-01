@@ -11,13 +11,13 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissions.ChatPermission
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Success, Try}
 
-object ChatPermissionResolver {
+private[chat] object ChatPermissionResolver {
 
   def hasPermissions(permissionsStore: PermissionsStore,
                      chatId: String)(userId: DomainUserId, permission: ChatPermission): Try[Boolean] = {

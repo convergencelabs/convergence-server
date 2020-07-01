@@ -16,11 +16,11 @@ import java.time.{Duration, Instant}
 import java.util.Date
 
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore._
-import com.convergencelabs.convergence.server.backend.datastore.domain.schema.{DomainSchema, UserCredentialClass}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.datastore.domain.schema.{DomainSchema, UserCredentialClass}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.PasswordUtil
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset, RandomStringGenerator}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument

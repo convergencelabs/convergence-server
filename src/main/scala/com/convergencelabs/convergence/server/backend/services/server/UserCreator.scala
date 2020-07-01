@@ -9,11 +9,12 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.datastore.convergence
+package com.convergencelabs.convergence.server.backend.services.server
 
-import com.convergencelabs.convergence.server.backend.datastore.convergence.UserStore.User
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{NamespaceStore, RoleStore, UserStore}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.server.role.{NamespaceRoleTarget, ServerRoleTarget}
+import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
 import grizzled.slf4j.Logging

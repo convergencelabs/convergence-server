@@ -9,21 +9,21 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 import java.io.FileNotFoundException
 
-import com.convergencelabs.convergence.server.db.schema.DeltaManager.{DeltaBasePath, IndexFileName}
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaManager.{DeltaBasePath, IndexFileName}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import org.json4s.{DefaultFormats, Extraction}
 import org.json4s.jackson.JsonMethods
+import org.json4s.{DefaultFormats, Extraction}
 
 import scala.util.Try
 
 object DeltaCategory extends Enumeration {
-  val Convergence = Value("convergence")
-  val Domain = Value("domain")
+  val Convergence: DeltaCategory.Value = Value("convergence")
+  val Domain: DeltaCategory.Value = Value("domain")
 }
 
 object DeltaManager {
@@ -51,12 +51,12 @@ object DeltaManager {
 class DeltaManager(alternateBasePath: Option[String]) {
 
   private[this] val mapper = new ObjectMapper(new YAMLFactory())
-  private[this] implicit val format = DefaultFormats
-  val deltaBasePath = alternateBasePath getOrElse (DeltaBasePath)
+  private[this] implicit val format: DefaultFormats.type = DefaultFormats
+  private[this] val deltaBasePath = alternateBasePath getOrElse DeltaBasePath
 
   def manifest(deltaCategory: DeltaCategory.Value): Try[DeltaManifest] = {
-    val deltaPath = s"${deltaBasePath}${deltaCategory}/"
-    val indexPath = s"${deltaPath}${IndexFileName}"
+    val deltaPath = s"$deltaBasePath$deltaCategory/"
+    val indexPath = s"$deltaPath$IndexFileName"
     loadDeltaIndex(indexPath) map { index =>
       new DeltaManifest(deltaPath, index)
     }

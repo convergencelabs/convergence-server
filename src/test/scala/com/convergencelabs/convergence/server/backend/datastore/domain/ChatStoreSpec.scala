@@ -16,9 +16,10 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.model.domain.{DomainId, chat}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.chat
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatMember, ChatMembership, ChatMessageEvent, ChatNameChangedEvent, ChatTopicChangedEvent, ChatType, ChatUserAddedEvent, ChatUserJoinedEvent, ChatUserLeftEvent, ChatUserRemovedEvent}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues._

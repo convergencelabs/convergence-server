@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.api.rest.domain.DomainChatService.
 import com.convergencelabs.convergence.server.model.domain.model.DataValue
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserType
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserType.DomainUserType
+import com.convergencelabs.convergence.server.util.DataValueToJValue
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import org.json4s.JsonAST.{JInt, JLong, JString}
 import org.json4s.jackson.Serialization
@@ -73,6 +74,6 @@ trait JsonSupport extends Json4sSupport {
     durationSerializer +
     dataValueSerializer +
     domainUserTypeSerializer +
-    FieldSerializer[ResponseMessage]() +
+    FieldSerializer[RestResponseEntity]() +
     FieldSerializer[ChatEventData]()
 }

@@ -16,7 +16,6 @@ import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelOperationStore
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.model.domain.session
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -40,7 +39,7 @@ class ModelOperationReplayHelper(private[this] val modelOperationStore: ModelOpe
     val op = convertAppliedOperation(modelOperation.op)
     val outgoingOp = ModelClientActor.OutgoingOperation(
       modelId,
-      session.DomainSessionId(modelOperation.sessionId, modelOperation.userId),
+      session.DomainSessionAndUserId(modelOperation.sessionId, modelOperation.userId),
       modelOperation.version - 1, // this needs to be the context version, which is one behind the version
       modelOperation.timestamp,
       op)

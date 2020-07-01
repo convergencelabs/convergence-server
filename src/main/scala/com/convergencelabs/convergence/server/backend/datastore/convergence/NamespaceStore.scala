@@ -14,9 +14,8 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.NamespaceClass
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.NamespaceClass.{Fields, Indices}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.Domain
-import com.convergencelabs.convergence.server.model.domain.Namespace
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.server.domain.{Namespace, NamespaceAndDomains}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
@@ -139,8 +138,8 @@ class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersi
 
 object NamespaceStore {
 
-  case class NamespaceUpdates(id: String, displayName: String)
-  case class NamespaceAndDomains(id: String, displayName: String, domains: Set[Domain])
+  final case class NamespaceUpdates(id: String, displayName: String)
+
 
   val UserNamespacePrefix = "~"
 

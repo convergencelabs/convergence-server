@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.{OperationTransformer, ReferenceTransformer}
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelReferenceValues, ReferenceValue}
+import com.convergencelabs.convergence.server.model.domain.model.ModelReferenceValues
 import grizzled.slf4j.Logging
 import org.apache.commons.lang3.Validate
 

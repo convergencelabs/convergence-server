@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedArrayRemoveOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArrayRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.language.implicitConversions

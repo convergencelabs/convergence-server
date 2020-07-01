@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.model.server.user
+package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import java.time.Instant
 import java.util.Date
@@ -17,6 +17,7 @@ import java.util.Date
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.UserClass
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.PasswordUtil
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -250,11 +251,6 @@ object UserStore {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, UserClass.Indices.Username, username)
   }
 
-  final case class User(username: String,
-                        email: String,
-                        firstName: String,
-                        lastName: String,
-                        displayName: String,
-                        lastLogin: Option[Instant])
+
 
 }

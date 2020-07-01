@@ -16,13 +16,12 @@ import java.util
 
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelPermissionsStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.CollectionClass.{ClassName, Fields, Indices}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{CollectionPermissions, ModelPermissionsStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
-import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionSummary}
+import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions, CollectionSummary}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID

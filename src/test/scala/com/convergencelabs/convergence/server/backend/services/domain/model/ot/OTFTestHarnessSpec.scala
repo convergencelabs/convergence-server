@@ -15,9 +15,9 @@ import java.io.File
 import java.nio.file.{Files, Paths}
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.data._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.OTFTestHarnessSpec._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.TransformationFunctionRegistry
+import com.convergencelabs.convergence.server.model.domain.model._
 import org.json4s.JsonAST._
 import org.json4s.jackson.Serialization.read
 import org.json4s.{DefaultFormats, JArray, JBool, JInt, JString, JsonAST, jvalue2monadic}

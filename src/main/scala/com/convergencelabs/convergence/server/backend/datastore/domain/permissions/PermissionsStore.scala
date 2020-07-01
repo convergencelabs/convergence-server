@@ -16,8 +16,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.group.Use
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.chat.processors.permissions.SetChatPermissionsProcessor.{toTry, unsafeToTry}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions.SetChatPermissionsProcessor.{toTry, unsafeToTry}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
@@ -567,8 +567,10 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
     sb.append("SELECT FROM Permission WHERE ")
     val paramsWithForRecord = addForRecordParam(sb, Map(), forRecord)
     val paramsWithGrantee = addGranteeParam(sb, paramsWithForRecord, grantee)
+    val query = sb.toString()
+    println(query)
     OrientDBUtil
-      .queryAndMap(db, sb.toString(), paramsWithGrantee)(mapper)
+      .queryAndMap(db, query, paramsWithGrantee)(mapper)
       .map(_.toSet)
   }
 
@@ -580,9 +582,9 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(Classes.Permission.Fields.ForRecord)
         params + (Classes.Permission.Fields.ForRecord -> rid)
       case None =>
-        sb.append(" not(")
+        sb.append("not(")
         sb.append(Classes.Permission.Fields.ForRecord)
-        sb.append(" is DEFINED)")
+        sb.append(" IS DEFINED)")
         params
     }
   }
@@ -599,7 +601,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(" AND ")
         sb.append("(")
         sb.append(Classes.Permission.Fields.AssignedTo)
-        sb.append(" is DEFINED AND ")
+        sb.append(" IS DEFINED AND ")
         sb.append(Classes.Permission.Fields.AssignedTo)
         sb.append(".@class = 'User')")
         params
@@ -607,7 +609,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(" AND ")
         sb.append("(")
         sb.append(Classes.Permission.Fields.AssignedTo)
-        sb.append(" is DEFINED AND ")
+        sb.append(" IS DEFINED AND ")
         sb.append(Classes.Permission.Fields.AssignedTo)
         sb.append(".@class = 'UserGroup')")
         params
@@ -615,7 +617,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(" AND ")
         sb.append("not(")
         sb.append(Classes.Permission.Fields.AssignedTo)
-        sb.append(" is DEFINED)")
+        sb.append(" IS DEFINED)")
         params
       case AnyGrantee =>
         params
@@ -632,7 +634,7 @@ object PermissionsStore {
     WorldPermission(permission)
   }
 
-  private val GroupIdExpression = s"${Classes.Permission.Fields.AssignedTo}.{${Classes.UserGroup.Fields.Id}}"
+  private val GroupIdExpression = s"${Classes.Permission.Fields.AssignedTo}.${Classes.UserGroup.Fields.Id}"
 
   private def docToGroupPermission(doc: ODocument): GroupPermission = {
     val permission: String = doc.field(Classes.Permission.Fields.Permission)
@@ -641,8 +643,8 @@ object PermissionsStore {
     GroupPermission(groupId, permission)
   }
 
-  private val UsernameExpression = s"${Classes.Permission.Fields.AssignedTo}.{${Classes.User.Fields.Username}}"
-  private val UserTypeExpression = s"${Classes.Permission.Fields.AssignedTo}.{${Classes.User.Fields.UserType}}"
+  private val UsernameExpression = s"${Classes.Permission.Fields.AssignedTo}.${Classes.User.Fields.Username}"
+  private val UserTypeExpression = s"${Classes.Permission.Fields.AssignedTo}.${Classes.User.Fields.UserType}"
 
   private def docToUserPermission(doc: ODocument): UserPermission = {
     val permission: String = doc.field(Classes.Permission.Fields.Permission)

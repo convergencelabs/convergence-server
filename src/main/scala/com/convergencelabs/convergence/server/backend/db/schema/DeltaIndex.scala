@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 case class DeltaIndex(preReleaseVersion: Int, releasedVersion: Int, deltas: Map[String, VersionHash])
 case class VersionHash(delta: String, database: String)

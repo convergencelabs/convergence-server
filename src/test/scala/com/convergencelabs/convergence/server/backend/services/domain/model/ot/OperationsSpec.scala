@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.data.NullValue
+import com.convergencelabs.convergence.server.model.domain.model.NullValue
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 

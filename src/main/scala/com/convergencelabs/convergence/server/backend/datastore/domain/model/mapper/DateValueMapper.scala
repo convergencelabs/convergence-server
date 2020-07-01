@@ -13,8 +13,8 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 
 import java.util.Date
 
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.data.DateValue
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
+import com.convergencelabs.convergence.server.model.domain.model.DateValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.language.implicitConversions

@@ -14,14 +14,13 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserType}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissions
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedStringInsertOperation
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelOperation, NewModelOperation}
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionId}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringInsertOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperation, NewModelOperation}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions, ObjectValue}
+import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -54,7 +53,7 @@ class ModelOperationStoreSpec
     ObjectValue("vid", Map()))
 
   private val sessionId = "test:1"
-  private val session = DomainSession(DomainSessionId(sessionId, user.toUserId), truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
+  private val session = DomainSession(sessionId, user.toUserId, truncatedInstantNow(), None, "jwt", "js", "1.0", "", "127.0.0.1")
 
   private val notFoundId = "Exist"
 

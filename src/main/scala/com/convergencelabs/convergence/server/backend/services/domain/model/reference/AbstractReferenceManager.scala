@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor._
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 import scala.util.{Failure, Try}
 
@@ -60,7 +60,7 @@ private[reference] abstract class AbstractReferenceManager[S](protected val sour
    *
    * @param sessionId The id of the session that disconnected.
    */
-  def sessionDisconnected(sessionId: DomainSessionId): Unit = {
+  def sessionDisconnected(sessionId: DomainSessionAndUserId): Unit = {
     this.rm.removeAllReferencesForSession(sessionId)
   }
 

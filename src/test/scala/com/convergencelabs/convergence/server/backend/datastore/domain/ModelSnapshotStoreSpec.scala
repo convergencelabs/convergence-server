@@ -14,12 +14,11 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import java.time.Instant
 import java.util.Date
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissions
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.data.{DoubleValue, ObjectValue, StringValue}
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelSnapshot, ModelSnapshotMetaData}
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -52,22 +51,22 @@ class ModelSnapshotStoreSpec
 
   private val p1Snapshot10Version = 10L
   private val p1Snapshot10Date = Instant.parse("2016-01-10T00:00:00Z")
-  private val p1Snapshot10MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot10Version, p1Snapshot10Date)
+  private val p1Snapshot10MetaData = model.ModelSnapshotMetaData(person1Id, p1Snapshot10Version, p1Snapshot10Date)
   private val p1Snapshot10Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 10)))
   private val p1Snapshot10 = ModelSnapshot(p1Snapshot10MetaData, p1Snapshot10Data)
 
   private val p1Snapshot20Version = 20L
   private val p1Snapshot20Date = Instant.parse("2016-01-20T00:00:00Z")
-  private val p1Snapshot20MetaData = ModelSnapshotMetaData(person1Id, p1Snapshot20Version, p1Snapshot20Date)
+  private val p1Snapshot20MetaData = model.ModelSnapshotMetaData(person1Id, p1Snapshot20Version, p1Snapshot20Date)
   private val p1Snapshot20Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 20)))
   private val p1Snapshot20 = ModelSnapshot(p1Snapshot20MetaData, p1Snapshot20Data)
 
   private val person2Id = "person2"
   private val person2ModelData = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
-  private val person2ModelMetaData = ModelMetaData(person2Id, CollectionId, 10, Instant.now(), Instant.now(), overridePermissions = true, modelPermissions, 1)
-  private val person2Model = Model(person2ModelMetaData, person2ModelData)
+  private val person2ModelMetaData = model.ModelMetaData(person2Id, CollectionId, 10, Instant.now(), Instant.now(), overridePermissions = true, modelPermissions, 1)
+  private val person2Model = model.Model(person2ModelMetaData, person2ModelData)
 
-  private val p2Snapshot1MetaData = ModelSnapshotMetaData(person2Id, 1L, Instant.now())
+  private val p2Snapshot1MetaData = model.ModelSnapshotMetaData(person2Id, 1L, Instant.now())
   private val p2Snapshot1Data = ObjectValue("vid", Map("value" -> DoubleValue("0:1", 1)))
   private val p2Snapshot1 = ModelSnapshot(p2Snapshot1MetaData, p2Snapshot1Data)
 
@@ -82,7 +81,7 @@ class ModelSnapshotStoreSpec
         val timestamp = Date.from(Instant.now()).toInstant
 
         val created = ModelSnapshot(
-          ModelSnapshotMetaData(person1Id, version, timestamp),
+          model.ModelSnapshotMetaData(person1Id, version, timestamp),
           ObjectValue("0:0", Map("key" -> StringValue("0:1", "value"))))
 
         provider.modelSnapshotStore.createSnapshot(created).success

@@ -11,24 +11,19 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissions
+import com.convergencelabs.convergence.server.model.domain.model.ModelPermissions
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Failure, Success, Try}
 
-case class ModelPermissionResult(
-                                  overrideCollection: Boolean,
-                                  modelWorld: ModelPermissions,
-                                  modelUsers: Map[DomainUserId, ModelPermissions])
-
-class ModelPermissionResolver() {
+private[model] class ModelPermissionResolver() {
   def getModelUserPermissions(modelId: String, userId: DomainUserId, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
     if (userId.isConvergence) {
       Success(ModelPermissions(read = true, write = true, remove = true, manage = true))
     } else {
       val permissionsStore = persistenceProvider.modelPermissionsStore
-      permissionsStore.getUsersCurrentModelPermissions(modelId, userId) flatMap  {
+      permissionsStore.getUsersCurrentModelPermissions(modelId, userId) flatMap {
         case Some(p) => Success(p)
         case None => Failure(ModelNotFoundException(modelId))
       }
@@ -52,13 +47,13 @@ class ModelPermissionResolver() {
     }
   }
 
-  def getModelPermissions(modelId: String, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissionResult] = {
+  def getModelPermissions(modelId: String, persistenceProvider: DomainPersistenceProvider): Try[ResolvedModelPermission] = {
     for {
       overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
       modelWorld <- persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)
       modelUsers <- persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {
-      ModelPermissionResult(
+      ResolvedModelPermission(
         overrideCollection,
         modelWorld,
         modelUsers)

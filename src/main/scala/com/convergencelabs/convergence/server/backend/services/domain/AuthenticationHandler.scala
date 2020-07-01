@@ -22,10 +22,11 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAu
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.{CreateNormalDomainUser, DomainUserStore, UpdateDomainUser}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, InvalidValueException}
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtConstants
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.domain.session
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
-import com.convergencelabs.convergence.server.model.domain.{DomainId, session}
 import com.convergencelabs.convergence.server.util.TryWithResource
 import grizzled.slf4j.Logging
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -286,16 +287,16 @@ class AuthenticationHandler(domainFqn: DomainId,
     sessionStore.nextSessionId flatMap { sessionId =>
       reconnectToken match {
         case Some(reconnectToken) =>
-          Success(DomainActor.AuthenticationSuccess(DomainSessionId(sessionId, userId), Some(reconnectToken)))
+          Success(DomainActor.AuthenticationSuccess(DomainSessionAndUserId(sessionId, userId), Some(reconnectToken)))
         case None =>
           logger.debug(s"$domainFqn: Creating reconnect token.")
           userStore.createReconnectToken(userId, Duration.ofHours(24L)) map { token =>
             logger.debug(s"$domainFqn: Returning auth success.")
-            DomainActor.AuthenticationSuccess(session.DomainSessionId(sessionId, userId), Some(token))
+            DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId(sessionId, userId), Some(token))
           } recover {
             case error: Throwable =>
               logger.error(s"$domainFqn: Unable to create reconnect token", error)
-              DomainActor.AuthenticationSuccess(session.DomainSessionId(sessionId, userId), None)
+              DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId(sessionId, userId), None)
           }
       }
     }

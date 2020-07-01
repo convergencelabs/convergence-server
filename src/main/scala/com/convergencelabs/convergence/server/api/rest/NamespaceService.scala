@@ -152,7 +152,7 @@ private[rest] class NamespaceService(namespaceActor: ActorRef[Message],
       ))
   }
 
-  private[this] def namespaceNotFound(namespaceId: String): (StatusCode, ResponseMessage) =
+  private[this] def namespaceNotFound(namespaceId: String): (StatusCode, RestResponseEntity) =
     notFoundResponse(Some(s"A namespace with the id '$namespaceId' does not exist"))
 
   private[this] def canManageNamespaces(authProfile: AuthorizationProfile): Boolean = {

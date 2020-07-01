@@ -11,27 +11,29 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
+import java.time.Instant
+
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.OutgoingMessage
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissions
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelManager.EventHandler
-import com.convergencelabs.convergence.server.backend.services.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, UnauthorizedException}
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelPermissions, ModelReferenceValues, ObjectValue, ReferenceState}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.concurrent.Future
@@ -136,7 +138,7 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
         modelPermissionResolver.getModelUserPermissions(modelId, session.userId, persistenceProvider).map(p => p.read).flatMap { canRead =>
           if (canRead) {
             modelPermissionResolver.getModelPermissions(modelId, persistenceProvider).map { p =>
-              val ModelPermissionResult(overrideCollection, modelWorld, modelUsers) = p
+              val ResolvedModelPermission(overrideCollection, modelWorld, modelUsers) = p
               GetModelPermissionsResponse(Right(GetModelPermissionsSuccess(overrideCollection, modelWorld, modelUsers)))
             }
           } else {
@@ -260,7 +262,7 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
       domainFqn,
       modelId,
-      context.system.toClassic,
+      context.system,
       persistenceProvider.modelStore,
       persistenceProvider.modelSnapshotStore,
       persistenceProvider.modelOperationProcessor)
@@ -277,7 +279,6 @@ class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
       modelCreator,
       Timeout(clientDataResponseTimeout),
       resyncTimeout,
-      context.self,
       context.system,
       new EventHandler() {
         def onInitializationError(): Unit = {
@@ -501,7 +502,7 @@ object RealtimeModelActor {
   //
   final case class GetRealtimeModelRequest(domainId: DomainId,
                                            modelId: String,
-                                           session: Option[DomainSessionId],
+                                           session: Option[DomainSessionAndUserId],
                                            replyTo: ActorRef[GetRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -524,7 +525,7 @@ object RealtimeModelActor {
                                                       overridePermissions: Option[Boolean],
                                                       worldPermissions: Option[ModelPermissions],
                                                       userPermissions: Map[DomainUserId, ModelPermissions],
-                                                      session: Option[DomainSessionId],
+                                                      session: Option[DomainSessionAndUserId],
                                                       replyTo: ActorRef[CreateOrUpdateRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -550,7 +551,7 @@ object RealtimeModelActor {
                                               overridePermissions: Option[Boolean],
                                               worldPermissions: Option[ModelPermissions],
                                               userPermissions: Map[DomainUserId, ModelPermissions],
-                                              session: Option[DomainSessionId],
+                                              session: Option[DomainSessionAndUserId],
                                               replyTo: ActorRef[CreateRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -572,7 +573,7 @@ object RealtimeModelActor {
   //
   final case class DeleteRealtimeModelRequest(domainId: DomainId,
                                               modelId: String,
-                                              session: Option[DomainSessionId],
+                                              session: Option[DomainSessionAndUserId],
                                               replyTo: ActorRef[DeleteRealtimeModelResponse]) extends StatelessModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -590,7 +591,7 @@ object RealtimeModelActor {
   //
   final case class GetModelPermissionsRequest(domainId: DomainId,
                                               modelId: String,
-                                              session: DomainSessionId,
+                                              session: DomainSessionAndUserId,
                                               replyTo: ActorRef[GetModelPermissionsResponse]) extends StatelessModelMessage
 
 
@@ -614,7 +615,7 @@ object RealtimeModelActor {
   //
   final case class SetModelPermissionsRequest(domainId: DomainId,
                                               modelId: String,
-                                              session: DomainSessionId,
+                                              session: DomainSessionAndUserId,
                                               overrideCollection: Option[Boolean],
                                               worldPermissions: Option[ModelPermissions],
                                               setAllUserPermissions: Boolean,
@@ -643,7 +644,7 @@ object RealtimeModelActor {
   final case class OpenRealtimeModelRequest(domainId: DomainId,
                                             modelId: String,
                                             autoCreateId: Option[Int],
-                                            session: DomainSessionId,
+                                            session: DomainSessionAndUserId,
                                             clientActor: ActorRef[OutgoingMessage],
                                             replyTo: ActorRef[OpenRealtimeModelResponse]) extends RealTimeModelMessage
 
@@ -667,18 +668,24 @@ object RealtimeModelActor {
 
   final case class OpenModelSuccess(valuePrefix: Long,
                                     metaData: OpenModelMetaData,
-                                    connectedClients: Set[DomainSessionId],
-                                    resyncingClients: Set[DomainSessionId],
+                                    connectedClients: Set[DomainSessionAndUserId],
+                                    resyncingClients: Set[DomainSessionAndUserId],
                                     referencesBySession: Set[ReferenceState],
                                     modelData: ObjectValue,
                                     modelPermissions: ModelPermissions)
+
+  final case class OpenModelMetaData(id: String,
+                                     collection: String,
+                                     version: Long,
+                                     createdTime: Instant,
+                                     modifiedTime: Instant)
 
   //
   // CloseRealtimeModel
   //
   final case class CloseRealtimeModelRequest(domainId: DomainId,
                                              modelId: String,
-                                             session: DomainSessionId,
+                                             session: DomainSessionAndUserId,
                                              replyTo: ActorRef[CloseRealtimeModelResponse]) extends RealTimeModelMessage
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -696,7 +703,7 @@ object RealtimeModelActor {
   //
   final case class ModelResyncRequest(domainId: DomainId,
                                       modelId: String,
-                                      session: DomainSessionId,
+                                      session: DomainSessionAndUserId,
                                       contextVersion: Long,
                                       clientActor: ActorRef[OutgoingMessage],
                                       replyTo: ActorRef[ModelResyncResponse]) extends RealTimeModelMessage
@@ -722,7 +729,7 @@ object RealtimeModelActor {
   //
   final case class ModelResyncClientComplete(domainId: DomainId,
                                              modelId: String,
-                                             session: DomainSessionId,
+                                             session: DomainSessionAndUserId,
                                              open: Boolean) extends RealTimeModelMessage
 
 
@@ -732,7 +739,7 @@ object RealtimeModelActor {
 
   final case class OperationSubmission(domainId: DomainId,
                                        modelId: String,
-                                       session: DomainSessionId,
+                                       session: DomainSessionAndUserId,
                                        seqNo: Int,
                                        contextVersion: Long,
                                        operation: Operation) extends RealTimeModelMessage
@@ -746,7 +753,7 @@ object RealtimeModelActor {
    */
   sealed trait ModelReferenceEvent extends RealTimeModelMessage {
     val valueId: Option[String]
-    val session: DomainSessionId
+    val session: DomainSessionAndUserId
   }
 
   /**
@@ -766,7 +773,7 @@ object RealtimeModelActor {
    */
   final case class ShareReference(domainId: DomainId,
                                   modelId: String,
-                                  session: DomainSessionId,
+                                  session: DomainSessionAndUserId,
                                   valueId: Option[String],
                                   key: String,
                                   values: ModelReferenceValues,
@@ -789,7 +796,7 @@ object RealtimeModelActor {
    */
   final case class SetReference(domainId: DomainId,
                                 modelId: String,
-                                session: DomainSessionId,
+                                session: DomainSessionAndUserId,
                                 valueId: Option[String],
                                 key: String,
                                 values: ModelReferenceValues,
@@ -809,7 +816,7 @@ object RealtimeModelActor {
    *                 potentially the element.
    */
   final case class ClearReference(domainId: DomainId, modelId: String,
-                                  session: DomainSessionId,
+                                  session: DomainSessionAndUserId,
                                   valueId: Option[String],
                                   key: String) extends ModelReferenceEvent
 
@@ -828,7 +835,7 @@ object RealtimeModelActor {
    */
   final case class UnShareReference(domainId: DomainId,
                                     modelId: String,
-                                    session: DomainSessionId,
+                                    session: DomainSessionAndUserId,
                                     valueId: Option[String],
                                     key: String) extends ModelReferenceEvent
 

@@ -15,17 +15,20 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.ConvergenceJwtUtil
-import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
-import com.convergencelabs.convergence.server.backend.datastore.domain
-import com.convergencelabs.convergence.server.backend.datastore.domain._
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
-import com.convergencelabs.convergence.server.backend.services.domain.{AuthenticationHandler, DomainPersistenceManager}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
+import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.group.UserGroupStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.jwt.JwtAuthKeyStoreActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelPermissionsStoreActor, ModelStoreActor}
+import com.convergencelabs.convergence.server.backend.services.domain.session.SessionStoreActor
+import com.convergencelabs.convergence.server.backend.services.domain.stats.DomainStatsActor
 import com.convergencelabs.convergence.server.backend.services.domain.user.DomainUserStoreActor
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.services.domain.{AuthenticationHandler, DomainPersistenceManager}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.concurrent.duration.FiniteDuration
@@ -172,7 +175,7 @@ object DomainRestActor {
       DomainRestMessage(domainId, DomainRestMessageBody.Model(msg))
     }
 
-    def apply(domainId: DomainId, msg: domain.ModelPermissionsStoreActor.Message): DomainRestMessage = {
+    def apply(domainId: DomainId, msg: ModelPermissionsStoreActor.Message): DomainRestMessage = {
       DomainRestMessage(domainId, DomainRestMessageBody.ModelPermission(msg))
     }
 

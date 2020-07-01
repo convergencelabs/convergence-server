@@ -14,6 +14,6 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 import com.convergencelabs.convergence.server.model.domain.model.ModelPermissions
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-final case class ModelPermissionResult(overrideCollection: Boolean,
-                                       modelWorld: ModelPermissions,
-                                       modelUsers: Map[DomainUserId, ModelPermissions])
+private[model] final case class ResolvedModelPermission(overrideCollection: Boolean,
+                                                        modelWorld: ModelPermissions,
+                                                        modelUsers: Map[DomainUserId, ModelPermissions])

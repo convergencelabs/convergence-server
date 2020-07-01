@@ -9,20 +9,20 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.ModelReferenceEvent
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{AppliedDiscreteOperation, DiscreteOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.{ModelReference, ValueReferenceManager}
 import com.convergencelabs.convergence.server.model.domain.model.{DataValue, ModelReferenceValues}
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 import scala.util.{Failure, Try}
 
-abstract class RealtimeValue(val id: String,
-                             private[model] var parent: Option[RealtimeContainerValue],
-                             private[model] var parentField: Option[Any],
-                             validReferenceValueClasses: List[Class[_ <: ModelReferenceValues]]) {
+private[model] abstract class RealtimeValue(val id: String,
+                                            private[model] var parent: Option[RealtimeContainerValue],
+                                            private[model] var parentField: Option[Any],
+                                            validReferenceValueClasses: List[Class[_ <: ModelReferenceValues]]) {
 
   protected val referenceManager = new ValueReferenceManager(this, validReferenceValueClasses)
   protected var listeners: List[String => Unit] = Nil
@@ -64,11 +64,11 @@ abstract class RealtimeValue(val id: String,
     this.referenceManager.referenceMap().getAll
   }
 
-  def sessionDisconnected(session: DomainSessionId): Unit = {
+  def sessionDisconnected(session: DomainSessionAndUserId): Unit = {
     this.referenceManager.sessionDisconnected(session)
   }
 
-  def processReferenceEvent(event: ModelReferenceEvent, session: DomainSessionId): Try[Unit] = {
+  def processReferenceEvent(event: ModelReferenceEvent, session: DomainSessionAndUserId): Try[Unit] = {
     if (this.validReferenceValueClasses.isEmpty) {
       Failure(new IllegalArgumentException("This RealTimeValue does not allow references"))
     } else {

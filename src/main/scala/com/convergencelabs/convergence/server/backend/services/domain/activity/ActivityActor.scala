@@ -15,10 +15,11 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.{CborSerializable, ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import org.json4s.JsonAST.JValue
 
 import scala.util.{Success, Try}

@@ -16,7 +16,7 @@ import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.JwtAuthKeyClass.{ClassName, Fields, Indices}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.jwt
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtAuthKey
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}

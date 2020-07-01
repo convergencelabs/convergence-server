@@ -17,15 +17,17 @@ import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import com.convergencelabs.convergence.server.actor._
+import com.convergencelabs.convergence.server.util.actor._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
-import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
+import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionId}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
 import scala.collection.mutable
@@ -130,11 +132,10 @@ class DomainActor private(context: ActorContext[DomainActor.Message],
           AuthenticationResponse(Left(AuthenticationFailed()))
         },
         {
-          case authSuccess@AuthenticationSuccess(DomainSessionId(sessionId, userId), _) =>
+          case authSuccess@AuthenticationSuccess(DomainSessionAndUserId(sessionId, userId), _) =>
             debug(s"$identityString: Authenticated user successfully, creating session")
-            val id = DomainSessionId(sessionId, userId)
             val session = DomainSession(
-              id, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
+              sessionId, userId, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
 
             persistenceProvider
               .sessionStore
@@ -362,7 +363,7 @@ object DomainActor {
 
   final case class AuthenticationResponse(response: Either[AuthenticationFailed, AuthenticationSuccess]) extends CborSerializable
 
-  final case class AuthenticationSuccess(session: DomainSessionId, reconnectToken: Option[String])
+  final case class AuthenticationSuccess(session: DomainSessionAndUserId, reconnectToken: Option[String])
 
   final case class ClientDisconnected(domainId: DomainId, clientActor: ActorRef[ClientActor.Disconnect]) extends Message
 

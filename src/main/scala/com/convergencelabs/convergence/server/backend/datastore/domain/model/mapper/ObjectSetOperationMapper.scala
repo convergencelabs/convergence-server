@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 
 import java.util.{Map => JavaMap}
 
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.jdk.CollectionConverters._

@@ -16,8 +16,9 @@ import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.{ODocumentToObjectValue, ObjectValueToODocument}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.model.{ModelSnapshot, ModelSnapshotMetaData}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model.{ModelSnapshot, ModelSnapshotMetaData}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -37,7 +38,7 @@ object ModelSnapshotStore {
   def docToModelSnapshot(doc: ODocument): ModelSnapshot = {
     val dataDoc: ODocument = doc.getProperty(Classes.ModelSnapshot.Fields.Data)
     val data = dataDoc.asObjectValue
-    ModelSnapshot(docToModelSnapshotMetaData(doc), data)
+    model.ModelSnapshot(docToModelSnapshotMetaData(doc), data)
   }
 
   def modelSnapshotToDoc(modelSnapshot: ModelSnapshot, db: ODatabaseDocument): Try[ODocument] = {
@@ -56,7 +57,7 @@ object ModelSnapshotStore {
 
   def docToModelSnapshotMetaData(doc: ODocument): ModelSnapshotMetaData = {
     val timestamp: java.util.Date = doc.getProperty(Classes.ModelSnapshot.Fields.Timestamp)
-    ModelSnapshotMetaData(
+    model.ModelSnapshotMetaData(
       doc.getProperty(Constants.ModelId),
       doc.getProperty(Classes.ModelSnapshot.Fields.Version),
       Instant.ofEpochMilli(timestamp.getTime))

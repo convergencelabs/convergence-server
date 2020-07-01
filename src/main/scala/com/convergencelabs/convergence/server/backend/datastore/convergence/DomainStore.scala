@@ -13,9 +13,9 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.DomainClass
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.Domain
-import com.convergencelabs.convergence.server.model.domain.{DomainDatabase, DomainId, DomainStatus}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus}
+import com.convergencelabs.convergence.server.model.{DomainId, server}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
@@ -101,7 +101,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   import DomainStore._
 
   def createDomain(domainId: DomainId, displayName: String, domainDatabase: DomainDatabase): Try[Unit] = withDb { db =>
-    val domain = Domain(domainId, displayName, DomainStatus.Initializing, "")
+    val domain = server.domain.Domain(domainId, displayName, DomainStatus.Initializing, "")
     domainToDoc(domain, db).map { doc =>
       addDomainDatabaseFields(doc, domainDatabase)
       db.save(doc)

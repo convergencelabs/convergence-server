@@ -16,8 +16,8 @@ import java.time.{Duration, Instant}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -81,7 +81,7 @@ class DomainUserStoreSpec
 
     "querying a user" must {
 
-      "correctly retreive user by username" in withPersistenceStore { store =>
+      "correctly retrieve user by username" in withPersistenceStore { store =>
         initUsers(store)
         val queried = store.getNormalDomainUser(User1.username)
         queried.success.get.value shouldBe User1
@@ -89,7 +89,7 @@ class DomainUserStoreSpec
     }
 
     "querying multiple users" must {
-      "correctly retreive users by username" in withPersistenceStore { store =>
+      "correctly retrieve users by username" in withPersistenceStore { store =>
         initUsers(store)
         val queried = store.getNormalDomainUsers(List(User1.username, User2.username))
         queried.get should contain allOf (User1, User2)
@@ -101,7 +101,7 @@ class DomainUserStoreSpec
         store.updateDomainUser(UpdateDomainUser(DomainUserId.normal("foo"), None, None, None, None, None)).failure.exception shouldBe a[EntityNotFoundException]
       }
 
-      "currectly update an existing user, if unique properties are not violated" in withPersistenceStore { store =>
+      "correctly update an existing user, if unique properties are not violated" in withPersistenceStore { store =>
         initUsers(store)
         val update = UpdateDomainUser(DomainUserId.normal(User1.username), Some("f"), Some("l"), Some("d"), Some("e"), Some(true))
         val updated = DomainUser(DomainUserType.Normal, User1.username, Some("f"), Some("l"), Some("d"), Some("e"), None, disabled = true, deleted = false, None)
@@ -204,9 +204,13 @@ class DomainUserStoreSpec
     }
 
     "setting last login" must {
-      "updated last login doesn't fail" in withPersistenceStore { store =>
+      "set the correct time" in withPersistenceStore { store =>
         initUsers(store)
-        store.setLastLoginForUser(DomainUserId.normal(User1.username), Instant.now()).get
+        val time = truncatedInstantNow()
+        store.setLastLoginForUser(DomainUserId.normal(User1.username), time).get
+        val read = store.getNormalDomainUser(User1.username).get
+        read shouldBe defined
+        read.get.lastLogin shouldBe Some(time)
       }
     }
     

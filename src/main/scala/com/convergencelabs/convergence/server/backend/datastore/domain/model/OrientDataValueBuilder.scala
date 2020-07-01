@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model
 
 import java.util.Date
 
-import com.convergencelabs.convergence.server.domain.model.data._
+import com.convergencelabs.convergence.server.model.domain.model._
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument

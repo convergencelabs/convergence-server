@@ -30,7 +30,7 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model.{ModelMetaData, ModelPermissions, ModelPermissionsData, ModelUserPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
-import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
+import com.convergencelabs.convergence.server.util.{DataValueToJValue, QueryLimit, QueryOffset}
 import org.json4s.JsonAST.JObject
 
 import scala.concurrent.{ExecutionContext, Future}

@@ -9,15 +9,17 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.datastore.convergence
+package com.convergencelabs.convergence.server.backend.services.server
 
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.actor.CborSerializable
+import com.convergencelabs.convergence.server.backend.datastore.convergence.UserApiKeyStore
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
+import com.convergencelabs.convergence.server.model.server.apikey.UserApiKey
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.JsonSubTypes
 
 

@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import grizzled.slf4j.Logging
@@ -24,7 +24,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
     }
   }
 
-  def instatll(version: Int): Try[Unit] = {
+  def install(version: Int): Try[Unit] = {
     loadManifest().flatMap { executeInstall(_, version) }
   }
 
@@ -33,7 +33,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
     if (version > max) {
       Failure(new IllegalArgumentException(s"Invalid version ${version}, which is greater than the max: ${max}"))
     } else {
-      manifest.getFullDelta(version) flatMap { applyDelta(_) }
+      manifest.getFullDelta(version) flatMap { applyDelta }
     }
   }
 

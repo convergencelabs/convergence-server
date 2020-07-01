@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore
 
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import grizzled.slf4j.Logging
 

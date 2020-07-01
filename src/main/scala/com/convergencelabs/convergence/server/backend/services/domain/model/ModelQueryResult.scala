@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
+import com.convergencelabs.convergence.server.model.domain.model.ModelMetaData
 import org.json4s.JsonAST.JObject
 
-case class ModelQueryResult(metaData: ModelMetaData, data: JObject)
+final case class ModelQueryResult(metaData: ModelMetaData, data: JObject)

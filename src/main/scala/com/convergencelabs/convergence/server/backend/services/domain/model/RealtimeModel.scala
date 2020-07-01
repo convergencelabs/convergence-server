@@ -13,11 +13,13 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.{apply => _, _}
-import com.convergencelabs.convergence.server.backend.services.domain.model.data.{DataValue, ObjectValue}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference._
-import com.convergencelabs.convergence.server.model.domain.DomainId
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.backend.services.domain.model.value.{RealtimeContainerValue, RealtimeObject, RealtimeValue, RealtimeValueFactory}
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model.{DataValue, ElementReferenceValues, ModelReferenceValues, ObjectValue, ReferenceState}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 import scala.util.{Failure, Success, Try}
 
@@ -43,11 +45,11 @@ private[model] class RealtimeModel(val domainId: DomainId,
     this.cc.contextVersion
   }
 
-  def clientConnected(session: DomainSessionId, contextVersion: Long): Unit = {
+  def clientConnected(session: DomainSessionAndUserId, contextVersion: Long): Unit = {
     this.cc.trackClient(session.sessionId, contextVersion)
   }
 
-  def clientDisconnected(session: DomainSessionId): Unit = {
+  def clientDisconnected(session: DomainSessionAndUserId): Unit = {
     this.cc.untrackClient(session.sessionId)
     this.data.sessionDisconnected(session)
     this.elementReferenceManager.sessionDisconnected(session)
@@ -140,10 +142,10 @@ private[model] class RealtimeModel(val domainId: DomainId,
             realTimeValue.processReferenceEvent(share, session)
             val ShareReference(domainFqn, _, _, id, key, values, contextVersion) = share
 
-            val refVal: ReferenceValue[ModelReferenceValues] = ReferenceValue(id, key, values, contextVersion)
+            val refVal: ReferenceValue[ModelReferenceValues] = ReferenceValue(values, contextVersion)
             this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
               case Some(xformed) =>
-                val setRef: SetReference = SetReference(domainFqn, modelId, session, xformed.id, xformed.key, xformed.referenceValues, xformed.contextVersion.toInt)
+                val setRef: SetReference = SetReference(domainFqn, modelId, session, id, key, xformed.referenceValues, xformed.contextVersion.toInt)
                 realTimeValue.processReferenceEvent(setRef, session).map { _ =>
                   Some(RemoteReferenceShared(modelId, session, setRef.valueId, setRef.key, setRef.values))
                 }
@@ -159,10 +161,10 @@ private[model] class RealtimeModel(val domainId: DomainId,
             }
 
           case set: SetReference =>
-            val refVal: ReferenceValue[ModelReferenceValues] = ReferenceValue(set.valueId, set.key, set.values, set.contextVersion)
+            val refVal: ReferenceValue[ModelReferenceValues] = ReferenceValue(set.values, set.contextVersion)
             this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
               case Some(xFormed) =>
-                val setRef: SetReference = SetReference(domainId, modelId, session, xFormed.id, xFormed.key, xFormed.referenceValues, xFormed.contextVersion.toInt)
+                val setRef: SetReference = SetReference(domainId, modelId, session, set.valueId, set.key, xFormed.referenceValues, xFormed.contextVersion.toInt)
                 realTimeValue.processReferenceEvent(setRef, session).map { _ =>
                   Some(RemoteReferenceSet(modelId, session, setRef.valueId, setRef.key, setRef.values))
                 }
@@ -269,7 +271,7 @@ private[model] class RealtimeModel(val domainId: DomainId,
   }
 
   private[this] def toReferenceState(r: ModelReference[_, _]): ReferenceState = {
-    ReferenceState(
+    model.ReferenceState(
       r.session,
       r.target match {
         case value: RealtimeValue =>

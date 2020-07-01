@@ -12,8 +12,9 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.IndexTransformer
-import com.convergencelabs.convergence.server.backend.services.domain.model.{RangeReferenceValues, RealtimeValue}
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeValue
+import com.convergencelabs.convergence.server.model.domain.model.RangeReferenceValues
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 /**
  * Represents and reference pointing to a set of ranges, in a positionally
@@ -26,10 +27,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  *                this reference.
  * @param initial The initial values to set.
  */
-class RangeReference(target: RealtimeValue,
-                     session: DomainSessionId,
-                     key: String,
-                     initial: List[RangeReference.Range])
+private[model] class RangeReference(target: RealtimeValue,
+                                    session: DomainSessionAndUserId,
+                                    key: String,
+                                    initial: List[RangeReference.Range])
   extends ModelReference[RangeReference.Range, RealtimeValue](target, session, key, initial)
     with PositionalInsertAwareReference
     with PositionalRemoveAwareReference

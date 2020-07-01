@@ -17,12 +17,12 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.collectio
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationProcessor, ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model._
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.model.DomainId
 
 import scala.util.Try
 

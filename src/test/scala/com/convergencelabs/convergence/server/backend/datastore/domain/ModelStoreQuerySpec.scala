@@ -13,14 +13,14 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissions, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.db.schema.DeltaCategory
-import com.convergencelabs.convergence.server.domain.model.data._
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model._
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.{DefaultFormats, Formats, JArray, JBool, JField, JInt, JObject, JString, jvalue2extractable, jvalue2monadic, string2JsonInput}
 import org.scalatest.matchers.should.Matchers
@@ -163,7 +163,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
 
     val metaData = ModelMetaData(modelId, collectionId, version, Instant.ofEpochMilli(created), Instant.ofEpochMilli(modified), overridePermissions = true, modelPermissions, 1)
 
-    Model(metaData, jObjectToObjectValue((json \ "data").asInstanceOf[JObject]))
+    model.Model(metaData, jObjectToObjectValue((json \ "data").asInstanceOf[JObject]))
   }
 
   private[this] def jObjectToObjectValue(jObject: JObject): ObjectValue = {
@@ -178,7 +178,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
           case _ => ???
         })
     }
-    ObjectValue(nextId(), fieldMap toMap)
+    model.ObjectValue(nextId(), fieldMap toMap)
   }
 
   private[this] def jArrayToArrayValue(jArray: JArray): ArrayValue = {
@@ -190,7 +190,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
       case JInt(value) => DoubleValue(nextId(), value.toDouble)
       case _ => ???
     }
-    ArrayValue(nextId(), fields)
+    model.ArrayValue(nextId(), fields)
   }
 
   private[this] def nextId(): String = {

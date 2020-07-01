@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberAddOperationMapper.{NumberAddOperationToODocument, ODocumentToNumberAddOperation}
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedNumberAddOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedNumberAddOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

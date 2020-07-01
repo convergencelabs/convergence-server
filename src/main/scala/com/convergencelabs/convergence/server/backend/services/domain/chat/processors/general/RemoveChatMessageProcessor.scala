@@ -12,15 +12,14 @@
 package com.convergencelabs.convergence.server.backend.services.domain.chat.processors.general
 
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ChatPermissionTarget
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.{RemoveChatRequest, RemoveChatResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.{MessageReplyTask, ReplyAndBroadcastTask}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatPermissions}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import grizzled.slf4j.Logging
 
 import scala.util.{Success, Try}

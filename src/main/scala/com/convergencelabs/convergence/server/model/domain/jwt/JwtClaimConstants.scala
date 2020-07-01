@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.domain
+package com.convergencelabs.convergence.server.model.domain.jwt
 
 object JwtClaimConstants {
   val FirstName = "firstName";

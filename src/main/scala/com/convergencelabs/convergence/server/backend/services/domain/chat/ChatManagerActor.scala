@@ -16,14 +16,14 @@ import java.time.Instant
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat._
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{ChatPermissionTarget, GlobalPermissionTarget, PermissionsStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.ChatClass
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissions.ChatPermission
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatInfo, ChatMembership, ChatType}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize

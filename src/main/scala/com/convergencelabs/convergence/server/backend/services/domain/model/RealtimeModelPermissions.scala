@@ -11,8 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
+import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
+import com.convergencelabs.convergence.server.model.domain.model.ModelPermissions
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{CollectionPermissions, ModelPermissions}
 
 /**
  * The RealTimeModelPermissions class encodes the current permissions for a
@@ -23,7 +24,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.{Co
  *   1. A user specific permission for the model.
  *   2. A user specific permission at the collection level.
  *   3. World permissions for the model IF the model overrides the
- *      collection world permissions.
+ * collection world permissions.
  *   4. The World permissions for the collection.
  *
  * @param overrideCollection Whether the model world permissions override the
@@ -34,11 +35,11 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.{Co
  * @param modelWorld         The model world permissions.
  * @param modelUsers         User specific permissions.
  */
-case class RealtimeModelPermissions(overrideCollection: Boolean,
-                                    collectionWorld: CollectionPermissions,
-                                    collectionUsers: Map[DomainUserId, CollectionPermissions],
-                                    modelWorld: ModelPermissions,
-                                    modelUsers: Map[DomainUserId, ModelPermissions]) {
+private[model] case class RealtimeModelPermissions(overrideCollection: Boolean,
+                                                   collectionWorld: CollectionPermissions,
+                                                   collectionUsers: Map[DomainUserId, CollectionPermissions],
+                                                   modelWorld: ModelPermissions,
+                                                   modelUsers: Map[DomainUserId, ModelPermissions]) {
 
   def resolveSessionPermissions(userId: DomainUserId): ModelPermissions = {
     if (userId.isConvergence) {

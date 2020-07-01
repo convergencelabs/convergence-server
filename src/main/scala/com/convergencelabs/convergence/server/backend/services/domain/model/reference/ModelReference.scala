@@ -11,8 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.ModelReferenceValues
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.model.domain.model.ModelReferenceValues
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 /**
  * The base class for all Model References. This base class provides
@@ -27,10 +27,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  * @tparam V The type of value the reference holds
  * @tparam T The type of object the reference targets.
  */
-abstract class ModelReference[V, T](val target: T,
-                                    val session: DomainSessionId,
-                                    val key: String,
-                                    initial: List[V]) {
+private[model] abstract class ModelReference[V, T](val target: T,
+                                                   val session: DomainSessionAndUserId,
+                                                   val key: String,
+                                                   initial: List[V]) {
 
   protected var values: List[V] = initial
 

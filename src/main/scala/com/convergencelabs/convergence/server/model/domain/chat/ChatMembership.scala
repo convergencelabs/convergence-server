@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.datastore.domain.chat
+package com.convergencelabs.convergence.server.model.domain.chat
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 
@@ -24,7 +24,6 @@ object ChatMembership extends Enumeration {
   }
 
   final case class InvalidChatMembershipValue(value: String) extends RuntimeException("Invalid ChatMembership string: " + value)
-
 }
 
 

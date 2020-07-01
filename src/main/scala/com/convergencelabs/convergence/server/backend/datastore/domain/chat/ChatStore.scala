@@ -15,14 +15,14 @@ import java.time.Instant
 import java.util.{Date, Set => JavaSet}
 
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, EntityNotFoundException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.chat.ChatActor.PagedChatEvents
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.PagedChatEvents
 import com.convergencelabs.convergence.server.model.domain.chat
-import com.convergencelabs.convergence.server.model.domain.chat.{ChatCreatedEvent, ChatEvent, ChatInfo, ChatMember, ChatMembership, ChatMessageEvent, ChatNameChangedEvent, ChatTopicChangedEvent, ChatType, ChatUserAddedEvent, ChatUserJoinedEvent, ChatUserLeftEvent, ChatUserRemovedEvent}
+import com.convergencelabs.convergence.server.model.domain.chat._
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable

@@ -9,12 +9,12 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 import java.time.Instant
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.{DeltaHistoryStore, DomainDelta, DomainDeltaHistory}
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import grizzled.slf4j.Logging
 import org.apache.commons.lang3.exception.ExceptionUtils

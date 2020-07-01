@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.ot.AppliedObjectSetPropertyOperation
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectSetPropertyOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 

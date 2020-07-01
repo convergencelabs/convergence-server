@@ -21,7 +21,6 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.chat._
 import com.convergencelabs.convergence.proto.core._
-import com.convergencelabs.convergence.server.util.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.ChatProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
@@ -34,6 +33,7 @@ import com.convergencelabs.convergence.server.model.domain.chat.ChatType.Invalid
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.google.protobuf.timestamp.Timestamp
 import grizzled.slf4j.Logging

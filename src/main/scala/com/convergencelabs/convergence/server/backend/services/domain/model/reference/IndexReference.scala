@@ -12,8 +12,9 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.IndexTransformer
-import com.convergencelabs.convergence.server.backend.services.domain.model.{IndexReferenceValues, RealtimeValue}
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeValue
+import com.convergencelabs.convergence.server.model.domain.model.IndexReferenceValues
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 /**
  * Represents and reference pointing to a set of indices, in a positionally
@@ -26,10 +27,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  *                this reference.
  * @param initial The initial values to set.
  */
-class IndexReference(target: RealtimeValue,
-                     session: DomainSessionId,
-                     key: String,
-                     initial: List[Int])
+private[model] class IndexReference(target: RealtimeValue,
+                                    session: DomainSessionAndUserId,
+                                    key: String,
+                                    initial: List[Int])
   extends ModelReference[Int, RealtimeValue](target, session, key, initial)
     with PositionalInsertAwareReference
     with PositionalRemoveAwareReference

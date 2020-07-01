@@ -11,8 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ElementReferenceValues, RealtimeModel}
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModel
+import com.convergencelabs.convergence.server.model.domain.model.ElementReferenceValues
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 /**
  * Represents a reference that targets model elements.
@@ -24,10 +25,10 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
  *                this reference.
  * @param initial The initial values to set.
  */
-class ElementReference(target: RealtimeModel,
-                       session: DomainSessionId,
-                       key: String,
-                       initial: List[String])
+private[model] class ElementReference(target: RealtimeModel,
+                                      session: DomainSessionAndUserId,
+                                      key: String,
+                                      initial: List[String])
   extends ModelReference[String, RealtimeModel](target, session, key, initial) {
 
   /**

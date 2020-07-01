@@ -11,13 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.{PropertyReferenceValues, RealtimeValue}
-import com.convergencelabs.convergence.server.model.domain.session.DomainSessionId
+import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeValue
+import com.convergencelabs.convergence.server.model.domain.model.PropertyReferenceValues
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
-class PropertyReference(target: RealtimeValue,
-                        session: DomainSessionId,
-                        key: String,
-                        initialValues: List[String])
+private[model] class PropertyReference(target: RealtimeValue,
+                                       session: DomainSessionAndUserId,
+                                       key: String,
+                                       initialValues: List[String])
   extends ModelReference[String, RealtimeValue](target, session, key, initialValues) with PropertyRemoveAwareReference {
 
   def handlePropertyRemove(property: String): Unit = {

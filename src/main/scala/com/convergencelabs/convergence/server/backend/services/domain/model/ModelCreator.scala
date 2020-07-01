@@ -13,11 +13,10 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import java.util.UUID
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissions
-import com.convergencelabs.convergence.server.backend.services.domain.model.data.ObjectValue
 import com.convergencelabs.convergence.server.backend.services.domain.UnauthorizedException
+import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions, ModelSnapshot, ModelSnapshotMetaData, ObjectValue}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 import scala.util.{Failure, Success, Try}
 

@@ -13,9 +13,10 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 
 import java.util.{List => JavaList}
 
+import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
-import com.convergencelabs.convergence.server.backend.datastore.mapper.ODocumentMapper
-import com.convergencelabs.convergence.server.domain.model.data.ArrayValue
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model.ArrayValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.executor.OResult
 
@@ -52,7 +53,7 @@ object ArrayValueMapper extends ODocumentMapper {
       case v =>
         v.asInstanceOf[ODocument].asDataValue
     }
-    ArrayValue(id, dataValues.toList)
+    model.ArrayValue(id, dataValues.toList)
   }
 
   private[domain] val DocumentClassName = "ArrayValue"

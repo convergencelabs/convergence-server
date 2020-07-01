@@ -9,22 +9,22 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.schema
+package com.convergencelabs.convergence.server.backend.db.schema
 
 import java.io.IOException
 
 import com.convergencelabs.convergence.server.util.serialization.SimpleNamePolymorphicSerializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import org.json4s.{DefaultFormats, Extraction}
 import org.json4s.ext.EnumNameSerializer
 import org.json4s.jackson.JsonMethods
+import org.json4s.{DefaultFormats, Extraction, Formats}
 
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 object DeltaManifest {
-  val Formats = DefaultFormats +
+  val Formats: Formats = DefaultFormats +
     SimpleNamePolymorphicSerializer[DeltaAction]("action", List(
       classOf[CreateClass],
       classOf[AlterClass],
@@ -60,14 +60,14 @@ class DeltaManifest(
       if (incrementalDelta.delta.version != version) {
         throw new IOException(s"Incremental delta version ${incrementalDelta.delta.version} does not match file name: ${incrementalPath}")
       }
-      validateDeltaHash(incrementalDelta, false).get
+      validateDeltaHash(incrementalDelta, full = false).get
 
       val fulllPath = getFullDeltaPath(version)
       val fullDelta = loadDeltaScript(fulllPath).get
       if (fullDelta.delta.version != version) {
         throw new IOException(s"Full delta version ${fullDelta.delta.version} does not match file name: ${fulllPath}")
       }
-      validateDeltaHash(fullDelta, true).get
+      validateDeltaHash(fullDelta, full = true).get
     }
   }
 
@@ -101,20 +101,20 @@ class DeltaManifest(
   }
 
   private[this] def getIncrementalDeltaPath(version: Int): String = {
-    s"${basePath}delta-${version}.yaml"
+    s"${basePath}delta-$version.yaml"
   }
 
   private[this] def getFullDeltaPath(version: Int): String = {
-    s"${basePath}database-${version}.yaml"
+    s"${basePath}database-$version.yaml"
   }
 
   private[this] def validateDeltaHash(deltaScript: DeltaScript, full: Boolean): Try[Unit] = Try {
     val deltaText = deltaScript.rawScript
     val version = deltaScript.delta.version
     if (version <= index.releasedVersion) {
-      val hashes = index.deltas.get(version.toString) getOrElse {
-        throw new IllegalStateException(s"Delta ${version} is missing a hash entry.")
-      }
+      val hashes = index.deltas.getOrElse(version.toString, {
+        throw new IllegalStateException(s"Delta $version is missing a hash entry.")
+      })
 
       val (path, hash) = full match {
         case true =>

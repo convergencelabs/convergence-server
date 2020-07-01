@@ -16,7 +16,7 @@ import java.time.Duration
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.ConfigClass
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.ConfigClass.Fields
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
@@ -69,8 +69,6 @@ object ConfigKeys {
     }
   }
 }
-
-case class ConfigNotFound(key: String) extends Exception(s"The required config '$key' does not exist")
 
 object ConfigStore {
 
@@ -153,7 +151,7 @@ class ConfigStore(dbProvider: DatabaseProvider)
       case Some(config) =>
         Success(config)
       case None =>
-        Failure(ConfigNotFound(key))
+        Failure(ConfigNotFoundException(key))
     }
   }
 

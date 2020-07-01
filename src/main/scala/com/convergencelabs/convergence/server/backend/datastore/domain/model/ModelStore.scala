@@ -15,18 +15,19 @@ import java.time.Instant
 import java.util.Date
 
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.api.rest.DataValueToJValue
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.ODocumentToDataValue
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.db.DatabaseProvider
-import com.convergencelabs.convergence.server.domain.model.data.ObjectValue
-import com.convergencelabs.convergence.server.domain.model.query.Ast.SelectStatement
-import com.convergencelabs.convergence.server.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
-import com.convergencelabs.convergence.server.domain.model.{Model, ModelMetaData, ModelQueryResult}
-import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.services.domain.model.query.Ast.SelectStatement
+import com.convergencelabs.convergence.server.backend.services.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
+import com.convergencelabs.convergence.server.backend.services.domain.model.ModelQueryResult
+import com.convergencelabs.convergence.server.model.domain
+import com.convergencelabs.convergence.server.model.domain.model
+import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions, ObjectValue}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.{DataValueToJValue, QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
 import com.orientechnologies.orient.core.id.ORID
@@ -62,7 +63,7 @@ object ModelStore {
     val createdTime: Date = doc.getProperty(Fields.CreatedTime)
     val modifiedTime: Date = doc.getProperty(Fields.ModifiedTime)
     val worldPermissions = ModelPermissionsStore.docToModelPermissions(doc.getProperty(Fields.WorldPermissions))
-    ModelMetaData(
+    model.ModelMetaData(
       doc.getProperty(Fields.Id),
       doc.eval("collection.id").asInstanceOf[String],
       doc.getProperty(Fields.Version),
@@ -78,7 +79,7 @@ object ModelStore {
     // and in other cases an ODocument. This handles both cases.  We should figure out what
     // is supposed to come back and why it might be coming back as the other.
     val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument]
-    Model(docToModelMetaData(doc), data.asObjectValue)
+    model.Model(docToModelMetaData(doc), data.asObjectValue)
   }
 
   def getModelRid(id: String, db: ODatabaseDocument): Try[ORID] = {
@@ -134,8 +135,8 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
     val version = 1
     val valuePrefix = 1
 
-    val model = Model(
-      ModelMetaData(
+    val model = domain.model.Model(
+      domain.model.ModelMetaData(
         modelId,
         collectionId,
         version,
@@ -330,7 +331,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
           results.remove("@rid")
           val createdTime = results.remove(Fields.CreatedTime).asInstanceOf[Date]
           val modifiedTime = results.remove(Fields.ModifiedTime).asInstanceOf[Date]
-          val meta = ModelMetaData(
+          val meta = model.ModelMetaData(
             results.remove(Fields.Id).asInstanceOf[String],
             results.remove("collectionId").asInstanceOf[String],
             results.remove(Fields.Version).asInstanceOf[Long],

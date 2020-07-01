@@ -14,10 +14,11 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.actor.CborSerializable
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelPermissions, QueryParsingException}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.QueryParsingException
+import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
@@ -25,7 +26,7 @@ import grizzled.slf4j.Logging
 
 import scala.util.Success
 
-class ModelStoreActor private[datastore](context: ActorContext[ModelStoreActor.Message],
+class ModelStoreActor private(context: ActorContext[ModelStoreActor.Message],
                                          private[this] val persistenceProvider: DomainPersistenceProvider)
   extends AbstractBehavior[ModelStoreActor.Message](context) with Logging {
 

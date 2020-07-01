@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.services.domain
 
 import akka.actor.typed.{ActorRef, ActorSystem}
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 
 import scala.util.Try
 

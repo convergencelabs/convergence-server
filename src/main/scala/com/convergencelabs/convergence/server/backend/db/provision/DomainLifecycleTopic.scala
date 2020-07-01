@@ -9,12 +9,12 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.db.provision
+package com.convergencelabs.convergence.server.backend.db.provision
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.pubsub.Topic.Command
-import com.convergencelabs.convergence.server.model.domain.DomainId
+import com.convergencelabs.convergence.server.model.DomainId
 
 object DomainLifecycleTopic {
   sealed trait Message

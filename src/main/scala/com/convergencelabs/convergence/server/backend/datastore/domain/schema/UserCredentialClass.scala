@@ -20,6 +20,6 @@ object UserCredentialClass extends OrientDbClass {
 
    object Fields {
     val User = "user"
-    val Password = "Password"
+    val Password = "password"
   }
 }

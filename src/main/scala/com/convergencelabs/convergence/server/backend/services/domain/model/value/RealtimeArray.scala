@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model
+package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.model.domain.model
@@ -17,10 +17,10 @@ import com.convergencelabs.convergence.server.model.domain.model.{ArrayValue, Da
 
 import scala.util.{Failure, Success, Try}
 
-class RealtimeArray(private[this] val value: ArrayValue,
-                    private[this] val parent: Option[RealtimeContainerValue],
-                    private[this] val parentField: Option[Any],
-                    private[this] val valueFactory: RealtimeValueFactory)
+private[model] class RealtimeArray(value: ArrayValue,
+                                   parent: Option[RealtimeContainerValue],
+                                   parentField: Option[Any],
+                                   valueFactory: RealtimeValueFactory)
   extends RealtimeContainerValue(value.id, parent, parentField, List()) {
 
   private[this] var childValues: List[RealtimeValue] = _
@@ -155,9 +155,10 @@ class RealtimeArray(private[this] val value: ArrayValue,
 
   private[this] def setValue(value: List[DataValue]): Unit = {
     var i = 0
-    childValues = value.map {
-      v => this.valueFactory.createValue(v, Some(this), Some({
-        i += 1; i
+    childValues = value.map { v =>
+      this.valueFactory.createValue(v, Some(this), Some({
+        i += 1
+        i
       }))
     }
   }

@@ -25,7 +25,6 @@ import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.Mo
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
 import com.convergencelabs.convergence.proto.model.{ReferenceValues, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
-import com.convergencelabs.convergence.server.util.actor.CborSerializable
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
@@ -41,6 +40,7 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model.{ElementReferenceValues, IndexReferenceValues, ModelPermissions, ModelReferenceValues, ObjectValue, PropertyReferenceValues, RangeReferenceValues, ReferenceState}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.google.protobuf.struct.Value
 import com.google.protobuf.struct.Value.Kind.{StringValue => ProtoString}
