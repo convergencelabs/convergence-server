@@ -24,7 +24,7 @@ import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.
 import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.ErrorData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
-import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{InvalidConvergenceMessageException, MessageDecodingException, MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
 import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
@@ -173,8 +173,12 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
           messageHandler(event)
         case Success(None) =>
           Behaviors.same
+        case Failure(InvalidConvergenceMessageException(message, convergenceMessage)) =>
+          invalidMessage(message, Some(convergenceMessage))
+        case Failure(MessageDecodingException()) =>
+          invalidMessage("Could not deserialize binary protocol message", None)
         case Failure(cause) =>
-          invalidMessage(cause)
+          invalidMessage(cause.getMessage, None)
       }
 
     case SendUnprocessedMessage(convergenceMessage) =>
@@ -208,8 +212,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     case Disconnect() =>
       this.handleDisconnect()
 
-    case x: Any =>
-      invalidMessage(x)
+    case msg: Any =>
+      invalidMessage("An unhandled messages was received", Some(msg))
   }
 
   private[this] val receiveWhileHandshaking: PartialFunction[Message, Behavior[Message]] = {
@@ -250,15 +254,15 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   private[this] def handleAuthenticationMessage: MessageHandler = {
     case RequestReceived(message, replyCallback) if message.isInstanceOf[AuthenticationRequestMessage] =>
       authenticate(message.asInstanceOf[AuthenticationRequestMessage], replyCallback)
-    case x: Any =>
-      invalidMessage(x)
+    case msg: Any =>
+      invalidMessage("an unexpected messages was received while authenticating", Some(msg))
   }
 
   private[this] def handleMessagesWhenAuthenticated: MessageHandler = {
     case RequestReceived(message, _) if message.isInstanceOf[HandshakeRequestMessage] =>
-      invalidMessage(message)
+      invalidMessage("A handshake message was received while already authenticated", Some(message))
     case RequestReceived(message, _) if message.isInstanceOf[GeneratedMessage with RequestMessage with AuthenticationMessage] =>
-      invalidMessage(message)
+      invalidMessage("An authentication message was received while already authenticated", Some(message))
 
     case message: MessageReceived =>
       onMessageReceived(message)
@@ -531,8 +535,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     this.disconnect()
   }
 
-  private[this] def invalidMessage(message: Any): Behavior[Message] = {
-    error(s"$domainId: Invalid message: '$message'")
+  private[this] def invalidMessage(details: String, message: Option[Any]): Behavior[Message] = {
+    error(s"$domainId: Invalid message. $details: '${message.getOrElse("")}'")
     this.disconnect()
   }
 

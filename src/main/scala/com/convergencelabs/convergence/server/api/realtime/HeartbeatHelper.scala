@@ -52,7 +52,7 @@ private[realtime] class HeartbeatHelper(pingInterval: FiniteDuration,
       this._started = true
       this.messageReceived()
     } else {
-      throw new IllegalStateException("already started")
+      logger.warn("start called while already started")
     }
   }
 
@@ -80,7 +80,7 @@ private[realtime] class HeartbeatHelper(pingInterval: FiniteDuration,
       stopPingTimer()
       cancelPongTimeout()
     } else {
-      throw new IllegalStateException("not started")
+      logger.warn("stop called while not started")
     }
   }
 
@@ -93,7 +93,7 @@ private[realtime] class HeartbeatHelper(pingInterval: FiniteDuration,
       cancelPongTimeout()
       restartPingTimeout()
     } else {
-      throw new IllegalStateException("not started")
+      logger.warn("messageReceived called while not started")
     }
   }
 

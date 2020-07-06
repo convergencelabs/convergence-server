@@ -22,7 +22,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, ExecutionContext, Promise}
 
-// scalastyle:off magic.number
 class HeartbeatHelperSpec
   extends ScalaTestWithActorTestKit(ManualTime.config)
     with AnyWordSpecLike
@@ -33,9 +32,7 @@ class HeartbeatHelperSpec
 
   private[this] val pingInterval = FiniteDuration(5, TimeUnit.SECONDS)
   private[this] val pongTimeout = FiniteDuration(10, TimeUnit.SECONDS)
-
   private[this] val resolutionTimeout = FiniteDuration(250, TimeUnit.MILLISECONDS)
-
   private[this] val manualTime: ManualTime = ManualTime()
 
   "A HeartbeatHelper" when {
@@ -111,19 +108,6 @@ class HeartbeatHelperSpec
 
         hbh.stop()
       }
-
-      "throw an exception if start is called" in {
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
-          case PingRequest =>
-          case PongTimeout =>
-        })
-
-        hbh.start()
-
-        intercept[IllegalStateException] {
-          hbh.start()
-        }
-      }
     }
 
     "stopped" must {
@@ -145,28 +129,6 @@ class HeartbeatHelperSpec
 
         hbh.started() shouldBe false
         hbh.stopped() shouldBe true
-      }
-
-      "throw an exception if stop is called" in {
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
-          case PingRequest =>
-          case PongTimeout =>
-        })
-
-        intercept[IllegalStateException] {
-          hbh.stop()
-        }
-      }
-
-      "throw an exception if message received is called" in {
-        val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
-          case PingRequest =>
-          case PongTimeout =>
-        })
-
-        intercept[IllegalStateException] {
-          hbh.messageReceived()
-        }
       }
     }
   }

@@ -14,9 +14,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class PathComparatorSpec
-    extends AnyWordSpec
-    with Matchers {
+class PathComparatorSpec extends AnyWordSpec with Matchers {
 
   private val parent = List("level1")
 
@@ -47,12 +45,12 @@ class PathComparatorSpec
         PathComparator.isDescendantOf(parent, child) shouldBe false
       }
 
-      "return false for a grandshild testing a deeper cousin" in {
+      "return false for a grandchild testing a deeper cousin" in {
         PathComparator.isDescendantOf(deeperCousin, grandChild) shouldBe false
       }
     }
 
-    "evalauting a child path relationship" must {
+    "evaluating a child path relationship" must {
 
       "return true for a child under a parent" in {
         PathComparator.isChildOf(child, parent) shouldBe true
@@ -71,7 +69,7 @@ class PathComparatorSpec
       }
     }
 
-    "evalauting an ancestor path relationship" must {
+    "evaluating an ancestor path relationship" must {
       "return true for a parent being an ancestor of a direct child" in {
         PathComparator.isAncestorOf(parent, child) shouldBe true
       }
@@ -89,7 +87,7 @@ class PathComparatorSpec
       }
     }
 
-    "evalauting a parent path relationship" must {
+    "evaluating a parent path relationship" must {
       "return true for a parent being an ancestor of a direct child" in {
         PathComparator.isParentOf(parent, child) shouldBe true
       }
@@ -107,7 +105,7 @@ class PathComparatorSpec
       }
     }
 
-    "evalauting a sibling path relationship" must {
+    "evaluating a sibling path relationship" must {
       "return true for an path being a sibling of a sibling" in {
         PathComparator.areSiblings(child, childSibling) shouldBe true
       }
@@ -133,17 +131,13 @@ class PathComparatorSpec
       }
     }
 
-    "evalauting the equality of paths" must {
+    "evaluating the equality of paths" must {
       "return true paths that are equal" in {
-        // scalastyle:off multiple.string.literals
         PathComparator.areEqual(List("1", 2, "3"), List("1", 2, "3")) shouldBe true
-        // scalastyle:on multiple.string.literals
       }
 
       "return false for paths that are unequal" in {
-        // scalastyle:off multiple.string.literals
         PathComparator.areEqual(List("1", 2, "3"), List(1, "2", 3)) shouldBe false
-        // scalastyle:on multiple.string.literals
       }
     }
   }

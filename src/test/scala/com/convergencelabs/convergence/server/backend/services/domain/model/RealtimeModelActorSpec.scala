@@ -280,7 +280,7 @@ class RealtimeModelActorSpec
       "send an ack back to the submitting client" in new OneOpenClient {
         Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
         realtimeModelActor ! RealtimeModelActor.OperationSubmission(
-          domainFqn, modelId, skU1S1, 0, modelData.metaData.version, ObjectAddPropertyOperation("", noOp = false, "foo", NullValue("")))
+          domainFqn, modelId, skU1S1, 0, modelData.metaData.version, ObjectAddPropertyOperation("id", noOp = false, "foo", NullValue("")))
         val opAck: ModelClientActor.OperationAcknowledgement =
           client1.expectMessageType[ModelClientActor.OperationAcknowledgement](FiniteDuration(1, TimeUnit.SECONDS))
         opAck.modelId shouldBe modelId
@@ -290,7 +290,7 @@ class RealtimeModelActorSpec
       "send an operation to other connected clients" in new TwoOpenClients {
         Mockito.when(persistenceProvider.modelOperationProcessor.processModelOperation(Matchers.any())).thenReturn(Success(()))
         realtimeModelActor ! RealtimeModelActor.OperationSubmission(
-          domainFqn, modelId, skU1S1, 0, modelData.metaData.version, ObjectAddPropertyOperation("", noOp = false, "foo", NullValue("")))
+          domainFqn, modelId, skU1S1, 0, modelData.metaData.version, ObjectAddPropertyOperation("id", noOp = false, "foo", NullValue("")))
         client1.expectMessageType[ModelClientActor.OperationAcknowledgement](FiniteDuration(120, TimeUnit.SECONDS))
         client2.expectMessageType[ModelClientActor.OutgoingOperation](FiniteDuration(120, TimeUnit.SECONDS))
       }
@@ -335,7 +335,6 @@ class RealtimeModelActorSpec
     "requested to create a model" must {
       "return ModelCreated if the model does not exist" in new TestFixture {
         {
-          val client = testKit.createTestProbe()
           val data = ObjectValue("", Map())
 
           Mockito.when(modelCreator.createModel(
@@ -541,7 +540,6 @@ class RealtimeModelActorSpec
     val shard: TestProbe[ClusterSharding.ShardCommand] = testKit.createTestProbe[ClusterSharding.ShardCommand]()
     val clientDataResponseTimeout: FiniteDuration = FiniteDuration(100, TimeUnit.MILLISECONDS)
     val receiveTimeout: FiniteDuration = FiniteDuration(100, TimeUnit.MILLISECONDS)
-    val resyncTimeout: FiniteDuration = FiniteDuration(100, TimeUnit.MILLISECONDS)
 
     private val behavior = RealtimeModelActor(
       shardRegion.ref,
@@ -550,8 +548,7 @@ class RealtimeModelActorSpec
       modelCreator,
       persistenceManager,
       clientDataResponseTimeout,
-      receiveTimeout,
-      resyncTimeout)
+      receiveTimeout)
 
     val realtimeModelActor: ActorRef[RealtimeModelActor.Message] = testKit.spawn(behavior)
   }

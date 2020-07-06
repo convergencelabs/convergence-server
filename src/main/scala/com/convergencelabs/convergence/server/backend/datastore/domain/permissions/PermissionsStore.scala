@@ -22,6 +22,7 @@ import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 import scala.jdk.CollectionConverters._
@@ -282,7 +283,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                                            permissions: Set[String],
                                            forRecord: Option[ORID]): Try[Unit] = {
     (for {
-      permissionRids <- createPermissions(db, permissions, None, forRecord)
+      permissionRids <- createMissingPermissions(db, permissions, None, forRecord)
     } yield permissionRids)
       .flatMap(p => addPermissionToTarget(db, p, forRecord))
   }
@@ -362,7 +363,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                                           forRecord: Option[ORID]): Try[Unit] = {
     (for {
       userRid <- DomainUserStore.getUserRid(userId, db)
-      permissionRids <- createPermissions(db, permissions, Some(userRid), forRecord)
+      permissionRids <- createMissingPermissions(db, permissions, Some(userRid), forRecord)
     } yield permissionRids)
       .flatMap(p => addPermissionToTarget(db, p, forRecord))
   }
@@ -442,7 +443,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                                            forRecord: Option[ORID]): Try[Unit] = {
     (for {
       groupRid <- UserGroupStore.getGroupRid(groupId, db)
-      permissionRids <- createPermissions(db, permissions, Some(groupRid), forRecord)
+      permissionRids <- createMissingPermissions(db, permissions, Some(groupRid), forRecord)
     } yield permissionRids)
       .flatMap(p => addPermissionToTarget(db, p, forRecord))
   }
@@ -462,18 +463,24 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
   // General Helpers
   /////////////////////////////////////////////////////////////////////////////
 
-  private[this] def createPermissions(db: ODatabaseDocument,
-                                      permissions: Set[String],
-                                      assignedTo: Option[ORID],
-                                      forRecord: Option[ORID]): Try[Set[ORID]] = Try {
+  private[this] def createMissingPermissions(db: ODatabaseDocument,
+                                             permissions: Set[String],
+                                             assignedTo: Option[ORID],
+                                             forRecord: Option[ORID]): Try[Set[ORID]] = Try {
     permissions.map { permission =>
       val doc: ODocument = db.newInstance(Classes.Permission.ClassName)
       doc.setProperty(Classes.Permission.Fields.Permission, permission)
       assignedTo.foreach(doc.setProperty(Classes.Permission.Fields.AssignedTo, _))
       forRecord.foreach(doc.setProperty(Classes.Permission.Fields.ForRecord, _))
-      db.save(doc)
-      doc.getIdentity
-    }
+      (Try {
+        db.save(doc)
+        Some(doc.getIdentity)
+      } recover {
+        case _: ORecordDuplicatedException =>
+          None
+      }).get
+
+    }.filter(_.isDefined).map(_.get)
   }
 
   private[this] def addPermissionToTarget(db: ODatabaseDocument, permissions: Set[ORID], forRecord: Option[ORID]): Try[Unit] = {
@@ -542,18 +549,18 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                                       assignedTo: Option[ORID],
                                       forRecord: Option[ORID]): Try[Unit] = {
     for {
-      permissionRids <- Try(permissions.map(getPermissionRid(db, _, assignedTo, forRecord).get))
+      permissionRids <- Try(permissions.flatMap(findPermissionRid(db, _, assignedTo, forRecord).get))
       _ <- removePermissionsByRid(db, permissionRids, forRecord)
     } yield ()
   }
 
-  private[this] def getPermissionRid(db: ODatabaseDocument,
+  private[this] def findPermissionRid(db: ODatabaseDocument,
                                      permission: String,
                                      assignedTo: Option[ORID],
-                                     forRecord: Option[ORID]): Try[ORID] = {
+                                     forRecord: Option[ORID]): Try[Option[ORID]] = {
     val assignedToRid = assignedTo.orNull
     val forRecordRid = forRecord.orNull
-    OrientDBUtil.getIdentityFromSingleValueIndex(
+    OrientDBUtil.findIdentityFromSingleValueIndex(
       db,
       Classes.Permission.Indices.AssignedTo_ForRecord_Permission,
       List(assignedToRid, forRecordRid, permission))

@@ -23,21 +23,21 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
 import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
-import com.convergencelabs.convergence.proto.model.{ReferenceValues, _}
+import com.convergencelabs.convergence.proto.model.{ObjectValue => _, ModelPermissionsData => ProtoModelPermissions, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
-import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
 import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.RangeReference
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelStoreActor, RealtimeModelActor, _}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelStoreActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.model.{ElementReferenceValues, IndexReferenceValues, ModelPermissions, ModelReferenceValues, ObjectValue, PropertyReferenceValues, RangeReferenceValues, ReferenceState}
+import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
@@ -140,12 +140,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
             Some(objectValueToProto(model.data))
           )
 
-          val permissionsData = ModelPermissionsData(
-            permissions.read,
-            permissions.write,
-            permissions.remove,
-            permissions.manage)
-
+          val permissionsData = ProtoModelPermissions(permissions.read, permissions.write, permissions.remove, permissions.manage)
           val prefix = java.lang.Long.toString(valueIdPrefix, 36)
           val initialData = OfflineModelInitialData(model.metaData.collection, prefix, Some(modelDataUpdate), Some(permissionsData))
           val action = OfflineModelUpdatedMessage.Action.Initial(initialData)
@@ -168,7 +163,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
           }
 
           val permissionsUpdate = permissions.map { p =>
-            ModelPermissionsData(p.read, p.write, p.remove, p.manage)
+            ProtoModelPermissions(p.read, p.write, p.remove, p.manage)
           }
 
           val updateData = OfflineModelUpdateData(modelUpdate, permissionsUpdate)
@@ -179,7 +174,6 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
           val version = model.map(_.metaData.version).getOrElse(currentState.currentVersion)
           val perms = permissions.getOrElse(currentState.currentPermissions)
           this.subscribedModels += modelId -> OfflineModelState(version, perms)
-
         }
 
       case ModelStoreActor.OfflineModelDeleted() =>
@@ -222,7 +216,6 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] def onOutgoingModelMessage(message: OutgoingMessage): Unit = {
     if (openingModelStash.contains(message.modelId)) {
       message match {
-
         case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
           // This message is part of the opening process and should go
           // out immediately. All others should be stashed.
@@ -243,8 +236,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
           onRemoteClientClosed(remoteClosed)
         case forceClosed: ModelForceClose =>
           onModelForceClose(forceClosed)
-        case autoCreateRequest: ClientAutoCreateModelConfigRequest =>
-        // FIXME we are already opened.. this should not happen???
+        case _: ClientAutoCreateModelConfigRequest =>
+          logger.warn(s"$domainId: Received a ClientAutoCreateModelConfigRequest for a model that is not opening: ${message.modelId}")
         case refShared: RemoteReferenceShared =>
           onRemoteReferenceShared(refShared)
         case refUnshared: RemoteReferenceUnshared =>
@@ -327,6 +320,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] def onModelForceClose(forceClose: ModelForceClose): Unit = {
     val ModelForceClose(modelId, reason, reasonCode) = forceClose
     resourceId(modelId) foreach { resourceId =>
+      logger.warn(s"$domainId: Model forced closed: {modelId: '$modelId', resourceId: $resourceId")
+
       modelIdToResourceId -= modelId
       resourceIdToModelId -= resourceId
       openingModelStash -= modelId
@@ -340,21 +335,31 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     clientActor.ask[Any](SendServerRequest(AutoCreateModelConfigRequestMessage(autoConfigId), _))
       .mapTo[AutoCreateModelConfigResponseMessage]
       .map {
-        case AutoCreateModelConfigResponseMessage(collection, data, overridePermissions, worldPermissionsData, userPermissionsData, ephemeral, _) =>
-          val worldPermissions = worldPermissionsData.map {
-            case ModelPermissionsData(read, write, remove, manage, _) =>
-              ModelPermissions(read, write, remove, manage)
+        case AutoCreateModelConfigResponseMessage(collection, protoData, overridePermissions, worldPermissionsData, userPermissionsData, ephemeral, _) =>
+          val data = protoData match {
+            case Some(value) =>
+              protoToObjectValue(value).map(Some(_))
+            case None =>
+              Right(None)
           }
 
-          val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
-          val config = ClientAutoCreateModelConfig(
-            collection,
-            data.map(protoToObjectValue),
-            Some(overridePermissions),
-            worldPermissions,
-            userPermissions,
-            Some(ephemeral))
-          ClientAutoCreateModelConfigResponse(Right(config))
+          data fold( { _ =>
+            ClientAutoCreateModelConfigResponse(Left(ClientAutoCreateModelConfigInvalid()))
+          }, { data =>
+            val worldPermissions = worldPermissionsData.map {
+              case ProtoModelPermissions(read, write, remove, manage, _) =>
+                ModelPermissions(read, write, remove, manage)
+            }
+            val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
+            val config = ClientAutoCreateModelConfig(
+              collection,
+              data,
+              Some(overridePermissions),
+              worldPermissions,
+              userPermissions,
+              Some(ephemeral))
+            ClientAutoCreateModelConfigResponse(Right(config))
+          })
       }
       .recover {
         case _: TimeoutException =>
@@ -528,7 +533,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
         }
 
       case None =>
-        warn(s"$domainId: Received an operation submissions for a resource id that does not exists.")
+        warn(s"$domainId: Received an operation submissions for a resourceId that does not exist: $resourceId")
         val serverMessage = unknownResourceId(resourceId)
         clientActor ! SendServerMessage(serverMessage)
     }
@@ -663,7 +668,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     unsubscribe.foreach(modelId => this.subscribedModels -= modelId)
 
     subscribe.foreach { case ModelOfflineSubscriptionData(modelId, version, permissions, _) =>
-      val ModelPermissionsData(read, write, remove, manage, _) = permissions.getOrElse(NoPermissions)
+      val ProtoModelPermissions(read, write, remove, manage, _) = permissions.getOrElse(NoPermissions)
       val state = OfflineModelState(version, ModelPermissions(read, write, remove, manage))
       this.subscribedModels += modelId -> state
     }
@@ -782,7 +787,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
         connectedClients.map(s => s.sessionId).toSeq,
         resyncingClients.map(s => s.sessionId).toSeq,
         convertedReferences,
-        Some(ModelPermissionsData(
+        Some(ProtoModelPermissions(
           modelPermissions.read,
           modelPermissions.write,
           modelPermissions.remove,
@@ -823,7 +828,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     val RealtimeModelActor.ModelResyncResponseData(currentVersion, permissions) = data
 
     val ModelPermissions(read, write, remove, manage) = permissions
-    val permissionData = ModelPermissionsData(read, write, remove, manage)
+    val permissionData = ProtoModelPermissions(read, write, remove, manage)
     val resourceId = claimResourceId(modelId)
     val responseMessage = ModelResyncResponseMessage(resourceId, currentVersion, Some(permissionData))
     cb.reply(responseMessage)
@@ -872,44 +877,52 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     val CreateRealtimeModelRequestMessage(collectionId, optionalModelId, data, overridePermissions, worldPermissionsData, userPermissionsData, _) = request
     data match {
       case Some(createData) =>
-        val worldPermissions = worldPermissionsData.map(w =>
-          ModelPermissions(w.read, w.write, w.remove, w.manage))
+        protoToObjectValue(createData).fold(
+          { _ =>
+            cb.expectedError(ErrorCodes.InvalidMessage, "Invalid model data was provided in create model request")
+          },
+          { modelRoot =>
+            val worldPermissions = worldPermissionsData.map(w =>
+              ModelPermissions(w.read, w.write, w.remove, w.manage))
 
-        val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
+            val userPermissions = modelUserPermissionSeqToMap(userPermissionsData)
 
-        val modelId = getSetOrRandomModelId(optionalModelId)
+            val modelId = getSetOrRandomModelId(optionalModelId)
 
-        modelClusterRegion
-          .ask[RealtimeModelActor.CreateRealtimeModelResponse](
-            RealtimeModelActor.CreateRealtimeModelRequest(
-              domainId,
-              modelId,
-              collectionId,
-              protoToObjectValue(createData),
-              Some(overridePermissions),
-              worldPermissions,
-              userPermissions,
-              Some(session),
-              _))
-          .map(_.response.fold(
-            {
-              case RealtimeModelActor.ModelAlreadyExistsError() =>
-                cb.expectedError(ErrorCodes.ModelAlreadyExists, s"A model with the id '$modelId' already exists")
-              case RealtimeModelActor.UnauthorizedError(message) =>
-                cb.reply(ErrorMessages.Unauthorized(message))
-              case RealtimeModelActor.InvalidCreationDataError(message) =>
-                badRequest(message)
-              case RealtimeModelActor.UnknownError() =>
-                cb.unexpectedError("could not create model")
-            },
-            modelId => cb.reply(CreateRealtimeModelResponseMessage(modelId))
-          ))
-          .recover { cause =>
-            warn("A timeout occurred waiting for an close model request", cause)
-            cb.timeoutError()
+            modelClusterRegion
+              .ask[RealtimeModelActor.CreateRealtimeModelResponse](
+                RealtimeModelActor.CreateRealtimeModelRequest(
+                  domainId,
+                  modelId,
+                  collectionId,
+                  modelRoot,
+                  Some(overridePermissions),
+                  worldPermissions,
+                  userPermissions,
+                  Some(session),
+                  _))
+              .map(_.response.fold(
+                {
+                  case RealtimeModelActor.ModelAlreadyExistsError() =>
+                    cb.expectedError(ErrorCodes.ModelAlreadyExists, s"A model with the id '$modelId' already exists.")
+                  case RealtimeModelActor.UnauthorizedError(message) =>
+                    cb.reply(ErrorMessages.Unauthorized(message))
+                  case RealtimeModelActor.InvalidCreationDataError(message) =>
+                    badRequest(message)
+                  case RealtimeModelActor.UnknownError() =>
+                    cb.unexpectedError("could not create model")
+                },
+                modelId => cb.reply(CreateRealtimeModelResponseMessage(modelId))
+              ))
+              .recover { cause =>
+                warn("A timeout occurred waiting for an close model request", cause)
+                cb.timeoutError()
+              }
           }
+        )
+
       case None =>
-        cb.expectedError(ErrorCodes.InvalidMessage, "No creation data was provided in create model request")
+        cb.expectedError(ErrorCodes.InvalidMessage, "No model data was provided in create model request")
     }
 
   }
@@ -988,7 +1001,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
         },
         {
           case RealtimeModelActor.GetModelPermissionsSuccess(overridesCollection, world, users) =>
-            val mappedWorld = ModelPermissionsData(world.read, world.write, world.remove, world.manage)
+            val mappedWorld = ProtoModelPermissions(world.read, world.write, world.remove, world.manage)
             val mappedUsers = modelUserPermissionSeqToMap(users)
             cb.reply(GetModelPermissionsResponseMessage(overridesCollection, Some(mappedWorld), mappedUsers))
         }
@@ -1067,7 +1080,7 @@ object ModelClientActor {
       }
     }
 
-  private val NoPermissions = ModelPermissionsData(read = false, write = false, remove = false, manage = false)
+  private val NoPermissions = ProtoModelPermissions(read = false, write = false, remove = false, manage = false)
 
   private final case object SyncTaskTimer
 

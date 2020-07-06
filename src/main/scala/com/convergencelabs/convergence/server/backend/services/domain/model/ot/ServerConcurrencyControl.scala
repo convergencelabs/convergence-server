@@ -14,30 +14,33 @@ package com.convergencelabs.convergence.server.backend.services.domain.model.ot
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.{OperationTransformer, ReferenceTransformer}
 import com.convergencelabs.convergence.server.model.domain.model.ModelReferenceValues
 import grizzled.slf4j.Logging
-import org.apache.commons.lang3.Validate
 
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
 /**
- * The ServerConcurrencyControl class implements the server side Operational Transformation Control Algorithm.  It is
- * responsible for determining which operations are concurrent and ensuring the concurrent operations are correctly
- * transformed against one another.
+ * The ServerConcurrencyControl class implements the server side Operational
+ * Transformation Control Algorithm.  It is responsible for determining which
+ * operations are concurrent and ensuring the concurrent operations are
+ * correctly transformed against one another.
  *
- * @param operationTransformer  The OperationTransformer instance that this concurrency control will us to transform
- *                              operations with.
- * @param initialContextVersion The initial context version this object will be set to.
+ * @param operationTransformer  The OperationTransformer that will beu used to
+ *                              transform incoming operations.
+ * @param referenceTransformer  The referenceTransformer that will be used to
+ *                              transform the values of operation events.
+ * @param initialContextVersion The initial context version this object will be
+ *                              set to.
  */
-private[model] final class ServerConcurrencyControl(operationTransformer: OperationTransformer,
-                                                    referenceTransformer: ReferenceTransformer,
-                                                    initialContextVersion: Long) extends Logging {
+private[model] final class ServerConcurrencyControl private(operationTransformer: OperationTransformer,
+                                                            referenceTransformer: ReferenceTransformer,
+                                                            initialContextVersion: Long) extends Logging {
 
-  Validate.isTrue(initialContextVersion >= 0, "initialContextVersion must be >= 0: ", initialContextVersion)
+  import ServerConcurrencyControl._
 
   private[this] val clientStates = mutable.HashMap[String, ClientConcurrencyState]()
   private[this] var operationHistoryCache = List[ProcessedOperationEvent]()
   private[this] var pendingEvent: Option[ProcessedOperationEvent] = None
   private[this] var pendingClientState: Option[ClientConcurrencyState] = None
-
   private[this] var _contextVersion = initialContextVersion
 
   /**
@@ -49,70 +52,13 @@ private[model] final class ServerConcurrencyControl(operationTransformer: Operat
    * @param remoteOpEvent The remote event to process.
    * @return A ProcessedOperationEvent which contains a transformed version of the operation.
    */
-  // scalastyle:off method.length
-  def processRemoteOperation(remoteOpEvent: UnprocessedOperationEvent): ProcessedOperationEvent = {
-    if (pendingEvent.isDefined) {
-      throw new IllegalStateException("The previous operation must be committed or rolled back " +
-        "before a new operation can before the next operation can be processed.")
+  def processRemoteOperation(remoteOpEvent: UnprocessedOperationEvent): Try[ProcessedOperationEvent] = {
+    for {
+      _ <- assertNoPendingOperation()
+      _ <- validateOperationEventContext(remoteOpEvent)
+    } yield {
+      processValidatedRemoteOperation(remoteOpEvent)
     }
-    validateOperationEvent(remoteOpEvent)
-
-    val remoteClientId = remoteOpEvent.clientId
-    val remoteOperation = remoteOpEvent.operation
-    val newContextVersion = remoteOpEvent.contextVersion
-
-    val clientState = clientStates(remoteClientId)
-
-    val newStatePath = getCurrentClientStatePath(clientState, newContextVersion)
-
-    // Now we transform the incoming operation across all previous operations.  Those from the
-    // branched state path, that connects to the servers state path, and then along the
-    // servers state path to the current state.
-    val (xFormedOp, xFormedStatePath) = transform(newStatePath, remoteOperation)
-
-    // The results are stored as a pending event, waiting for a commit.
-    pendingEvent = Some(ProcessedOperationEvent(
-      remoteClientId,
-      _contextVersion,
-      xFormedOp))
-
-    // If committed this will become the new state for the client.
-    pendingClientState = Some(clientState.copy(
-      contextVersion = newContextVersion,
-      branchedStatePath = xFormedStatePath))
-
-    pendingEvent.get
-  }
-
-  // scalastyle:on method.length
-
-  private[this] def getCurrentClientStatePath(clientState: ClientConcurrencyState, clientContextVersion: Long): List[ProcessedOperationEvent] = {
-    val newStatePath = clientState.branchedStatePath.filter(event => {
-      event.contextVersion >= clientContextVersion
-    })
-
-    val firstVersionFromGlobalHistory = {
-      if (newStatePath.isEmpty) {
-        // There are no operations in the client's state path.  This means the client's context version has
-        // moved beyond the last operation that was in the client's previous state path.  Therefore, the
-        // first operation we need from the global ordering is the operation that has the same context
-        // version as the incoming operation, since that would be the first operation the incoming
-        // operation was concurrent with
-        clientContextVersion
-      } else {
-        // We still have a prior transformed version of one of the operations in the global ordering of
-        // operations.  Therefore, the first one we need from the history is the one with the context
-        // version right after the last one in the clients new state path
-        newStatePath.last.contextVersion + 1
-      }
-    }
-
-    // We now get any operations from the operationHistoryCache that are concurrent with the incoming
-    // operation, and concatenate that we anything left over from this client branched state.  We filter
-    // out any operations that are from the same client.
-    newStatePath ++ operationHistoryCache.filter(event => {
-      event.contextVersion >= firstVersionFromGlobalHistory && event.clientId != clientState.clientId
-    })
   }
 
   def processRemoteReferenceSet[V <: ModelReferenceValues](clientId: String, reference: ReferenceValue[V]): Option[ReferenceValue[V]] = {
@@ -211,13 +157,6 @@ private[model] final class ServerConcurrencyControl(operationTransformer: Operat
     pendingClientState = None
   }
 
-  private[this] def pruneHistory(): Unit = {
-    val minContextVersion = minimumContextVersion()
-    operationHistoryCache = operationHistoryCache.filter(event => {
-      event.contextVersion >= minContextVersion
-    })
-  }
-
   /**
    * Rolls back the pending operation, removing its effects.  May only be called when hasPendingEvent returns true.
    */
@@ -230,9 +169,44 @@ private[model] final class ServerConcurrencyControl(operationTransformer: Operat
     pendingClientState = None
   }
 
-  private[this] def transform(
-                               historyOperationEvents: List[ProcessedOperationEvent],
-                               incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
+  private[this] def pruneHistory(): Unit = {
+    val minContextVersion = minimumContextVersion()
+    operationHistoryCache = operationHistoryCache.filter(event => {
+      event.contextVersion >= minContextVersion
+    })
+  }
+
+  private[this] def getCurrentClientStatePath(clientState: ClientConcurrencyState, clientContextVersion: Long): List[ProcessedOperationEvent] = {
+    val newStatePath = clientState.branchedStatePath.filter(event => {
+      event.contextVersion >= clientContextVersion
+    })
+
+    val firstVersionFromGlobalHistory = {
+      if (newStatePath.isEmpty) {
+        // There are no operations in the client's state path.  This means the client's context version has
+        // moved beyond the last operation that was in the client's previous state path.  Therefore, the
+        // first operation we need from the global ordering is the operation that has the same context
+        // version as the incoming operation, since that would be the first operation the incoming
+        // operation was concurrent with
+        clientContextVersion
+      } else {
+        // We still have a prior transformed version of one of the operations in the global ordering of
+        // operations.  Therefore, the first one we need from the history is the one with the context
+        // version right after the last one in the clients new state path
+        newStatePath.last.contextVersion + 1
+      }
+    }
+
+    // We now get any operations from the operationHistoryCache that are concurrent with the incoming
+    // operation, and concatenate that we anything left over from this client branched state.  We filter
+    // out any operations that are from the same client.
+    newStatePath ++ operationHistoryCache.filter(event => {
+      event.contextVersion >= firstVersionFromGlobalHistory && event.clientId != clientState.clientId
+    })
+  }
+
+  private[this] def transform(historyOperationEvents: List[ProcessedOperationEvent],
+                              incomingOp: Operation): (Operation, List[ProcessedOperationEvent]) = {
 
     var xFormedOp = incomingOp
     val xFormedList = historyOperationEvents.map(historicalEvent => {
@@ -253,59 +227,102 @@ private[model] final class ServerConcurrencyControl(operationTransformer: Operat
     version
   }
 
-  private[this] def validateOperationEvent(incomingOperation: UnprocessedOperationEvent): Unit = {
+  private[this] def processValidatedRemoteOperation(remoteOpEvent: UnprocessedOperationEvent): ProcessedOperationEvent = {
+    val remoteClientId = remoteOpEvent.clientId
+    val remoteOperation = remoteOpEvent.operation
+    val newContextVersion = remoteOpEvent.contextVersion
+
+    val clientState = clientStates(remoteClientId)
+
+    val newStatePath = getCurrentClientStatePath(clientState, newContextVersion)
+
+    // Now we transform the incoming operation across all previous operations.  Those from the
+    // branched state path, that connects to the servers state path, and then along the
+    // servers state path to the current state.
+    val (xFormedOp, xFormedStatePath) = transform(newStatePath, remoteOperation)
+
+    // The results are stored as a pending event, waiting for a commit.
+    val event = ProcessedOperationEvent(
+      remoteClientId,
+      _contextVersion,
+      xFormedOp)
+    pendingEvent = Some(event)
+
+    // If committed this will become the new state for the client.
+    pendingClientState = Some(clientState.copy(
+      contextVersion = newContextVersion,
+      branchedStatePath = xFormedStatePath))
+
+    event
+  }
+
+  private[this] def assertNoPendingOperation(): Try[Unit] = {
+    if (pendingEvent.isDefined) {
+      Failure(new IllegalStateException("The previous operation must be committed or rolled back " +
+        "before before the next operation can be processed."))
+    } else {
+      Success(())
+    }
+  }
+
+  private[this] def validateOperationEventContext(incomingOperation: UnprocessedOperationEvent): Try[Unit] = {
     val clientId = incomingOperation.clientId
 
     if (!clientStates.contains(clientId)) {
-      throw new IllegalArgumentException(s"The server received an operation from an unknown client: $clientId")
-    }
+      Failure(new IllegalArgumentException(s"The server received an operation from an unknown client: $clientId"))
+    } else {
+      val clientState = clientStates(incomingOperation.clientId)
+      val currentContextVersion = clientState.contextVersion
 
-    val clientState = clientStates(incomingOperation.clientId)
-    val currentContextVersion = clientState.contextVersion
-
-    if (incomingOperation.contextVersion > _contextVersion) {
-      throw new IllegalArgumentException(
-        s"The context version of an incoming remote operation (${incomingOperation.contextVersion}}) " +
-          s"can not be greater than the server's context version (${_contextVersion})")
-    }
-
-    if (incomingOperation.contextVersion < currentContextVersion) {
-      throw new IllegalArgumentException(
-        s"The server received an operation for client ($clientId) with an earlier context version (${incomingOperation.contextVersion}) " +
-          s"than the last known context version for that client ($currentContextVersion).")
+      if (incomingOperation.contextVersion > _contextVersion) {
+        Failure(new IllegalArgumentException(
+          s"The context version of an incoming remote operation (${incomingOperation.contextVersion}}) " +
+            s"can not be greater than the server's context version (${_contextVersion})"))
+      } else if (incomingOperation.contextVersion < currentContextVersion) {
+        Failure(new IllegalArgumentException(
+          s"The server received an operation for client '$clientId' with an earlier context version (${incomingOperation.contextVersion}) " +
+            s"than the last known context version for that client ($currentContextVersion)."))
+      } else {
+        Success(())
+      }
     }
   }
 }
 
-/**
- * The ClientConcurrencyState holds the concurrency state for a specific client.
- *
- * @param clientId          The identifier of the client.
- * @param contextVersion    The currently known context version of that client.
- * @param branchedStatePath The set of operations (other than those from the client it self) that move it from
- *                          the contextVersion back to the servers state path.
- */
-private case class ClientConcurrencyState(clientId: String, contextVersion: Long, branchedStatePath: List[ProcessedOperationEvent])
+object ServerConcurrencyControl {
 
-/**
- * The UnprocessedOperationEvent represents a incoming operation from the a client.  The operation may not be
- * contextualized to the head of the servers state path, and may therefore require transformation.
- *
- * @param clientId       The string id of the client that submitted the operation.
- * @param contextVersion The context version of the operation when it was generated by the client.  This is the point at
- *                       which the client branched of the servers state path.
- * @param operation      The operation that was performed.
- */
-case class UnprocessedOperationEvent(clientId: String, contextVersion: Long, operation: Operation)
+  /**
+   * The ServerConcurrencyControl class implements the server side Operational
+   * Transformation Control Algorithm.  It is responsible for determining which
+   * operations are concurrent and ensuring the concurrent operations are
+   * correctly transformed against one another.
+   *
+   * @param operationTransformer  The OperationTransformer that will beu used to
+   *                              transform incoming operations.
+   * @param referenceTransformer  The referenceTransformer that will be used to
+   *                              transform the values of operation events.
+   * @param initialContextVersion The initial context version this object will be
+   *                              set to.
+   */
+  def create(operationTransformer: OperationTransformer,
+             referenceTransformer: ReferenceTransformer,
+             initialContextVersion: Long): Try[ServerConcurrencyControl] = {
+    if (initialContextVersion < 0) {
+      Failure(new IllegalArgumentException(s"initialContextVersion must be >= 0: $initialContextVersion"))
+    } else {
+      Success(new ServerConcurrencyControl(operationTransformer, referenceTransformer, initialContextVersion))
+    }
+  }
 
-/**
- * The ProcessedOperationEvent represents an operation that has been contextualized on to the servers state path.  This
- * is the final state the operation will be in as it enters the globally ordered operation history.
- *
- * @param clientId       The string id of the client that submitted the operation.
- * @param contextVersion The context version of the operation after any required transformation.
- * @param operation      The (potentially) transformed operation.
- */
-case class ProcessedOperationEvent(clientId: String, contextVersion: Long, operation: Operation) {
-  val resultingVersion: Long = contextVersion + 1
+  /**
+   * The ClientConcurrencyState holds the concurrency state for a specific client.
+   *
+   * @param clientId          The identifier of the client.
+   * @param contextVersion    The currently known context version of that client.
+   * @param branchedStatePath The set of operations (other than those from the client it self) that move it from
+   *                          the contextVersion back to the servers state path.
+   */
+  private final case class ClientConcurrencyState(clientId: String, contextVersion: Long, branchedStatePath: List[ProcessedOperationEvent])
+
 }
+

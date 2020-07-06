@@ -13,13 +13,11 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import java.time.Instant
 
-import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor.OutgoingMessage
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
@@ -28,11 +26,12 @@ import com.convergencelabs.convergence.server.backend.services.domain.model.Real
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, UnauthorizedException}
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelPermissions, ModelReferenceValues, ObjectValue, ReferenceState}
+import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
@@ -53,8 +52,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
                                        modelCreator: ModelCreator,
                                        persistenceManager: DomainPersistenceManager,
                                        clientDataResponseTimeout: FiniteDuration,
-                                       receiveTimeout: FiniteDuration,
-                                       resyncTimeout: FiniteDuration)
+                                       receiveTimeout: FiniteDuration)
   extends ShardedActor(context, shardRegion, shard) {
 
   import RealtimeModelActor._
@@ -278,7 +276,6 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
       modelPermissionResolver,
       modelCreator,
       Timeout(clientDataResponseTimeout),
-      resyncTimeout,
       context.system,
       new EventHandler() {
         def onInitializationError(): Unit = {
@@ -463,8 +460,7 @@ object RealtimeModelActor {
             modelCreator: ModelCreator,
             persistenceManager: DomainPersistenceManager,
             clientDataResponseTimeout: FiniteDuration,
-            receiveTimeout: FiniteDuration,
-            resyncTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
+            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
     new RealtimeModelActor(
       context,
       shardRegion,
@@ -473,8 +469,7 @@ object RealtimeModelActor {
       modelCreator,
       persistenceManager,
       clientDataResponseTimeout,
-      receiveTimeout,
-      resyncTimeout)
+      receiveTimeout)
   }
 
   /////////////////////////////////////////////////////////////////////////////

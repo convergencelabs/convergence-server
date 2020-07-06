@@ -47,10 +47,10 @@ import scala.util.{Failure, Success, Try}
  * @param ec             The execution context to use for asynchronous work.
  */
 private[realtime] final class ProtocolConnection(clientActor: ActorRef[ClientActor.FromProtocolConnection],
-                                           webSocketActor: ActorRef[WebSocketService.OutgoingBinaryMessage],
-                                           protocolConfig: ProtocolConfiguration,
-                                           scheduler: Scheduler,
-                                           ec: ExecutionContext)
+                                                 webSocketActor: ActorRef[WebSocketService.OutgoingBinaryMessage],
+                                                 protocolConfig: ProtocolConfiguration,
+                                                 scheduler: Scheduler,
+                                                 ec: ExecutionContext)
   extends Logging {
 
   import ProtocolConnection._
@@ -142,9 +142,7 @@ private[realtime] final class ProtocolConnection(clientActor: ActorRef[ClientAct
         handleValidMessage(envelope)
 
       case Failure(cause) =>
-        val message = "Could not decode incoming binary protocol message"
-        error(message, cause)
-        Failure(new IllegalArgumentException(message))
+        Failure(MessageDecodingException())
     }
   }
 
@@ -182,51 +180,57 @@ private[realtime] final class ProtocolConnection(clientActor: ActorRef[ClientAct
     }
   }
 
-  private[this] def handleValidMessage(convergenceMessage: ConvergenceMessage): Try[Option[ProtocolMessageEvent]] = Try {
+  private[this] def handleValidMessage(convergenceMessage: ConvergenceMessage): Try[Option[ProtocolMessageEvent]] = {
     if (!convergenceMessage.body.isPing && !convergenceMessage.body.isPong) {
       logger.debug("RCV: " + convergenceMessage)
     }
 
     ConvergenceMessageBodyUtils.fromBody(convergenceMessage.body) match {
       case Some(_: PingMessage) =>
-        onPing()
-        None
+        handlePing()
+        Success(None)
       case Some(_: PongMessage) =>
         // No-Op
-        None
+        Success(None)
       case Some(message: ClientRequestMessage) =>
-        if (convergenceMessage.requestId.isEmpty) {
-          throw new IllegalArgumentException("A request message must have a requestId")
-        }
-
-        if (convergenceMessage.responseId.isDefined) {
-          throw new IllegalArgumentException("A request message cannot have a responseId")
-        }
-
-        Some(RequestReceived(message, new ReplyCallbackImpl(convergenceMessage.requestId.get)))
+        handleRequestMessage(convergenceMessage, message).map(Some(_))
       case Some(message: ClientResponseMessage) =>
-        if (convergenceMessage.requestId.isDefined) {
-          throw new IllegalArgumentException("A response message cannot have a requestId")
-        }
-
-        if (convergenceMessage.responseId.isEmpty) {
-          throw new IllegalArgumentException("A response message must have a responseId")
-        }
-
-        onReply(message, convergenceMessage.responseId.get)
-        None
+        handleResponseMessage(convergenceMessage, message).map(_ => None)
       case Some(message: ClientNormalMessage) =>
-        if (convergenceMessage.requestId.isDefined) {
-          throw new IllegalArgumentException("A normal message cannot have a requestId")
-        }
-
-        if (convergenceMessage.responseId.isDefined) {
-          throw new IllegalArgumentException("A normal message cannot have a responseId")
-        }
-
-        Some(MessageReceived(message))
+        handleNormalMessage(convergenceMessage, message).map(Some(_))
       case _ =>
-        throw new IllegalArgumentException("Invalid message: " + convergenceMessage)
+        Failure(InvalidConvergenceMessageException("Unexpected message", convergenceMessage))
+    }
+  }
+
+  private[this] def handleNormalMessage(convergenceMessage: ConvergenceMessage, message: ClientNormalMessage): Try[MessageReceived] = {
+    if (convergenceMessage.requestId.isDefined) {
+      Failure(InvalidConvergenceMessageException("A normal message cannot have a requestId", convergenceMessage))
+    } else if (convergenceMessage.responseId.isDefined) {
+      Failure(InvalidConvergenceMessageException("A normal message cannot have a responseId", convergenceMessage))
+    } else {
+      Success(MessageReceived(message))
+    }
+  }
+
+  private[this] def handleResponseMessage(convergenceMessage: ConvergenceMessage, message: ClientResponseMessage): Try[Unit] = {
+    if (convergenceMessage.requestId.isDefined) {
+      Failure(InvalidConvergenceMessageException("A response message cannot have a requestId", convergenceMessage))
+    } else if (convergenceMessage.responseId.isEmpty) {
+      Failure(InvalidConvergenceMessageException("A response message must have a responseId", convergenceMessage))
+    } else {
+      onReply(message, convergenceMessage.responseId.get)
+      Success(())
+    }
+  }
+
+  private[this] def handleRequestMessage(convergenceMessage: ConvergenceMessage, message: ClientRequestMessage): Try[RequestReceived] = {
+    if (convergenceMessage.requestId.isEmpty) {
+      Failure(InvalidConvergenceMessageException("A request message must have a requestId", convergenceMessage))
+    } else if (convergenceMessage.responseId.isDefined) {
+      Failure(InvalidConvergenceMessageException("A request message cannot have a responseId", convergenceMessage))
+    } else {
+      Success(RequestReceived(message, new ReplyCallbackImpl(convergenceMessage.requestId.get)))
     }
   }
 
@@ -253,7 +257,7 @@ private[realtime] final class ProtocolConnection(clientActor: ActorRef[ClientAct
     })
   }
 
-  private[this] def onPing(): Unit = {
+  private[this] def handlePing(): Unit = {
     serializeAndSend(ConvergenceMessage().withPong(PongMessage()))
   }
 
@@ -394,4 +398,9 @@ object ProtocolConnection {
 
 
   final case class ClientErrorResponseException(code: String, message: String) extends Exception(message) with NoStackTrace
+
+  final case class MessageDecodingException() extends Exception() with NoStackTrace
+
+  final case class InvalidConvergenceMessageException(message: String, convergenceMessage: ConvergenceMessage) extends Exception(message) with NoStackTrace
+
 }

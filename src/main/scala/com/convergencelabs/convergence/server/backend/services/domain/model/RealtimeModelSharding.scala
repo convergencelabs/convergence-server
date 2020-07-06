@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.util.actor.ActorSharding
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
+import com.convergencelabs.convergence.server.util.actor.ActorSharding
 import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -36,7 +36,7 @@ private final class RealtimeModelSharding(config: Config, sharding: ClusterShard
     s"${message.domainId.namespace}::${message.domainId.domainId}::${message.modelId}"
 
   override def createBehavior(props: Props, shardRegion: ActorRef[RealtimeModelActor.Message], entityContext: EntityContext[RealtimeModelActor.Message]): Behavior[RealtimeModelActor.Message] = {
-    val Props(modelPermissionResolver, modelCreator, persistenceManager, clientDataResponseTimeout, receiveTimeout, resyncTimeout) = props
+    val Props(modelPermissionResolver, modelCreator, persistenceManager, clientDataResponseTimeout, receiveTimeout) = props
     RealtimeModelActor(
       shardRegion,
       entityContext.shard,
@@ -44,8 +44,7 @@ private final class RealtimeModelSharding(config: Config, sharding: ClusterShard
       modelCreator,
       persistenceManager,
       clientDataResponseTimeout,
-      receiveTimeout,
-      resyncTimeout)
+      receiveTimeout)
   }
 
   override protected def createProperties(): Props = {
@@ -53,15 +52,12 @@ private final class RealtimeModelSharding(config: Config, sharding: ClusterShard
       config.getDuration("convergence.realtime.model.client-data-timeout").toNanos)
     val receiveTimeout = Duration.fromNanos(
       config.getDuration("convergence.realtime.model.passivation-timeout").toNanos)
-    val resyncTimeout = Duration.fromNanos(
-      config.getDuration("convergence.realtime.model.resynchronization-timeout").toNanos)
 
     Props(new ModelPermissionResolver(),
       new ModelCreator(),
       DomainPersistenceManagerActor,
       clientDataResponseTimeout,
-      receiveTimeout,
-      resyncTimeout)
+      receiveTimeout)
   }
 }
 
@@ -69,6 +65,5 @@ private case class Props(modelPermissionResolver: ModelPermissionResolver,
                          modelCreator: ModelCreator,
                          persistenceManager: DomainPersistenceManager,
                          clientDataResponseTimeout: FiniteDuration,
-                         receiveTimeout: FiniteDuration,
-                         resyncTimeout: FiniteDuration)
+                         receiveTimeout: FiniteDuration)
 

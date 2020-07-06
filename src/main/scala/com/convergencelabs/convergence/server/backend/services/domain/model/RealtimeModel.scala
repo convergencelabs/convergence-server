@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.{apply => _, _}
-import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{Operation, _}
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference._
 import com.convergencelabs.convergence.server.backend.services.domain.model.value.{RealtimeContainerValue, RealtimeObject, RealtimeValue, RealtimeValueFactory}
 import com.convergencelabs.convergence.server.model.DomainId
@@ -65,47 +65,60 @@ private[model] final class RealtimeModel(val domainId: DomainId,
   }
 
   def processOperationEvent(unprocessed: UnprocessedOperationEvent): Try[(ProcessedOperationEvent, AppliedOperation)] = {
-    // FIXME  We need to validate the operation (id != null for example)
-    val preprocessed = unprocessed.copy(operation = noOpObsoleteOperations(unprocessed.operation))
-    val processed = cc.processRemoteOperation(preprocessed)
-    // FIXME this isn't quite right, if applying the operation fails, just rolling back
-    //  the CC may not be enough, especially in the case of a compound operation,
-    //  we may have partially mutated the model.
-    applyOperation(processed.operation) match {
-      case Success(appliedOperation) =>
-        cc.commit()
-        Success(processed, appliedOperation)
-      case Failure(f) =>
-        cc.rollback()
-        Failure(f)
-    }
+    for {
+      preprocessed <- preprocessAndValidateOperationEvent(unprocessed)
+      processed <- cc.processRemoteOperation(preprocessed)
+      // FIXME this isn't quite right, if applying the operation fails, just rolling back
+      //  the CC may not be enough, especially in the case of a compound operation,
+      //  we may have partially mutated the model.
+      result <- applyOperation(processed.operation) match {
+        case Success(appliedOperation) =>
+          cc.commit()
+          Success(processed, appliedOperation)
+        case Failure(f) =>
+          cc.rollback()
+          Failure(f)
+      }
+    } yield result
   }
 
-  private[this] def registerValue(realTimeValue: RealtimeValue): Unit = {
-    this.idToValue += (realTimeValue.id -> realTimeValue)
-  }
+  private[this] def preprocessAndValidateOperationEvent(unprocessed: UnprocessedOperationEvent): Try[UnprocessedOperationEvent] =
+    preprocessAndValidateOperation(unprocessed.operation).map(op => unprocessed.copy(operation = op))
 
-  private[this] def unregisterValue(realTimeValue: RealtimeValue): Unit = {
-    this.idToValue -= realTimeValue.id
-  }
-
-  private[this] def noOpObsoleteOperations(op: Operation): Operation = {
+  private[this] def preprocessAndValidateOperation(op: Operation): Try[Operation] =
     op match {
       case c: CompoundOperation =>
-        val ops = c.operations map {
-          o => noOpObsoleteOperations(o).asInstanceOf[DiscreteOperation]
-        }
-        c.copy(operations = ops)
+        preprocessAndValidateCompoundOperation(c)
       case d: DiscreteOperation =>
-        if (this.idToValue.contains(d.id)) {
-          d
-        } else {
-          d.clone(noOp = true)
-        }
+        preprocessAndValidateDiscreteOperation(d)
     }
-  }
 
-  private[this] def applyOperation(op: Operation): Try[AppliedOperation] = {
+  private[this] def preprocessAndValidateCompoundOperation(op: CompoundOperation): Try[Operation] =
+    op.operations
+      .map(o => preprocessAndValidateDiscreteOperation(o))
+      .partitionMap(_.toEither) match {
+      case (Nil, ops) =>
+        Success(op.copy(operations = ops))
+      case (fail, _) =>
+        Failure(fail.head)
+    }
+
+  private[this] def preprocessAndValidateDiscreteOperation(op: DiscreteOperation): Try[DiscreteOperation] =
+    if (op.id.isEmpty) {
+      Failure(new IllegalArgumentException("The value id of an operation can not be empty"))
+    } else if (this.idToValue.contains(op.id)) {
+      Success(op)
+    } else {
+      Success(op.clone(noOp = true))
+    }
+
+  private[this] def registerValue(realTimeValue: RealtimeValue): Unit =
+    this.idToValue += (realTimeValue.id -> realTimeValue)
+
+  private[this] def unregisterValue(realTimeValue: RealtimeValue): Unit =
+    this.idToValue -= realTimeValue.id
+
+  private[this] def applyOperation(op: Operation): Try[AppliedOperation] =
     op match {
       case c: CompoundOperation =>
         Try {
@@ -120,10 +133,8 @@ private[model] final class RealtimeModel(val domainId: DomainId,
       case d: DiscreteOperation =>
         applyDiscreteOperation(d)
     }
-  }
 
-  def processReferenceEvent(event: ModelReferenceEvent): Try[Option[RemoteReferenceEvent]] = {
-    val session = event.session
+  def processReferenceEvent(event: ModelReferenceEvent): Try[Option[RemoteReferenceEvent]] =
     event.valueId match {
       case Some(valueId) =>
         handleNonElementReference(valueId, event)
@@ -131,7 +142,6 @@ private[model] final class RealtimeModel(val domainId: DomainId,
         // This handles element references which have no id.
         handleElementReference(event)
     }
-  }
 
   private[this] def handleNonElementReference(valueId: String, event: ModelReferenceEvent): Try[Option[RemoteReferenceEvent]] = {
     val session = event.session

@@ -376,7 +376,7 @@ object DomainStoreActor {
   ))
   sealed trait GetDomainsError extends CborSerializable
 
-  final case class GetDomainsResponse(domains: Either[GetDomainsError, List[Domain]])
+  final case class GetDomainsResponse(domains: Either[GetDomainsError, List[Domain]]) extends CborSerializable
 
   //
   // Common Errors

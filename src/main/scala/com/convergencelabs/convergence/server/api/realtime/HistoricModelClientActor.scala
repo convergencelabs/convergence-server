@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
-import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelOperationConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.model.DomainId

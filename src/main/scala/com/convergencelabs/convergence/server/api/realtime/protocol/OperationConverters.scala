@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instanceToTimestamp, timestampToInstant}
-import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 
 private[realtime] object OperationConverters {
@@ -23,6 +23,8 @@ private[realtime] object OperationConverters {
   final case object InvalidOperationTypeError extends OperationMappingError
 
   final case object InvalidDiscreteOperationTypeError extends OperationMappingError
+
+  final case object InvalidDataValueError extends OperationMappingError
 
   def mapIncoming(op: OperationData): Either[OperationMappingError, Operation] = {
     op.operation match {
@@ -65,7 +67,9 @@ private[realtime] object OperationConverters {
       // Arrays
       //
       case DiscreteOperationData.Operation.ArrayInsertOperation(ArrayInsertOperationData(id, noOp, idx, Some(newVal), _)) =>
-        Right(ArrayInsertOperation(id, noOp, idx, protoToDataValue(newVal)))
+        protoToDataValue(newVal)
+          .map(ArrayInsertOperation(id, noOp, idx, _))
+          .left.map(_ => InvalidDataValueError)
 
       case DiscreteOperationData.Operation.ArrayRemoveOperation(ArrayRemoveOperationData(id, noOp, idx, _)) =>
         Right(ArrayRemoveOperation(id, noOp, idx))
@@ -74,26 +78,36 @@ private[realtime] object OperationConverters {
         Right(ArrayMoveOperation(id, noOp, fromIdx, toIdx))
 
       case DiscreteOperationData.Operation.ArrayReplaceOperation(ArrayReplaceOperationData(id, noOp, idx, Some(newVal), _)) =>
-        Right(ArrayReplaceOperation(id, noOp, idx, protoToDataValue(newVal)))
+        protoToDataValue(newVal)
+          .map(ArrayReplaceOperation(id, noOp, idx, _))
+          .left.map(_ => InvalidDataValueError)
 
       case DiscreteOperationData.Operation.ArraySetOperation(ArraySetOperationData(id, noOp, array, _)) =>
-        Right(ArraySetOperation(id, noOp, array.map(protoToDataValue).toList))
+        protoSeqToDataValueList(array)
+          .map(ArraySetOperation(id, noOp, _))
+          .left.map(_ => InvalidDataValueError)
+
 
       //
       // Objects
       //
       case DiscreteOperationData.Operation.ObjectSetPropertyOperation(ObjectSetPropertyOperationData(id, noOp, prop, Some(newVal), _)) =>
-        Right(ObjectSetPropertyOperation(id, noOp, prop, protoToDataValue(newVal)))
+        protoToDataValue(newVal)
+          .map(ObjectSetPropertyOperation(id, noOp, prop, _))
+          .left.map(_ => InvalidDataValueError)
 
       case DiscreteOperationData.Operation.ObjectAddPropertyOperation(ObjectAddPropertyOperationData(id, noOp, prop, Some(newVal), _)) =>
-        Right(ObjectAddPropertyOperation(id, noOp, prop, protoToDataValue(newVal)))
+        protoToDataValue(newVal)
+          .map(ObjectAddPropertyOperation(id, noOp, prop, _))
+          .left.map(_ => InvalidDataValueError)
 
       case DiscreteOperationData.Operation.ObjectRemovePropertyOperation(ObjectRemovePropertyOperationData(id, noOp, prop, _)) =>
         Right(ObjectRemovePropertyOperation(id, noOp, prop))
 
       case DiscreteOperationData.Operation.ObjectSetOperation(ObjectSetOperationData(id, noOp, objectData, _)) =>
-        val mappedData = objectData.map { case (k, v) => (k, protoToDataValue(v)) }
-        Right(ObjectSetOperation(id, noOp, mappedData))
+        protoMapToDataValueMap(objectData)
+          .map(ObjectSetOperation(id, noOp, _))
+          .left.map(_ => InvalidDataValueError)
 
       //
       // Numbers

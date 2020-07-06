@@ -51,7 +51,7 @@ class ChatProtoConvertersSpec extends AnyWordSpec with Matchers {
   private[this] val protoMember3 = ChatMemberData(Some(protoUserId3), member3.maxSeenEvent)
 
   "An ChatProtoConverters" when {
-    "converting a ChatInfo to protocol buffers" must {
+    "converting a ChatState to protocol buffers" must {
       "correctly convert the chat state" in {
         val state = ChatState(chatId,
           ChatType.Channel,

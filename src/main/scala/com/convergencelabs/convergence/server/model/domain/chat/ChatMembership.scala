@@ -28,4 +28,4 @@ object ChatMembership extends Enumeration {
 
 
 // Used for serialization via Jackson
-final class ChatMembershipTypeReference extends TypeReference[ChatType.type] {}
+final class ChatMembershipTypeReference extends TypeReference[ChatMembership.type] {}

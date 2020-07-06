@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import org.json4s.JsonAST.JValue
 
 import scala.util.{Success, Try}
@@ -205,14 +206,17 @@ object ActivityActor {
                                client: ActorRef[OutgoingMessage],
                                replyTo: ActorRef[JoinResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[AlreadyJoined], name = "already_joined")
+  ))
   sealed trait JoinError
 
   final case class AlreadyJoined() extends JoinError
 
-  final case class JoinResponse(response: Either[JoinError, Joined]) extends CborSerializable
-
-
   final case class Joined(state: Map[String, Map[String, JValue]])
+
+  final case class JoinResponse(response: Either[JoinError, Joined]) extends CborSerializable
 
 
   //
@@ -223,6 +227,10 @@ object ActivityActor {
                                 sessionId: String,
                                 replyTo: ActorRef[LeaveResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[NotJoinedError], name = "not_joined")
+  ))
   sealed trait LeaveError
 
   final case class NotJoinedError() extends LeaveError
