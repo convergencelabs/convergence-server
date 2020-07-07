@@ -19,12 +19,12 @@ import akka.actor.typed.ActorRef
 import akka.http.scaladsl.model.RemoteAddress.IP
 import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.PasswordAuthRequestData
 import com.convergencelabs.convergence.proto.core._
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}

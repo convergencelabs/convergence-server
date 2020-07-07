@@ -27,12 +27,12 @@ import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{InvalidConvergenceMessageException, MessageDecodingException, MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.{PresenceServiceActor, UserPresence}
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUser

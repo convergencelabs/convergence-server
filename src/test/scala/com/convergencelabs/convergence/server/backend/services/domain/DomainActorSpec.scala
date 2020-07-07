@@ -17,8 +17,8 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.Message
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
 import com.typesafe.config.ConfigFactory

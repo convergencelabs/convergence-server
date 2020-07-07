@@ -11,18 +11,17 @@
 
 package com.convergencelabs.convergence.server.backend.services.server
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, Scheduler}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner.ProvisionRequest
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor.{DestroyDomain, DestroyDomainResponse, ProvisionDomain, ProvisionDomainResponse}
+import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.{DestroyDomainRequest, DestroyDomainResponse}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.role.DomainRoleTarget
@@ -31,11 +30,9 @@ import com.convergencelabs.convergence.server.util.serialization.akka.CborSerial
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -46,13 +43,17 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
                                      favoriteDomainStore: UserFavoriteDomainStore,
                                      deltaHistoryStore: DeltaHistoryStore,
                                      domainCreator: DomainCreator,
-                                     domainProvisioner: ActorRef[DomainProvisionerActor.Message])
+                                     domainDbManagerActor: ActorRef[DomainDatabaseManagerActor.Message])
   extends AbstractBehavior[DomainStoreActor.Message](context) with Logging {
 
   import DomainStoreActor._
 
   private[this] implicit val ec: ExecutionContextExecutor = context.system.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
+  private[this] val domainDbDeletionTimeout = Timeout(
+    context.system.settings.config.getDuration("convergence.persistence.domain-databases.deletion-timeout").toNanos,
+    TimeUnit.NANOSECONDS
+  )
 
   context.system.receptionist ! Receptionist.Register(DomainStoreActor.Key, context.self)
 
@@ -83,7 +84,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       .map { dbInfo =>
         // This returns a future, but we don't need to take any
         // action.
-        domainCreator.provisionDomain(domainId, anonymousAuth, dbInfo)
+        domainCreator.createDomainDatabase(domainId, anonymousAuth, dbInfo)
         CreateDomainResponse(Right(dbInfo))
       }
       .recover {
@@ -150,9 +151,8 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       result <- domainDatabase match {
         case Some(domainDatabase) =>
           debug(s"Deleting domain database for $domainId: ${domainDatabase.database}")
-          // FIXME hard-coded timeout
-          implicit val requestTimeout: Timeout = Timeout(4 minutes)
-          domainProvisioner.ask[DestroyDomainResponse](ref => DestroyDomain(domainId, domainDatabase.database, ref)) onComplete {
+          implicit val requestTimeout: Timeout = domainDbDeletionTimeout
+          domainDbManagerActor.ask[DestroyDomainResponse](ref => DestroyDomainRequest(domainId, domainDatabase.database, ref)) onComplete {
             case Success(_) =>
               debug(s"Domain database deleted, deleting domain related records in convergence database: ${domainDatabase.database}")
               (for {
@@ -195,8 +195,6 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
         // FIXME we need to review what happens when something fails.
         //  we will eventually delete the user and then we won't be
         //  able to look up the domains again.
-
-
         domains.foreach { domain =>
           deleteDomain(domain.domainId) recover {
             case cause: Exception =>
@@ -251,21 +249,6 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
   }
 }
 
-class ActorBasedDomainCreator(databaseProvider: DatabaseProvider,
-                              config: Config,
-                              domainProvisioner: ActorRef[ProvisionDomain],
-                              executionContext: ExecutionContext,
-                              implicit val scheduler: Scheduler,
-                              timeout: Timeout)
-  extends DomainCreator(databaseProvider, config, executionContext) {
-
-  def provisionDomain(data: ProvisionRequest): Future[ProvisionDomainResponse] = {
-    implicit val t: Timeout = timeout
-    domainProvisioner
-      .ask[ProvisionDomainResponse](ref => ProvisionDomain(data, ref))
-  }
-}
-
 object DomainStoreActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("DomainStoreActor")
 
@@ -275,9 +258,9 @@ object DomainStoreActor {
             favoriteDomainStore: UserFavoriteDomainStore,
             deltaHistoryStore: DeltaHistoryStore,
             domainCreator: DomainCreator,
-            provisionerActor: ActorRef[DomainProvisionerActor.Message]): Behavior[Message] =
+            domainDatabaseManager: ActorRef[DomainDatabaseManagerActor.Message]): Behavior[Message] =
     Behaviors.setup(context => new DomainStoreActor(
-      context, domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor))
+      context, domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, domainDatabaseManager))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

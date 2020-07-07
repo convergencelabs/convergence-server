@@ -17,10 +17,9 @@ import java.util.concurrent.TimeUnit
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner.ProvisionRequest
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor.ProvisionDomainResponse
+import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
 import com.convergencelabs.convergence.server.backend.db.schema.ConvergenceSchemaManager
+import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.user.User
@@ -44,7 +43,7 @@ import scala.util.{Failure, Success, Try}
  * @param config The Config object for the Convergence Server
  * @param ec     An execution context to use for asynchronous operations.
  */
-private[db] final class ConvergenceDatabaseInitializer(config: Config,
+final class ConvergenceDatabaseInitializer(config: Config,
                                                        ec: ExecutionContextExecutor) extends Logging {
 
   private[this] val persistenceConfig = config.getConfig("convergence.persistence")
@@ -276,7 +275,7 @@ private[db] final class ConvergenceDatabaseInitializer(config: Config,
           val timeout = Timeout(4, TimeUnit.MINUTES)
           domainCreator.createDomain(domainId, displayName, owner)
             .map { dbInfo =>
-              val f = domainCreator.provisionDomain(domainId, anonymousAuth, dbInfo)
+              val f = domainCreator.createDomainDatabase(domainId, anonymousAuth, dbInfo)
               Await.ready(f, timeout.duration)
               logger.info(s"bootstrapped domain '$namespace/$id'")
 
@@ -321,9 +320,9 @@ private[db] final class ConvergenceDatabaseInitializer(config: Config,
 private class InlineDomainCreator(provider: DatabaseProvider,
                                   config: Config,
                                   ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
-  private val provisioner = new DomainProvisioner(provider, config)
+  private[this] val domainDatabaseManager = new DomainDatabaseManager(provider, config)
 
-  override def provisionDomain(request: ProvisionRequest): Future[ProvisionDomainResponse] = {
-    FutureUtils.tryToFuture(provisioner.provisionDomain(request).map(_ => ProvisionDomainResponse(Right(Ok()))))
+  override protected def createDomainDatabase(request: DomainDatabaseCreationData): Future[CreateDomainDatabaseResponse] = {
+    FutureUtils.tryToFuture(domainDatabaseManager.createDomainDatabase(request).map(_ => CreateDomainDatabaseResponse(Right(Ok()))))
   }
 }

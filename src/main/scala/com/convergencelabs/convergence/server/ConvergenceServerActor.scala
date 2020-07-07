@@ -22,13 +22,12 @@ import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi, ProtocolConfiguration}
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.backend.BackendServices
-import com.convergencelabs.convergence.server.backend.db.ConvergenceDatabaseInitializerActor
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.model.{RealtimeModelActor, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.rest.{DomainRestActor, DomainRestActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainActor, DomainActorSharding}
+import com.convergencelabs.convergence.server.backend.services.server.{ConvergenceDatabaseInitializerActor, DomainLifecycleTopic}
 import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
 

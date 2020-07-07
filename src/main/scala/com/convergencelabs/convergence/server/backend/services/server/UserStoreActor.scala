@@ -138,7 +138,9 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
     val DeleteConvergenceUserRequest(username, replyTo) = message
     domainStoreActor
       .ask[DomainStoreActor.DeleteDomainsForUserResponse](ref => DomainStoreActor.DeleteDomainsForUserRequest(username, ref))
-      .flatMap(_ => FutureUtils.tryToFuture(userStore.deleteUser(username)))
+      .flatMap(_ => {
+        FutureUtils.tryToFuture(userStore.deleteUser(username))
+      })
       .map(_ => DeleteConvergenceUserResponse(Right(Ok())))
       .recover {
         case _: EntityNotFoundException =>

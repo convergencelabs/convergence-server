@@ -14,11 +14,11 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.http.scaladsl.model.RemoteAddress
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.backend.services.domain.DomainActor
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor}
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 
 import scala.concurrent.duration.Duration

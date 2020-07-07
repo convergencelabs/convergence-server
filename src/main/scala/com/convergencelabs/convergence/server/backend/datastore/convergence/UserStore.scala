@@ -64,6 +64,9 @@ class UserStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
       } recoverWith handleDuplicateValue
   }
 
+  /**
+   * Deletes a use from Convergence.
+   */
   def deleteUser(username: String): Try[Unit] = tryWithDb { db =>
     OrientDBUtil.deleteFromSingleValueIndex(db, UserClass.Indices.Username, username)
   }
@@ -248,7 +251,6 @@ object UserStore {
   def getUserRid(username: String, db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, UserClass.Indices.Username, username)
   }
-
 
 
 }

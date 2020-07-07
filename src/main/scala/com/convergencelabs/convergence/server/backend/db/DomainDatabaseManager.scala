@@ -9,16 +9,14 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.db.provision
+package com.convergencelabs.convergence.server.backend.db
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner._
 import com.convergencelabs.convergence.server.backend.db.schema.DomainSchemaManager
-import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, SingleDatabaseProvider}
 import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
@@ -31,8 +29,9 @@ import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Try}
 
+class DomainDatabaseManager(dbProvider: DatabaseProvider, config: Config) extends Logging {
 
-class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Logging {
+  import DomainDatabaseManager._
 
   private[this] val historyStore = new DeltaHistoryStore(dbProvider)
   private[this] val dbBaseUri = config.getString("convergence.persistence.server.uri")
@@ -40,9 +39,9 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
   private[this] val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
   private[this] val preRelease = config.getBoolean("convergence.persistence.domain-databases.pre-release")
 
-  def provisionDomain(data: ProvisionRequest): Try[Unit] = {
-    val ProvisionRequest(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = data
-    logger.debug(s"Provisioning domain: $dbBaseUri/$dbName")
+  def createDomainDatabase(data: DomainDatabaseCreationData): Try[Unit] = {
+    val DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = data
+    logger.debug(s"Creating domain database: $dbBaseUri/$dbName")
     createDatabase(dbName) flatMap { _ =>
       setAdminCredentials(dbName, dbAdminUsername, dbAdminPassword)
     } flatMap { _ =>
@@ -173,15 +172,15 @@ class DomainProvisioner(dbProvider: DatabaseProvider, config: Config) extends Lo
   }
 }
 
+object DomainDatabaseManager {
 
-object DomainProvisioner {
-  case class ProvisionRequest(domainId: DomainId,
-                              databaseName: String,
-                              dbUsername: String,
-                              dbPassword: String,
-                              dbAdminUsername: String,
-                              dbAdminPassword: String,
-                              anonymousAuth: Boolean)
+  case class DomainDatabaseCreationData(domainId: DomainId,
+                                        databaseName: String,
+                                        dbUsername: String,
+                                        dbPassword: String,
+                                        dbAdminUsername: String,
+                                        dbAdminPassword: String,
+                                        anonymousAuth: Boolean)
 
   val DefaultSnapshotConfig: ModelSnapshotConfig = domain.ModelSnapshotConfig(
     snapshotsEnabled = false,

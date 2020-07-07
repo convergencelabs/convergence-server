@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.db.provision
+package com.convergencelabs.convergence.server.backend.services.server
 
 import akka.actor.typed.Behavior
 import akka.actor.typed.pubsub.Topic

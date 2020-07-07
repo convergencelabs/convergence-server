@@ -19,11 +19,10 @@ import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor.ProvisionDomain
-import com.convergencelabs.convergence.server.backend.db.provision.{DomainLifecycleTopic, DomainProvisioner, DomainProvisionerActor}
 import com.convergencelabs.convergence.server.backend.db.schema.{DatabaseManager, DatabaseManagerActor}
-import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, PooledDatabaseProvider}
+import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseManager, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
+import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseRequest
 import com.convergencelabs.convergence.server.backend.services.server._
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
@@ -176,8 +175,8 @@ private[server] final class BackendServices(context: ActorContext[_],
     // CRUD for users, roles, authentication, etc. These actors are not sharded.
 
     // Import, export, and domain / database provisioning
-    val domainProvisioner = new DomainProvisioner(convergenceDbProvider, context.system.settings.config)
-    val provisionerActor = context.spawn(DomainProvisionerActor(domainProvisioner, domainLifecycleTopic), "DomainProvisioner")
+    val domainDatabaseManager = new DomainDatabaseManager(convergenceDbProvider, context.system.settings.config)
+    val domainDbManagerActor = context.spawn(DomainDatabaseManagerActor(domainDatabaseManager, domainLifecycleTopic), "DomainProvisioner")
 
     val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
     context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
@@ -188,13 +187,13 @@ private[server] final class BackendServices(context: ActorContext[_],
     val domainCreator: DomainCreator = new ActorBasedDomainCreator(
       convergenceDbProvider,
       this.context.system.settings.config,
-      provisionerActor.narrow[ProvisionDomain],
+      domainDbManagerActor.narrow[CreateDomainDatabaseRequest],
       context.executionContext,
       context.system.scheduler,
       domainCreationTimeout)
 
     val domainStoreActor = context.spawn(DomainStoreActor(
-      domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, provisionerActor), "DomainStore")
+      domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, domainDbManagerActor), "DomainStore")
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
     context.spawn(UserStoreActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")

@@ -9,53 +9,54 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.db.provision
+package com.convergencelabs.convergence.server.backend.services.server
 
 import akka.actor.typed.pubsub.Topic.Publish
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner.ProvisionRequest
+import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager
+import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}
 
-final class DomainProvisionerActor private(context: ActorContext[DomainProvisionerActor.Message],
-                                     provisioner: DomainProvisioner,
-                                     domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
-  extends AbstractBehavior[DomainProvisionerActor.Message](context) with Logging {
+final class DomainDatabaseManagerActor private(context: ActorContext[DomainDatabaseManagerActor.Message],
+                                               domainDatabaseManager: DomainDatabaseManager,
+                                               domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+  extends AbstractBehavior[DomainDatabaseManagerActor.Message](context) with Logging {
 
   private[this] implicit val ec: ExecutionContext = context.executionContext
 
-  import DomainProvisionerActor._
+  import DomainDatabaseManagerActor._
 
   override def onMessage(msg: Message): Behavior[Message] = msg match {
-    case provision: ProvisionDomain =>
-      provisionDomain(provision)
-    case destroy: DestroyDomain =>
-      destroyDomain(destroy)
+    case message: CreateDomainDatabaseRequest =>
+      createDomainDatabase(message)
+    case message: DestroyDomainRequest =>
+      destroyDomain(message)
   }
 
-  private[this] def provisionDomain(provision: ProvisionDomain): Behavior[Message] = {
-    val ProvisionDomain(data, replyTo) = provision
+  private[this] def createDomainDatabase(provision: CreateDomainDatabaseRequest): Behavior[Message] = {
+    val CreateDomainDatabaseRequest(data, replyTo) = provision
     Future {
-      provisioner.provisionDomain(data) map { _ =>
-        replyTo ! ProvisionDomainResponse(Right(Ok()))
+      domainDatabaseManager.createDomainDatabase(data) map { _ =>
+        replyTo ! CreateDomainDatabaseResponse(Right(Ok()))
       } recover {
         case cause: Exception =>
           error(s"Error provisioning domain: ${data.domainId}", cause)
-          replyTo ! ProvisionDomainResponse(Left(UnknownError(Some(cause.getMessage))))
+          replyTo ! CreateDomainDatabaseResponse(Left(UnknownError(Some(cause.getMessage))))
       }
     }
     Behaviors.same
   }
 
-  private[this] def destroyDomain(destroy: DestroyDomain): Behavior[Message] = {
-    val DestroyDomain(domainId, databaseUri, replyTo) = destroy
+  private[this] def destroyDomain(destroy: DestroyDomainRequest): Behavior[Message] = {
+    val DestroyDomainRequest(domainId, databaseUri, replyTo) = destroy
     Future {
-      provisioner.destroyDomain(databaseUri) map { _ =>
+      domainDatabaseManager.destroyDomain(databaseUri) map { _ =>
         val message = DomainLifecycleTopic.DomainDeleted(domainId)
         replyTo ! DestroyDomainResponse(Right(Ok()))
         domainLifecycleTopic ! Publish(message)
@@ -69,11 +70,11 @@ final class DomainProvisionerActor private(context: ActorContext[DomainProvision
   }
 }
 
-object DomainProvisionerActor {
+object DomainDatabaseManagerActor {
 
-  def apply(provisioner: DomainProvisioner,
+  def apply(databaseManager: DomainDatabaseManager,
             domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
-    Behaviors.setup(context => new DomainProvisionerActor(context, provisioner, domainLifecycleTopic))
+    Behaviors.setup(context => new DomainDatabaseManagerActor(context, databaseManager, domainLifecycleTopic))
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -82,13 +83,14 @@ object DomainProvisionerActor {
 
   sealed trait Message extends CborSerializable
 
-  final case class ProvisionDomain(data: ProvisionRequest, replyTo: ActorRef[ProvisionDomainResponse]) extends Message
+  final case class CreateDomainDatabaseRequest(data: DomainDatabaseCreationData, replyTo: ActorRef[CreateDomainDatabaseResponse]) extends Message
 
-  final case class ProvisionDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
+  final case class CreateDomainDatabaseResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
-  final case class DestroyDomain(domainFqn: DomainId, databaseUri: String, replyTo: ActorRef[DestroyDomainResponse]) extends Message
+  final case class DestroyDomainRequest(domainFqn: DomainId, databaseUri: String, replyTo: ActorRef[DestroyDomainResponse]) extends Message
 
   final case class DestroyDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
-  
+
   final case class UnknownError(message: Option[String] = None)
+
 }

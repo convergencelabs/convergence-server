@@ -9,10 +9,11 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.db
+package com.convergencelabs.convergence.server.backend.services.server
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
+import com.convergencelabs.convergence.server.backend.db.ConvergenceDatabaseInitializer
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 
@@ -23,15 +24,16 @@ import scala.util.{Failure, Success}
  * initialized.  This actor will be a singleton created by the
  * backend.
  */
-private[server] object ConvergenceDatabaseInitializerActor extends Logging {
+object ConvergenceDatabaseInitializerActor extends Logging {
 
   sealed trait Command extends CborSerializable
 
   final case class AssertInitialized(replyTo: ActorRef[InitializationResponse]) extends Command
 
-  sealed trait InitializationResponse
+  sealed trait InitializationResponse extends CborSerializable
 
   final case class Initialized() extends InitializationResponse
+
   final case class InitializationFailed(cause: Throwable) extends InitializationResponse
 
   def apply(): Behavior[Command] = {

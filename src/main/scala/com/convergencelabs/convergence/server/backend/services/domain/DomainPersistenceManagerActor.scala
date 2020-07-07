@@ -22,7 +22,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DomainStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.{DomainPersistenceProvider, DomainPersistenceProviderImpl}
 import com.convergencelabs.convergence.server.backend.db.PooledDatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 

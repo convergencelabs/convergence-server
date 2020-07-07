@@ -16,8 +16,8 @@ import java.util.UUID
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisioner.ProvisionRequest
-import com.convergencelabs.convergence.server.backend.db.provision.DomainProvisionerActor.ProvisionDomainResponse
+import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
+import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainDatabase, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.role.DomainRoleTarget
@@ -40,8 +40,8 @@ import scala.util.{Failure, Success, Try}
  * @param executionContext An execution context for asynchronous operations.
  */
 abstract class DomainCreator(dbProvider: DatabaseProvider,
-                                             config: Config,
-                                             implicit val executionContext: ExecutionContext) extends Logging {
+                             config: Config,
+                             implicit val executionContext: ExecutionContext) extends Logging {
 
   private[this] val domainStore = new DomainStore(dbProvider)
   private[this] val configStore = new ConfigStore(dbProvider)
@@ -78,10 +78,10 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
     } yield domainDbInfo
   }
 
-  def provisionDomain(domainId: DomainId, anonymousAuth: Boolean, database: DomainDatabase): Future[Unit] = {
+  def createDomainDatabase(domainId: DomainId, anonymousAuth: Boolean, database: DomainDatabase): Future[Unit] = {
     val DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = database
-    val provisionRequest = ProvisionRequest(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
-    provisionDomain(provisionRequest)
+    val provisionRequest = DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
+    createDomainDatabase(provisionRequest)
       .map(_.response.fold(
         { e =>
           error(s"Domain was not provisioned successfully: $dbName")
@@ -134,7 +134,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
       }
   }
 
-  protected def provisionDomain(request: ProvisionRequest): Future[ProvisionDomainResponse]
+  protected def createDomainDatabase(creationData: DomainDatabaseCreationData): Future[CreateDomainDatabaseResponse]
 }
 
 object DomainCreator {

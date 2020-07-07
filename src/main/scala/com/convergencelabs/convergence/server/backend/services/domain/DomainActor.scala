@@ -20,11 +20,11 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.util.actor._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain._
-import com.convergencelabs.convergence.server.backend.db.provision.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
