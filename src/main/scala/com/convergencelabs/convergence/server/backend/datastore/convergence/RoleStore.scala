@@ -96,7 +96,7 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
   def getUserPermissionsForTarget(username: String, target: RoleTarget): Try[Set[String]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
-        |SELECT 
+        |SELECT
         |  set(role.permissions) AS permissions
         |FROM
         |  UserRole
@@ -123,9 +123,9 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     val query = s"""
         |SELECT
         |   user.username AS username, target, set(role.name) AS roles
-        |FROM 
+        |FROM
         |  UserRole
-        |WHERE 
+        |WHERE
         |  user.username IN :usernames AND
         |  $targetWhere
         |GROUP BY
@@ -143,9 +143,9 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     val query = s"""
         |SELECT
         |   expand(set(role))
-        |FROM 
+        |FROM
         |  UserRole
-        |WHERE 
+        |WHERE
         |  user.username = :username AND
         |  $targetWhere""".stripMargin
     val params = Map("username" -> username) ++ targetParams
@@ -155,11 +155,11 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
   def getAllUserRolesForTarget(target: RoleTarget): Try[Set[UserRoles]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
-        |SELECT 
+        |SELECT
         |  user.username AS username, target, set(role) AS roles
         |FROM
         |  UserRole
-        |WHERE 
+        |WHERE
         |  $targetWhere
         |GROUP BY
         |  user.username, target""".stripMargin
@@ -176,10 +176,10 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
   def removeUserRoleFromTarget(target: RoleTarget, username: String): Try[Unit] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
-        |DELETE 
+        |DELETE
         |FROM
         |  UserRole
-        |WHERE 
+        |WHERE
         |  user.username = :username AND
         |  $targetWhere""".stripMargin
     val params = Map(Params.Username -> username) ++ targetParams
@@ -191,6 +191,13 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     val query = s"DELETE FROM UserRole WHERE $targetWhere"
     OrientDBUtil.commandReturningCount(db, query, targetParams).map(_ => ())
   }
+
+  def removeAllRolesForUser(username: String): Try[Unit] = withDb { db =>
+    val params = Map("username" -> username)
+    OrientDBUtil.command(db, RemoveAllRolesForUserCommand, params).map(_ => ())
+  }
+
+  private[this] val RemoveAllRolesForUserCommand = s"DELETE FROM UserRole WHERE user.username = :username"
 
   private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target.map(_.toString).orNull))

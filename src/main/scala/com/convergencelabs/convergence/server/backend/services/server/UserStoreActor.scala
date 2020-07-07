@@ -139,7 +139,12 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
     domainStoreActor
       .ask[DomainStoreActor.DeleteDomainsForUserResponse](ref => DomainStoreActor.DeleteDomainsForUserRequest(username, ref))
       .flatMap(_ => {
-        FutureUtils.tryToFuture(userStore.deleteUser(username))
+        FutureUtils.tryToFuture {
+          for {
+            _ <- roleStore.removeAllRolesForUser(username)
+            _ <- userStore.deleteUser(username)
+          } yield ()
+        }
       })
       .map(_ => DeleteConvergenceUserResponse(Right(Ok())))
       .recover {
