@@ -51,7 +51,7 @@ private[chat] object RemoveUserEventProcessor
     )
 
   def validateMessage(message: RemoveUserFromChatRequest, state: ChatState): Either[ChatActor.RemoveUserFromChatResponse, Unit] = {
-    if (!state.members.contains(message.requester)) {
+    if (!message.requester.isConvergence && !state.members.contains(message.requester)) {
       Left(ChatActor.RemoveUserFromChatResponse(Left(ChatActor.ChatNotJoinedError())))
     } else if (!state.members.contains(message.userToRemove)) {
       Left(ChatActor.RemoveUserFromChatResponse(Left(ChatActor.NotAMemberError())))

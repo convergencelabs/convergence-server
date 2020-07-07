@@ -51,7 +51,7 @@ private[chat] object SetTopicEventProcessor
     )
 
   def validateMessage(message: SetChatTopicRequest, state: ChatState): Either[ChatActor.SetChatTopicResponse, Unit] = {
-    if (!state.members.contains(message.requester)) {
+    if (!message.requester.isConvergence && !state.members.contains(message.requester)) {
       Left(ChatActor.SetChatTopicResponse(Left(ChatActor.ChatNotJoinedError())))
     } else {
       Right(())
