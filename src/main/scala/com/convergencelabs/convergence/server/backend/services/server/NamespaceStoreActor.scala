@@ -120,13 +120,16 @@ private final class NamespaceStoreActor(context: ActorContext[NamespaceStoreActo
   private[this] def onGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
     val GetAccessibleNamespacesRequest(authProfileData, _, offset, limit, replyTo) = getRequest
     val authProfile = AuthorizationProfile(authProfileData)
-    if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
+
+    val namespaces = if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
       namespaceStore.getAllNamespacesAndDomains(offset, limit)
     } else {
       namespaceStore
         .getAccessibleNamespaces(authProfile.username)
         .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet, offset, limit))
     }
+
+    namespaces
       .map(n => GetAccessibleNamespacesResponse(Right(n)))
       .recover { cause =>
         context.log.error("unexpected error getting namespaces", cause)
