@@ -1,4 +1,4 @@
-To release the Convergence Server follow these steps:
+To release the Convergence Server, follow these steps:
 
 ```shell script
 sbt clean; dist/clean

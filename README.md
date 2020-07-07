@@ -58,7 +58,7 @@ com.convergencelabs.server.dev.ConvergenceDevServer
 ```
 
 ### Persistent Data
-By default the Convergence Dev Server will delete the OrientDB database(s) when it starts up. IF you would like to retain data between runs set the following java property:
+By default, the Convergence Dev Server will delete the OrientDB database(s) when it starts up. IF you would like to retain data between runs set the following java property:
 
 `-Dconvergence.dev-server.persistent = true`
 
@@ -73,8 +73,28 @@ The embedded OrientDB can be accessed at: http://localhost:2480/
 
 The credentials `root` / `password` can be used to access the databases.
 
+## Building and Running the Binary Distribution
+
+This project uses the SBT Native Packager to build a binary distribution. The distribution can be built by running to following command:
+
+```shell
+sbt dist/stage
+```
+
+The distribution will be located in `distribution/target/universal/stage`.  You can run the server by opening a terminal in this directory and executing:
+
+```shell
+bin/convergence-server
+```
+
+You will need a running OrientDB Server. The easiest way to accomplish that is using the following docker command:
+
+```shell script
+docker run --rm --name orientdb -p 2424:2424 -p 2480:2480 -e ORIENTDB_ROOT_PASSWORD=password orientdb:3.0.31
+```
+
 ## Support
-[Convergence Labs](https://convergencelabs.com) provides several different channels for support:
+[Convergence Labs](https://convergencelabs.com) provides several channels for support:
 
 - Please use the [Convergence Community Forum](https://forum.convergence.io) for general and technical questions, so the whole community can benefit.
 - For paid dedicated support or custom development services, [contact us](https://convergence.io/contact-sales/) directly.
