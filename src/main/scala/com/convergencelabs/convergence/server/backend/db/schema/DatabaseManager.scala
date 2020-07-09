@@ -38,7 +38,7 @@ final class DatabaseManager(
     deltaHistoryStore.getDomainDBVersion(fqn)
   }
 
-  def updagradeConvergence(version: Int, preRelease: Boolean): Try[Unit] = {
+  def upgradeConvergence(version: Int, preRelease: Boolean): Try[Unit] = {
     deltaManager.manifest(DeltaCategory.Convergence) map { manifest =>
       if ((preRelease && version > manifest.maxPreReleaseVersion()) ||
         (!preRelease && version > manifest.maxReleasedVersion())) {
@@ -52,7 +52,7 @@ final class DatabaseManager(
     }
   }
 
-  def updagradeConvergenceToLatest(preRelease: Boolean): Try[Unit] = withConvergenceDatabase { db =>
+  def upgradeConvergenceToLatest(preRelease: Boolean): Try[Unit] = withConvergenceDatabase { db =>
     logger.debug("Upgrading the convergence database to the latest version")
     val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
     schemaManager.upgrade()

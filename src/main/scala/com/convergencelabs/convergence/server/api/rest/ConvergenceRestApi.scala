@@ -28,7 +28,7 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
-import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManagerActor
+import com.convergencelabs.convergence.server.backend.services.server.DatabaseManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor

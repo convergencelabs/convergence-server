@@ -31,7 +31,7 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
   private[this] def executeInstall(manifest: DeltaManifest, version: Int): Try[Unit] = {
     val max = manifest.maxVersion(preRelease)
     if (version > max) {
-      Failure(new IllegalArgumentException(s"Invalid version ${version}, which is greater than the max: ${max}"))
+      Failure(new IllegalArgumentException(s"Invalid version $version, which is greater than the max: $max"))
     } else {
       manifest.getFullDelta(version) flatMap { applyDelta }
     }
@@ -48,19 +48,17 @@ abstract class AbstractSchemaManager(db: ODatabaseDocument, preRelease: Boolean)
   }
 
   private[this] def executeUpgrade(manifest: DeltaManifest, version: Int): Try[Unit] = {
-    logger.debug(s"Executing database upgrade to version: ${version}")
+    logger.debug(s"Executing database upgrade to version: $version")
     getCurrentVersion() flatMap { currentVersion =>
       if (version <= currentVersion) {
         Failure(new IllegalArgumentException(
-          s"Invalid version ${version}, which is less than or equal to the current version: ${currentVersion}"))
+          s"Invalid version $version, which is less than or equal to the current version: $currentVersion"))
       } else {
-        logger.debug(s"Executing database upgrade from ${currentVersion} to ${version}")
+        logger.debug(s"Executing database upgrade from $currentVersion to $version")
         Try {
           for (
             v <- (currentVersion + 1) to version
-          ) yield (
-            manifest.getIncrementalDelta(v).flatMap(applyDelta(_)).get
-          )
+          ) yield manifest.getIncrementalDelta(v).flatMap(applyDelta).get
         }
       }
     }

@@ -34,25 +34,24 @@ final class DeltaManifest(basePath: String, index: DeltaIndex) {
       val incrementalPath = getIncrementalDeltaPath(version)
       val incrementalDelta = loadDeltaScript(incrementalPath).get
       if (incrementalDelta.delta.version != version) {
-        throw new IOException(s"Incremental delta version ${incrementalDelta.delta.version} does not match file name: ${incrementalPath}")
+        throw new IOException(s"Incremental delta version ${incrementalDelta.delta.version} does not match file name: $incrementalPath")
       }
       validateDeltaHash(incrementalDelta, full = false).get
 
-      val fulllPath = getFullDeltaPath(version)
-      val fullDelta = loadDeltaScript(fulllPath).get
+      val fullPath = getFullDeltaPath(version)
+      val fullDelta = loadDeltaScript(fullPath).get
       if (fullDelta.delta.version != version) {
-        throw new IOException(s"Full delta version ${fullDelta.delta.version} does not match file name: ${fulllPath}")
+        throw new IOException(s"Full delta version ${fullDelta.delta.version} does not match file name: $fullPath")
       }
       validateDeltaHash(fullDelta, full = true).get
     }
   }
 
   def maxVersion(preRelease: Boolean): Int = {
-    preRelease match {
-      case true =>
-        index.preReleaseVersion
-      case false =>
-        index.releasedVersion
+    if (preRelease) {
+      index.preReleaseVersion
+    } else {
+      index.releasedVersion
     }
   }
 
@@ -66,13 +65,13 @@ final class DeltaManifest(basePath: String, index: DeltaIndex) {
 
   def getFullDelta(version: Int): Try[DeltaScript] = {
     loadDeltaScript(getFullDeltaPath(version)) flatMap { ds =>
-      validateDeltaHash(ds, true) map { _ => ds }
+      validateDeltaHash(ds, full = true) map { _ => ds }
     }
   }
 
   def getIncrementalDelta(version: Int): Try[DeltaScript] = {
     loadDeltaScript(getIncrementalDeltaPath(version)) flatMap { ds =>
-      validateDeltaHash(ds, false) map { _ => ds }
+      validateDeltaHash(ds, full = false) map { _ => ds }
     }
   }
 
@@ -92,16 +91,15 @@ final class DeltaManifest(basePath: String, index: DeltaIndex) {
         throw new IllegalStateException(s"Delta $version is missing a hash entry.")
       })
 
-      val (path, hash) = full match {
-        case true =>
-          (getFullDeltaPath(version), hashes.database)
-        case false =>
-          (getIncrementalDeltaPath(version), hashes.delta)
+      val (path, hash) = if (full) {
+        (getFullDeltaPath(version), hashes.database)
+      } else {
+        (getIncrementalDeltaPath(version), hashes.delta)
       }
 
       validateHash(hash, deltaText).recoverWith {
         case cause: Exception =>
-          Failure(new IOException(s"Delta failed hash validation: ${path}", cause))
+          Failure(new IOException(s"Delta failed hash validation: $path", cause))
       }.get
     }
   }
@@ -109,7 +107,7 @@ final class DeltaManifest(basePath: String, index: DeltaIndex) {
   private[this] def validateHash(expectedHash: String, deltaText: String): Try[Unit] = {
     val hash = sha256(deltaText)
     if (hash != expectedHash) {
-      Failure(new IOException(s"delta hash validation failed:\nexpected: ${expectedHash}\nactual : ${hash}"))
+      Failure(new IOException(s"delta hash validation failed:\nexpected: $expectedHash\nactual : $hash"))
     } else {
       Success(())
     }
@@ -123,17 +121,17 @@ final class DeltaManifest(basePath: String, index: DeltaIndex) {
   private[this] def loadDeltaScript(path: String): Try[DeltaScript] = {
     getDeltaText(path) match {
       case None =>
-        Failure(new IOException(s"Delta not found: ${path}"))
+        Failure(new IOException(s"Delta not found: $path"))
       case Some(rawText) =>
         Try {
-          implicit val formats = (DeltaManifest.Formats)
+          implicit val formats: Formats = DeltaManifest.Formats
           val jsonNode = mapper.readTree(rawText)
           val jValue = JsonMethods.fromJsonNode(jsonNode)
           val parsed = Extraction.extract[Delta](jValue)
           DeltaScript(rawText, parsed)
         } recover {
           case cause: Exception =>
-            throw new IOException(s"Could not parse delta: ${path}", cause)
+            throw new IOException(s"Could not parse delta: $path", cause)
         }
     }
   }

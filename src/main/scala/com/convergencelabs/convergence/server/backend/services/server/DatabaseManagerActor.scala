@@ -48,9 +48,9 @@ private final class DatabaseManagerActor(context: ActorContext[DatabaseManagerAc
 
         version match {
           case Some(v) =>
-            databaseManager.updagradeConvergence(v, preRelease)
+            databaseManager.upgradeConvergence(v, preRelease)
           case None =>
-            databaseManager.updagradeConvergenceToLatest(preRelease)
+            databaseManager.upgradeConvergenceToLatest(preRelease)
         }
 
       case UpgradeDomainRequest(fqn, version, preRelease, replyTo) =>
