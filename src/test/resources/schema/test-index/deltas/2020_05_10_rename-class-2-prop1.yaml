@@ -1,0 +1,7 @@
+description: Rename Class2.prop1 to Class2.prop1a
+actions:
+
+  - action: AlterProperty
+    className: Class2
+    name: prop1
+    property: {name: prop1a}

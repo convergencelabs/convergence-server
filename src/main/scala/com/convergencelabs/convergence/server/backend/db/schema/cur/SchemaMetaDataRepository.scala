@@ -102,10 +102,11 @@ private[schema] class SchemaMetaDataRepository(baseClassPath: String) {
    * of the delta are not loaded successfully.
    *
    * @param ids The ids of the deltas to get. The id is essentially the
-   *            base file name (minus the ".yaml" extension).
+   *            base file name (minus the ".yaml" extension), plust the
+   *            tag specifier for backports.
    * @return The list of parsed deltas (and raw scripts) or an error.
    */
-  def readDeltas(ids: List[String]): Either[ReadError, List[DeltaAndRaw]] = {
+  def readDeltas(ids: List[DeltaId]): Either[ReadError, List[DeltaAndRaw]] = {
     ids
       .map(id => readFileAndDeserialize[Delta](resolveDeltaPath(baseClassPath, id)))
       .partitionMap(identity) match {
@@ -157,8 +158,8 @@ private[schema] object SchemaMetaDataRepository {
     s"$basePath/$VersionsSubPath/$version.yaml"
   }
 
-  def resolveDeltaPath(basePath: String, id: String): String = {
-    s"$basePath/$DeltasSubPath/$id.yaml"
+  def resolveDeltaPath(basePath: String, deltaId: DeltaId): String = {
+    s"$basePath/$DeltasSubPath/${deltaId.id}${deltaId.tag.map(t => s"@$t").getOrElse("")}.yaml"
   }
 
   private final case class ExtractedAndRaw[T](extracted: T, raw: String)

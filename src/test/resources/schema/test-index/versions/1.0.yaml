@@ -2,5 +2,5 @@ released: true
 releaseDate:
 schemaSha256:
 deltas:
-  - delta: 2020_01_01_initial-schema
+  - deltaId: 2020_01_01_initial-schema
     sha256: ""

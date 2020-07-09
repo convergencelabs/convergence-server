@@ -66,9 +66,9 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
           Some(releaseDate),
           Some("fixsha"),
           List(
-            DeltaEntry("2020_01_01_initial-schema", Some("1"), None),
-            DeltaEntry("2020_03_01_add-class-3", Some("2"), None),
-            DeltaEntry("2020_06_27_make-class-2-prop1-nullable", Some("3"), Some(true))
+            DeltaEntry("2020_01_01_initial-schema", Some("1"), None, None),
+            DeltaEntry("2020_03_01_add-class-3", Some("2"), None, None),
+            DeltaEntry("2020_06_27_make-class-2-prop1-nullable", Some("3"), Some(true), Some("2.0"))
           )
         )
       }
@@ -105,14 +105,21 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
       "successfully load multiple deltas" in {
         val indexReader = new SchemaMetaDataRepository(TestBasePath)
         val Right(List(DeltaAndRaw(delta1, _), DeltaAndRaw(delta2, _))) =
-          indexReader.readDeltas(List(Delta_2020_03_01_add_class_3_id, Delta_2020_06_27_make_class_2_prop1_nullable_id))
+          indexReader.readDeltas(List(Delta_2020_03_01_add_class_3_id, Delta_2020_06_27_make_class_2_prop1a_nullable_id))
         delta1 shouldBe Delta_2020_03_01_add_class_3
-        delta2 shouldBe Delta_2020_06_27_make_class_2_prop1_nullable
+        delta2 shouldBe Delta_2020_06_27_make_class_2_prop1a_nullable
+      }
+
+      "successfully load a delta with a backportTag" in {
+        val indexReader = new SchemaMetaDataRepository(TestBasePath)
+        val Right(List(DeltaAndRaw(delta1, _))) =
+          indexReader.readDeltas(List(Delta_2020_06_27_make_class_2_prop1a_nullable_id.withTag("2.0")))
+        delta1 shouldBe Delta_2020_06_27_make_class_2_prop1a_nullable_2_0
       }
 
       "fail if any delta can't be loaded" in {
         val indexReader = new SchemaMetaDataRepository(TestBasePath)
-        val badDelta = "does not exist"
+        val badDelta = DeltaId("does not exist")
         indexReader.readDeltas(List(Delta_2020_03_01_add_class_3_id, badDelta)) shouldBe
           Left(FileNotFoundError(SchemaMetaDataRepository.resolveDeltaPath(TestBasePath, badDelta)))
       }
@@ -123,8 +130,8 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
 object SchemaRepositorySpec {
   val TestBasePath = "/schema/test-index"
 
-  val Delta_2020_03_01_add_class_3_id = "2020_03_01_add-class-3"
-  val Delta_2020_06_27_make_class_2_prop1_nullable_id = "2020_06_27_make-class-2-prop1-nullable"
+  val Delta_2020_03_01_add_class_3_id: DeltaId = DeltaId("2020_03_01_add-class-3")
+  val Delta_2020_06_27_make_class_2_prop1a_nullable_id: DeltaId = DeltaId("2020_06_27_make-class-2-prop1a-nullable")
 
   val Delta_2020_03_01_add_class_3: Delta = Delta(
     List(
@@ -134,7 +141,14 @@ object SchemaRepositorySpec {
     ),
     Some("Adds Class3"))
 
-  val Delta_2020_06_27_make_class_2_prop1_nullable: Delta = Delta(
+  val Delta_2020_06_27_make_class_2_prop1a_nullable: Delta = Delta(
+    List(
+      AddProperty("Class2", Property("prop1a", OrientType.String, None, None, Some(Constraints(None, None, Some(true), None, Some(false), None, None, None, None))))
+    ),
+    Some("Makes Class2.prop1a nullable")
+  )
+
+  val Delta_2020_06_27_make_class_2_prop1a_nullable_2_0: Delta = Delta(
     List(
       AddProperty("Class2", Property("prop1", OrientType.String, None, None, Some(Constraints(None, None, Some(true), None, Some(false), None, None, None, None))))
     ),
