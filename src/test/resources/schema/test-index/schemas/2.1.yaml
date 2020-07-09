@@ -1,0 +1,40 @@
+actions:
+
+  ##
+  ## Class: Class1
+  ##
+  - action: CreateClass
+    name: Class1
+    properties:
+      - {name: prop1, type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: prop2, type: Link,  linkedClass: Class2,     constraints: {mandatory: true, notNull: true}}
+
+  - action: CreateIndex
+    className: Class1
+    name: Class1.prop1
+    type: Unique
+    properties: [prop1]
+
+  ##
+  ## Class: Class2
+  ##
+  - action: CreateClass
+    name: Class2
+    properties:
+      - {name: prop1, type: String,                         constraints: {mandatory: true, notNull: false}}
+
+  ##
+  ## Class: Class3
+  ##
+  - action: CreateClass
+    name: Class3
+    properties:
+      - {name: prop1, type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: prop2, type: Link,  linkedClass: Class1,     constraints: {mandatory: true, notNull: true}}
+
+  ##
+  ## Sequence: Seq1
+  ##
+  - action: CreateSequence
+    name: Seq1
+    sequenceType: Ordered

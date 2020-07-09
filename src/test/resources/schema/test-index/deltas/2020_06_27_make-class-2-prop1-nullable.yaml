@@ -1,0 +1,6 @@
+description: Makes Class2.prop1 nullable
+actions:
+
+  - action: AddProperty
+    className: Class2
+    property: {name: prop1, type: String,                         constraints: {mandatory: true, notNull: false}}

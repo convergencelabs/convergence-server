@@ -1,0 +1,8 @@
+description: Adds Class3
+actions:
+
+  - action: CreateClass
+    name: Class3
+    properties:
+      - {name: prop1, type: String,                         constraints: {mandatory: true, notNull: true}}
+      - {name: prop2, type: Link,  linkedClass: Class1,     constraints: {mandatory: true, notNull: true}}

@@ -1,0 +1,6 @@
+description: Adds a prop3 to Class1
+actions:
+
+  - action: AddProperty
+    className: Class1
+    property: {name: prop3, type: String,                         constraints: {mandatory: false, notNull: true}}

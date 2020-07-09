@@ -1,0 +1,11 @@
+released: true
+releaseDate: 2020-06-28
+schemaSha256: "fixsha"
+deltas:
+  - delta: 2020_01_01_initial-schema
+    sha256: "1"
+  - delta: 2020_03_01_add-class-3
+    sha256: "2"
+  - delta: 2020_06_27_make-class-2-prop1-nullable
+    sha256: "3"
+    backport: true
