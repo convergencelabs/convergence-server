@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.backend.db.schema
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.DomainDatabase
 import com.convergencelabs.convergence.server.model.server.user.User

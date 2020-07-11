@@ -18,7 +18,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
-import com.convergencelabs.convergence.server.backend.db.schema.ConvergenceSchemaManager
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.ConvergenceSchemaManager
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId

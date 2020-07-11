@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.model.server.domain
 import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus, Namespace}
 import com.convergencelabs.convergence.server.model.{DomainId, server}

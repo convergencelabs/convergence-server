@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.backend.db.schema
 
 
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.{DeltaCategory, DeltaManager}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -26,7 +27,7 @@ class ProductionDeltasSpec extends AnyWordSpec with Matchers {
         manifest.validateIndex()
       }
     }
-    
+
     "processing Domain Deltas" must {
       "validateIndex" in {
         val manager = new DeltaManager(None)

@@ -19,7 +19,7 @@ import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
-import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManager
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DatabaseManager
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseManager, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseRequest

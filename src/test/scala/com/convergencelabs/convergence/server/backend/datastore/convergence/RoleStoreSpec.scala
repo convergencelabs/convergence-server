@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueEx
 import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.{Role, UserRole, UserRoles}
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainDatabase, Namespace}
 import com.convergencelabs.convergence.server.model.server.role.{DomainRoleTarget, RoleTargetType, ServerRoleTarget}
@@ -65,11 +65,11 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
         val roleStore = stores.roleStore
         val role = Role(Role1Id, None, Set(TestPermission1))
         roleStore.createRole(role).get
-        
+
         val read = roleStore.getRole(Role1Id, None).get
         read shouldBe role
       }
-      
+
       "return failure if it already exists" in withTestData { stores =>
         val roleStore = stores.roleStore
         roleStore.createRole(Role1).get
@@ -123,7 +123,7 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
         roleStore.createRole(Role2).get
         roleStore.createRole(Role3).get
         roleStore.createRole(Role4).get
-        
+
         roleStore.setUserRolesForTarget(TestUser.username, ServerRoleTarget(), Set(Role4Id)).get
         roleStore.setUserRolesForTarget(TestUser2.username, ServerRoleTarget(), Set(Role2Id, Role3Id)).get
         roleStore.getUserRolesForTarget(TestUser2.username, ServerRoleTarget()).get shouldBe Set(Role2, Role3)
@@ -140,7 +140,7 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCateg
         roleStore.setUserRolesForTarget(TestUser2.username, TestDomainTarget, Set(Role1Id)).get
 
         roleStore.getAllUserRolesForTarget(TestDomainTarget).get shouldBe Set(
-            UserRoles(TestUser.username, Set(UserRole(Role5, TestDomainTarget))), 
+            UserRoles(TestUser.username, Set(UserRole(Role5, TestDomainTarget))),
             UserRoles(TestUser2.username, Set(UserRole(Role1, TestDomainTarget))))
       }
     }

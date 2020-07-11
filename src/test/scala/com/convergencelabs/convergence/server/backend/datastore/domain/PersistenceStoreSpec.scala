@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.convergencelabs.convergence.server.backend.db.schema.{DeltaCategory, TestingSchemaManager}
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.{DeltaCategory, TestingSchemaManager}
 import com.convergencelabs.convergence.server.backend.db.{ConnectedSingleDatabaseProvider, DatabaseProvider}
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
@@ -30,9 +30,9 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value)
   extends AnyWordSpec
   with Matchers
   with BeforeAndAfterAll {
-  
+
   import PersistenceStoreSpec._
-  
+
   OLogManager.instance().setConsoleLevel("WARNING")
 
   private[this] val dbCounter = new AtomicInteger(1)
@@ -41,7 +41,7 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value)
   override protected def afterAll(): Unit = {
     orientDB.close()
   }
-  
+
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
     val dbName = s"${getClass.getSimpleName}/${nextDbId()}"
@@ -69,6 +69,6 @@ abstract class PersistenceStoreSpec[S](category: DeltaCategory.Value)
   protected def truncatedInstantNow(): Instant = {
     java.util.Date.from(Instant.now()).toInstant
   }
-  
+
   protected def createStore(dbProvider: DatabaseProvider): S
 }

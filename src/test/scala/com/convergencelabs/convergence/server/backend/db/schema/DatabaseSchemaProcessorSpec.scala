@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.{AddProperty, AlterClass, AlterProperty, CreateClass, CreateFunction, CreateIndex, CreateSequence, DatabaseDeltaProcessor, Delta, DropClass, DropIndex, DropProperty, DropSequence, IndexType, OrientType, Property, PropertyOptions, SequenceType}
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db._
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -27,7 +28,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
       "Correctly create class" in withDb { dbPool =>
         val delta = Delta(1, Some("Description"),
           List(CreateClass("MyClass", None, None, List())))
-          
+
         val db = dbPool.acquire()
         val processor = new DatabaseDeltaProcessor(delta, db)
         processor.apply().get
@@ -266,11 +267,11 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
     dbCounter += 1
 
     // FIXME see https://github.com/orientechnologies/orientdb/issues/5146
-    ODatabaseRecordThreadLocal.instance() 
+    ODatabaseRecordThreadLocal.instance()
 
     val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())
     odb.create(dbName, ODatabaseType.MEMORY)
-    
+
     val dbPool = new ODatabasePool(odb, dbName, "admin", "admin")
 
     try {

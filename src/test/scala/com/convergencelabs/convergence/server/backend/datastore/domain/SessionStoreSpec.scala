@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionQueryType
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.model.domain.session
 import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
@@ -109,7 +109,7 @@ class SessionStoreSpec
         connected.data.toSet shouldBe Set(session1, session3)
       }
     }
-    
+
     "getting connected sessions count" must {
       "only count sessions that are connected" in withTestData { provider =>
         val session1 = session.DomainSession("1", userId, truncatedInstantNow(), None, authMethod, client, clientVersion, "", remoteHost)
@@ -123,7 +123,7 @@ class SessionStoreSpec
         val connectedCount = provider.sessionStore.getConnectedSessionsCount(SessionQueryType.All).get
         connectedCount.shouldBe(2)
       }
-      
+
       "only count non admin sessions that are connected when SessionQueryType.NonAdmin is used" in withTestData { provider =>
         val session1 = session.DomainSession("1", userId, truncatedInstantNow(), None, authMethod, client, clientVersion, "", remoteHost)
         val session2 = session.DomainSession("2", userId, truncatedInstantNow(), Some(truncatedInstantNow()), authMethod, client, clientVersion, "", remoteHost)
@@ -137,7 +137,7 @@ class SessionStoreSpec
         connectedCount.shouldBe(2)
       }
     }
-    
+
     "nextSessionId" must {
       "return unique values" in withTestData { provider =>
         val session1 = provider.sessionStore.nextSessionId.get

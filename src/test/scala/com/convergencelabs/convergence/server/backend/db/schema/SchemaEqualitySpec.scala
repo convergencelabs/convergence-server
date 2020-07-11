@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.{DatabaseDeltaProcessor, DeltaManager}
 import com.orientechnologies.orient.core.db.{ODatabaseSession, ODatabaseType, OrientDB, OrientDBConfig}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -84,7 +85,7 @@ class SchemaEqualitySpec
         SchemaEqualityTester.assertEqual(db1, db2)
       }
     }
-    
+
     "comparing released domain schema" must {
       "return no error if schemas are the same" in withDatabases { (db1, db2) =>
         val manifest = DeltaManager.domainManifest().get
@@ -108,10 +109,10 @@ class SchemaEqualitySpec
   }
 
   def withDatabases(testCode: (ODatabaseSession, ODatabaseSession) => Any): Unit = {
-    val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())    
+    val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())
     val dbName1 = s"$dbName$dbCounter"
     dbCounter += 1
-    
+
     odb.create(dbName1, ODatabaseType.MEMORY)
     val db1 = odb.open(dbName1, "admin", "admin")
 
@@ -125,13 +126,13 @@ class SchemaEqualitySpec
 
     db1.activateOnCurrentThread()
     db1.close()
-    
+
     db2.activateOnCurrentThread()
     db2.close()
-    
+
     odb.drop(dbName1)
     odb.drop(dbName2)
-    
+
     odb.close()
   }
 }

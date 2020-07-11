@@ -17,7 +17,7 @@ import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, Dom
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -163,20 +163,20 @@ class DomainUserStoreSpec
     "setting a users password" must {
       "correctly set the passwords from plaintext" in withPersistenceStore { store =>
         initUsers(store)
-        
+
         store.setDomainUserPassword(User1.username, "password1").get // already set
         store.setDomainUserPassword(User2.username, "password2").get
-        
+
         store.validateNormalUserCredentials(User1.username, "password1").get shouldBe true
         store.validateNormalUserCredentials(User2.username, "password2").get shouldBe true
       }
-      
+
       "correctly set the passwords from hashes" in withPersistenceStore { store =>
         initUsers(store)
-        
+
         store.setDomainUserPasswordHash(User1.username, "hash1").get // already set
         store.setDomainUserPasswordHash(User2.username, "hash2").get
-        
+
         store.getNormalUserPasswordHash(User1.username).get.value shouldBe "hash1"
         store.getNormalUserPasswordHash(User2.username).get.value shouldBe "hash2"
       }
@@ -213,11 +213,11 @@ class DomainUserStoreSpec
         read.get.lastLogin shouldBe Some(time)
       }
     }
-    
+
     "creating a reconnect token" must {
       "correctly create a valid token" in withPersistenceStore { store =>
         initUsers(store)
-        
+
         val token = store.createReconnectToken(User1.toUserId, Duration.ofHours(24)).get
         store.validateAndRefreshReconnectToken(token, Duration.ofHours(24)).get.value shouldBe User1.toUserId
       }

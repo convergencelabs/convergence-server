@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.sche
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.model.server.user.User
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -56,14 +56,14 @@ class UserStoreSpec
         store.userExists("DoesNotExist").get shouldBe false
       }
     }
-    
+
     "updating a user" must {
       "update an existing user" in withPersistenceStore { store =>
         store.createUser(TestUser, Password, BearerToken).get
         val update = User(TestUser.username, "first", "last", "display", "email", None)
         store.updateUser(update).get
         val queried = store.getUserByUsername(TestUser.username).get.value
-        
+
         queried shouldBe update
       }
 
@@ -71,7 +71,7 @@ class UserStoreSpec
         val update = User(TestUser.username, "first", "last", "display", "email", None)
         store.updateUser(update).failure.exception shouldBe a[EntityNotFoundException]
       }
-      
+
       "fail with a DuplicateValue when updating to a username that is taken" in withPersistenceStore { store =>
         store.createUser(TestUser, Password, BearerToken).get
         store.createUser(TestUser2, Password, "other token").get
@@ -94,7 +94,7 @@ class UserStoreSpec
         store.setUserPassword("DoesNotExist", "doesn't matter").failed.get shouldBe a[EntityNotFoundException]
       }
     }
-    
+
     "getting a user's password hash" must {
       "return a hash for an existing user." in withPersistenceStore { store =>
         val password = "newPasswordToSet"

@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.backend.db.schema
 
 
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.{Constraints, CreateClass, CreateIndex, CreateSequence, DeltaCategory, DeltaManager, IndexType, OrientType, Property, SequenceType}
 import org.scalatest.TryValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

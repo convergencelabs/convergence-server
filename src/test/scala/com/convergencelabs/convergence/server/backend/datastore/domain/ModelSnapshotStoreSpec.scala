@@ -15,7 +15,7 @@ import java.time.Instant
 import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
@@ -76,7 +76,7 @@ class ModelSnapshotStoreSpec
     "creating a snapshot" must {
       "be able to get the snapshot that was created" in withPersistenceStore { provider =>
         initModels(provider)
-        
+
         val version = 5L
         val timestamp = Date.from(Instant.now()).toInstant
 
@@ -242,7 +242,7 @@ class ModelSnapshotStoreSpec
     "when removing all snapshots" must {
       "remove all snapshots for all models in a collection" in withPersistenceStore { provider =>
         createSnapshots(provider)
-        
+
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 3
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get.length shouldBe 1
 

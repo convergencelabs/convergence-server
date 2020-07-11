@@ -15,7 +15,7 @@ import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.model.DomainId

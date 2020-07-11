@@ -16,7 +16,7 @@ import java.time.{Duration => JavaDuration}
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.backend.db.schema.DomainSchemaManager
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DomainSchemaManager
 import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair

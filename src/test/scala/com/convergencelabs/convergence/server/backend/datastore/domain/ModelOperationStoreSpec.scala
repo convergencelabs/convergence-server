@@ -15,7 +15,7 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserType}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperation, NewModelOperation}
 import com.convergencelabs.convergence.server.model.DomainId

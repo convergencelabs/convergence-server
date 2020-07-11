@@ -11,12 +11,13 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
+import com.convergencelabs.convergence.server.backend.db.schema.legacy.{CreateClass, CreateFunction, CreateIndex, CreateSequence, DatabaseDeltaProcessor, Delta, IndexType, OrientType, Property, SequenceType}
 import com.orientechnologies.orient.core.db.{ODatabaseSession, ODatabaseType, OrientDB, OrientDBConfig}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-class SchemaEqualityTesterSpec 
+class SchemaEqualityTesterSpec
   extends AnyWordSpecLike
   with Matchers
   with BeforeAndAfterEach
@@ -33,7 +34,7 @@ class SchemaEqualityTesterSpec
   override def beforeEach(): Unit =  {
     val dbName1 = s"$dbName$dbCounter"
     dbCounter += 1
-    
+
     odb.create(dbName1, ODatabaseType.MEMORY)
     db1 = odb.open(dbName1, "admin", "admin")
 
@@ -47,17 +48,17 @@ class SchemaEqualityTesterSpec
   override def afterEach(): Unit = {
     db1.activateOnCurrentThread()
     db1.close()
-    
+
     db2.activateOnCurrentThread()
     db2.close()
-    
+
     odb.drop(db1.getName)
     odb.drop(db2.getName)
-    
+
     db1 = null
     db2 = null
   }
-  
+
   override def afterAll(): Unit = {
     odb.close()
   }
