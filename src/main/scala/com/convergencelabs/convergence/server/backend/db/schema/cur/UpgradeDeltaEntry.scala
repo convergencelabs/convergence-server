@@ -23,7 +23,13 @@ package com.convergencelabs.convergence.server.backend.db.schema.cur
  *                    will be the version(s) of the database that the delta
  *                    applies to.
  */
-private[schema] final case class DeltaEntry(deltaId: String,
-                                            sha256: Option[String],
-                                            backport: Option[Boolean],
-                                            backportTag: Option[String])
+private[schema] final case class UpgradeDeltaEntry(deltaId: String,
+                                                   sha256: String,
+                                                   backport: Option[Boolean],
+                                                   backportTag: Option[String]) {
+  /**
+   * @return A corresponding DeltaId using this objects deltaId and
+   *         backportTag fields.
+   */
+  def toDeltaId: UpgradeDeltaId = UpgradeDeltaId(deltaId, backportTag)
+}

@@ -22,7 +22,7 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
 
   import SchemaRepositorySpec._
 
-  "SchemaIndexReader" when {
+  "SchemaRepository" when {
     "when loading from the class path " must {
       "successfully construct if the index file is found" in {
         new SchemaMetaDataRepository(TestBasePath)
@@ -33,7 +33,7 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
       "get the correct versions if he index file is found" in {
         val indexReader = new SchemaMetaDataRepository(TestBasePath)
         val versions = indexReader.readVersions()
-        versions shouldBe Right(List("1.0", "2.0", "2.1", "3.0", "3.1", "4.0", "5.0"))
+        versions shouldBe Right(SchemaVersionIndex("5.0", List("1.0", "2.0", "2.1", "3.0", "3.1", "4.0", "5.0")))
       }
 
       "return a failure if the index file is no found" in {
@@ -64,11 +64,11 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
         manifest shouldBe SchemaVersionManifest(
           released = true,
           Some(releaseDate),
-          Some("fixsha"),
+          "fixsha",
           List(
-            DeltaEntry("2020_01_01_initial-schema", Some("1"), None, None),
-            DeltaEntry("2020_03_01_add-class-3", Some("2"), None, None),
-            DeltaEntry("2020_06_27_make-class-2-prop1-nullable", Some("3"), Some(true), Some("2.0"))
+            UpgradeDeltaEntry("2020_01_01_initial-schema", "1", None, None),
+            UpgradeDeltaEntry("2020_03_01_add-class-3", "2", None, None),
+            UpgradeDeltaEntry("2020_06_27_make-class-2-prop1-nullable", "3", Some(true), Some("2.0"))
           )
         )
       }
@@ -90,37 +90,26 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
       }
     }
 
-    "when reading deltas" must {
-      "successfully load no deltas" in {
+    "when reading a delta" must {
+      "successfully load a valid delta" in {
         val indexReader = new SchemaMetaDataRepository(TestBasePath)
-        indexReader.readDeltas(List()) shouldBe Right(List())
-      }
-
-      "successfully load a single delta" in {
-        val indexReader = new SchemaMetaDataRepository(TestBasePath)
-        val Right(List(DeltaAndRaw(delta, _))) = indexReader.readDeltas(List(Delta_2020_03_01_add_class_3_id))
+        val Right(UpgradeDeltaAndScript(id, delta, _)) = indexReader.readDelta(Delta_2020_03_01_add_class_3_id)
+        id shouldBe Delta_2020_03_01_add_class_3_id
         delta shouldBe Delta_2020_03_01_add_class_3
-      }
-
-      "successfully load multiple deltas" in {
-        val indexReader = new SchemaMetaDataRepository(TestBasePath)
-        val Right(List(DeltaAndRaw(delta1, _), DeltaAndRaw(delta2, _))) =
-          indexReader.readDeltas(List(Delta_2020_03_01_add_class_3_id, Delta_2020_06_27_make_class_2_prop1a_nullable_id))
-        delta1 shouldBe Delta_2020_03_01_add_class_3
-        delta2 shouldBe Delta_2020_06_27_make_class_2_prop1a_nullable
       }
 
       "successfully load a delta with a backportTag" in {
         val indexReader = new SchemaMetaDataRepository(TestBasePath)
-        val Right(List(DeltaAndRaw(delta1, _))) =
-          indexReader.readDeltas(List(Delta_2020_06_27_make_class_2_prop1a_nullable_id.withTag("2.0")))
-        delta1 shouldBe Delta_2020_06_27_make_class_2_prop1a_nullable_2_0
+        val deltaId = Delta_2020_06_27_make_class_2_prop1a_nullable_id.withTag("2.0")
+        val Right(UpgradeDeltaAndScript(id, delta, _)) = indexReader.readDelta(deltaId)
+        id shouldBe deltaId
+        delta shouldBe Delta_2020_06_27_make_class_2_prop1a_nullable_2_0
       }
 
-      "fail if any delta can't be loaded" in {
+      "fail if a delta can't be loaded" in {
         val indexReader = new SchemaMetaDataRepository(TestBasePath)
-        val badDelta = DeltaId("does not exist")
-        indexReader.readDeltas(List(Delta_2020_03_01_add_class_3_id, badDelta)) shouldBe
+        val badDelta = UpgradeDeltaId("does not exist")
+        indexReader.readDelta(badDelta) shouldBe
           Left(FileNotFoundError(SchemaMetaDataRepository.resolveDeltaPath(TestBasePath, badDelta)))
       }
     }
@@ -130,8 +119,8 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
 object SchemaRepositorySpec {
   val TestBasePath = "/schema/test-index"
 
-  val Delta_2020_03_01_add_class_3_id: DeltaId = DeltaId("2020_03_01_add-class-3")
-  val Delta_2020_06_27_make_class_2_prop1a_nullable_id: DeltaId = DeltaId("2020_06_27_make-class-2-prop1a-nullable")
+  val Delta_2020_03_01_add_class_3_id: UpgradeDeltaId = UpgradeDeltaId("2020_03_01_add-class-3")
+  val Delta_2020_06_27_make_class_2_prop1a_nullable_id: UpgradeDeltaId = UpgradeDeltaId("2020_06_27_make-class-2-prop1a-nullable")
 
   val Delta_2020_03_01_add_class_3: Delta = Delta(
     List(

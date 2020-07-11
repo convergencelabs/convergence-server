@@ -11,12 +11,13 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema.cur
 
-object DeltaId {
-  def apply(id: String): DeltaId = new DeltaId(id, None)
-}
+import com.convergencelabs.convergence.server.backend.db.schema.cur.delta.Delta
 
-final case class DeltaId(id: String, tag: Option[String]) {
-  def withTag(tag: String): DeltaId = {
-    new DeltaId(id, Some(tag))
-  }
-}
+/**
+ * A deserialized delta along with the raw script it was parsed from.
+ *
+ * @param id     The id of the delta.
+ * @param delta  The parsed delta as an ADT.
+ * @param script The raw delta script.
+ */
+private[schema] final case class UpgradeDeltaAndScript(id: UpgradeDeltaId, delta: Delta, script: String)

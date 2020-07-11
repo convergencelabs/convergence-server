@@ -27,5 +27,5 @@ import com.fasterxml.jackson.annotation.JsonFormat
 private[schema] final case class SchemaVersionManifest(released: Boolean,
                                                        @JsonFormat(shape=JsonFormat.Shape.STRING, pattern="yyyy-MM-dd")
                                                        releaseDate: Option[LocalDate],
-                                                       schemaSha256: Option[String],
-                                                       deltas: List[DeltaEntry])
+                                                       schemaSha256: String,
+                                                       deltas: List[UpgradeDeltaEntry])

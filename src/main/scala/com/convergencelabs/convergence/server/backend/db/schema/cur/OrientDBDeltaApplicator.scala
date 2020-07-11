@@ -12,11 +12,12 @@
 package com.convergencelabs.convergence.server.backend.db.schema.cur
 
 import com.convergencelabs.convergence.server.backend.db.schema.cur.delta.Delta
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 
-/**
- * A deserialzied delta along with the raw script it was parsed from.
- *
- * @param delta  The parsed delta as objects.
- * @param script The raw delta script.
- */
-private[schema] final case class DeltaAndRaw(delta: Delta, script: String)
+import scala.util.Try
+
+private[schema] class OrientDBDeltaApplicator(db: ODatabaseDocument) extends DeltaApplicator {
+  def applyDeltaToSchema(delta: Delta): Try[Unit] = {
+    new DeltaProcessor(delta, db).applyDelta()
+  }
+}
