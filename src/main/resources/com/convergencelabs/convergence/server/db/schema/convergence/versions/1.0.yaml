@@ -1,6 +1,6 @@
 released: true
-releaseDate: 2020-07-11
-schemaSha256: d9432eb727a780a611d94992584025b85040cf1f0290d03e45ed900d9c56b9a6
+releaseDate: 2020-07-12
+schemaSha256: 8df399c74bc3cd2cd78790a604b80229eb59ada28c85a42658f6edced2fcb37e
 deltas:
-  - id: 2020_06_11_new_delta_schema
-    sha256: ""
+  - id: 2020_07_12_migrate_version_schema
+    sha256: 62aa459234adcceab36b04ee2c0642ad146d92846546dbb981777f4628598241

@@ -1,0 +1,127 @@
+description: |-
+  Migrates from the schema version management system prior to 1.0.0-rc.8 to the new system
+  that was released in 1.0.0-rc.8.  The delta does three things:
+    1. Installs the new schema version tracking classes.
+    2. Runs a SQL Script to create version log and delta log entries for 0.9
+       for both the convergence schema and all of the domain schemas.
+    3. Drops the old schema version tracking classes.
+
+actions:
+  ##
+  ## 1. Create new classes.
+  ##
+
+  ########## ConvergenceSchemaVersionLog Class ##########
+
+  - action: CreateClass
+    name: ConvergenceSchemaVersionLog
+    properties:
+      - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: date,     type: DateTime,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: ConvergenceSchemaVersionLog
+    name: ConvergenceSchemaVersionLog.version
+    type: Unique
+    properties: [version]
+
+  ########## ConvergenceSchemaDeltaLog Class ##########
+
+  - action: CreateClass
+    name: ConvergenceSchemaDeltaLog
+    properties:
+      - {name: seqNo,    type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: id,       type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: tag,      type: String,                        constraints: {                 notNull: true, readOnly: true}}
+      - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: script,   type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: status,   type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: message,  type: String,                        constraints: {                 notNull: true, readOnly: true}}
+      - {name: date,     type: DateTime,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: ConvergenceSchemaDeltaLog
+    name: ConvergenceSchemaDeltaLog.deltaId
+    type: Unique
+    properties: [id]
+
+  - action: CreateIndex
+    className: ConvergenceSchemaDeltaLog
+    name: ConvergenceDeltaLog.seqNo
+    type: Unique
+    properties: [seqNo]
+
+
+  ########## DomainSchemaVersionLog Class ##########
+
+  - action: CreateClass
+    name: DomainSchemaVersionLog
+    properties:
+      - {name: domain,   type: Link,    linkedClass: Domain,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: date,     type: DateTime,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: DomainSchemaVersionLog
+    name: DomainSchemaVersionLog.version
+    type: Unique
+    properties: [version]
+
+  ########## DomainSchemaDeltaLog Class ##########
+
+  - action: CreateClass
+    name: DomainSchemaDeltaLog
+    properties:
+      - {name: domain,   type: Link,    linkedClass: Domain,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seqNo,    type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: id,       type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: tag,      type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: script,   type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: status,   type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: message,  type: String,                        constraints: {                 notNull: true, readOnly: true}}
+      - {name: date,     type: DateTime,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: DomainSchemaDeltaLog
+    name: DomainSchemaDeltaLog.domain_id
+    type: Unique
+    properties: [domain, id]
+
+  - action: CreateIndex
+    className: DomainSchemaDeltaLog
+    name: DomainSchemaDeltaLog.domain_seqNo
+    type: Unique
+    properties: [domain, seqNo]
+
+  ##
+  ## 2. Migrate data
+  ##
+  - action: RunSqlCommand
+      command: |-
+        LET convergenceDates = SELECT date FROM ConvergenceDeltaHistory;
+        LET convergence_0_9_date = $convergenceDates[0].date;
+
+        INSERT INTO ConvergenceSchemaVersionLog SET date = $convergence_0_9_date, version = "0.9";
+        INSERT INTO ConvergenceSchemaDeltaLog SET seqNo = 0, id = "install", tag = "install", version = "0.9", status = "success", date = $convergence_0_9_date;
+
+        LET domainDates = SELECT domain, date FROM DomainDeltaHistory;
+        FOREACH ($domainDate in $domainDates) {
+          INSERT INTO DomainSchemaVersionLog SET domain = $domainDate.domain, date = $domainDate.date, version = "0.9";
+          INSERT INTO DomainSchemaDeltaLog SET domain = $domainDate.domain, seqNo = 0, id = "install", tag = "install", version = "0.9", status = "success", date = $domainDate.date;
+        }
+
+  ##
+  ## 3. Drop old classes
+  ##
+  - action: DropClass
+    name: ConvergenceDelta
+
+  - action: DropClass
+    name: ConvergenceDeltaHisory
+
+  - action: DropClass
+    name: DomainDelta
+
+  - action: DropClass
+    name: DomainDeltaHisory

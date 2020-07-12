@@ -46,6 +46,7 @@ actions:
   - action: CreateClass
     name: DomainSchemaVersionLog
     properties:
+      - {name: domain,   type: Link,    linkedClass: Domain,  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: date,     type: DateTime,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
 
