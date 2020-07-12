@@ -25,8 +25,9 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
-import com.typesafe.config.{Config, ConfigObject}
+import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
@@ -62,29 +63,9 @@ final class ConvergenceDatabaseInitializer(config: Config,
     logger.debug("Processing request to ensure the convergence database is initialized")
     for {
       orientDb <- createOrientDb()
-      exists <- convergenceDatabaseExists(orientDb)
-      bootstrapped <- {
-        if (exists) {
-          Success(false)
-        } else if (autoInstallEnabled) {
-          this.bootstrapConvergenceDatabase(orientDb).map(_ => true)
-        } else {
-          Failure(new IllegalStateException("Convergence database does not exist and auto-install is not enabled"))
-        }
-      }
-      _ <- {
-        if (!bootstrapped) {
-          val baseUri = dbServerConfig.getString("uri")
-          val username = convergenceDbConfig.getString("username")
-          val password = convergenceDbConfig.getString("password")
-
-          val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
-          dbProvider.connect().get
-          autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
-        } else {
-          Success(())
-        }
-      }
+      bootstrapped <- bootstrapIfDatabaseDoesNotExist(orientDb)
+      _ <- if (!bootstrapped) autoConfigureServerAdminUserForExistingDatabase() else Success(())
+      _ <- Try(orientDb.close())
     } yield {
       ()
     }
@@ -106,8 +87,49 @@ final class ConvergenceDatabaseInitializer(config: Config,
     orientDb
   }
 
-  private[this] def convergenceDatabaseExists(orientDb: OrientDB): Try[Boolean] = Try {
-    orientDb.exists(convergenceDatabase)
+  /**
+   * Attempts to connect to OrientDB.
+   *
+   * @param uri           The URI of the OrientDB server.
+   * @param adminUser     The username of a privileged user in OrientDB that will be
+   *                      used to create databases.
+   * @param adminPassword The password of the privileged OrientDB user.
+   * @param retryDelay    How long to wait between connection attempts.
+   * @return Some if / when OrientDB is successfully connected to; None if the attempt fails.
+   */
+  private[this] def attemptConnection(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
+    info(s"Attempting to connect to the database at uri: $uri")
+    Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
+      case Success(db) =>
+        logger.info("Connected to database with Server Admin")
+        Some(db)
+      case Failure(e) =>
+        logger.error(s"Unable to connect to database, retrying in ${retryDelay.toMillis}ms", e)
+        Thread.sleep(retryDelay.toMillis)
+        None
+    }
+  }
+
+  /**
+   * Bootstraps the convergence database if it does not exist.
+   *
+   * @param orientDb The orientDb instance to use to create the dabatbase.
+   * @return True if the convergence database did not exist and was
+   *         initialized.
+   */
+  private[this] def bootstrapIfDatabaseDoesNotExist(orientDb: OrientDB): Try[Boolean] = {
+    for {
+      exists <- Try(orientDb.exists(convergenceDatabase))
+      bootstrapped <- {
+        if (exists) {
+          Success(false)
+        } else if (autoInstallEnabled) {
+          bootstrapConvergenceDatabase(orientDb).map(_ => true)
+        } else {
+          Failure(new IllegalStateException("Convergence database does not exist and auto-install is not enabled"))
+        }
+      }
+    } yield bootstrapped
   }
 
   /**
@@ -117,75 +139,123 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * @return A Try that will be Success(()) if the convergence database is
    *         successfully initialized; Failure otherwise.
    */
-  private[this] def bootstrapConvergenceDatabase(orientDb: OrientDB): Try[Unit] = Try {
-    logger.info("auto-install is configured, attempting to connect to the database to determine if the convergence database is installed.")
+  private[this] def bootstrapConvergenceDatabase(orientDb: OrientDB): Try[Unit] = {
+    logger.info("Convergence database auto-install is enabled, checking if the Convergence database exists")
+    if (!orientDb.exists(convergenceDatabase)) {
+      logger.info("Convergence database does not exists, initializing it...")
+      for {
+        db <- createAndGetConvergenceDatabase(orientDb)
+        dbProvider = new ConnectedSingleDatabaseProvider(db)
+        _ <- configureConvergenceDatabaseUsers(db)
+        _ <- installConvergenceSchema(dbProvider)
+        // We need to also do this here because when we create the initial domains
+        // we need to associate them with a user, so the admin user must be there
+        // before hand.
+        _ <- if (config.hasPath("convergence.default-server-admin")) {
+          autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
+        } else {
+          Success(())
+        }
+        _ <- bootstrapData(dbProvider, config)
+        _ <- Try(dbProvider.shutdown())
+      } yield ()
+    } else {
+      logger.info("Convergence database already exists")
+      Success(())
+    }
+  }
 
+  /**
+   * A helper method that will create the Convergence database according to the
+   * Convergence Server config, and connect to it.
+   *
+   * @param orientDb The orientDb instance to use to administer databases.
+   * @return The connected database or a Failure.
+   */
+  private[this] def createAndGetConvergenceDatabase(orientDb: OrientDB): Try[ODatabaseDocument] = Try {
+    orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
+    logger.debug("Convergence database created, connecting as default admin user")
+
+    val db = orientDb.open(convergenceDatabase, "admin", "admin")
+    logger.info("Connected to convergence database")
+    db
+  }
+
+  /**
+   * A helper method that configures the database users that will be used to
+   * connect to the Convergence Database.  OrientDB has default credentials
+   * for a newly created database that are well known.  We do not want to use
+   * these credentials. So we remove those uses and create new users with
+   * proper credentials configured from the Convergence Server config.
+   *
+   * @param db A database instance connected to the Convergence database.
+   */
+  private[this] def configureConvergenceDatabaseUsers(db: ODatabaseDocument): Try[Unit] = Try {
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
     val adminUsername = convergenceDbConfig.getString("admin-username")
     val adminPassword = convergenceDbConfig.getString("admin-password")
-    val preRelease = convergenceDbConfig.getBoolean("auto-install.pre-release")
 
-    logger.info("Checking for Convergence database")
-    if (!orientDb.exists(convergenceDatabase)) {
-      logger.info("Convergence database does not exists.  Creating.")
-      orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
-      logger.debug("Convergence database created, connecting as default admin user and setting credentials")
+    logger.debug("Deleting default 'reader' user.")
+    db.getMetadata.getSecurity.getUser("reader").getDocument.delete()
 
-      val db = orientDb.open(convergenceDatabase, "admin", "admin")
-      logger.info("Connected to convergence database.")
+    logger.debug("Setting 'writer' user credentials.")
+    val writerUser = db.getMetadata.getSecurity.getUser("writer")
+    writerUser.setName(username)
+    writerUser.setPassword(password)
+    writerUser.save()
 
-      logger.debug("Deleting default 'reader' user.")
-      db.getMetadata.getSecurity.getUser("reader").getDocument.delete()
+    logger.debug("Setting 'admin' user credentials.")
+    val adminUser = db.getMetadata.getSecurity.getUser("admin")
+    adminUser.setName(adminUsername)
+    adminUser.setPassword(adminPassword)
+    adminUser.save()
 
-      logger.debug("Setting 'writer' user credentials.")
-      val writerUser = db.getMetadata.getSecurity.getUser("writer")
-      writerUser.setName(username)
-      writerUser.setPassword(password)
-      writerUser.save()
-
-      logger.debug("Setting 'admin' user credentials.")
-      val adminUser = db.getMetadata.getSecurity.getUser("admin")
-      adminUser.setName(adminUsername)
-      adminUser.setPassword(adminPassword)
-      adminUser.save()
-
-      logger.info("Installing Convergence schema.")
-      val dbProvider = new ConnectedSingleDatabaseProvider(db)
-
-      val schemaManager = new ConvergenceSchemaManager(dbProvider)
-      schemaManager
-        .install()
-        .map { _ =>
-          logger.info("Schema installation complete")
-        }
-        .getOrElse {
-          // FIXME better error handling
-          throw new IllegalStateException("Convergence schema install failed")
-        }
-
-      // We need to also do this here because when we create the initial domains
-      // we need to associate them with a user, so the admin user must be there
-      // before hand.
-      if (config.hasPath("convergence.default-server-admin")) {
-        this.autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
-      }
-
-      bootstrapData(dbProvider, config)
-
-      dbProvider.shutdown()
-    } else {
-      logger.info("Convergence database already exists.")
-    }
-
-    orientDb.close()
     ()
+  }
+
+  /**
+   * A helper method that will install the Convergence database schema.
+   *
+   * @param dbProvider The database provider that is connected to
+   *                   the database where the Convergence schema should
+   *                   be installed to.
+   */
+  private def installConvergenceSchema(dbProvider: DatabaseProvider): Try[Unit] = {
+    logger.info("Installing the Convergence database schema")
+    val schemaManager = new ConvergenceSchemaManager(dbProvider)
+    schemaManager
+      .install()
+      .fold(
+        { _ =>
+          Failure(new IllegalStateException("Convergence database schema install failed"))
+        },
+        { _ =>
+          logger.info("Convergence database schema installation complete")
+          Success(())
+        }
+      )
+  }
+
+  /**
+   * A helper method that will reset the Convergence admin user information for
+   * an existing convergence database.
+   */
+  private[this] def autoConfigureServerAdminUserForExistingDatabase(): Try[Unit] = {
+    val baseUri = dbServerConfig.getString("uri")
+    val username = convergenceDbConfig.getString("username")
+    val password = convergenceDbConfig.getString("password")
+
+    val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
+    dbProvider.connect().get
+    autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
   }
 
   /**
    * Creates or updates the ConvergenceServer's default admin user.
    *
-   * @param dbProvider [[com.convergencelabs.convergence.server.backend.db.DatabaseProvider]] that points to the convergence database.
+   * @param dbProvider [[DatabaseProvider]] that points to the convergence
+   *                   database.
    * @param config     The ConvergenceServer's Config.
    */
   private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
@@ -194,30 +264,51 @@ final class ConvergenceDatabaseInitializer(config: Config,
 
     val username = config.getString("username")
     val password = config.getString("password")
-    userStore.userExists(username).flatMap { exists =>
-      if (!exists) {
-        logger.debug("Admin user does not exist, creating.")
-        val userCreator = new UserCreator(dbProvider)
-
-        val firstName = config.getString("firstName")
-        val lastName = config.getString("lastName")
-        val displayName = if (config.hasPath("displayName")) {
-          config.getString("displayName")
+    userStore
+      .userExists(username)
+      .flatMap { exists =>
+        if (!exists) {
+          createServerAdminUser(dbProvider, config, username, password)
         } else {
-          "Server Admin"
+          logger.debug("Admin user exists, updating password.")
+          userStore.setUserPassword(username, password)
         }
-        val email = config.getString("email")
-
-        val user = User(username, email, firstName, lastName, displayName, None)
-        userCreator.createUser(user, password, Roles.Server.ServerAdmin)
-      } else {
-        logger.debug("Admin user exists, updating password.")
-        userStore.setUserPassword(username, password)
       }
-    }.recover {
-      case cause: Throwable =>
-        logger.error("Error creating server admin user", cause)
+      .recoverWith {
+        case cause: Throwable =>
+          logger.error("Error creating server admin user", cause)
+          Failure(cause)
+      }
+  }
+
+  /**
+   * Creates the default server admin user. This must only be called when
+   * initializing the Convergence schema when the admin user does not
+   * exist.
+   *
+   * @param dbProvider A connection to the Convergence database.
+   * @param config     The server's config.
+   * @param username   The username to set.
+   * @param password   The password for the suer.
+   */
+  private[this] def createServerAdminUser(dbProvider: DatabaseProvider,
+                                          config: Config,
+                                          username: String,
+                                          password: String): Try[Unit] = {
+    logger.debug("Admin user does not exist, creating.")
+    val userCreator = new UserCreator(dbProvider)
+
+    val firstName = config.getString("firstName")
+    val lastName = config.getString("lastName")
+    val displayName = if (config.hasPath("displayName")) {
+      config.getString("displayName")
+    } else {
+      "Server Admin"
     }
+    val email = config.getString("email")
+
+    val user = User(username, email, firstName, lastName, displayName, None)
+    userCreator.createUser(user, password, Roles.Server.ServerAdmin)
   }
 
   /**
@@ -229,41 +320,72 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * @return An indication of success or failure.
    */
   private[this] def bootstrapData(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
-    val bootstrapConfig = config.getConfig("convergence.bootstrap")
-    val defaultConfigs = bootstrapConfig.getConfig("default-configs")
+    for {
+      _ <- bootstrapDefaultConfigs(dbProvider, config)
+      _ <- bootstrapDefaultNamespaces(dbProvider, config)
+      _ <- bootstrapDomains(dbProvider, config)
+    } yield ()
+  }
 
-    val owner = config.getString("convergence.default-server-admin.username")
+  /**
+   * Installs the default configurations from the server config file during
+   * installation.
+   *
+   * @param dbProvider A provider connected to the convergence
+   *                   database.
+   * @param config     The servers config.
+   */
+  private def bootstrapDefaultConfigs(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
+    val defaultConfigs = config.getConfig("convergence.bootstrap.default-configs")
 
-    val configs =
-      defaultConfigs.entrySet().asScala
-        .map(e => (e.getKey, e.getValue.unwrapped))
-        .toMap
+    val configs = defaultConfigs
+      .entrySet()
+      .asScala
+      .map(e => (e.getKey, e.getValue.unwrapped))
+      .toMap
 
     val configStore = new ConfigStore(dbProvider)
-    val favoriteStore = new UserFavoriteDomainStore(dbProvider)
-    val domainCreator = new InlineDomainCreator(dbProvider, config, ec)
-    val namespaceStore = new NamespaceStore(dbProvider)
     configStore.setConfigs(configs)
+  }
 
-    val namespaces = bootstrapConfig.getList("namespaces")
-    namespaces.forEach {
-      case obj: ConfigObject =>
-        val c = obj.toConfig
-        val id = c.getString("id")
-        val displayName = c.getString("displayName")
+  /**
+   * Creates the default namespaces, per the sever config.
+   *
+   * @param dbProvider A provider connected to the convergence
+   *                   database.
+   * @param config     The servers config
+   */
+  private def bootstrapDefaultNamespaces(dbProvider: DatabaseProvider, config: Config): Try[Unit] = Try {
+    val namespaceStore = new NamespaceStore(dbProvider)
+    val namespaces = config.getConfigList("convergence.bootstrap.namespaces")
+    namespaces.forEach { namespaceConfig =>
+        val id = namespaceConfig.getString("id")
+        val displayName = namespaceConfig.getString("displayName")
         logger.info(s"bootstrapping namespace '$id'")
         namespaceStore.createNamespace(id, displayName, userNamespace = false).get
     }
+  }
 
-    val domains = bootstrapConfig.getList("domains")
-    domains.asScala.toList.foreach {
-      case obj: ConfigObject =>
-        val c = obj.toConfig
-        val namespace = c.getString("namespace")
-        val id = c.getString("id")
-        val displayName = c.getString("displayName")
-        val favorite = c.getBoolean("favorite")
-        val anonymousAuth = c.getBoolean("config.anonymousAuthEnabled")
+  /**
+   * Creates the default domains, per the server config during installation.
+   *
+   * @param dbProvider A provider connected to the convergence
+   *                   database.
+   * @param config     The servers config
+   */
+  private def bootstrapDomains(dbProvider: DatabaseProvider, config: Config): Try[Unit] = Try {
+    val namespaceStore = new NamespaceStore(dbProvider)
+    val favoriteStore = new UserFavoriteDomainStore(dbProvider)
+    val domainCreator = new InlineDomainCreator(dbProvider, config, ec)
+    val domains = config.getConfigList("convergence.bootstrap.domains")
+    val owner = config.getString("convergence.default-server-admin.username")
+
+    domains.asScala.toList.foreach { domainConfig =>
+        val namespace = domainConfig.getString("namespace")
+        val id = domainConfig.getString("id")
+        val displayName = domainConfig.getString("displayName")
+        val favorite = domainConfig.getBoolean("favorite")
+        val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
 
         logger.info(s"bootstrapping domain '$namespace/$id'")
         (for {
@@ -297,31 +419,6 @@ final class ConvergenceDatabaseInitializer(config: Config,
               Await.ready(f, timeout.duration)
             }
         }).get
-    }
-    Success(())
-  }
-
-  /**
-   * Attempts to connect to OrientDB.
-   *
-   * @param uri           The URI of the OrientDB server.
-   * @param adminUser     The username of a privileged user in OrientDB that will be
-   *                      used to create databases.
-   * @param adminPassword The password of the privileged OrientDB user.
-   * @param retryDelay    How long to wait between connection attempts.
-   * @return Some if / when OrientDB is successfully connected to; None if the attempt fails.
-   */
-  private[this] def attemptConnection(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
-    info(s"Attempting to connect to the database at uri: $uri")
-
-    Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
-      case Success(db) =>
-        logger.info("Connected to database with Server Admin")
-        Some(db)
-      case Failure(e) =>
-        logger.error(s"Unable to connect to database, retrying in ${retryDelay.toMillis}ms", e)
-        Thread.sleep(retryDelay.toMillis)
-        None
     }
   }
 }
