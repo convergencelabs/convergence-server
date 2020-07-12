@@ -18,7 +18,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.collectio
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.services.domain.model.ModelQueryResult
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
@@ -32,7 +32,7 @@ case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore, 
 
 // scalastyle:off magic.number
 class ModelStoreSpec
-  extends PersistenceStoreSpec[ModelStoreSpecStores](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[ModelStoreSpecStores](NonRecordingSchemaManager.SchemaType.Domain)
   with AnyWordSpecLike
   with Matchers {
 

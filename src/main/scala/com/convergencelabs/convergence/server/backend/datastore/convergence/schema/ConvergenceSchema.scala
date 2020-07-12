@@ -14,11 +14,10 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence.sch
 object ConvergenceSchema {
   object Classes {
     val Config: ConfigClass.type = ConfigClass
-    val ConvergenceDelta: ConvergenceDeltaClass.type = ConvergenceDeltaClass
-    val ConvergenceDeltaHistory: ConvergenceDeltaHistoryClass.type = ConvergenceDeltaHistoryClass
+    val ConvergenceSchemaDeltaLog: ConvergenceSchemaDeltaLogClass.type = ConvergenceSchemaDeltaLogClass
+    val ConvergenceSchemaVersionLog: ConvergenceSchemaVersionLogClass.type = ConvergenceSchemaVersionLogClass
     val Domain: DomainClass.type = DomainClass
-    val DomainDelta: DomainDeltaClass.type = DomainDeltaClass
-    val DomainDeltaHistory: DomainDeltaHistoryClass.type = DomainDeltaHistoryClass
+    val DomainDeltaLog: DomainSchemaDeltaLogClass.type = DomainSchemaDeltaLogClass
     val Namespace: NamespaceClass.type = NamespaceClass
     val Permission: PermissionClass.type = PermissionClass
     val Role: RoleClass.type = RoleClass

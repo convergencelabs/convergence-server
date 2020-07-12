@@ -44,4 +44,6 @@ final class ConnectedSingleDatabaseProvider(db: ODatabaseDocument) extends Datab
     db.activateOnCurrentThread()
     db.close()
   }
+
+  override def getDatabaseName: String = db.getName
 }

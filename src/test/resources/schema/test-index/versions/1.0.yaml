@@ -1,6 +1,4 @@
 released: true
 releaseDate:
-schemaSha256:
-deltas:
-  - deltaId: 2020_01_01_initial-schema
-    sha256: ""
+schemaSha256: 2fd497bc2179fe183dbdce0c3babf1e0e9a3f2097ff8df30ee9c98a8528b41a1
+deltas: []

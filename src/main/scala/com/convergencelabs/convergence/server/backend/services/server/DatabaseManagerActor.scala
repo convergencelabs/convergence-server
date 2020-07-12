@@ -15,7 +15,7 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DatabaseManager
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManager
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
@@ -43,35 +43,17 @@ private final class DatabaseManagerActor(context: ActorContext[DatabaseManagerAc
           .recover(_ => GetDomainVersionResponse(Left(UnknownError())))
           .foreach(replyTo ! _)
 
-      case UpgradeConvergenceRequest(version, preRelease, replyTo) =>
+      case UpgradeConvergenceRequest(replyTo) =>
         replyTo ! UpgradeConvergenceResponse(Right(Ok()))
+        databaseManager.upgradeConvergence()
 
-        version match {
-          case Some(v) =>
-            databaseManager.upgradeConvergence(v, preRelease)
-          case None =>
-            databaseManager.upgradeConvergenceToLatest(preRelease)
-        }
-
-      case UpgradeDomainRequest(fqn, version, preRelease, replyTo) =>
+      case UpgradeDomainRequest(domainId, replyTo) =>
         replyTo ! UpgradeDomainResponse(Right(Ok()))
+        databaseManager.upgradeDomain(domainId)
 
-        version match {
-          case Some(v) =>
-            databaseManager.upgradeDomain(fqn, v, preRelease)
-          case None =>
-            databaseManager.upgradeDomainToLatest(fqn, preRelease)
-        }
-
-      case UpgradeDomainsRequest(version, preRelease, replyTo) =>
+      case UpgradeDomainsRequest(replyTo) =>
         replyTo ! UpgradeDomainsResponse(Right(Ok()))
-
-        version match {
-          case Some(v) =>
-            databaseManager.upgradeAllDomains(v, preRelease)
-          case None =>
-            databaseManager.upgradeAllDomainsToLatest(preRelease)
-        }
+        databaseManager.upgradeAllDomains()
     }
 
     Behaviors.same
@@ -96,7 +78,7 @@ object DatabaseManagerActor {
   //
   final case class GetConvergenceVersionRequest(replyTo: ActorRef[GetConvergenceVersionResponse]) extends Message
 
-  final case class GetConvergenceVersionResponse(version: Either[UnknownError, Int]) extends CborSerializable
+  final case class GetConvergenceVersionResponse(version: Either[UnknownError, Option[String]]) extends CborSerializable
 
 
   //
@@ -104,26 +86,26 @@ object DatabaseManagerActor {
   //
   final case class GetDomainVersionRequest(domainId: DomainId, replyTo: ActorRef[GetDomainVersionResponse]) extends Message
 
-  final case class GetDomainVersionResponse(version: Either[UnknownError, Int]) extends CborSerializable
+  final case class GetDomainVersionResponse(version: Either[UnknownError, Option[String]]) extends CborSerializable
 
   //
   // GetConvergenceVersion
   //
-  final case class UpgradeConvergenceRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeConvergenceResponse]) extends Message
+  final case class UpgradeConvergenceRequest(replyTo: ActorRef[UpgradeConvergenceResponse]) extends Message
 
   final case class UpgradeConvergenceResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
   //
   // GetConvergenceVersion
   //
-  final case class UpgradeDomainRequest(id: DomainId, version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainResponse]) extends Message
+  final case class UpgradeDomainRequest(id: DomainId, replyTo: ActorRef[UpgradeDomainResponse]) extends Message
 
   final case class UpgradeDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
   //
   // GetConvergenceVersion
   //
-  final case class UpgradeDomainsRequest(version: Option[Int], preRelease: Boolean, replyTo: ActorRef[UpgradeDomainsResponse]) extends Message
+  final case class UpgradeDomainsRequest(replyTo: ActorRef[UpgradeDomainsResponse]) extends Message
 
   final case class UpgradeDomainsResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 

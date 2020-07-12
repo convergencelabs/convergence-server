@@ -1,10 +1,8 @@
 released: true
 releaseDate:
-schemaSha256:
+schemaSha256: 599e47c65662b1204c88bf082346b03b615b0540f468ea9b1859d69c7e727a96
 deltas:
-  - deltaId: 2020_01_01_initial-schema
-    sha256: ""
-  - deltaId: 2020_03_01_add-class-3
-    sha256: ""
-  - deltaId: 2020_04_12_add-class-1-prop3
-    sha256: ""
+  - id: 2020_03_01_add-class-3
+    sha256: "0793f85cf3a783110337e77e31809369c1525535e54b5236b698b936de37479f"
+  - id: 2020_04_12_add-class-1-prop3
+    sha256: 7f20d29aae85d8e581215d55c7d6928c7f21b94d5b64584865db3ed9dfe092d3

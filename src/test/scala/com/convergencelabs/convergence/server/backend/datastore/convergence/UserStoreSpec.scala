@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.sche
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.server.user.User
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -23,7 +23,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class UserStoreSpec
-    extends PersistenceStoreSpec[UserStore](DeltaCategory.Convergence)
+    extends PersistenceStoreSpec[UserStore](NonRecordingSchemaManager.SchemaType.Convergence)
     with AnyWordSpecLike
     with Matchers {
 

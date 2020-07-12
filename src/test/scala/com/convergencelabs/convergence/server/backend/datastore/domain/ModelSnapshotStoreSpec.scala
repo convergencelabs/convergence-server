@@ -15,7 +15,7 @@ import java.time.Instant
 import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
@@ -27,7 +27,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number
 class ModelSnapshotStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+    extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

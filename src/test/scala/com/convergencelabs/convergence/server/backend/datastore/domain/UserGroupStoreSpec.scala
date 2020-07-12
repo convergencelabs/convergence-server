@@ -12,19 +12,19 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.group.UserGroup
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class UserGroupStoreSpec
-    extends PersistenceStoreSpec[(UserGroupStore, DomainUserStore)](DeltaCategory.Domain)
+    extends PersistenceStoreSpec[(UserGroupStore, DomainUserStore)](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

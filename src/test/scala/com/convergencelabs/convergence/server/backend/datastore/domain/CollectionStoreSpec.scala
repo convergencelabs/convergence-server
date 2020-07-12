@@ -17,10 +17,10 @@ import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain
-import com.convergencelabs.convergence.server.model.domain.{ModelSnapshotConfig, collection}
-import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions}
+import com.convergencelabs.convergence.server.model.domain.collection
+import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -29,7 +29,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
-  extends PersistenceStoreSpec[CollectionStore](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[CollectionStore](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

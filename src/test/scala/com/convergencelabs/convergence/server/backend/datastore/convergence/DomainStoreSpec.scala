@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.datastore.convergence
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.server.domain
 import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus, Namespace}
 import com.convergencelabs.convergence.server.model.{DomainId, server}
@@ -28,7 +28,7 @@ object DomainStoreSpec {
 }
 
 class DomainStoreSpec
-  extends PersistenceStoreSpec[DomainStoreSpec.SpecStores](DeltaCategory.Convergence)
+  extends PersistenceStoreSpec[DomainStoreSpec.SpecStores](NonRecordingSchemaManager.SchemaType.Convergence)
   with AnyWordSpecLike
   with Matchers {
 

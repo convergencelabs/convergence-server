@@ -1,14 +1,11 @@
 released: true
 releaseDate:
-schemaSha256:
+schemaSha256: dd818c190581234c026d44fed5a0a9b30c53ec562b61e823a0cb7fe9562ae7fc
 deltas:
-  - deltaId: 2020_01_01_initial-schema
-    sha256: ""
-  - deltaId: 2020_03_01_add-class-3
-    sha256: ""
-  - deltaId: 2020_04_12_add-class-1-prop3
-    sha256: ""
-  - deltaId: 2020_06_27_make-class-2-prop1a-nullable
-    sha256: ""
-    backport: true
-    backportTag: 2.0
+  - id: 2020_03_01_add-class-3
+    sha256: 0793f85cf3a783110337e77e31809369c1525535e54b5236b698b936de37479f
+  - id: 2020_04_12_add-class-1-prop3
+    sha256: 7f20d29aae85d8e581215d55c7d6928c7f21b94d5b64584865db3ed9dfe092d3
+  - id: 2020_06_27_make-class-2-prop1a-nullable
+    tag: 2.0
+    sha256: 8b8c64e34fc11af6eb424ccf4ac95b8a5cc596772f71e840516ea5e7dcabdb3a

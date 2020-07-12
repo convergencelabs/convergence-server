@@ -47,7 +47,7 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
           }
         } ~ path("domains") {
           authorize(isServerAdmin(authProfile)) {
-            handleWith(upgradeDomains)
+            complete(upgradeDomains())
           }
         } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
           authorize(canManageDomain(DomainId(namespace, domainId), authProfile)) {
@@ -71,10 +71,8 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
   }
 
   private[this] def upgradeConvergence(request: UpgradeRequest): Future[RestResponse] = {
-    val UpgradeRequest(version, preRelease) = request
-    val to = toVersion(version, preRelease)
-    logger.debug(s"Received an request to upgrade convergence database to version: $to")
-    databaseManager.ask[UpgradeConvergenceResponse](UpgradeConvergenceRequest(version, preRelease.getOrElse(false), _))
+    logger.debug(s"Received an request to upgrade convergence database to version")
+    databaseManager.ask[UpgradeConvergenceResponse](UpgradeConvergenceRequest)
       .map(_.response.fold(
         _ => InternalServerError,
         _ => OkResponse
@@ -82,21 +80,17 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
   }
 
   private[this] def upgradeDomain(namespace: String, domainId: String, request: UpgradeRequest): Future[RestResponse] = {
-    val UpgradeRequest(version, preRelease) = request
-    val to = toVersion(version, preRelease)
-    logger.debug(s"Received an request to upgrade domain database to version: $to")
-    databaseManager.ask[UpgradeDomainResponse](UpgradeDomainRequest(DomainId(namespace, domainId), version, preRelease.getOrElse(false), _))
+    logger.debug(s"Received an request to upgrade domain database to version: $domainId")
+    databaseManager.ask[UpgradeDomainResponse](UpgradeDomainRequest(DomainId(namespace, domainId), _))
       .map(_.response.fold(
         _ => InternalServerError,
         _ => OkResponse
       ))
   }
 
-  private[this] def upgradeDomains(request: UpgradeRequest): Future[RestResponse] = {
-    val UpgradeRequest(version, preRelease) = request
-    val to = toVersion(version, preRelease)
-    logger.debug(s"Received an request to upgrade all domain databases to version: $to")
-    databaseManager.ask[UpgradeDomainsResponse](UpgradeDomainsRequest(version, preRelease.getOrElse(false), _))
+  private[this] def upgradeDomains(): Future[RestResponse] = {
+    logger.debug(s"Received an request to upgrade all domain databases")
+    databaseManager.ask[UpgradeDomainsResponse](UpgradeDomainsRequest)
       .map(_.response.fold(
         _ => InternalServerError,
         _ => OkResponse
@@ -118,22 +112,12 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
         version => okResponse(VersionResponse(version))
       ))
   }
-
-  private[this] def toVersion(version: Option[Int], preRelease: Option[Boolean]): String = {
-    val v = version.map(_.toString) getOrElse "latest"
-    val p = if (preRelease.getOrElse(false)) {
-      "pre-released"
-    } else {
-      "released"
-    }
-    s"$v ($p)"
-  }
 }
 
 private[rest] object DatabaseManagerRestService {
 
-  case class UpgradeRequest(version: Option[Int], preRelease: Option[Boolean])
+  case class UpgradeRequest()
 
-  case class VersionResponse(databaseVersion: Int)
+  case class VersionResponse(databaseVersion: Option[String])
 
 }

@@ -1,14 +1,12 @@
 released: true
 releaseDate:
-schemaSha256:
+schemaSha256: bc8489efee601a2eebcaf7f30a7ecf9d8eab3059da0ca07f8c49905e974d8ff3
 deltas:
-  - deltaId: 2020_01_01_initial-schema
-    sha256: ""
-  - deltaId: 2020_03_01_add-class-3
-    sha256: ""
-  - deltaId: 2020_04_12_add-class-1-prop3
-    sha256: ""
-  - deltaId: 2020_05_10_rename-class-2-prop1
-    sha256: ""
-  - deltaId: 2020_06_27_make-class-2-prop1a-nullable
-    sha256: ""
+  - id: 2020_03_01_add-class-3
+    sha256: 0793f85cf3a783110337e77e31809369c1525535e54b5236b698b936de37479f
+  - id: 2020_04_12_add-class-1-prop3
+    sha256: 7f20d29aae85d8e581215d55c7d6928c7f21b94d5b64584865db3ed9dfe092d3
+  - id: 2020_05_10_rename-class-2-prop1
+    sha256: e57871d8203707dd313515b6b357f631556404867f00dce36f1a05936ebc460c
+  - id: 2020_06_27_make-class-2-prop1a-nullable
+    sha256: 13f9d3dc6e317aeeba84d55725b1136b15a54a17beea100df89f0fc6483d3856

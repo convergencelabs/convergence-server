@@ -16,9 +16,8 @@ import java.time.Instant
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.jwt
-import com.convergencelabs.convergence.server.model.domain.jwt.JwtAuthKey
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -26,7 +25,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off line.size.limit
 class JwtAuthKeyStoreSpec
-    extends PersistenceStoreSpec[JwtAuthKeyStore](DeltaCategory.Domain)
+    extends PersistenceStoreSpec[JwtAuthKeyStore](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

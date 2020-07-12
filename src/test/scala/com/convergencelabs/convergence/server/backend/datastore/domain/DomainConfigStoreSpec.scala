@@ -16,9 +16,8 @@ import java.time.temporal.ChronoUnit
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -26,7 +25,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off line.size.limit
 class DomainConfigStoreSpec
-    extends PersistenceStoreSpec[DomainConfigStore](DeltaCategory.Domain)
+    extends PersistenceStoreSpec[DomainConfigStore](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

@@ -11,13 +11,13 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.user
 
-import java.time.{Duration, Instant}
+import java.time.Duration
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -25,7 +25,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class DomainUserStoreSpec
-    extends PersistenceStoreSpec[DomainUserStore](DeltaCategory.Domain)
+    extends PersistenceStoreSpec[DomainUserStore](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

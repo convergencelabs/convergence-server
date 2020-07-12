@@ -11,19 +11,19 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.model.domain.model.{ModelPermissions, ObjectValue}
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class ModelPermissionsStoreSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

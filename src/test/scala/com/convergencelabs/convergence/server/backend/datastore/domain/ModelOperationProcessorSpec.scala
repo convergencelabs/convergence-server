@@ -15,12 +15,12 @@ import java.time.{Duration, Instant}
 
 import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model._
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
@@ -31,7 +31,7 @@ import scala.util.{Success, Try}
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
   with AnyWordSpecLike
   with OptionValues
   with Matchers {

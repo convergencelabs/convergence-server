@@ -41,7 +41,8 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
                                      configStore: ConfigStore,
                                      roleStore: RoleStore,
                                      favoriteDomainStore: UserFavoriteDomainStore,
-                                     deltaHistoryStore: DeltaHistoryStore,
+                                     deltaLogStore: DomainSchemaDeltaLogStore,
+                                     versionLogStore: DomainSchemaVersionLogStore,
                                      domainCreator: DomainCreator,
                                      domainDbManagerActor: ActorRef[DomainDatabaseManagerActor.Message])
   extends AbstractBehavior[DomainStoreActor.Message](context) with Logging {
@@ -156,8 +157,10 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
             case Success(_) =>
               debug(s"Domain database deleted, deleting domain related records in convergence database: ${domainDatabase.database}")
               (for {
-                _ <- deltaHistoryStore.removeDeltaHistoryForDomain(domainId)
-                  .map(_ => debug(s"Domain database delta history removed: $domainId"))
+                _ <- deltaLogStore.removeDeltaLogForDomain(domainId)
+                  .map(_ => debug(s"Domain database delta log removed: $domainId"))
+                _ <- versionLogStore.removeVersionLogForDomain(domainId)
+                  .map(_ => debug(s"Domain database version log removed: $domainId"))
                 _ <- favoriteDomainStore.removeFavoritesForDomain(domainId)
                   .map(_ => debug(s"Favorites for Domain removed: $domainId"))
                 _ <- roleStore.removeAllRolesFromTarget(DomainRoleTarget(domainId))
@@ -256,11 +259,20 @@ object DomainStoreActor {
             configStore: ConfigStore,
             roleStore: RoleStore,
             favoriteDomainStore: UserFavoriteDomainStore,
-            deltaHistoryStore: DeltaHistoryStore,
+            deltaLogStore: DomainSchemaDeltaLogStore,
+            versionLogStore: DomainSchemaVersionLogStore,
             domainCreator: DomainCreator,
             domainDatabaseManager: ActorRef[DomainDatabaseManagerActor.Message]): Behavior[Message] =
     Behaviors.setup(context => new DomainStoreActor(
-      context, domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, domainDatabaseManager))
+      context,
+      domainStore,
+      configStore,
+      roleStore,
+      favoriteDomainStore,
+      deltaLogStore,
+      versionLogStore,
+      domainCreator,
+      domainDatabaseManager))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

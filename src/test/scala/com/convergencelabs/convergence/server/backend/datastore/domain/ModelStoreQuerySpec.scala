@@ -17,7 +17,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.collectio
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
@@ -31,7 +31,7 @@ import scala.language.postfixOps
 case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 
 // scalastyle:off magic.number
-class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores](DeltaCategory.Domain) with AnyWordSpecLike with Matchers {
+class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores](NonRecordingSchemaManager.SchemaType.Domain) with AnyWordSpecLike with Matchers {
 
   private implicit val formats: Formats = DefaultFormats
   private var vid = 0

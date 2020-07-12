@@ -23,8 +23,6 @@ actions:
     properties:
       - {name: prop1, type: String,                         constraints: {mandatory: true, notNull: true}}
 
-
-
   ##
   ## Sequence: Seq1
   ##

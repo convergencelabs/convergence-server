@@ -19,7 +19,7 @@ import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DatabaseManager
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManager
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseManager, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseRequest
@@ -154,7 +154,8 @@ private[server] final class BackendServices(context: ActorContext[_],
     val namespaceStore = new NamespaceStore(convergenceDbProvider)
 
     val favoriteDomainStore = new UserFavoriteDomainStore(convergenceDbProvider)
-    val deltaHistoryStore: DeltaHistoryStore = new DeltaHistoryStore(convergenceDbProvider)
+    val domainDeltaLogStore: DomainSchemaDeltaLogStore = new DomainSchemaDeltaLogStore(convergenceDbProvider)
+    val domainVersionLogStore: DomainSchemaVersionLogStore = new DomainSchemaVersionLogStore(convergenceDbProvider)
 
     val userCreator = new UserCreator(convergenceDbProvider)
 
@@ -193,7 +194,7 @@ private[server] final class BackendServices(context: ActorContext[_],
       domainCreationTimeout)
 
     val domainStoreActor = context.spawn(DomainStoreActor(
-      domainStore, configStore, roleStore, favoriteDomainStore, deltaHistoryStore, domainCreator, domainDbManagerActor), "DomainStore")
+      domainStore, configStore, roleStore, favoriteDomainStore, domainDeltaLogStore, domainVersionLogStore, domainCreator, domainDbManagerActor), "DomainStore")
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
     context.spawn(UserStoreActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")

@@ -75,4 +75,6 @@ final class SingleDatabaseProvider(serverUrl: String,
         Failure(new IllegalStateException(this.NotConnected))
     }
   }
+
+  override def getDatabaseName: String = database
 }

@@ -24,6 +24,8 @@ import scala.util.{Failure, Success, Try}
  * can provide a database for persistence operations.
  */
 trait DatabaseProvider {
+  def getDatabaseName: String
+
   def connect(): Try[Unit]
 
   def tryWithDatabase[B](f: ODatabaseDocument => B): Try[B]

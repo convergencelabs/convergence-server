@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.Name
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.server.domain.Namespace
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -26,7 +26,7 @@ object NamespaceStoreSpec {
 }
 
 class NamespaceStoreSpec
-  extends PersistenceStoreSpec[NamespaceStoreSpec.SpecStores](DeltaCategory.Convergence)
+  extends PersistenceStoreSpec[NamespaceStoreSpec.SpecStores](NonRecordingSchemaManager.SchemaType.Convergence)
   with AnyWordSpecLike
   with Matchers {
 

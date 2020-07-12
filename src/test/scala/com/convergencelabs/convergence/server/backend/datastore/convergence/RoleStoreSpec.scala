@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueEx
 import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.{Role, UserRole, UserRoles}
 import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainDatabase, Namespace}
 import com.convergencelabs.convergence.server.model.server.role.{DomainRoleTarget, RoleTargetType, ServerRoleTarget}
@@ -29,7 +29,7 @@ case class RoleStoreSpecStores(
   namespaceStore: NamespaceStore,
   domainStore: DomainStore)
 
-class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](DeltaCategory.Convergence)
+class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](NonRecordingSchemaManager.SchemaType.Convergence)
   with AnyWordSpecLike with Matchers {
   def createStore(dbProvider: DatabaseProvider): RoleStoreSpecStores = {
     RoleStoreSpecStores(new RoleStore(dbProvider), new UserStore(dbProvider), new NamespaceStore(dbProvider), new DomainStore(dbProvider))

@@ -14,9 +14,9 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionQueryType
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.session
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.model.{DomainId, domain}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -27,7 +27,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number multiple.string.literals
 class SessionStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+    extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with OptionValues
     with Matchers {

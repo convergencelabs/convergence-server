@@ -14,9 +14,8 @@ package com.convergencelabs.convergence.server.backend.db
 import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
 
-import com.convergencelabs.convergence.server.backend.datastore.convergence.DeltaHistoryStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProviderImpl
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DomainSchemaManager
+import com.convergencelabs.convergence.server.backend.db.schema.{DomainSchemaManager, SchemaManager}
 import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
@@ -27,17 +26,15 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
-class DomainDatabaseManager(dbProvider: DatabaseProvider, config: Config) extends Logging {
+class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Config) extends Logging {
 
   import DomainDatabaseManager._
 
-  private[this] val historyStore = new DeltaHistoryStore(dbProvider)
   private[this] val dbBaseUri = config.getString("convergence.persistence.server.uri")
   private[this] val dbRootUsername = config.getString("convergence.persistence.server.admin-username")
   private[this] val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
-  private[this] val preRelease = config.getBoolean("convergence.persistence.domain-databases.pre-release")
 
   def createDomainDatabase(data: DomainDatabaseCreationData): Try[Unit] = {
     val DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = data
@@ -49,7 +46,7 @@ class DomainDatabaseManager(dbProvider: DatabaseProvider, config: Config) extend
       val result = provider
         .connect()
         .flatMap(_ => configureNonAdminUsers(provider, dbUsername, dbPassword))
-        .flatMap(_ => installSchema(domainId, provider, preRelease))
+        .flatMap(_ => installSchema(domainId, provider))
 
       // We need to do this no matter what, so we grab the result above, shut down
       // and then return the result.
@@ -114,15 +111,20 @@ class DomainDatabaseManager(dbProvider: DatabaseProvider, config: Config) extend
     }
   }
 
-  private[this] def installSchema(domainFqn: DomainId, dbProvider: DatabaseProvider, preRelease: Boolean): Try[Unit] = {
-    dbProvider.withDatabase { db =>
-      // FIXME should be use the other actor
-      val schemaManager = new DomainSchemaManager(domainFqn, db, historyStore, preRelease)
-      logger.debug(s"Installing domain db schema to: $dbBaseUri/${db.getName}")
-      schemaManager.install() map { _ =>
-        logger.debug(s"Base domain schema created: $dbBaseUri/${db.getName}")
-      }
-    }
+  private[this] def installSchema(domainId: DomainId, domainDbProvider: DatabaseProvider): Try[Unit] = {
+    val schemaManager = new DomainSchemaManager(domainId,convergenceDbProvider,  domainDbProvider)
+    logger.debug(s"Installing domain db schema to: $dbBaseUri/${domainDbProvider.getDatabaseName}")
+    schemaManager
+      .install()
+      .fold({
+        case SchemaManager.DeltaApplicationError(Some(cause)) =>
+          Failure(cause)
+        case err =>
+          Failure(new RuntimeException("Unknown error installing schema: " + err.toString))
+      }, { _ =>
+        logger.debug(s"Base domain schema created: $dbBaseUri/${domainDbProvider.getDatabaseName}")
+        Success(())
+      })
   }
 
   private[this] def initDomain(domainId: DomainId, dbName: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {

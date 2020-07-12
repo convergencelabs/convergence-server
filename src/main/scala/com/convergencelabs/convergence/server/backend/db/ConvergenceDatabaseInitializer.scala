@@ -18,7 +18,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.ConvergenceSchemaManager
+import com.convergencelabs.convergence.server.backend.db.schema.ConvergenceSchemaManager
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId
@@ -44,7 +44,7 @@ import scala.util.{Failure, Success, Try}
  * @param ec     An execution context to use for asynchronous operations.
  */
 final class ConvergenceDatabaseInitializer(config: Config,
-                                                       ec: ExecutionContextExecutor) extends Logging {
+                                           ec: ExecutionContextExecutor) extends Logging {
 
   private[this] val persistenceConfig = config.getConfig("convergence.persistence")
   private[this] val dbServerConfig = persistenceConfig.getConfig("server")
@@ -152,13 +152,17 @@ final class ConvergenceDatabaseInitializer(config: Config,
 
       logger.info("Installing Convergence schema.")
       val dbProvider = new ConnectedSingleDatabaseProvider(db)
-      val deltaHistoryStore = new DeltaHistoryStore(dbProvider)
-      dbProvider.withDatabase { db =>
-        val schemaManager = new ConvergenceSchemaManager(db, deltaHistoryStore, preRelease)
-        schemaManager.install()
-      }.map { _ =>
-        logger.info("Schema installation complete")
-      }.get
+
+      val schemaManager = new ConvergenceSchemaManager(dbProvider)
+      schemaManager
+        .install()
+        .map { _ =>
+          logger.info("Schema installation complete")
+        }
+        .getOrElse {
+          // FIXME better error handling
+          throw new IllegalStateException("Convergence schema install failed")
+        }
 
       // We need to also do this here because when we create the initial domains
       // we need to associate them with a user, so the admin user must be there
@@ -275,14 +279,22 @@ final class ConvergenceDatabaseInitializer(config: Config,
           val timeout = Timeout(4, TimeUnit.MINUTES)
           domainCreator.createDomain(domainId, displayName, owner)
             .map { dbInfo =>
-              val f = domainCreator.createDomainDatabase(domainId, anonymousAuth, dbInfo)
-              Await.ready(f, timeout.duration)
-              logger.info(s"bootstrapped domain '$namespace/$id'")
+              val f = domainCreator
+                .createDomainDatabase(domainId, anonymousAuth, dbInfo)
+                .map { _ =>
+                  logger.info(s"bootstrapped domain '$namespace/$id'")
 
-              if (favorite) {
-                val username = config.getString("convergence.default-server-admin.username")
-                favoriteStore.addFavorite(username, DomainId(namespace, id)).get
-              }
+                  if (favorite) {
+                    val username = config.getString("convergence.default-server-admin.username")
+                    favoriteStore.addFavorite(username, DomainId(namespace, id)).get
+                  }
+                }
+                .recover {
+                  case cause =>
+                    logger.error(s"Error bootstrapping domain '$namespace/$id'", cause)
+                }
+
+              Await.ready(f, timeout.duration)
             }
         }).get
     }

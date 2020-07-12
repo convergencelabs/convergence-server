@@ -126,7 +126,9 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
   }
 
   def createModelOperation(modelOperation: NewModelOperation, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
-    ModelOperationStore.modelOperationToDoc(modelOperation, db).flatMap(doc => Try(doc.save()))
+    ModelOperationStore
+      .modelOperationToDoc(modelOperation, db)
+      .flatMap(doc => Try(doc.save()))
   }
 }
 

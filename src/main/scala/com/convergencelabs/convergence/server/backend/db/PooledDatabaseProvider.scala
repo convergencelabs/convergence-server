@@ -77,4 +77,8 @@ final class PooledDatabaseProvider(serverUrl: String,
       case None => Failure(new IllegalStateException(this.NotConnected))
     }
   }
+
+  override def getDatabaseName: String = {
+    database
+  }
 }

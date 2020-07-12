@@ -73,6 +73,7 @@ object Dependencies {
 
     //Command Line Parser
     val scallop            = "org.rogach"               %% "scallop"                        % "3.4.0"                   // MIT
+    val semVer             = "io.kevinlee"              %% "just-semver"                    % "0.1.0"                   // MIT
 
     // MISC
     val commonsLang        = "org.apache.commons"       % "commons-lang3"                   % "3.4"                     // Apache 2.0

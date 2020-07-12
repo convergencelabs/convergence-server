@@ -16,7 +16,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.schema.Or
 
 object DomainClass extends OrientDbClass {
   val ClassName = "Domain"
-  
+
   object Fields {
     val Id = "id"
     val Namespace = "namespace"
@@ -29,11 +29,11 @@ object DomainClass extends OrientDbClass {
     val DatabaseAdminUsername = "databaseAdminUsername"
     val DatabaseAdminPassword = "databaseAdminPassword"
   }
-  
+
   object Eval {
     val NamespaceId = "namespace.id"
   }
-  
+
   object Indices {
     val NamespaceId = "Domain.namespace_id"
     val DatabaseName = "Domain.databaseName"

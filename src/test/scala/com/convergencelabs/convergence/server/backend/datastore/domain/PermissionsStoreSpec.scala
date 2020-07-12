@@ -13,18 +13,18 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import java.time.Instant
 
-import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions._
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.DeltaCategory
+import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.model.domain.group.UserGroup
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class PermissionsStoreSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](DeltaCategory.Domain)
+  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
 

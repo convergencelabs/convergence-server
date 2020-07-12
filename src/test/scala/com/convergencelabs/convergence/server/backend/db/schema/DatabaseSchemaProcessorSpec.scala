@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-import com.convergencelabs.convergence.server.backend.db.schema.legacy.{AddProperty, AlterClass, AlterProperty, CreateClass, CreateFunction, CreateIndex, CreateSequence, DatabaseDeltaProcessor, Delta, DropClass, DropIndex, DropProperty, DropSequence, IndexType, OrientType, Property, PropertyOptions, SequenceType}
+import com.convergencelabs.convergence.server.backend.db.schema.delta._
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db._
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -26,25 +26,27 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
   "An DatabaseSchemaProcessor" when {
     "Processing a CreateClass change" must {
       "Correctly create class" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
-          List(CreateClass("MyClass", None, None, List())))
+        val delta = Delta(
+          List(CreateClass("MyClass", None, None, List())),
+          Some("Description"))
 
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.close()
       }
 
       "Correctly create class and its properties" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None,
-            List(Property("prop1", OrientType.String, None, None, None)))))
+            List(Property("prop1", OrientType.String, None, None, None)))),
+          Some("Description"))
 
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
@@ -52,13 +54,14 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
       }
 
       "Correctly create class with superclass" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MySuperclass", None, None, List()),
-            CreateClass("MyClass", Some("MySuperclass"), None, List())))
+            CreateClass("MyClass", Some("MySuperclass"), None, List())),
+          Some("Description"))
 
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.existsClass("MySuperclass") shouldBe true
@@ -68,13 +71,14 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing an AlterClass change" must {
       "Correctly alter class name" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List()),
-            AlterClass("MyClass", Some("NewName"), None)))
+            AlterClass("MyClass", Some("NewName"), None)),
+          Some("Description"))
         val db = dbPool.acquire()
 
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe false
         db.getMetadata.getSchema.existsClass("NewName") shouldBe true
@@ -82,13 +86,14 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
       }
 
       "Correctly alter superclass" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List()),
             CreateClass("MySuperclass", None, None, List()),
-            AlterClass("MyClass", None, Some("MySuperclass"))))
+            AlterClass("MyClass", None, Some("MySuperclass"))),
+          Some("Description"))
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").hasSuperClasses shouldBe true
@@ -99,12 +104,13 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a DropClass change" must {
       "Correctly drops class" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List()),
-            DropClass("MyClass")))
+            DropClass("MyClass")),
+          Some("Description"))
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe false
         db.close()
@@ -113,12 +119,13 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a AddProperty change" must {
       "Correctly adds new property to class" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List()),
-            AddProperty("MyClass", Property("prop1", OrientType.String, None, None, None))))
+            AddProperty("MyClass", Property("prop1", OrientType.String, None, None, None))),
+          Some("Description"))
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
@@ -128,13 +135,14 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a AlterProperty change" must {
       "Correctly alters property class" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
-            AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None, None))))
+            AlterProperty("MyClass", "prop1", PropertyOptions(None, Some(OrientType.Integer), None, None, None))),
+          Some("Description"))
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe true
@@ -143,13 +151,14 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
       }
 
       "Correctly alters property name" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
-            AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None, None))))
+            AlterProperty("MyClass", "prop1", PropertyOptions(Some("prop2"), None, None, None, None))),
+          Some("Description"))
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop2") shouldBe true
@@ -160,14 +169,15 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a DropProperty change" must {
       "Correctly drops property from class" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
-            DropProperty("MyClass", "prop1")))
+            DropProperty("MyClass", "prop1")),
+          Some("Description"))
         val db = dbPool.acquire()
 
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSchema.existsClass("MyClass") shouldBe true
         db.getMetadata.getSchema.getClass("MyClass").existsProperty("prop1") shouldBe false
@@ -177,15 +187,16 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a CreateIndex change" must {
       "Correctly creates unique index for class" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None,
             List(Property("prop1", OrientType.Short, None, None, None))),
-            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)))
+            CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None)),
+          Some("Description"))
 
         val db = dbPool.acquire()
 
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getIndexManager.existsIndex("MyClass.prop1") shouldBe true
         val index = db.getMetadata.getIndexManager.getIndex("MyClass.prop1")
@@ -196,14 +207,15 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a DropIndex change" must {
       "Correctly drops index" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List(Property("prop1", OrientType.Short, None, None, None))),
             CreateIndex("MyClass", "MyClass.prop1", IndexType.Unique, List("prop1"), None),
-            DropIndex("MyClass.prop1")))
+            DropIndex("MyClass.prop1")),
+          Some("Description"))
         val db = dbPool.acquire()
 
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getIndexManager.existsIndex("MyClass.prop1") shouldBe false
         db.close()
@@ -212,13 +224,14 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a CreateSequence change" must {
       "Correctly creates sequence" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List()),
-            CreateSequence("MySequence", SequenceType.Ordered, None, None, None)))
+            CreateSequence("MySequence", SequenceType.Ordered, None, None, None)),
+          Some("Description"))
 
         val db = dbPool.acquire()
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSequenceLibrary.getSequenceNames.contains("MYSEQUENCE") shouldBe true
         val sequence = db.getMetadata.getSequenceLibrary.getSequence("MySequence")
@@ -229,14 +242,15 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a DropSequence change" must {
       "Correctly drops sequence" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateClass("MyClass", None, None, List()),
-            DropSequence("MySequence")))
+            DropSequence("MySequence")),
+          Some("Description"))
 
         val db = dbPool.acquire()
 
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getSequenceLibrary.getSequenceNames.contains("MYSEQUENCE") shouldBe false
         db.close()
@@ -245,14 +259,15 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
 
     "Processing a CreateFunction change" must {
       "Correctly creates function" in withDb { dbPool =>
-        val delta = Delta(1, Some("Description"),
+        val delta = Delta(
           List(CreateFunction("MyFunction",
             "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;",
-            List("array", "fromIndex", "toIndex"), None, None)))
+            List("array", "fromIndex", "toIndex"), None, None)),
+          Some("Description"))
         val db = dbPool.acquire()
 
-        val processor = new DatabaseDeltaProcessor(delta, db)
-        processor.apply().get
+        val processor = new DeltaProcessor(delta, db)
+        processor.applyDelta().get
 
         db.getMetadata.getFunctionLibrary.getFunction("MyFunction") != null shouldBe true
         db.close()
@@ -261,6 +276,7 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
   }
 
   var dbCounter = 0
+
   def withDb(testCode: ODatabasePool => Any): Unit = {
     // make sure no accidental collisions
     val dbName = getClass.getSimpleName + dbCounter
