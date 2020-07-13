@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.{ConfigClass, ConvergenceSchemaVersionLogClass}
+import com.convergencelabs.convergence.server.backend.db.schema.SchemaVersion
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import just.semver.SemVer
 
 import scala.util.{Success, Try}
 
@@ -33,7 +33,7 @@ object SchemaVersionUtil {
         case (true, true) =>
           versions()
             .flatMap(versions => {
-              Try(versions.sortWith((a, b) => SemVer.parseUnsafe(a) < SemVer.parseUnsafe(b)))
+              Try(versions.sortWith((a, b) => SchemaVersion.parseUnsafe(a) < SchemaVersion.parseUnsafe(b)))
             })
             .map(versions => Some(versions.last))
       }

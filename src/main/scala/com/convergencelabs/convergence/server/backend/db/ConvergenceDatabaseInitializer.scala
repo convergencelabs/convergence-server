@@ -18,6 +18,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
+import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager.SchemaUpgradeError
 import com.convergencelabs.convergence.server.backend.db.schema.{ConvergenceSchemaManager, SchemaManager}
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
@@ -422,14 +423,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
 
   def upgradeDatabaseIfNeeded(): Try[Unit] = {
     createConvergenceDatabaseProvider().flatMap { dbProvider =>
-      val schemaManager = new ConvergenceSchemaManager(dbProvider)
-      val upgradeResult = for {
-        latestVersion <- schemaManager.latestAvailableVersion()
-        installedVersion <- schemaManager.currentlyInstalledVersion()
-        _ <- if (latestVersion > installedVersion) schemaManager.upgrade() else Right(())
-      } yield ()
-
-      upgradeResult.fold(
+      checkAndPerformUpgrade(dbProvider).fold(
         {
           case SchemaManager.DeltaApplicationError(Some(cause)) =>
             Failure(cause)
@@ -445,6 +439,23 @@ final class ConvergenceDatabaseInitializer(config: Config,
         _ => Success(())
       )
     }
+  }
+
+  private def checkAndPerformUpgrade(dbProvider: DatabaseProvider): Either[SchemaUpgradeError, Unit] = {
+    val schemaManager = new ConvergenceSchemaManager(dbProvider)
+    val upgradeResult = for {
+      latestVersion <- schemaManager.latestAvailableVersion()
+      installedVersion <- schemaManager.currentlyInstalledVersion()
+      _ <- if (latestVersion > installedVersion) {
+        info(s"Convergence schema at version $installedVersion, but latest version is $latestVersion; performing upgrade")
+        schemaManager.upgrade().map { _ =>
+          info(s"Convergence schema upgrade complete")
+        }
+      } else {
+        Right(())
+      }
+    } yield ()
+    upgradeResult
   }
 
   private def createConvergenceDatabaseProvider(): Try[DatabaseProvider] = {

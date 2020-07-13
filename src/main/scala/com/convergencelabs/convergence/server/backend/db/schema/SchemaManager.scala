@@ -16,7 +16,6 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaMetaDataRepository.ReadError
 import com.convergencelabs.convergence.server.util.{ExceptionUtils, Sha256HashValidator}
 import grizzled.slf4j.Logging
-import just.semver.SemVer
 
 import scala.util.{Failure, Success}
 
@@ -41,17 +40,17 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
 
   import SchemaManager._
 
-  def latestAvailableVersion(): Either[RepositoryError, SemVer] = {
+  def latestAvailableVersion(): Either[RepositoryError, SchemaVersion] = {
     for {
       versions <- readVersionIndex
       currentVersion = versions.currentVersion
-      semVer <- SemVer
+      semVer <- SchemaVersion
         .parse(currentVersion)
         .left.map(_ => RepositoryError("Could not parse semantic version: " + currentVersion))
     } yield semVer
   }
 
-  def currentlyInstalledVersion(): Either[StatePersistenceError, SemVer] = {
+  def currentlyInstalledVersion(): Either[StatePersistenceError, SchemaVersion] = {
     for {
       installedVersion <- schemaStatePersistence.installedVersion().fold(
         { cause =>
@@ -61,7 +60,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
         },
         version => Right(version)
       )
-      semVer <- installedVersion.map(v => SemVer.parse(v)
+      semVer <- installedVersion.map(v => SchemaVersion.parse(v)
         .map(sv => sv)
         .left.map(_ => StatePersistenceError("Could not parse semantic version: " + installedVersion)))
         .getOrElse(Left(StatePersistenceError("The schema is not installed")))
@@ -224,7 +223,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
           error(message, cause)
           Left(StatePersistenceError(message))
         },
-        _ => Right()
+        _ => Right(())
       )
   }
 

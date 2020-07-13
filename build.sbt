@@ -61,7 +61,6 @@ lazy val root = (project in file("."))
         orientDb ++
         loggingAll ++
         Seq(
-          semVer,
           scalapb,
           convergenceProto,
           akkaHttp,
