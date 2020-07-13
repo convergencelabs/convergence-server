@@ -257,10 +257,10 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
       Mockito.when(schemaStatePersistence.appliedDeltas())
         .thenReturn(Failure(InducedTestingException()))
 
-
       val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
-      schemaManager.upgrade() shouldBe Left(StatePersistenceError())
+      val Left(error) = schemaManager.upgrade()
+      error shouldBe a[StatePersistenceError]
     }
 
     "return a repository error if reading a delta fails" in {

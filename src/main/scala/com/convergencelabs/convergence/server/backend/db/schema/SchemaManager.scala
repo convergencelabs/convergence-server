@@ -16,6 +16,7 @@ import java.time.Instant
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaMetaDataRepository.ReadError
 import com.convergencelabs.convergence.server.util.{ExceptionUtils, Sha256HashValidator}
 import grizzled.slf4j.Logging
+import just.semver.SemVer
 
 import scala.util.{Failure, Success}
 
@@ -39,6 +40,33 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
                                     deltaApplicator: DeltaApplicator) extends Logging {
 
   import SchemaManager._
+
+  def latestAvailableVersion(): Either[RepositoryError, SemVer] = {
+    for {
+      versions <- readVersionIndex
+      currentVersion = versions.currentVersion
+      semVer <- SemVer
+        .parse(currentVersion)
+        .left.map(_ => RepositoryError("Could not parse semantic version: " + currentVersion))
+    } yield semVer
+  }
+
+  def currentlyInstalledVersion(): Either[StatePersistenceError, SemVer] = {
+    for {
+      installedVersion <- schemaStatePersistence.installedVersion().fold(
+        { cause =>
+          val message = "Could not get currently installed schema version"
+          error(message, cause)
+          Left(StatePersistenceError(message))
+        },
+        version => Right(version)
+      )
+      semVer <- installedVersion.map(v => SemVer.parse(v)
+        .map(sv => sv)
+        .left.map(_ => StatePersistenceError("Could not parse semantic version: " + installedVersion)))
+        .getOrElse(Left(StatePersistenceError("The schema is not installed")))
+    } yield semVer
+  }
 
   /**
    * Installs the latest schema into a fresh database instance.
@@ -82,12 +110,14 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
     (for {
       _ <- deltaApplicator.applyDeltaToSchema(schemaDelta.delta)
       _ <- schemaStatePersistence.recordImplicitDeltasFromInstall(implicitDeltas, version)
-    } yield Right(()))
-      .recoverWith { cause =>
+    } yield ())
+      .fold({ cause =>
         error("Error installing schema", cause)
-        Success(Left(DeltaApplicationError(Some(cause))))
-      }
-      .getOrElse(Left(DeltaApplicationError()))
+        Left(DeltaApplicationError(Some(cause)))
+      },
+        _ => Right(())
+      )
+
   }
 
   private[this] def computeNeededDeltas(currentDeltas: List[String], desiredDeltas: List[UpgradeDeltaEntry]): List[UpgradeDeltaEntry] =
@@ -107,7 +137,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
     deltaApplicator.applyDeltaToSchema(delta.delta) match {
       case Failure(exception) =>
         recordDeltaFailure(delta, exception, appliedForVersion)
-        Left(DeltaApplicationError())
+        Left(DeltaApplicationError(Some(exception)))
       case Success(_) =>
         logger.debug(s"Delta '${delta.id}' applied successfully")
         recordDeltaSuccess(delta, appliedForVersion).left.map(_ => DeltaApplicationError())
@@ -124,8 +154,9 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
   private[this] def recordDeltaSuccess(delta: UpgradeDeltaAndScript, appliedForVersion: String): Either[StatePersistenceError, Unit] = {
     schemaStatePersistence.recordDeltaSuccess(delta, appliedForVersion) match {
       case Failure(cause) =>
-        logger.error(s"Storing Delta '${delta.id}' failed", cause)
-        Left(StatePersistenceError())
+        val message = s"Storing Delta '${delta.id}' failed"
+        logger.error(message, cause)
+        Left(StatePersistenceError(message))
       case Success(_) =>
         Right(())
     }
@@ -174,23 +205,27 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
   private[this] def appliedDeltas(): Either[StatePersistenceError, List[UpgradeDeltaId]] = {
     schemaStatePersistence
       .appliedDeltas()
-      .map(Right(_))
-      .recover { cause =>
-        error("could not get the applied deltas", cause)
-        Left(StatePersistenceError())
-      }
-      .getOrElse(Left(StatePersistenceError()))
+      .fold(
+        { cause =>
+          val message = "Could not retrieve the applied deltas"
+          error(message, cause)
+          Left(StatePersistenceError(message))
+        },
+        deltas => Right(deltas)
+      )
   }
 
-  private[this] def recordNewVersion(version: String, date: Instant):Either[StatePersistenceError, Unit] = {
+  private[this] def recordNewVersion(version: String, date: Instant): Either[StatePersistenceError, Unit] = {
     schemaStatePersistence
-      .recordNewVersion(version, Instant.now())
-      .map(Right(_))
-      .recover { cause =>
-        error("could not store new version record", cause)
-        Left(StatePersistenceError())
-      }
-      .getOrElse(Left(StatePersistenceError()))
+      .recordNewVersion(version, date)
+      .fold(
+        { cause =>
+          val message = "could not store new version record"
+          error(message, cause)
+          Left(StatePersistenceError(message))
+        },
+        _ => Right()
+      )
   }
 
   private[this] def mapReadError(readError: ReadError, whatWasRead: String): RepositoryError =
@@ -221,6 +256,6 @@ object SchemaManager {
 
   final case class InvalidHashError(expected: String, actual: String) extends DeltaValidationError
 
-  final case class StatePersistenceError() extends SchemaInstallError with SchemaUpgradeError
+  final case class StatePersistenceError(message: String) extends SchemaInstallError with SchemaUpgradeError
 
 }

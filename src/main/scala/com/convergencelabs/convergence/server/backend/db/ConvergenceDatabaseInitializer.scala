@@ -18,7 +18,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
-import com.convergencelabs.convergence.server.backend.db.schema.ConvergenceSchemaManager
+import com.convergencelabs.convergence.server.backend.db.schema.{ConvergenceSchemaManager, SchemaManager}
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId
@@ -64,6 +64,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
     for {
       orientDb <- createOrientDb()
       bootstrapped <- bootstrapIfDatabaseDoesNotExist(orientDb)
+      _ <- if (!bootstrapped) upgradeDatabaseIfNeeded() else Success(())
       _ <- if (!bootstrapped) autoConfigureServerAdminUserForExistingDatabase() else Success(())
       _ <- Try(orientDb.close())
     } yield {
@@ -242,13 +243,10 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * an existing convergence database.
    */
   private[this] def autoConfigureServerAdminUserForExistingDatabase(): Try[Unit] = {
-    val baseUri = dbServerConfig.getString("uri")
-    val username = convergenceDbConfig.getString("username")
-    val password = convergenceDbConfig.getString("password")
-
-    val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
-    dbProvider.connect().get
-    autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
+    for {
+      dbProvider <- createConvergenceDatabaseProvider()
+      _ <- autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
+    } yield ()
   }
 
   /**
@@ -359,10 +357,10 @@ final class ConvergenceDatabaseInitializer(config: Config,
     val namespaceStore = new NamespaceStore(dbProvider)
     val namespaces = config.getConfigList("convergence.bootstrap.namespaces")
     namespaces.forEach { namespaceConfig =>
-        val id = namespaceConfig.getString("id")
-        val displayName = namespaceConfig.getString("displayName")
-        logger.info(s"bootstrapping namespace '$id'")
-        namespaceStore.createNamespace(id, displayName, userNamespace = false).get
+      val id = namespaceConfig.getString("id")
+      val displayName = namespaceConfig.getString("displayName")
+      logger.info(s"bootstrapping namespace '$id'")
+      namespaceStore.createNamespace(id, displayName, userNamespace = false).get
     }
   }
 
@@ -381,47 +379,84 @@ final class ConvergenceDatabaseInitializer(config: Config,
     val owner = config.getString("convergence.default-server-admin.username")
 
     domains.asScala.toList.foreach { domainConfig =>
-        val namespace = domainConfig.getString("namespace")
-        val id = domainConfig.getString("id")
-        val displayName = domainConfig.getString("displayName")
-        val favorite = domainConfig.getBoolean("favorite")
-        val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
+      val namespace = domainConfig.getString("namespace")
+      val id = domainConfig.getString("id")
+      val displayName = domainConfig.getString("displayName")
+      val favorite = domainConfig.getBoolean("favorite")
+      val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
 
-        logger.info(s"bootstrapping domain '$namespace/$id'")
-        (for {
-          exists <- namespaceStore.namespaceExists(namespace)
-          _ <- if (!exists) {
-            Failure(new IllegalArgumentException("The namespace for a bootstrapped domain, must also be bootstrapped"))
-          } else {
-            Success(())
+      logger.info(s"bootstrapping domain '$namespace/$id'")
+      (for {
+        exists <- namespaceStore.namespaceExists(namespace)
+        _ <- if (!exists) {
+          Failure(new IllegalArgumentException("The namespace for a bootstrapped domain, must also be bootstrapped"))
+        } else {
+          Success(())
+        }
+      } yield {
+        implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+        val domainId = DomainId(namespace, id)
+        val timeout = Timeout(4, TimeUnit.MINUTES)
+        domainCreator.createDomain(domainId, displayName, owner)
+          .map { dbInfo =>
+            val f = domainCreator
+              .createDomainDatabase(domainId, anonymousAuth, dbInfo)
+              .map { _ =>
+                logger.info(s"bootstrapped domain '$namespace/$id'")
+
+                if (favorite) {
+                  val username = config.getString("convergence.default-server-admin.username")
+                  favoriteStore.addFavorite(username, DomainId(namespace, id)).get
+                }
+              }
+              .recover {
+                case cause =>
+                  logger.error(s"Error bootstrapping domain '$namespace/$id'", cause)
+              }
+
+            Await.ready(f, timeout.duration)
           }
-        } yield {
-          implicit val ec: ExecutionContextExecutor = ExecutionContext.global
-          val domainId = DomainId(namespace, id)
-          val timeout = Timeout(4, TimeUnit.MINUTES)
-          domainCreator.createDomain(domainId, displayName, owner)
-            .map { dbInfo =>
-              val f = domainCreator
-                .createDomainDatabase(domainId, anonymousAuth, dbInfo)
-                .map { _ =>
-                  logger.info(s"bootstrapped domain '$namespace/$id'")
-
-                  if (favorite) {
-                    val username = config.getString("convergence.default-server-admin.username")
-                    favoriteStore.addFavorite(username, DomainId(namespace, id)).get
-                  }
-                }
-                .recover {
-                  case cause =>
-                    logger.error(s"Error bootstrapping domain '$namespace/$id'", cause)
-                }
-
-              Await.ready(f, timeout.duration)
-            }
-        }).get
+      }).get
     }
   }
+
+  def upgradeDatabaseIfNeeded(): Try[Unit] = {
+    createConvergenceDatabaseProvider().flatMap { dbProvider =>
+      val schemaManager = new ConvergenceSchemaManager(dbProvider)
+      val upgradeResult = for {
+        latestVersion <- schemaManager.latestAvailableVersion()
+        installedVersion <- schemaManager.currentlyInstalledVersion()
+        _ <- if (latestVersion > installedVersion) schemaManager.upgrade() else Right(())
+      } yield ()
+
+      upgradeResult.fold(
+        {
+          case SchemaManager.DeltaApplicationError(Some(cause)) =>
+            Failure(cause)
+          case SchemaManager.DeltaApplicationError(None) =>
+            Failure(UpgradeException("An error occurred applying an upgrade delta"))
+          case _: SchemaManager.DeltaValidationError =>
+            Failure(UpgradeException("A delta failed to validate during upgrade."))
+          case SchemaManager.RepositoryError(message) =>
+            Failure(UpgradeException("A repository error occurred: " + message))
+          case SchemaManager.StatePersistenceError(message) =>
+            Failure(UpgradeException("A state persistence error occurred: " + message))
+        },
+        _ => Success(())
+      )
+    }
+  }
+
+  private def createConvergenceDatabaseProvider(): Try[DatabaseProvider] = {
+    val baseUri = dbServerConfig.getString("uri")
+    val username = convergenceDbConfig.getString("username")
+    val password = convergenceDbConfig.getString("password")
+    val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
+    dbProvider.connect().map(_ => dbProvider)
+  }
 }
+
+private case class UpgradeException(message: String) extends RuntimeException(message)
 
 /**
  * A helper class that will create a domain synchronously.
