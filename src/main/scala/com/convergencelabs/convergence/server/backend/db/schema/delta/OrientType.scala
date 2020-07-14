@@ -13,6 +13,9 @@ package com.convergencelabs.convergence.server.backend.db.schema.delta
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 
+/**
+ * An enumeration for the recognized types within OrientDB.
+ */
 private[schema] object OrientType extends Enumeration {
   val Boolean,
   Integer,

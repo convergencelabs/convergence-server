@@ -18,7 +18,7 @@ object ConvergenceSchemaManager {
   val BasePath = "/com/convergencelabs/convergence/server/db/schema/convergence"
 }
 
-class ConvergenceSchemaManager(databaseProvider: DatabaseProvider) extends SchemaManager(
+private[db] class ConvergenceSchemaManager(databaseProvider: DatabaseProvider) extends SchemaManager(
   new SchemaMetaDataRepository(ConvergenceSchemaManager.BasePath),
   new ConvergenceSchemaStatePersistence(
     new ConvergenceSchemaDeltaLogStore(databaseProvider),

@@ -173,7 +173,7 @@ private[schema] final class DeltaProcessor(delta: Delta, db: ODatabaseDocument) 
     constraints.foreach(setConstraints(oProp, _))
   }
 
-  private[this] def setConstraints(oProp: OProperty, constraints: Constraints): Unit = {
+  private[this] def setConstraints(oProp: OProperty, constraints: PropertyConstraints): Unit = {
     constraints.min.foreach(oProp.setMin)
     constraints.max.foreach(oProp.setMax)
     constraints.mandatory.foreach(oProp.setMandatory)

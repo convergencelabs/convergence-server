@@ -19,11 +19,10 @@ import com.orientechnologies.orient.core.metadata.sequence.OSequence.SEQUENCE_TY
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-
-class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
+class DeltaProcessorSpec extends AnyWordSpecLike with Matchers {
   OLogManager.instance().setConsoleLevel("WARNING")
 
-  "An DatabaseSchemaProcessor" when {
+  "A DeltaProcessor" when {
     "Processing a CreateClass change" must {
       "Correctly create class" in withDb { dbPool =>
         val delta = Delta(
@@ -278,12 +277,8 @@ class DatabaseSchemaProcessorSpec extends AnyWordSpecLike with Matchers {
   var dbCounter = 0
 
   def withDb(testCode: ODatabasePool => Any): Unit = {
-    // make sure no accidental collisions
     val dbName = getClass.getSimpleName + dbCounter
     dbCounter += 1
-
-    // FIXME see https://github.com/orientechnologies/orientdb/issues/5146
-    ODatabaseRecordThreadLocal.instance()
 
     val odb = new OrientDB("memory:", "admin", "admin", OrientDBConfig.defaultConfig())
     odb.create(dbName, ODatabaseType.MEMORY)

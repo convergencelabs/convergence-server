@@ -13,10 +13,13 @@ package com.convergencelabs.convergence.server.backend.db.schema.delta
 
 import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 
+/**
+ * Represents the options an OrientDB field can have.
+ */
 private[schema] final case class PropertyOptions(name: Option[String],
                                                  @JsonScalaEnumeration(classOf[OrientTypeTypeReference])
                                                  orientType: Option[OrientType.Value],
                                                  @JsonScalaEnumeration(classOf[OrientTypeTypeReference])
                                                  linkedType: Option[OrientType.Value],
                                                  linkedClass: Option[String],
-                                                 constraints: Option[Constraints])
+                                                 constraints: Option[PropertyConstraints])

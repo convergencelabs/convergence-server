@@ -18,11 +18,11 @@ import com.convergencelabs.convergence.server.backend.db.schema.delta._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
+final class SchemaMetaDataRepositorySpec extends AnyWordSpecLike with Matchers {
 
-  import SchemaRepositorySpec._
+  import SchemaMetaDataRepositorySpec._
 
-  "SchemaRepository" when {
+  "successfully" when {
     "when loading from the class path " must {
       "successfully construct if the index file is found" in {
         new SchemaMetaDataRepository(TestBasePath)
@@ -115,7 +115,7 @@ final class SchemaRepositorySpec extends AnyWordSpecLike with Matchers {
   }
 }
 
-object SchemaRepositorySpec {
+object SchemaMetaDataRepositorySpec {
   val TestBasePath = "/schema/test-index"
 
   val Delta_2020_03_01_add_class_3_id: UpgradeDeltaId = UpgradeDeltaId("2020_03_01_add-class-3")
@@ -124,21 +124,21 @@ object SchemaRepositorySpec {
   val Delta_2020_03_01_add_class_3: Delta = Delta(
     List(
       CreateClass("Class3", None, None, List(
-        Property("prop1", OrientType.String, None, None, Some(Constraints(None, None, Some(true), None, Some(true), None, None, None, None))),
-        Property("prop2", OrientType.Link, None, Some("Class1"), Some(Constraints(None, None, Some(true), None, Some(true), None, None, None, None)))))
+        Property("prop1", OrientType.String, None, None, Some(PropertyConstraints(None, None, Some(true), None, Some(true), None, None, None, None))),
+        Property("prop2", OrientType.Link, None, Some("Class1"), Some(PropertyConstraints(None, None, Some(true), None, Some(true), None, None, None, None)))))
     ),
     Some("Adds Class3"))
 
   val Delta_2020_06_27_make_class_2_prop1a_nullable: Delta = Delta(
     List(
-      AddProperty("Class2", Property("prop1a", OrientType.String, None, None, Some(Constraints(None, None, Some(true), None, Some(false), None, None, None, None))))
+      AddProperty("Class2", Property("prop1a", OrientType.String, None, None, Some(PropertyConstraints(None, None, Some(true), None, Some(false), None, None, None, None))))
     ),
     Some("Makes Class2.prop1a nullable")
   )
 
   val Delta_2020_06_27_make_class_2_prop1a_nullable_2_0: Delta = Delta(
     List(
-      AddProperty("Class2", Property("prop1", OrientType.String, None, None, Some(Constraints(None, None, Some(true), None, Some(false), None, None, None, None))))
+      AddProperty("Class2", Property("prop1", OrientType.String, None, None, Some(PropertyConstraints(None, None, Some(true), None, Some(false), None, None, None, None))))
     ),
     Some("Makes Class2.prop1 nullable")
   )

@@ -13,6 +13,10 @@ package com.convergencelabs.convergence.server.backend.db.schema.delta
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 
+/**
+ * An enumeration that references the type of index to
+ * create in an Orient Database.
+ */
 private[schema] object IndexType extends Enumeration {
   val Unique,
   NotUnique,

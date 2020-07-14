@@ -18,9 +18,11 @@ import com.convergencelabs.convergence.server.model.DomainId
 
 import scala.util.Try
 
-class DomainSchemaStatePersistence(domainId: DomainId,
+private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
                                    deltaStore: DomainSchemaDeltaLogStore,
-                                   versionStore: DomainSchemaVersionLogStore) extends SchemaStatePersistence {
+                                   versionStore: DomainSchemaVersionLogStore)
+  extends SchemaStatePersistence {
+
   override def installedVersion(): Try[Option[String]] = {
     versionStore.getDomainSchemaVersion(domainId)
   }

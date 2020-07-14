@@ -309,7 +309,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
 
       val Left(error) = schemaManager.upgrade()
       error shouldBe a[DeltaApplicationError]
-      
+
       verify(deltaApplicator, times(1))
         .applyDeltaToSchema(MockDelta)
 

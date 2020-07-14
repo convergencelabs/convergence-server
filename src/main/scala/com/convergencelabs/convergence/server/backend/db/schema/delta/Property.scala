@@ -13,10 +13,13 @@ package com.convergencelabs.convergence.server.backend.db.schema.delta
 
 import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 
+/**
+ * The definition of a property in OrientDB.
+ */
 private[schema] final case class Property(name: String,
                                           @JsonScalaEnumeration(classOf[OrientTypeTypeReference])
                                           `type`: OrientType.Value,
                                           @JsonScalaEnumeration(classOf[OrientTypeTypeReference])
                                           linkedType: Option[OrientType.Value],
                                           linkedClass: Option[String],
-                                          constraints: Option[Constraints])
+                                          constraints: Option[PropertyConstraints])

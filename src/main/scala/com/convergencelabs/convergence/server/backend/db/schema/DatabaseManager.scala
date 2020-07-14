@@ -15,14 +15,12 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.{Con
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager.SchemaUpgradeError
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseFactory}
 import com.convergencelabs.convergence.server.model.DomainId
-import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-final class DatabaseManager(databaseUrl: String,
-                            convergenceDbProvider: DatabaseProvider,
-                            dbConfig: Config) extends Logging {
+private[backend] final class DatabaseManager(databaseUrl: String,
+                                             convergenceDbProvider: DatabaseProvider) extends Logging {
 
   private[this] val domainVersionStore = new DomainSchemaVersionLogStore(convergenceDbProvider)
   private[this] val convergenceVersionStore = new ConvergenceSchemaVersionLogStore(convergenceDbProvider)
@@ -44,11 +42,11 @@ final class DatabaseManager(databaseUrl: String,
 
   def upgradeDomain(domainId: DomainId): Either[String, Unit] = {
     for {
-      db <- getDomainDatabase(domainId)
+      db <- getDomainDatabaseProvider(domainId)
       schemaManger = new DomainSchemaManager(domainId, convergenceDbProvider, db)
       _ <- schemaManger.upgrade().left.map(_ => "Error upgrading domain schema")
     }
-    yield ()
+      yield ()
   }
 
   def upgradeAllDomains(): Try[Unit] = {
@@ -57,8 +55,7 @@ final class DatabaseManager(databaseUrl: String,
     }
   }
 
-
-  private[this] def getDomainDatabase(domainId: DomainId): Either[String, DatabaseProvider] = {
+  private[this] def getDomainDatabaseProvider(domainId: DomainId): Either[String, DatabaseProvider] = {
     domainProvider
       .getDomainAdminDatabase(domainId)
       .map(Right(_))

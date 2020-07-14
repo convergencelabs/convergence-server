@@ -17,8 +17,10 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.{Con
 
 import scala.util.Try
 
-class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceSchemaDeltaLogStore,
-                                        versionStore: ConvergenceSchemaVersionLogStore) extends SchemaStatePersistence {
+private[schema] class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceSchemaDeltaLogStore,
+                                                        versionStore: ConvergenceSchemaVersionLogStore)
+  extends SchemaStatePersistence {
+
   /**
    * Gets the current version of the installed schema.
    *
@@ -49,7 +51,7 @@ class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceSchemaDeltaLogSto
    * a historical view of exactly how the database got to the state that
    * it is in.
    *
-   * @param delta The delta that was applied.
+   * @param delta             The delta that was applied.
    * @param appliedForVersion The version that was being upgraded to when
    *                          this was applied.
    * @return A Success if recording the delta application succeeded, a Failure

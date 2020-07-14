@@ -13,6 +13,9 @@ package com.convergencelabs.convergence.server.backend.db.schema.delta
 
 import com.fasterxml.jackson.core.`type`.TypeReference
 
+/**
+ * The valid sequence types for OrientDB.
+ */
 private[schema] object SequenceType extends Enumeration {
   val Cached, Ordered = Value
 }

@@ -19,7 +19,9 @@ object DomainSchemaManager {
   val BasePath = "/com/convergencelabs/convergence/server/db/schema/domain"
 }
 
-class DomainSchemaManager(domainId: DomainId, convergenceDatabaseProvider: DatabaseProvider, domainDatabaseProvider: DatabaseProvider) extends SchemaManager(
+private[db] class DomainSchemaManager(domainId: DomainId,
+                                          convergenceDatabaseProvider: DatabaseProvider,
+                                          domainDatabaseProvider: DatabaseProvider) extends SchemaManager(
   new SchemaMetaDataRepository(DomainSchemaManager.BasePath),
   new DomainSchemaStatePersistence(
     domainId,

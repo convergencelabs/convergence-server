@@ -17,13 +17,14 @@ import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 
 import scala.util.{Success, Try}
 
-object NonRecordingSchemaManager {
-  object SchemaType extends Enumeration {
-    val Domain, Convergence = Value
-  }
-}
 
-class NonRecordingSchemaManager(schemaKind: NonRecordingSchemaManager.SchemaType.Value, databaseProvider: DatabaseProvider) extends SchemaManager(
+/**
+ * This is a help class that is used by persistence storage tests that need
+ * to install a schema but don't want to record all of the delta and version
+ * log entries because the convergence database isn't really there for testing.
+ */
+class NonRecordingSchemaManager(schemaKind: NonRecordingSchemaManager.SchemaType.Value,
+                                databaseProvider: DatabaseProvider) extends SchemaManager(
   new SchemaMetaDataRepository(schemaKind match {
     case NonRecordingSchemaManager.SchemaType.Convergence =>
       ConvergenceSchemaManager.BasePath
@@ -34,7 +35,13 @@ class NonRecordingSchemaManager(schemaKind: NonRecordingSchemaManager.SchemaType
   new OrientDBDeltaApplicator(databaseProvider)) {
 }
 
-class FakeSchemaStatePersistence extends SchemaStatePersistence {
+object NonRecordingSchemaManager {
+  object SchemaType extends Enumeration {
+    val Domain, Convergence = Value
+  }
+}
+
+private class FakeSchemaStatePersistence extends SchemaStatePersistence {
 
   override def installedVersion(): Try[Option[String]] = Success(None)
 

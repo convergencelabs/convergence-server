@@ -179,7 +179,7 @@ private[server] final class BackendServices(context: ActorContext[_],
     val domainDatabaseManager = new DomainDatabaseManager(convergenceDbProvider, context.system.settings.config)
     val domainDbManagerActor = context.spawn(DomainDatabaseManagerActor(domainDatabaseManager, domainLifecycleTopic), "DomainProvisioner")
 
-    val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider, convergenceDbConfig)
+    val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider)
     context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
 
     val domainCreationTimeoutMillis = persistenceConfig.getDuration("domain-databases.initialization-timeout").toMillis
