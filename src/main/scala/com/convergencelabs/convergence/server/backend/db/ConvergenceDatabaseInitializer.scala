@@ -65,7 +65,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
     for {
       orientDb <- createOrientDb()
       bootstrapped <- bootstrapIfDatabaseDoesNotExist(orientDb)
-      _ <- if (!bootstrapped) upgradeDatabaseIfNeeded() else Success(())
+      _ <- if (!bootstrapped) upgradeConvergenceDatabaseIfNeeded() else Success(())
       _ <- if (!bootstrapped) autoConfigureServerAdminUserForExistingDatabase() else Success(())
       _ <- Try(orientDb.close())
     } yield {
@@ -421,9 +421,9 @@ final class ConvergenceDatabaseInitializer(config: Config,
     }
   }
 
-  def upgradeDatabaseIfNeeded(): Try[Unit] = {
-    createConvergenceDatabaseProvider().flatMap { dbProvider =>
-      checkAndPerformUpgrade(dbProvider).fold(
+  def upgradeConvergenceDatabaseIfNeeded(): Try[Unit] = {
+    createConvergenceAdminDatabaseProvider().flatMap { dbProvider =>
+      checkVersionAndMaybeUpgrade(dbProvider).fold(
         {
           case SchemaManager.DeltaApplicationError(Some(cause)) =>
             Failure(cause)
@@ -441,7 +441,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
     }
   }
 
-  private def checkAndPerformUpgrade(dbProvider: DatabaseProvider): Either[SchemaUpgradeError, Unit] = {
+  private def checkVersionAndMaybeUpgrade(dbProvider: DatabaseProvider): Either[SchemaUpgradeError, Unit] = {
     val schemaManager = new ConvergenceSchemaManager(dbProvider)
     val upgradeResult = for {
       latestVersion <- schemaManager.latestAvailableVersion()
@@ -459,9 +459,19 @@ final class ConvergenceDatabaseInitializer(config: Config,
   }
 
   private def createConvergenceDatabaseProvider(): Try[DatabaseProvider] = {
-    val baseUri = dbServerConfig.getString("uri")
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
+    createDatabaseProvider(username, password)
+  }
+
+  private def createConvergenceAdminDatabaseProvider(): Try[DatabaseProvider] = {
+    val username = convergenceDbConfig.getString("admin-username")
+    val password = convergenceDbConfig.getString("admin-password")
+    createDatabaseProvider(username, password)
+  }
+
+  private def createDatabaseProvider(username: String, password: String): Try[DatabaseProvider] = {
+    val baseUri = dbServerConfig.getString("uri")
     val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
     dbProvider.connect().map(_ => dbProvider)
   }

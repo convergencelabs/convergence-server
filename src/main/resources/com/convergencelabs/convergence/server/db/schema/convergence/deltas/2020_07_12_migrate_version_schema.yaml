@@ -30,7 +30,7 @@ actions:
   - action: CreateClass
     name: ConvergenceSchemaDeltaLog
     properties:
-      - {name: seqNo,    type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seqNo,    type: Integer,                       constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: id,       type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: tag,      type: String,                        constraints: {                 notNull: true, readOnly: true}}
       - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -73,7 +73,7 @@ actions:
     name: DomainSchemaDeltaLog
     properties:
       - {name: domain,   type: Link,    linkedClass: Domain,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: seqNo,    type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seqNo,    type: Integer,                       constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: id,       type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: tag,      type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -98,18 +98,18 @@ actions:
   ## 2. Migrate data
   ##
   - action: RunSqlCommand
-      command: |-
-        LET convergenceDates = SELECT date FROM ConvergenceDeltaHistory;
-        LET convergence_0_9_date = $convergenceDates[0].date;
+    command: |-
+      LET convergenceDates = SELECT date FROM ConvergenceDeltaHistory;
+      LET convergence_0_9_date = $convergenceDates[0].date;
 
-        INSERT INTO ConvergenceSchemaVersionLog SET date = $convergence_0_9_date, version = "0.9";
-        INSERT INTO ConvergenceSchemaDeltaLog SET seqNo = 0, id = "install", tag = "install", version = "0.9", status = "success", date = $convergence_0_9_date;
+      INSERT INTO ConvergenceSchemaVersionLog SET date = $convergence_0_9_date, version = "0.9";
+      INSERT INTO ConvergenceSchemaDeltaLog SET seqNo = 1, id = "install", tag = "install", script="", version = "0.9", status = "success", date = $convergence_0_9_date;
 
-        LET domainDates = SELECT domain, date FROM DomainDeltaHistory;
-        FOREACH ($domainDate in $domainDates) {
-          INSERT INTO DomainSchemaVersionLog SET domain = $domainDate.domain, date = $domainDate.date, version = "0.9";
-          INSERT INTO DomainSchemaDeltaLog SET domain = $domainDate.domain, seqNo = 0, id = "install", tag = "install", version = "0.9", status = "success", date = $domainDate.date;
-        }
+      LET domainDates = SELECT domain, date FROM DomainDeltaHistory;
+      FOREACH ($domainDate in $domainDates) {
+        INSERT INTO DomainSchemaVersionLog SET domain = $domainDate.domain, date = $domainDate.date, version = "0.9";
+        INSERT INTO DomainSchemaDeltaLog SET domain = $domainDate.domain, seqNo = 1, id = "install", tag = "install", script="", version = "0.9", status = "success", date = $domainDate.date;
+      }
 
   ##
   ## 3. Drop old classes
@@ -118,10 +118,10 @@ actions:
     name: ConvergenceDelta
 
   - action: DropClass
-    name: ConvergenceDeltaHisory
+    name: ConvergenceDeltaHistory
 
   - action: DropClass
     name: DomainDelta
 
   - action: DropClass
-    name: DomainDeltaHisory
+    name: DomainDeltaHistory

@@ -44,7 +44,7 @@ import scala.util.Try
  *     - 2.0.yaml
  *   - deltas
  *     - delta_a.yaml
- *     - delta_a.yaml
+ *     - delta_b.yaml
  * </pre>
  *
  * @param baseClassPath The base path within the classpath to load schema

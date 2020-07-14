@@ -307,8 +307,9 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
 
       val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
-      schemaManager.upgrade() shouldBe Left(DeltaApplicationError())
-
+      val Left(error) = schemaManager.upgrade()
+      error shouldBe a[DeltaApplicationError]
+      
       verify(deltaApplicator, times(1))
         .applyDeltaToSchema(MockDelta)
 

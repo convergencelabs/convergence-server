@@ -19,7 +19,7 @@ actions:
   - action: CreateClass
     name: ConvergenceSchemaDeltaLog
     properties:
-      - {name: seqNo,    type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seqNo,    type: Integer,                       constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: id,       type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: tag,      type: String,                        constraints: {                 notNull: true, readOnly: true}}
       - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -62,7 +62,7 @@ actions:
     name: DomainSchemaDeltaLog
     properties:
       - {name: domain,   type: Link,    linkedClass: Domain,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: seqNo,    type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: seqNo,    type: Integer,                       constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: id,       type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: tag,      type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: version,  type: String,                        constraints: {mandatory: true, notNull: true, readOnly: true}}

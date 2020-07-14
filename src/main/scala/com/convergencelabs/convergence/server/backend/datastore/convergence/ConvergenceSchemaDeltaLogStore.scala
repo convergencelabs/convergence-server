@@ -16,10 +16,11 @@ import java.util.Date
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.ConvergenceSchemaDeltaLogClass
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 class ConvergenceSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
@@ -44,25 +45,29 @@ class ConvergenceSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends Abstr
   }
 
   def getMaxDeltaSequenceNumber(): Try[Int] = withDb { db =>
-    OrientDBUtil
-      .getDocument(db, GetMaxDeltaSequenceNumberQuery)
-      .map(doc => doc.getProperty("seqNo").asInstanceOf[Int])
+    getOrDefaultIfSchemaManagementNotFound(db,
+      () => OrientDBUtil
+        .getDocument(db, GetMaxDeltaSequenceNumberQuery)
+        .map(doc => doc.getProperty("seqNo").asInstanceOf[Int]),
+      () => 0)
   }
 
   val GetMaxDeltaSequenceNumberQuery = "SELECT max(seqNo) as seqNo FROM ConvergenceSchemaDeltaLog"
 
   def appliedConvergenceDeltas(): Try[List[ConvergenceSchemaDeltaLogEntry]] = withDb { db =>
-    OrientDBUtil.queryAndMap(db, GetConvergenceDeltas, Map()) { doc =>
-      val seqNo: Int = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.SeqNo)
-      val id: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Id)
-      val tag: Option[String] = Option(doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.tag))
-      val script: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Script)
-      val status: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Status)
-      val message: Option[String] = Option(doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Message))
-      val date: Date = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Date)
-
-      ConvergenceSchemaDeltaLogEntry(seqNo, id, tag, script, status, message, date.toInstant)
-    }
+    getOrDefaultIfSchemaManagementNotFound(db,
+      () => OrientDBUtil.queryAndMap(db, GetConvergenceDeltas, Map()) { doc =>
+        val seqNo: Int = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.SeqNo)
+        val id: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Id)
+        val tag: Option[String] = Option(doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.tag))
+        val script: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Script)
+        val status: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Status)
+        val message: Option[String] = Option(doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Message))
+        val date: Date = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Date)
+        ConvergenceSchemaDeltaLogEntry(seqNo, id, tag, script, status, message, date.toInstant)
+      },
+      () => List()
+    )
   }
 
   private[this] val GetConvergenceDeltas = "SELECT * FROM ConvergenceSchemaDeltaLog"
@@ -74,6 +79,16 @@ class ConvergenceSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends Abstr
   }
 
   private[this] val ConvergenceHealthQuery = "SELECT if(count(*) > 0, false, true) as healthy FROM ConvergenceSchemaDeltaLog WHERE status = :status"
+
+  private[this] def getOrDefaultIfSchemaManagementNotFound[T](db: ODatabaseDocument,
+                                                              computed: () => Try[T],
+                                                              default: () => T): Try[T] = {
+    if (db.getMetadata.getSchema.existsClass(ConvergenceSchemaDeltaLogClass.ClassName)) {
+      computed()
+    } else {
+      Success(default())
+    }
+  }
 }
 
 
