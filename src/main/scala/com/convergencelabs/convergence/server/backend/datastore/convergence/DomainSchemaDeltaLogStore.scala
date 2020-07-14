@@ -55,7 +55,7 @@ class DomainSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends AbstractDa
   }
 
   private[this] val RemoveDeltaLogForDomainCommand =
-    s"DELETE FROM ${DomainSchemaDeltaLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id =:id"
+    s"DELETE FROM ${DomainSchemaDeltaLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
   def appliedDeltasForDomain(domainId: DomainId): Try[List[DomainSchemaDeltaLogEntry]] = withDb { db =>
     val params = Map(Params.Namespace -> domainId.namespace, Params.Id -> domainId.domainId)
@@ -78,11 +78,11 @@ class DomainSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends AbstractDa
       .map(doc => doc.getProperty("seqNo").asInstanceOf[Int])
   }
 
-  val GetMaxDeltaSequenceNumberQuery = "SELECT max(seqNo) as seqNo FROM DomainSchemaDeltaLog WHERE domain.namespace.id = :namespace AND domain.id =:id"
+  val GetMaxDeltaSequenceNumberQuery = "SELECT max(seqNo) as seqNo FROM DomainSchemaDeltaLog WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
 
   private[this] val GetDeltaLogForDomainQuery =
-    s"SELECT FROM ${DomainSchemaDeltaLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id =:id"
+    s"SELECT FROM ${DomainSchemaDeltaLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
   def isDomainDBHealthy(domainId: DomainId): Try[Boolean] = withDb { db =>
     val DomainId(namespace, id) = domainId

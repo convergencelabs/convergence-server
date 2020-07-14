@@ -58,7 +58,7 @@ class DomainSchemaVersionLogStore(dbProvider: DatabaseProvider) extends Abstract
   }
 
   private[this] val RemoveVersionLogForDomainCommand =
-    s"DELETE FROM ${DomainSchemaVersionLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id =:id)"
+    s"DELETE FROM ${DomainSchemaVersionLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
 }
 

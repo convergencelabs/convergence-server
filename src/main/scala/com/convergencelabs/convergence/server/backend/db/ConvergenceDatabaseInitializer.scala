@@ -360,7 +360,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
     namespaces.forEach { namespaceConfig =>
       val id = namespaceConfig.getString("id")
       val displayName = namespaceConfig.getString("displayName")
-      logger.info(s"bootstrapping namespace '$id'")
+      logger.info(s"Bootstrapping namespace '$id'")
       namespaceStore.createNamespace(id, displayName, userNamespace = false).get
     }
   }
@@ -386,7 +386,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
       val favorite = domainConfig.getBoolean("favorite")
       val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
 
-      logger.info(s"bootstrapping domain '$namespace/$id'")
+      logger.info(s"Bootstrapping domain '$namespace/$id'")
       (for {
         exists <- namespaceStore.namespaceExists(namespace)
         _ <- if (!exists) {
@@ -403,7 +403,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
             val f = domainCreator
               .createDomainDatabase(domainId, anonymousAuth, dbInfo)
               .map { _ =>
-                logger.info(s"bootstrapped domain '$namespace/$id'")
+                logger.info(s"Bootstrapped domain '$namespace/$id'")
 
                 if (favorite) {
                   val username = config.getString("convergence.default-server-admin.username")
