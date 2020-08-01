@@ -126,18 +126,21 @@ private[rest] final class DomainService(schedule: Scheduler,
         _ => InternalServerError,
         { domains =>
           val response = okResponse(
-            domains map (domain => DomainRestData(
-              domain.displayName,
-              domain.domainId.namespace,
-              domain.domainId.domainId,
-              domain.status.toString.toLowerCase)))
+            domains map { domain =>
+                DomainRestData(
+                  domain.displayName,
+                  domain.domainId.namespace,
+                  domain.domainId.domainId,
+                  None,
+                  domain.status.toString.toLowerCase)
+            })
           response
         }
       ))
   }
 
   private[this] def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    domainStoreActor.ask[GetDomainResponse](GetDomainRequest(namespace, domainId, _))
+    domainStoreActor.ask[GetDomainAndSchemaVersionResponse](GetDomainAndSchemaVersionRequest(namespace, domainId, _))
       .map(_.domain.fold(
         {
           case DomainNotFound() =>
@@ -145,11 +148,12 @@ private[rest] final class DomainService(schedule: Scheduler,
           case UnknownError() =>
             InternalServerError
         },
-        { domain =>
+        { case DomainAndSchemaVersion(domain, version) =>
           okResponse(DomainRestData(
             domain.displayName,
             domain.domainId.namespace,
             domain.domainId.domainId,
+            version,
             domain.status.toString.toLowerCase()))
         }
       ))

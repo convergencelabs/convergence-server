@@ -64,6 +64,6 @@ private[rest] final class ServerStatusService(statusActor: ActorRef[Message],
 
 private[rest] object ServerStatusService {
 
-  final case class ServerStatus(version: String, schemaVersion: String, status: String, namespaces: Long, domains: Long)
+  final case class ServerStatus(version: String, schemaVersion: Option[String], status: String, namespaces: Long, domains: Long)
 
 }

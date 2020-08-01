@@ -46,9 +46,8 @@ private final class ServerStatusActor(context: ActorContext[ServerStatusActor.Me
       schemaVersion <- versionStore.getConvergenceSchemaVersion()
       healthy <- deltaLogStore.isConvergenceDBHealthy()
     } yield {
-      val v = schemaVersion.getOrElse("Not Initialized")
       val h = if (healthy) "healthy" else "error"
-      ServerStatusResponse(BuildInfo.version, v, h, namespaces, domains)
+      ServerStatusResponse(BuildInfo.version, schemaVersion, h, namespaces, domains)
     })
       .map(s => GetStatusResponse(Right(s)))
       .recover { cause =>
@@ -89,7 +88,7 @@ object ServerStatusActor {
   final case class UnknownError() extends GetStatusError
 
   final case class ServerStatusResponse(version: String,
-                                        schemaVersion: String,
+                                        schemaVersion: Option[String],
                                         status: String,
                                         namespaces: Long,
                                         domains: Long) extends CborSerializable

@@ -68,6 +68,8 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
         updateDomain(message)
       case message: GetDomainRequest =>
         handleGetDomain(message)
+      case message: GetDomainAndSchemaVersionRequest =>
+        handleGetDomainAndSchemaVersion(message)
       case message: GetDomainsRequest =>
         onGetDomains(message)
       case message: DeleteDomainsForUserRequest =>
@@ -109,7 +111,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
     val UpdateDomainRequest(namespace, domainId, displayName, replyTo) = request
 
     for {
-      domain <- domainStore.getDomainByFqn(DomainId(namespace, domainId))
+      domain <- domainStore.getDomain(DomainId(namespace, domainId))
       response <- domain match {
         case Some(domain) =>
           val updated = domain.copy(displayName = displayName)
@@ -218,7 +220,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
   private[this] def handleGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId, replyTo) = getRequest
     domainStore
-      .getDomainByFqn(DomainId(namespace, domainId))
+      .getDomain(DomainId(namespace, domainId))
       .map {
         case Some(domain) =>
           GetDomainResponse(Right(domain))
@@ -229,6 +231,29 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
         case cause =>
           error(s"An unexpected error occurred while getting a domain: $domainId", cause)
           GetDomainResponse(Left(UnknownError()))
+      }
+      .foreach(replyTo ! _)
+  }
+
+  private[this] def handleGetDomainAndSchemaVersion(getRequest: GetDomainAndSchemaVersionRequest): Unit = {
+    val GetDomainAndSchemaVersionRequest(namespace, domainId, replyTo) = getRequest
+    val id = DomainId(namespace, domainId)
+
+    (for {
+      domain <- domainStore.getDomain(id)
+      schemaVersion <- versionLogStore.getDomainSchemaVersion(id)
+    } yield {
+      domain match {
+        case Some(domain) =>
+          GetDomainAndSchemaVersionResponse(Right(DomainAndSchemaVersion(domain, schemaVersion)))
+        case None =>
+          GetDomainAndSchemaVersionResponse(Left(DomainNotFound()))
+      }
+    })
+      .recover {
+        case cause =>
+          error(s"An unexpected error occurred while getting a domain: $domainId", cause)
+          GetDomainAndSchemaVersionResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
   }
@@ -355,6 +380,22 @@ object DomainStoreActor {
   final case class GetDomainResponse(domain: Either[GetDomainError, Domain]) extends CborSerializable
 
   //
+  // GetDomainAndSchemaVersion
+  //
+  final case class GetDomainAndSchemaVersionRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainAndSchemaVersionResponse]) extends Message
+
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetDomainAndSchemaVersionError
+
+  final case class DomainAndSchemaVersion(domain: Domain, schemaVersion: Option[String])
+
+  final case class GetDomainAndSchemaVersionResponse(domain: Either[GetDomainAndSchemaVersionError, DomainAndSchemaVersion]) extends CborSerializable
+
+
+  //
   // GetDomains
   //
   final case class GetDomainsRequest(authProfile: AuthorizationProfileData,
@@ -385,6 +426,7 @@ object DomainStoreActor {
     with UpdateDomainError
     with DeleteDomainError
     with GetDomainError
+    with GetDomainAndSchemaVersionError
 
   final case class UnknownError() extends AnyRef
     with CreateDomainError
@@ -393,5 +435,6 @@ object DomainStoreActor {
     with GetDomainError
     with GetDomainsError
     with DeleteDomainsForUserError
+    with GetDomainAndSchemaVersionError
 
 }
