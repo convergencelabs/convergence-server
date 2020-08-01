@@ -15,15 +15,15 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.BuildInfo
-import com.convergencelabs.convergence.server.backend.datastore.convergence.{DomainStore, NamespaceStore}
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogStore, ConvergenceSchemaVersionLogStore, DomainStore, NamespaceStore}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.JsonSubTypes
 
-import scala.util.Try
-
 private final class ServerStatusActor(context: ActorContext[ServerStatusActor.Message],
                                       domainStore: DomainStore,
-                                      namespaceStore: NamespaceStore)
+                                      namespaceStore: NamespaceStore,
+                                      versionStore: ConvergenceSchemaVersionLogStore,
+                                      deltaLogStore: ConvergenceSchemaDeltaLogStore)
   extends AbstractBehavior[ServerStatusActor.Message](context) {
 
   import ServerStatusActor._
@@ -43,9 +43,12 @@ private final class ServerStatusActor(context: ActorContext[ServerStatusActor.Me
     (for {
       domains <- domainStore.domainCount()
       namespaces <- namespaceStore.namespaceCount()
-      distribution <- Try(this.context.system.settings.config.getString("convergence.distribution"))
+      schemaVersion <- versionStore.getConvergenceSchemaVersion()
+      healthy <- deltaLogStore.isConvergenceDBHealthy()
     } yield {
-      ServerStatusResponse(BuildInfo.version, distribution, "healthy", namespaces, domains)
+      val v = schemaVersion.getOrElse("Not Initialized")
+      val h = if (healthy) "healthy" else "error"
+      ServerStatusResponse(BuildInfo.version, v, h, namespaces, domains)
     })
       .map(s => GetStatusResponse(Right(s)))
       .recover { cause =>
@@ -61,8 +64,10 @@ object ServerStatusActor {
   val Key: ServiceKey[Message] = ServiceKey[Message]("ServerStatusActor")
 
   def apply(domainStore: DomainStore,
-            namespaceStore: NamespaceStore): Behavior[Message] =
-    Behaviors.setup(context => new ServerStatusActor(context, domainStore, namespaceStore))
+            namespaceStore: NamespaceStore,
+            versionStore: ConvergenceSchemaVersionLogStore,
+            deltaLogStore: ConvergenceSchemaDeltaLogStore): Behavior[Message] =
+    Behaviors.setup(context => new ServerStatusActor(context, domainStore, namespaceStore, versionStore, deltaLogStore))
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -84,7 +89,7 @@ object ServerStatusActor {
   final case class UnknownError() extends GetStatusError
 
   final case class ServerStatusResponse(version: String,
-                                        distribution: String,
+                                        schemaVersion: String,
                                         status: String,
                                         namespaces: Long,
                                         domains: Long) extends CborSerializable

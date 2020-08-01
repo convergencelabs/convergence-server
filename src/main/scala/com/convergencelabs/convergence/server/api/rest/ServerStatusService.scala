@@ -55,8 +55,8 @@ private[rest] final class ServerStatusService(statusActor: ActorRef[Message],
             InternalServerError
         },
         {
-          case ServerStatusResponse(version, distribution, serverStatus, namespaces, domains) =>
-            okResponse(ServerStatus(version, distribution, serverStatus, namespaces, domains))
+          case ServerStatusResponse(version, schemaVersion, serverStatus, namespaces, domains) =>
+            okResponse(ServerStatus(version, schemaVersion, serverStatus, namespaces, domains))
         })
       )
   }
@@ -64,6 +64,6 @@ private[rest] final class ServerStatusService(statusActor: ActorRef[Message],
 
 private[rest] object ServerStatusService {
 
-  final case class ServerStatus(version: String, distribution: String, status: String, namespaces: Long, domains: Long)
+  final case class ServerStatus(version: String, schemaVersion: String, status: String, namespaces: Long, domains: Long)
 
 }

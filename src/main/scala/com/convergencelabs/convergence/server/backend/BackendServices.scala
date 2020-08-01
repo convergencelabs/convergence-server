@@ -143,7 +143,6 @@ private[server] final class BackendServices(context: ActorContext[_],
    */
   private[this] def startActors(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): Try[Unit] = {
     val dbServerConfig = persistenceConfig.getConfig("server")
-    val convergenceDbConfig = persistenceConfig.getConfig("convergence-database")
 
     val domainStore = new DomainStore(convergenceDbProvider)
     val userStore = new UserStore(convergenceDbProvider)
@@ -153,9 +152,12 @@ private[server] final class BackendServices(context: ActorContext[_],
     val userSessionTokenStore = new UserSessionTokenStore(convergenceDbProvider)
     val namespaceStore = new NamespaceStore(convergenceDbProvider)
 
+    val convergenceDeltaLogStore = new ConvergenceSchemaDeltaLogStore(convergenceDbProvider)
+    val convergenceVersionLogStore = new ConvergenceSchemaVersionLogStore(convergenceDbProvider)
+
     val favoriteDomainStore = new UserFavoriteDomainStore(convergenceDbProvider)
-    val domainDeltaLogStore: DomainSchemaDeltaLogStore = new DomainSchemaDeltaLogStore(convergenceDbProvider)
-    val domainVersionLogStore: DomainSchemaVersionLogStore = new DomainSchemaVersionLogStore(convergenceDbProvider)
+    val domainDeltaLogStore = new DomainSchemaDeltaLogStore(convergenceDbProvider)
+    val domainVersionLogStore = new DomainSchemaVersionLogStore(convergenceDbProvider)
 
     val userCreator = new UserCreator(convergenceDbProvider)
 
@@ -202,7 +204,7 @@ private[server] final class BackendServices(context: ActorContext[_],
     context.spawn(RoleStoreActor(roleStore), "RoleStore")
     context.spawn(UserApiKeyStoreActor(userApiKeyStore), "UserApiKeyStore")
     context.spawn(ConfigStoreActor(configStore), "ConfigStore")
-    context.spawn(ServerStatusActor(domainStore, namespaceStore), "ServerStatus")
+    context.spawn(ServerStatusActor(domainStore, namespaceStore, convergenceVersionLogStore, convergenceDeltaLogStore), "ServerStatus")
     context.spawn(UserFavoriteDomainStoreActor(favoriteDomainStore), "FavoriteDomains")
 
     Success(())
