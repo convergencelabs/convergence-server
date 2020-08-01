@@ -37,6 +37,18 @@ class DomainSchemaVersionLogStore(dbProvider: DatabaseProvider) extends Abstract
   private[this] val DomainSchemaVersionQuery =
     "SELECT version FROM DomainSchemaVersionLog WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
+  def getDomainSchemaVersionLog(domainId: DomainId): Try[List[DomainSchemaVersionLogEntry]] = withDb { db =>
+      val params = Map("namespace" -> domainId.namespace, "id" -> domainId.domainId)
+      OrientDBUtil.queryAndMap(db, DomainSchemaVersionLogQuery, params) { doc =>
+        val version = doc.getProperty("version").asInstanceOf[String]
+        val date = doc.getProperty("date").asInstanceOf[Date].toInstant
+        DomainSchemaVersionLogEntry(domainId, version, date)
+      }
+  }
+
+  private[this] val DomainSchemaVersionLogQuery =
+    "SELECT * FROM DomainSchemaVersionLog WHERE domain.namespace.id = :namespace AND domain.id = :id"
+
   def createDomainSchemaVersionLogEntry(entry: DomainSchemaVersionLogEntry): Try[Unit] = withDb { db =>
     val DomainSchemaVersionLogEntry(domainId, version, date) = entry
     for {

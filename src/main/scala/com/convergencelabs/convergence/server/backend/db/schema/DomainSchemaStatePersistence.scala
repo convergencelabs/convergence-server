@@ -37,8 +37,8 @@ private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
     val UpgradeDeltaAndScript(deltaId, _, script) = delta
     for {
       seqNo <- deltaStore.getMaxDeltaSequenceNumber(domainId)
-      entry = DomainSchemaDeltaLogEntry(domainId, seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Success, None, Instant.now())
-      _ <- deltaStore.createDomainDeltaLogEntries(List(entry), appliedForVersion)
+      entry = DomainSchemaDeltaLogEntry(domainId, seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Success, None, appliedForVersion, Instant.now())
+      _ <- deltaStore.createDomainDeltaLogEntries(List(entry))
     } yield ()
   }
 
@@ -46,22 +46,23 @@ private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
     val UpgradeDeltaAndScript(deltaId, _, script) = delta
     for {
       seqNo <- deltaStore.getMaxDeltaSequenceNumber(domainId)
-      entry = DomainSchemaDeltaLogEntry(domainId, seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Error, Some(error), Instant.now())
-      _ <- deltaStore.createDomainDeltaLogEntries(List(entry), appliedForVersion)
+      entry = DomainSchemaDeltaLogEntry(domainId, seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Error, Some(error), appliedForVersion, Instant.now())
+      _ <- deltaStore.createDomainDeltaLogEntries(List(entry))
     } yield ()
   }
 
-  override def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String): Try[Unit] = {
-    val entries = createEntries(deltaIds)
-    deltaStore.createDomainDeltaLogEntries(entries, appliedForVersion)
+  override def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String, installScript: String): Try[Unit] = {
+    val entries = createEntries(deltaIds, installScript, appliedForVersion)
+    deltaStore.createDomainDeltaLogEntries(entries)
   }
 
-  private[this] def createEntries(deltaIds: List[UpgradeDeltaId]): List[DomainSchemaDeltaLogEntry] = {
+  private[this] def createEntries(deltaIds: List[UpgradeDeltaId], installScript: String, appliedForVersion: String): List[DomainSchemaDeltaLogEntry] = {
     var curSeqNo = 1
     deltaIds.map { deltaId =>
       val seqNo = curSeqNo
+      val script = if (seqNo == 1) installScript else ""
       curSeqNo += 1
-      DomainSchemaDeltaLogEntry(domainId, seqNo, deltaId.id, deltaId.tag, "", SchemaDeltaStatus.Success, None, Instant.now())
+      DomainSchemaDeltaLogEntry(domainId, seqNo, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Success, None, appliedForVersion, Instant.now())
     }
   }
 

@@ -19,4 +19,5 @@ final case class ConvergenceSchemaDeltaLogEntry(sequenceNumber: Int,
                                                 script: String,
                                                 status: String,
                                                 message: Option[String],
+                                                appliedForVersion: String,
                                                 date: Instant)

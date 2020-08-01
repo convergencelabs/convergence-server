@@ -23,4 +23,5 @@ final case class DomainSchemaDeltaLogEntry(domain: DomainId,
                                            script: String,
                                            status: String,
                                            message: Option[String],
+                                           appliedForVersion: String,
                                            date: Instant)

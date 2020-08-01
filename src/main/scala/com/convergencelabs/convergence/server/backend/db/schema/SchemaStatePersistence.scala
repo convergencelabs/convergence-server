@@ -59,7 +59,7 @@ private[schema] trait SchemaStatePersistence {
    *                          for.
    * @return A Success if recording succeeds or a Failure otherwise.
    */
-  def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String): Try[Unit]
+  def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String, installScript: String): Try[Unit]
 
   /**
    * Records that a delta was successfully applied. This will store the delta

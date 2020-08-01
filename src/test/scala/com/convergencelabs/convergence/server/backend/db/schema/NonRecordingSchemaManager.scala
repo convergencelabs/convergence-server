@@ -47,7 +47,7 @@ private class FakeSchemaStatePersistence extends SchemaStatePersistence {
 
   override def appliedDeltas(): Try[List[UpgradeDeltaId]] = Success(List())
 
-  override def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String): Try[Unit] = Success(())
+  override def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String, installScript: String): Try[Unit] = Success(())
 
   override def recordDeltaSuccess(delta: UpgradeDeltaAndScript, appliedForVersion: String): Try[Unit] = Success(())
 

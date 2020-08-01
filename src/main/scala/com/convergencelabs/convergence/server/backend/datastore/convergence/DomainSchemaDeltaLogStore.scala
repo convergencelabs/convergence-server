@@ -26,9 +26,9 @@ class DomainSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends AbstractDa
 
   import DomainSchemaDeltaLogStore._
 
-  def createDomainDeltaLogEntries(entries: List[DomainSchemaDeltaLogEntry], appliedForVersion: String): Try[Unit] = tryWithDb { db =>
+  def createDomainDeltaLogEntries(entries: List[DomainSchemaDeltaLogEntry]): Try[Unit] = tryWithDb { db =>
     entries.foreach { entry =>
-      val DomainSchemaDeltaLogEntry(domainId, seqNo, id, tag, script, status, message, date) = entry
+      val DomainSchemaDeltaLogEntry(domainId, seqNo, id, tag, script, status, message, appliedForVersion, date) = entry
       (for {
         domainRid <- DomainStore.getDomainRid(domainId, db)
         _ <- Try {
@@ -66,10 +66,14 @@ class DomainSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends AbstractDa
       val script: String = doc.getProperty(DomainSchemaDeltaLogClass.Fields.Script)
       val status: String = doc.field(DomainSchemaDeltaLogClass.Fields.Status)
       val message: Option[String] = Option(doc.field(DomainSchemaDeltaLogClass.Fields.Message))
+      val appliedForVersion: String = doc.field(DomainSchemaDeltaLogClass.Fields.Version)
       val date: Date = doc.field(DomainSchemaDeltaLogClass.Fields.Date)
-      DomainSchemaDeltaLogEntry(domainId, seqNo, id, tag, script, status, message, date.toInstant)
+      DomainSchemaDeltaLogEntry(domainId, seqNo, id, tag, script, status, message, appliedForVersion, date.toInstant)
     }
   }
+  private[this] val GetDeltaLogForDomainQuery =
+    s"SELECT FROM ${DomainSchemaDeltaLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id = :id"
+
 
   def getMaxDeltaSequenceNumber(domainId: DomainId): Try[Int] = withDb { db =>
     val params = Map("id" -> domainId.domainId, "namespace" -> domainId.namespace)
@@ -78,30 +82,50 @@ class DomainSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends AbstractDa
       .map(doc => doc.getProperty("seqNo").asInstanceOf[Int])
   }
 
-  val GetMaxDeltaSequenceNumberQuery = "SELECT max(seqNo) as seqNo FROM DomainSchemaDeltaLog WHERE domain.namespace.id = :namespace AND domain.id = :id"
+  private[this] val GetMaxDeltaSequenceNumberQuery =
+    "SELECT max(seqNo) as seqNo FROM DomainSchemaDeltaLog WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
-
-  private[this] val GetDeltaLogForDomainQuery =
-    s"SELECT FROM ${DomainSchemaDeltaLogClass.ClassName} WHERE domain.namespace.id = :namespace AND domain.id = :id"
 
   def isDomainDBHealthy(domainId: DomainId): Try[Boolean] = withDb { db =>
     val DomainId(namespace, id) = domainId
-    val query =
-      s"""SELECT if(count(*) > 0, false, true) as healthy
-         |FROM ${DomainSchemaDeltaLogClass.ClassName}
-         |WHERE
-         |  domain.namespace = :namespace AND
-         |  domain.id = :id AND
-         |  status = :status""".stripMargin
-    val params = Map("id" -> id, "namespace" -> namespace, "status" -> SchemaDeltaStatus.Error)
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace, Params.Status -> SchemaDeltaStatus.Error)
     OrientDBUtil
-      .findDocument(db, query, params)
-      .map(_.forall(_.field("healthy").asInstanceOf[Boolean]))
+      .getDocument(db, IsDomainDBHealthyQuery, params)
+      .map(_.field("healthy").asInstanceOf[Long] == 0)
   }
+
+  private[this] val IsDomainDBHealthyQuery =
+    s"""SELECT
+       |  count(*) as count
+       |FROM
+       |  ${DomainSchemaDeltaLogClass.ClassName}
+       |WHERE
+       |  domain.namespace = :namespace AND
+       |  domain.id = :id AND
+       |  status = :status""".stripMargin
+
+  def getLastDeltaErrorForDomain(domainId: DomainId): Try[Option[String]] = withDb { db =>
+    val DomainId(namespace, id) = domainId
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace, Params.Status -> SchemaDeltaStatus.Error)
+    OrientDBUtil
+      .findDocument(db, GetLastDeltaErrorQuery, params)
+      .map(_.map(_.getProperty("message").asInstanceOf[String]))
+  }
+
+  private[this] val GetLastDeltaErrorQuery =
+    s"""SELECT
+       |  message
+       |FROM
+       |  ${DomainSchemaDeltaLogClass.ClassName}
+       |WHERE
+       |  domain.namespace = :namespace AND
+       |  domain.id = :id AND
+       |  status = :status
+       |  ORDER BY date DESC
+       |  LIMIT 1""".stripMargin
 }
 
 object DomainSchemaDeltaLogStore {
-
   object Params {
     val Namespace = "namespace"
     val Id = "id"

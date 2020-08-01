@@ -61,8 +61,9 @@ private[schema] class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceS
     val UpgradeDeltaAndScript(deltaId, _, script) = delta
     for {
       seqNo <- deltaStore.getMaxDeltaSequenceNumber()
-      entry = ConvergenceSchemaDeltaLogEntry(seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Success, None, Instant.now())
-      _ <- deltaStore.createConvergenceDeltaEntries(List(entry), appliedForVersion)
+      entry = ConvergenceSchemaDeltaLogEntry(
+        seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Success, None, appliedForVersion, Instant.now())
+      _ <- deltaStore.createConvergenceDeltaEntries(List(entry))
     } yield ()
   }
 
@@ -81,8 +82,9 @@ private[schema] class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceS
     val UpgradeDeltaAndScript(deltaId, _, script) = delta
     for {
       seqNo <- deltaStore.getMaxDeltaSequenceNumber()
-      entry = ConvergenceSchemaDeltaLogEntry(seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Error, Some(error), Instant.now())
-      _ <- deltaStore.createConvergenceDeltaEntries(List(entry), appliedForVersion)
+      entry = ConvergenceSchemaDeltaLogEntry(
+        seqNo + 1, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Error, Some(error), appliedForVersion, Instant.now())
+      _ <- deltaStore.createConvergenceDeltaEntries(List(entry))
     } yield ()
   }
 
@@ -98,17 +100,18 @@ private[schema] class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceS
    *                          applied this version.
    * @return A Success if recording succeeds or a Failure otherwise.
    */
-  override def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String): Try[Unit] = {
-    val entries = createEntries(deltaIds)
-    deltaStore.createConvergenceDeltaEntries(entries, appliedForVersion)
+  override def recordImplicitDeltasFromInstall(deltaIds: List[UpgradeDeltaId], appliedForVersion: String, installScript: String): Try[Unit] = {
+    val entries = createEntries(deltaIds, installScript, appliedForVersion)
+    deltaStore.createConvergenceDeltaEntries(entries)
   }
 
-  private[this] def createEntries(deltaIds: List[UpgradeDeltaId]): List[ConvergenceSchemaDeltaLogEntry] = {
+  private[this] def createEntries(deltaIds: List[UpgradeDeltaId], installScript: String, appliedForVersion: String): List[ConvergenceSchemaDeltaLogEntry] = {
     var curSeqNo = 1
     deltaIds.map { deltaId =>
       val seqNo = curSeqNo
+      val script = if (seqNo == 1) installScript else ""
       curSeqNo += 1
-      ConvergenceSchemaDeltaLogEntry(seqNo, deltaId.id, deltaId.tag, "", SchemaDeltaStatus.Success, None, Instant.now())
+      ConvergenceSchemaDeltaLogEntry(seqNo, deltaId.id, deltaId.tag, script, SchemaDeltaStatus.Success, None, appliedForVersion, Instant.now())
     }
   }
 

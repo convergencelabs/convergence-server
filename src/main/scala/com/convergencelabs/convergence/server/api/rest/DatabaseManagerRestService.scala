@@ -12,6 +12,8 @@
 package com.convergencelabs.convergence.server.api.rest
 
 
+import java.time.Instant
+
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -19,7 +21,9 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.DatabaseManagerRestService.{UpgradeRequest, VersionResponse}
+import com.convergencelabs.convergence.server.api.rest.DatabaseManagerRestService.{DatabaseDeltaLogResponse, DatabaseStatusResponse, DatabaseVersionLogResponse, DeltaLogEntry, VersionLogEntry}
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogEntry, DomainSchemaDeltaLogEntry}
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseSchemaStatus
 import com.convergencelabs.convergence.server.backend.services.server.DatabaseManagerActor
 import com.convergencelabs.convergence.server.backend.services.server.DatabaseManagerActor._
 import com.convergencelabs.convergence.server.model.DomainId
@@ -29,49 +33,93 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 private[rest] final class DatabaseManagerRestService(executionContext: ExecutionContext,
-                                               scheduler: Scheduler,
-                                               databaseManager: ActorRef[DatabaseManagerActor.Message],
-                                               defaultTimeout: Timeout)
+                                                     scheduler: Scheduler,
+                                                     databaseManager: ActorRef[DatabaseManagerActor.Message],
+                                                     defaultTimeout: Timeout)
   extends JsonSupport with Logging with PermissionChecks {
 
   private[this] implicit val ec: ExecutionContext = executionContext
   private[this] implicit val t: Timeout = defaultTimeout
   private[this] implicit val s: Scheduler = scheduler
 
+
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
     pathPrefix("schema") {
-      (post & pathPrefix("upgrade")) {
-        path("convergence") {
-          authorize(isServerAdmin(authProfile)) {
-            handleWith(upgradeConvergence)
+      pathPrefix("convergence") {
+        get {
+          pathEnd {
+            complete(onGetConvergenceSchemaStatus())
+          } ~ path("versions") {
+            authorize(isServerAdmin(authProfile)) {
+              complete(onGetConvergenceSchemaVersionLog())
+            }
+          } ~ path("deltas") {
+            authorize(isServerAdmin(authProfile)) {
+              complete(onGetConvergenceSchemaDeltaLog())
+            }
           }
-        } ~ path("domains") {
-          authorize(isServerAdmin(authProfile)) {
-            complete(upgradeDomains())
-          }
-        } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
-          authorize(canManageDomain(DomainId(namespace, domainId), authProfile)) {
-            entity(as[UpgradeRequest]) { request =>
-              complete(upgradeDomain(namespace, domainId, request))
+        } ~ post {
+          path("upgrade") {
+            authorize(isServerAdmin(authProfile)) {
+              complete(onUpgradeConvergenceSchema())
             }
           }
         }
-      } ~ (get & pathPrefix("version")) {
-        path("convergence") {
-          authorize(isServerAdmin(authProfile)) {
-            complete(onGetConvergenceVersion())
-          }
-        } ~ path("domain" / Segment / Segment) { (namespace, domainId) =>
+      } ~ pathPrefix("domains" / Segment / Segment) { (namespace, domainId) =>
+        get {
           authorize(canAccessDomain(DomainId(namespace, domainId), authProfile)) {
-            complete(onGetDomainVersion(namespace, domainId))
+            pathEnd {
+              complete(onGetDomainSchemaStatus(namespace, domainId))
+            } ~ path("versions") {
+              complete(onGetDomainSchemaVersionLog(namespace, domainId))
+            } ~ path("deltas") {
+              complete(onGetDomainSchemaDeltaLog(namespace, domainId))
+            }
+          }
+        } ~ post {
+          path("upgrade") {
+            authorize(canManageDomain(DomainId(namespace, domainId), authProfile)) {
+              complete(onUpgradeDomainSchema(namespace, domainId))
+            }
           }
         }
       }
     }
   }
 
-  private[this] def upgradeConvergence(request: UpgradeRequest): Future[RestResponse] = {
-    logger.debug(s"Received an request to upgrade convergence database to version")
+  private[this] def onGetConvergenceSchemaStatus(): Future[RestResponse] = {
+    databaseManager.ask[GetConvergenceSchemaStatusResponse](GetConvergenceSchemaStatusRequest)
+      .map(_.status.fold(
+        _ => InternalServerError,
+        status => okResponse(mapStatus(status))
+      ))
+  }
+
+  private[this] def onGetConvergenceSchemaVersionLog(): Future[RestResponse] = {
+    databaseManager.ask[GetConvergenceVersionLogResponse](GetConvergenceVersionLogRequest)
+      .map(_.versions.fold(
+        _ => InternalServerError,
+        versions =>
+          okResponse(DatabaseVersionLogResponse(versions.map(v => VersionLogEntry(v.version, v.date))))
+      ))
+  }
+
+  private[this] def onGetConvergenceSchemaDeltaLog(): Future[RestResponse] = {
+    databaseManager.ask[GetConvergenceDeltaLogResponse](GetConvergenceDeltaLogRequest)
+      .map(_.deltas.fold(
+        _ => InternalServerError,
+        { deltas =>
+          val mapped = deltas.map {
+            case ConvergenceSchemaDeltaLogEntry(sequenceNumber, id, tag, script, status, message, version, date) =>
+              DeltaLogEntry(sequenceNumber, id, tag, date, version, status, message)
+          }
+          okResponse(DatabaseDeltaLogResponse(mapped))
+        }
+      ))
+  }
+
+  private[this] def onUpgradeConvergenceSchema(): Future[RestResponse] = {
+    logger.debug("Received an request to upgrade convergence database")
     databaseManager.ask[UpgradeConvergenceResponse](UpgradeConvergenceRequest)
       .map(_.response.fold(
         _ => InternalServerError,
@@ -79,8 +127,16 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
       ))
   }
 
-  private[this] def upgradeDomain(namespace: String, domainId: String, request: UpgradeRequest): Future[RestResponse] = {
-    logger.debug(s"Received an request to upgrade domain database to version: $domainId")
+  private[this] def onGetDomainSchemaStatus(namespace: String, domainId: String): Future[RestResponse] = {
+    databaseManager.ask[GetDomainSchemaStatusResponse](GetDomainSchemaStatusRequest(DomainId(namespace, domainId), _))
+      .map(_.status.fold(
+        _ => InternalServerError,
+        status => okResponse(mapStatus(status))
+      ))
+  }
+
+  private[this] def onUpgradeDomainSchema(namespace: String, domainId: String): Future[RestResponse] = {
+    logger.debug(s"Received an request to upgrade domain database: $domainId")
     databaseManager.ask[UpgradeDomainResponse](UpgradeDomainRequest(DomainId(namespace, domainId), _))
       .map(_.response.fold(
         _ => InternalServerError,
@@ -88,36 +144,59 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
       ))
   }
 
-  private[this] def upgradeDomains(): Future[RestResponse] = {
-    logger.debug(s"Received an request to upgrade all domain databases")
-    databaseManager.ask[UpgradeDomainsResponse](UpgradeDomainsRequest)
-      .map(_.response.fold(
+  private[this] def onGetDomainSchemaVersionLog(namespace: String, id: String): Future[RestResponse] = {
+    val domainId = DomainId(namespace, id)
+    databaseManager.ask[GetDomainVersionLogResponse](r => GetDomainVersionLogRequest(domainId, r))
+      .map(_.versions.fold(
         _ => InternalServerError,
-        _ => OkResponse
+        versions =>
+          okResponse(DatabaseVersionLogResponse(versions.map(v => VersionLogEntry(v.version, v.date))))
       ))
   }
 
-  private[this] def onGetConvergenceVersion(): Future[RestResponse] = {
-    databaseManager.ask[GetConvergenceVersionResponse](GetConvergenceVersionRequest)
-      .map(_.version.fold(
+  private[this] def onGetDomainSchemaDeltaLog(namespace: String, id: String): Future[RestResponse] = {
+    val domainId = DomainId(namespace, id)
+    databaseManager.ask[GetDomainDeltaLogResponse](r => GetDomainDeltaLogRequest(domainId, r))
+      .map(_.deltas.fold(
         _ => InternalServerError,
-        version => okResponse(VersionResponse(version))
+        { deltas =>
+          val mapped = deltas.map {
+            case DomainSchemaDeltaLogEntry(_, sequenceNumber, id, tag, script, status, message, version, date) =>
+              DeltaLogEntry(sequenceNumber, id, tag, date, version, status, message)
+          }
+          okResponse(DatabaseDeltaLogResponse(mapped))
+        }
       ))
   }
 
-  private[this] def onGetDomainVersion(namespace: String, domainId: String): Future[RestResponse] = {
-    databaseManager.ask[GetDomainVersionResponse](GetDomainVersionRequest(DomainId(namespace, domainId), _))
-      .map(_.version.fold(
-        _ => InternalServerError,
-        version => okResponse(VersionResponse(version))
-      ))
+  private[this] def mapStatus(status: Option[DatabaseSchemaStatus]): DatabaseStatusResponse = {
+    status
+      .map { status =>
+        val s = if (status.healthy) "healthy" else "error"
+        DatabaseStatusResponse(Some(status.version), Some(s), status.message)
+      }
+      .getOrElse(DatabaseStatusResponse(None, Some("not_initialized"), Some("The requested schema is not initialized")))
   }
 }
 
 private[rest] object DatabaseManagerRestService {
 
-  case class UpgradeRequest()
+  final case class DatabaseStatusResponse(version: Option[String],
+                                          status: Option[String],
+                                          message: Option[String])
 
-  case class VersionResponse(databaseVersion: Option[String])
+  final case class DatabaseVersionLogResponse(versions: List[VersionLogEntry])
+
+  final case class VersionLogEntry(version: String, data: Instant)
+
+  final case class DatabaseDeltaLogResponse(deltas: List[DeltaLogEntry])
+
+  final case class DeltaLogEntry(sequenceNumber: Long,
+                                 id: String,
+                                 tag: Option[String],
+                                 date: Instant,
+                                 appliedForVersion: String,
+                                 status: String,
+                                 message: Option[String])
 
 }

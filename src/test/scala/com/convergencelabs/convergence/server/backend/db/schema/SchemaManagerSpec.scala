@@ -45,7 +45,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
         Mockito.when(schemaStatePersistence
-          .recordImplicitDeltasFromInstall(installDeltas, Version_1_0))
+          .recordImplicitDeltasFromInstall(installDeltas, Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         Mockito.when(schemaStatePersistence
@@ -60,7 +60,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
           .applyDeltaToSchema(MockDelta)
 
         verify(schemaStatePersistence, times(1))
-          .recordImplicitDeltasFromInstall(installDeltas, Version_1_0)
+          .recordImplicitDeltasFromInstall(installDeltas, Version_1_0, DeltaScript)
 
         verify(schemaStatePersistence, times(1))
           .recordNewVersion(mockito.Matchers.eq(Version_1_0), mockito.Matchers.any())
@@ -77,7 +77,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
         Mockito.when(schemaStatePersistence
-          .recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+          .recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
@@ -97,7 +97,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
         Mockito.when(schemaStatePersistence
-          .recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+          .recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
@@ -116,7 +116,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
           .thenReturn(Success(()))
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
-        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
@@ -133,7 +133,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
           .thenReturn(Success(()))
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
-        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Failure(InducedTestingException()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
@@ -152,7 +152,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
           .thenReturn(Success(()))
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
-        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
@@ -171,7 +171,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
           .thenReturn(Success(()))
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
-        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
@@ -190,7 +190,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
           .thenReturn(Success(()))
 
         val schemaStatePersistence = mock[SchemaStatePersistence]
-        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0))
+        Mockito.when(schemaStatePersistence.recordImplicitDeltasFromInstall(List(InstallImplicitDelta.toDeltaId), Version_1_0, DeltaScript))
           .thenReturn(Success(()))
 
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)

@@ -108,7 +108,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
         manifest.deltas.map(_.toDeltaId.copy(tag = Some(InstallDeltaReservedTag)))
     (for {
       _ <- deltaApplicator.applyDeltaToSchema(schemaDelta.delta)
-      _ <- schemaStatePersistence.recordImplicitDeltasFromInstall(implicitDeltas, version)
+      _ <- schemaStatePersistence.recordImplicitDeltasFromInstall(implicitDeltas, version, schemaDelta.script)
     } yield ())
       .fold({ cause =>
         error("Error installing schema", cause)

@@ -15,7 +15,8 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManager
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogEntry, ConvergenceSchemaVersionLogEntry, DomainSchemaDeltaLogEntry, DomainSchemaVersionLogEntry}
+import com.convergencelabs.convergence.server.backend.db.schema.{DatabaseManager, DatabaseSchemaStatus}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
@@ -30,17 +31,58 @@ private final class DatabaseManagerActor(context: ActorContext[DatabaseManagerAc
 
   override def onMessage(msg: DatabaseManagerActor.Message): Behavior[DatabaseManagerActor.Message] = {
     msg match {
-      case GetConvergenceVersionRequest(replyTo) =>
-        databaseManager.getConvergenceVersion()
-          .map(version => GetConvergenceVersionResponse(Right(version)))
-          .recover(_ => GetConvergenceVersionResponse(Left(UnknownError())))
+      case GetConvergenceSchemaStatusRequest(replyTo) =>
+        databaseManager.getConvergenceSchemaStatus()
+          .map(status => GetConvergenceSchemaStatusResponse(Right(status)))
+          .recover { e =>
+            error("Error getting convergence schema status", e)
+            GetConvergenceSchemaStatusResponse(Left(UnknownError()))
+          }
           .foreach(replyTo ! _)
 
-      case GetDomainVersionRequest(fqn, replyTo) =>
-        // TODO handle Domain Not Found in the get domain version
-        databaseManager.getDomainVersion(fqn)
-          .map(version => GetDomainVersionResponse(Right(version)))
-          .recover(_ => GetDomainVersionResponse(Left(UnknownError())))
+      case GetConvergenceVersionLogRequest(replyTo) =>
+        databaseManager.getConvergenceVersionLog()
+          .map(versions => GetConvergenceVersionLogResponse(Right(versions)))
+          .recover { e =>
+            error("Error getting convergence version log", e)
+            GetConvergenceVersionLogResponse(Left(UnknownError()))
+          }
+          .foreach(replyTo ! _)
+
+      case GetConvergenceDeltaLogRequest(replyTo) =>
+        databaseManager.getConvergenceDeltaLog()
+          .map(deltas => GetConvergenceDeltaLogResponse(Right(deltas)))
+          .recover { e =>
+            error("Error getting convergence delta log", e)
+            GetConvergenceDeltaLogResponse(Left(UnknownError()))
+          }
+          .foreach(replyTo ! _)
+
+      case GetDomainSchemaStatusRequest(domainId, replyTo) =>
+        databaseManager.getDomainSchemaStatus(domainId)
+          .map(status => GetDomainSchemaStatusResponse(Right(status)))
+          .recover { e =>
+            error("Error getting domain schema status: " + domainId, e)
+            GetDomainSchemaStatusResponse(Left(UnknownError()))
+          }
+          .foreach(replyTo ! _)
+
+      case GetDomainVersionLogRequest(domainId, replyTo) =>
+        databaseManager.getDomainVersionLog(domainId)
+          .map(versions => GetDomainVersionLogResponse(Right(versions)))
+          .recover { e =>
+            error("Error getting domain version log: " + domainId, e)
+            GetDomainVersionLogResponse(Left(UnknownError()))
+          }
+          .foreach(replyTo ! _)
+
+      case GetDomainDeltaLogRequest(domainId, replyTo) =>
+        databaseManager.getDomainDeltaLog(domainId)
+          .map(deltas => GetDomainDeltaLogResponse(Right(deltas)))
+          .recover { e =>
+            error("Error getting domain delta log: " + domainId, e)
+            GetDomainDeltaLogResponse(Left(UnknownError()))
+          }
           .foreach(replyTo ! _)
 
       case UpgradeConvergenceRequest(replyTo) =>
@@ -74,36 +116,65 @@ object DatabaseManagerActor {
   sealed trait Message extends CborSerializable
 
   //
-  // GetConvergenceVersion
+  // GetConvergenceSchemaStatus
   //
-  final case class GetConvergenceVersionRequest(replyTo: ActorRef[GetConvergenceVersionResponse]) extends Message
+  final case class GetConvergenceSchemaStatusRequest(replyTo: ActorRef[GetConvergenceSchemaStatusResponse]) extends Message
 
-  final case class GetConvergenceVersionResponse(version: Either[UnknownError, Option[String]]) extends CborSerializable
-
-
-  //
-  // GetConvergenceVersion
-  //
-  final case class GetDomainVersionRequest(domainId: DomainId, replyTo: ActorRef[GetDomainVersionResponse]) extends Message
-
-  final case class GetDomainVersionResponse(version: Either[UnknownError, Option[String]]) extends CborSerializable
+  final case class GetConvergenceSchemaStatusResponse(status: Either[UnknownError, Option[DatabaseSchemaStatus]]) extends CborSerializable
 
   //
-  // GetConvergenceVersion
+  // GetConvergenceVersionLog
+  //
+  final case class GetConvergenceVersionLogRequest(replyTo: ActorRef[GetConvergenceVersionLogResponse]) extends Message
+
+  final case class GetConvergenceVersionLogResponse(versions: Either[UnknownError, List[ConvergenceSchemaVersionLogEntry]]) extends CborSerializable
+
+  //
+  // GetConvergenceDeltaLog
+  //
+  final case class GetConvergenceDeltaLogRequest(replyTo: ActorRef[GetConvergenceDeltaLogResponse]) extends Message
+
+  final case class GetConvergenceDeltaLogResponse(deltas: Either[UnknownError, List[ConvergenceSchemaDeltaLogEntry]]) extends CborSerializable
+
+
+  //
+  // GetDomainSchemaStatus
+  //
+  final case class GetDomainSchemaStatusRequest(domainId: DomainId, replyTo: ActorRef[GetDomainSchemaStatusResponse]) extends Message
+
+  final case class GetDomainSchemaStatusResponse(status: Either[UnknownError, Option[DatabaseSchemaStatus]]) extends CborSerializable
+
+  //
+  // GetDomainVersionLog
+  //
+  final case class GetDomainVersionLogRequest(domainId: DomainId, replyTo: ActorRef[GetDomainVersionLogResponse]) extends Message
+
+  final case class GetDomainVersionLogResponse(versions: Either[UnknownError, List[DomainSchemaVersionLogEntry]]) extends CborSerializable
+
+  //
+  // GetDomainDeltaLog
+  //
+  final case class GetDomainDeltaLogRequest(domainId: DomainId, replyTo: ActorRef[GetDomainDeltaLogResponse]) extends Message
+
+  final case class GetDomainDeltaLogResponse(deltas: Either[UnknownError, List[DomainSchemaDeltaLogEntry]]) extends CborSerializable
+
+
+  //
+  // UpgradeConvergence
   //
   final case class UpgradeConvergenceRequest(replyTo: ActorRef[UpgradeConvergenceResponse]) extends Message
 
   final case class UpgradeConvergenceResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
   //
-  // GetConvergenceVersion
+  // UpgradeDomain
   //
   final case class UpgradeDomainRequest(id: DomainId, replyTo: ActorRef[UpgradeDomainResponse]) extends Message
 
   final case class UpgradeDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
   //
-  // GetConvergenceVersion
+  // UpgradeDomainsRequest
   //
   final case class UpgradeDomainsRequest(replyTo: ActorRef[UpgradeDomainsResponse]) extends Message
 

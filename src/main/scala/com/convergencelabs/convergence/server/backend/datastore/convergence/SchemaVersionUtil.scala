@@ -35,7 +35,12 @@ object SchemaVersionUtil {
             .flatMap(versions => {
               Try(versions.sortWith((a, b) => SchemaVersion.parseUnsafe(a) < SchemaVersion.parseUnsafe(b)))
             })
-            .map(versions => Some(versions.last))
+            .map {
+              case Nil =>
+                None
+              case list =>
+                Some(list.last)
+            }
       }
     } yield version
   }

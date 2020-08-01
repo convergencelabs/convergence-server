@@ -26,9 +26,9 @@ class ConvergenceSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends Abstr
 
   import DomainSchemaDeltaLogStore._
 
-  def createConvergenceDeltaEntries(entries: List[ConvergenceSchemaDeltaLogEntry], appliedForVersion: String): Try[Unit] = tryWithDb { db =>
+  def createConvergenceDeltaEntries(entries: List[ConvergenceSchemaDeltaLogEntry]): Try[Unit] = tryWithDb { db =>
     entries.foreach { entry =>
-      val ConvergenceSchemaDeltaLogEntry(sequenceNumber, id, tag, script, status, message, date) = entry
+      val ConvergenceSchemaDeltaLogEntry(sequenceNumber, id, tag, script, status, message, appliedForVersion, date) = entry
       val doc = db.newInstance(ConvergenceSchemaDeltaLogClass.ClassName).asInstanceOf[ODocument]
       doc.setProperty(ConvergenceSchemaDeltaLogClass.Fields.SeqNo, sequenceNumber)
       doc.setProperty(ConvergenceSchemaDeltaLogClass.Fields.Id, id)
@@ -63,8 +63,9 @@ class ConvergenceSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends Abstr
         val script: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Script)
         val status: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Status)
         val message: Option[String] = Option(doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Message))
+        val appliedForVersion: String = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Version)
         val date: Date = doc.getProperty(ConvergenceSchemaDeltaLogClass.Fields.Date)
-        ConvergenceSchemaDeltaLogEntry(seqNo, id, tag, script, status, message, date.toInstant)
+        ConvergenceSchemaDeltaLogEntry(seqNo, id, tag, script, status, message, appliedForVersion, date.toInstant)
       },
       () => List()
     )
@@ -74,11 +75,20 @@ class ConvergenceSchemaDeltaLogStore(dbProvider: DatabaseProvider) extends Abstr
 
   def isConvergenceDBHealthy(): Try[Boolean] = withDb { db =>
     OrientDBUtil
-      .findDocument(db, ConvergenceHealthQuery, Map(Params.Status -> SchemaDeltaStatus.Error))
-      .map(_.forall(_.field("healthy").asInstanceOf[Boolean]))
+      .getDocument(db, ConvergenceHealthQuery, Map(Params.Status -> SchemaDeltaStatus.Error))
+      .map(_.field("count").asInstanceOf[Long] == 0)
   }
 
-  private[this] val ConvergenceHealthQuery = "SELECT if(count(*) > 0, false, true) as healthy FROM ConvergenceSchemaDeltaLog WHERE status = :status"
+  private[this] val ConvergenceHealthQuery = "SELECT count(*) as count FROM ConvergenceSchemaDeltaLog WHERE status = :status"
+
+  def getLastDeltaError(): Try[Option[String]] = withDb { db =>
+    OrientDBUtil
+      .findDocument(db, ConvergenceErrorQuery, Map(Params.Status -> SchemaDeltaStatus.Error))
+      .map(_.map(_.getProperty("message").asInstanceOf[String]))
+  }
+
+  private[this] val ConvergenceErrorQuery = "SELECT  message FROM ConvergenceSchemaDeltaLog WHERE status = :status ORDER BY date DESC LIMIT 1"
+
 
   private[this] def getOrDefaultIfSchemaManagementNotFound[T](db: ODatabaseDocument,
                                                               computed: () => Try[T],

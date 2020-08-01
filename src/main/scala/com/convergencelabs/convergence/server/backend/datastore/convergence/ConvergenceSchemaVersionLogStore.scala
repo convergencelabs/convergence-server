@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.convergence
 
+import java.time.Instant
 import java.util.Date
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.ConvergenceSchemaVersionLogClass
@@ -31,6 +32,18 @@ class ConvergenceSchemaVersionLogStore(dbProvider: DatabaseProvider) extends Abs
     })
   }
 
+  private[this] val ConvergenceSchemaVersionQuery = "SELECT version FROM ConvergenceSchemaVersionLog"
+
+  def getConvergenceSchemaVersionLog(): Try[List[ConvergenceSchemaVersionLogEntry]] = withDb { db =>
+    OrientDBUtil.queryAndMap(db, ConvergenceSchemaVersionLogQuery) { doc =>
+      val version = doc.getProperty("version").asInstanceOf[String]
+      val date = doc.getProperty("date").asInstanceOf[Date].toInstant
+      ConvergenceSchemaVersionLogEntry(version, date)
+    }
+  }
+
+  private[this] val ConvergenceSchemaVersionLogQuery = "SELECT * FROM ConvergenceSchemaVersionLog"
+
   def createConvergenceSchemaVersionLogEntry(entry: ConvergenceSchemaVersionLogEntry): Try[Unit] = tryWithDb { db =>
     val ConvergenceSchemaVersionLogEntry(version, date) = entry
     val doc: ODocument = db.newInstance(ConvergenceSchemaVersionLogClass.ClassName)
@@ -39,9 +52,4 @@ class ConvergenceSchemaVersionLogStore(dbProvider: DatabaseProvider) extends Abs
     db.save(doc)
     ()
   }
-
-  private[this] val ConvergenceSchemaVersionQuery = "SELECT version FROM ConvergenceSchemaVersionLog"
 }
-
-
-
