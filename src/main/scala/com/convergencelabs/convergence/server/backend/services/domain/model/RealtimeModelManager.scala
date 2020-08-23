@@ -179,11 +179,12 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
       if (exists) {
         requestModelDataFromDataStore()
       } else {
-        debug(s"$domainId/$modelId: Model does not exist, will request from clients.")
         request.autoCreateId match {
           case Some(id) =>
+            debug(s"$domainId/$modelId: Model does not exist but client specified auto create, requesting model creation data.")
             requestAutoCreateConfigFromClient(request.session, request.clientActor, id)
           case None =>
+            debug(s"$domainId/$modelId: Model does not exist and there was no auto create")
             request.replyTo ! OpenRealtimeModelResponse(Left(ModelNotFoundError()))
             eventHandler.closeModel()
         }
@@ -217,7 +218,10 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
           // If there is an auto create id we can ask this client for data.  If there isn't an auto create
           // id, we can't ask them, but that is ok since we assume the previous client supplied the data
           // else it would have bombed out.
-          request.autoCreateId.foreach(id => requestAutoCreateConfigFromClient(request.session, request.clientActor, id))
+          request.autoCreateId.foreach(id => {
+            debug(s"$domainId/$modelId: Model does not exist but client specified auto create, requesting model creation data.")
+            requestAutoCreateConfigFromClient(request.session, request.clientActor, id)
+          })
         }
         // Else no action required, the model must have been persistent, which means we are in the process of
         // loading it from the database.
@@ -372,33 +376,36 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
    * Asynchronously requests the model data from the connecting client.
    */
   private[this] def requestAutoCreateConfigFromClient(session: DomainSessionAndUserId, clientActor: ActorRef[ModelClientActor.OutgoingMessage], autoCreateId: Int): Unit = {
-    debug(s"$domainId/$modelId: Requesting model config data from client.")
+    debug(s"$domainId/$modelId: Requesting model auto create config data from client.")
     clientActor.ask[ModelClientActor.ClientAutoCreateModelConfigResponse](
       ModelClientActor.ClientAutoCreateModelConfigRequest(modelId, autoCreateId, _))(clientDataResponseTimeout, system.scheduler)
-      .map(_.config.fold({ error =>
-        val resp = error match {
-          case ModelClientActor.ClientAutoCreateModelConfigTimeout() =>
-            OpenRealtimeModelResponse(Left(ClientErrorResponse("The client did not respond to a request for model data in time.")))
-          case ModelClientActor.ClientAutoCreateModelConfigInvalid() =>
-            OpenRealtimeModelResponse(Left(ClientErrorResponse("The client returned invalid model config data.")))
-          case ModelClientActor.UnknownError() =>
-            OpenRealtimeModelResponse(Left(ClientErrorResponse("An unknown error occurred getting model data from the client.")))
-        }
+      .map(_.config.fold(
+        { error =>
+          val resp = error match {
+            case ModelClientActor.ClientAutoCreateModelConfigTimeout() =>
+              OpenRealtimeModelResponse(Left(ClientErrorResponse("The client did not respond to a request for model data in time.")))
+            case ModelClientActor.ClientAutoCreateModelConfigInvalid() =>
+              OpenRealtimeModelResponse(Left(ClientErrorResponse("The client returned invalid model config data.")))
+            case ModelClientActor.UnknownError() =>
+              OpenRealtimeModelResponse(Left(ClientErrorResponse("An unknown error occurred getting model data from the client.")))
+          }
 
-        workQueue.schedule {
-          handleQueuedClientOpenFailureFailure(session, resp)
-        }
-      }, { response =>
-        debug(s"$domainId/$modelId: Model config data received from client.")
-        workQueue.schedule {
-          onClientAutoCreateModelConfigResponse(session, response)
-        }
-      }))
+          workQueue.schedule {
+            handleQueuedClientOpenFailureFailure(session, resp)
+          }
+        },
+        { response =>
+          debug(s"$domainId/$modelId: Model config data received from client.")
+          workQueue.schedule {
+            onClientAutoCreateModelConfigResponse(session, response)
+          }
+        })
+      )
       .recover {
         case _: TimeoutException =>
-          debug(s"$domainId/$modelId: A timeout occurred waiting for the client to respond with model data.")
+          debug(s"$domainId/$modelId: A timeout occurred waiting for the client to respond with model auto create data.")
           val resp = OpenRealtimeModelResponse(Left(ClientErrorResponse(
-            "The client did not respond in time with model data, while initializing a new model.")))
+            "The client did not respond in time with model auto create data while initializing a new model.")))
           workQueue.schedule {
             handleQueuedClientOpenFailureFailure(session, resp)
           }
@@ -947,7 +954,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
   }
 
   /**
-   * Informs all clients that the model could not be initialized.
+   * Handles the case where a specific client could not open the model..
    */
   def handleQueuedClientOpenFailureFailure(session: DomainSessionAndUserId, response: OpenRealtimeModelResponse): Unit = {
     queuedOpeningClients.get(session) foreach (openRequest => openRequest.replyTo ! response)

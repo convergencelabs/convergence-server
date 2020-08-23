@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{TimeUnit, TimeoutException}
 
 import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
@@ -38,6 +38,8 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.DomainUser
 import com.convergencelabs.convergence.server.util.UnexpectedErrorException
 import com.convergencelabs.convergence.server.util.concurrent.AskHandler
+import com.google.protobuf.struct.Value
+import com.google.protobuf.struct.Value.Kind.StringValue
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
@@ -467,10 +469,26 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     f.mapTo[ResponseMessage] onComplete {
       case Success(response) =>
         replyTo ! response
-      case Failure(cause) =>
-        error("Error processing a response message", cause)
-        this.protocolConnection.serializeAndSend(ErrorMessage("invalid_response", "Error processing a response", Map()))
-        context.self ! Disconnect()
+
+      case Failure(t: Throwable) =>
+        val errorDetails = Map("requestMessage" -> Value(StringValue(message.toString)))
+
+        val errorToSend = t match {
+          case _: TimeoutException =>
+            warn("A request to the client timed out, disconnecting the client. The original message was: " + message.toString)
+
+            val errorCode = ErrorCodes.Timeout.toString
+            val errorMessage = "The client didn't respond to a server request in time"
+            ErrorMessage(errorCode ,errorMessage, errorDetails)
+          case e: Throwable =>
+            error("Error processing response message: " + message.toString, e)
+
+            val errorCode = ErrorCodes.InvalidMessage.toString
+            val errorMessage = "A response message from the client could not be processed."
+            ErrorMessage(errorCode ,errorMessage, errorDetails)
+        }
+
+        this.protocolConnection.serializeAndSend(errorToSend)
     }
 
     Behaviors.same
