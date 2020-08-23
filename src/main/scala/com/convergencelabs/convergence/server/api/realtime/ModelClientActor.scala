@@ -1118,7 +1118,7 @@ object ModelClientActor {
   private def modelClosingAfterErrorError(cb: ReplyCallback, id: String): Unit = {
     val details = Map("id" -> JString(id))
     val message = s"The model is currently shutting down after an error. You may be able to reopen the model."
-    cb.expectedError(ErrorCodes.ModelAlreadyOpening, message, details)
+    cb.expectedError(ErrorCodes.ModelClosingAfterError, message, details)
   }
 
   private def modelDeletedError(cb: ReplyCallback, id: String): Unit = {
