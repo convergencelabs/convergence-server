@@ -1,15 +1,27 @@
 # Orient DB Convergence Queries
 This document contains useful OrientDB Queries for the Convergence Schema.
 
-## Get domain database for a domain
+## Get domain databases for all domains
 ```SQL
 SELECT
-  *
+  databaseName, 
+  namespace.id as namespace, 
+  id
 FROM
-  DomainDatabase
+  Domain
+```
+
+## Get domain databases for a domain
+```SQL
+SELECT
+  databaseName, 
+  namespace.id as namespace, 
+  id
+FROM
+  Domain
 WHERE
-  domain.namespace = "convergence" AND
-  domain.id = "default";
+  namespace.id = "convergence" AND
+  id = "default";
 ```
 
 ## Get current versions of all domains
