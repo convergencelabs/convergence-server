@@ -110,7 +110,7 @@ class SelectStatementSpec
         new QueryParser("ORDER BY foo").OrderBySection.run().get shouldBe
           List(OrderBy(FieldTerm(PropertyPathElement("foo")), None))
       }
-      
+
       "fail to parse order by with no space after by" in {
         an [ParseError] should be thrownBy new QueryParser("ORDER BYfoo DESC").OrderBySection.run().get
       }
@@ -146,7 +146,7 @@ class SelectStatementSpec
         QueryParser("true >= bar").ConditionalRule.run().get shouldBe
           GreaterThanOrEqual(BooleanTerm(true), FieldTerm(PropertyPathElement("bar")))
       }
-      
+
       "Correctly parse a like expression" in {
         QueryParser("test like 'test'").ConditionalRule.run().get shouldBe
           Like(FieldTerm(PropertyPathElement("test")), StringTerm("test"))
@@ -293,26 +293,47 @@ class SelectStatementSpec
           QueryLimit(3),
           QueryOffset(10))
       }
-      
+
       "fail if select doesn't have a space after it" in {
         an [ParseError] should be thrownBy QueryParser.parse("SELECTFROM collection").get
       }
-      
+
       "fail without space after or" in {
         an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1 ORbar = 2").WhereRule.run().get
       }
-      
+
       "fail without space after and" in {
         an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1 ANDbar = 2").WhereRule.run().get
       }
-      
+
       "fail without space before or" in {
         an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1OR bar = 2").WhereRule.run().get
       }
-      
+
       "fail without space before and" in {
         an [ParseError] should be thrownBy QueryParser("SELECT * FROM collection WHERE foo = 1AND bar = 2").WhereRule.run().get
       }
+    }
+  }
+
+  "parsing a SELECT Statement with a projection" must {
+    "parse SELECT field FROM collection" in {
+      QueryParser.parse("SELECT field FROM collection").get shouldBe SelectStatement(
+        List(ProjectionTerm(FieldTerm(PropertyPathElement("field")), None)), "collection", None, List(), QueryLimit(), QueryOffset())
+    }
+
+    "parse SELECT field as alias FROM collection" in {
+      QueryParser.parse("SELECT field as alias FROM collection").get shouldBe SelectStatement(
+        List(ProjectionTerm(FieldTerm(PropertyPathElement("field")), Some("alias"))), "collection", None, List(), QueryLimit(), QueryOffset())
+    }
+
+    "parse SELECT field1, field2 as f2 FROM collection" in {
+      QueryParser.parse("SELECT field1, field2 as f2 FROM collection").get shouldBe SelectStatement(
+        List(
+          ProjectionTerm(FieldTerm(PropertyPathElement("field1")), None),
+          ProjectionTerm(FieldTerm(PropertyPathElement("field2")), Some("f2"))
+        ),
+        "collection", None, List(), QueryLimit(), QueryOffset())
     }
   }
 }
