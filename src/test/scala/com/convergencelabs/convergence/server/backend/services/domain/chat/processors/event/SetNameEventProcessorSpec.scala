@@ -149,7 +149,7 @@ class SetNameEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId): SetChatNameRequest = {
-    val replyTo = TestProbe[SetChatNameResponse]
+    val replyTo = TestProbe[SetChatNameResponse]()
     SetChatNameRequest(domainId, chatId, requester, "test", replyTo.ref)
   }
 }

@@ -78,7 +78,7 @@ class DomainUserStore private[domain](dbProvider: DatabaseProvider)
   }
 
   def createAnonymousDomainUser(displayName: Option[String]): Try[String] = {
-    this.nextAnonymousUsername flatMap { username =>
+    this.nextAnonymousUsername() flatMap { username =>
       val anonymousUser = DomainUser(
         DomainUserType.Anonymous,
         username,

@@ -13,17 +13,15 @@ package com.convergencelabs.convergence.server.api.rest
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.{ActorContext, Routers}
-import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, complete, concat, extractRequest, extractUri, handleExceptions}
 import akka.http.scaladsl.server._
-import akka.stream.Materializer
+import akka.stream.{Materializer, SystemMaterializer}
 import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
@@ -68,6 +66,7 @@ private[server] final class ConvergenceRestApi(interface: String,
 
   private[this] val routers = ListBuffer[ActorRef[_]]()
   private[this] var binding: Option[Http.ServerBinding] = None
+  private[this] implicit val materializer: Materializer = SystemMaterializer.get(system).materializer
 
   private[this] val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: Exception =>
@@ -191,10 +190,9 @@ private[server] final class ConvergenceRestApi(interface: String,
     }
 
     // Now we start up the server
-    implicit val s: actor.ActorSystem = system.toClassic
-    implicit val materializer: Materializer = akka.stream.Materializer.createMaterializer(s)
-    Http()
-      .bindAndHandle(route, interface, port)
+    Http()(system.classicSystem)
+      .newServerAt(interface, port)
+      .bind(route)
       .map { binding =>
         this.binding = Some(binding)
         logger.info(s"Rest API started at: http://$interface:$port")

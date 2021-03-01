@@ -634,13 +634,13 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     }.toSeq
   }
 
-  private[this] def noResourceIdForReferenceMessage(resourceId: String, message: String): () = {
+  private[this] def noResourceIdForReferenceMessage(resourceId: String, message: String): Unit = {
     warn(s"$domainId: Received a reference message for a resource id that does not exists $message")
     val serverMessage = unknownResourceId(resourceId)
     clientActor ! SendServerMessage(serverMessage)
   }
 
-  private[this] def noReferenceValues(message: String): () = {
+  private[this] def noReferenceValues(message: String): Unit = {
     warn(s"$domainId: Received a reference set with no reference values.")
     val errorMessage = ErrorMessage(
       ErrorCodes.InvalidMessage.toString,
@@ -648,7 +648,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     clientActor ! SendServerMessage(errorMessage)
   }
 
-  private[this] def invalidReferenceType(message: String): () = {
+  private[this] def invalidReferenceType(message: String): Unit = {
     warn(s"$domainId: Received a reference set with an invalid reference type.")
     val errorMessage = ErrorMessage(
       ErrorCodes.InvalidMessage.toString,

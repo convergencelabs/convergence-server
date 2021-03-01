@@ -164,7 +164,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId, userToAdd: DomainUserId): AddUserToChatRequest = {
-    val replyTo = TestProbe[AddUserToChatResponse]
+    val replyTo = TestProbe[AddUserToChatResponse]()
     AddUserToChatRequest(domainId, chatId, requester, userToAdd, replyTo.ref)
   }
 }

@@ -149,8 +149,8 @@ class LeaveEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId): LeaveChatRequest = {
-    val replyTo = TestProbe[LeaveChatResponse]
-    val client = TestProbe[ChatClientActor.OutgoingMessage]
+    val replyTo = TestProbe[LeaveChatResponse]()
+    val client = TestProbe[ChatClientActor.OutgoingMessage]()
     LeaveChatRequest(domainId, chatId, requester, client.ref, replyTo.ref)
   }
 }

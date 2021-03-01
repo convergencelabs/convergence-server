@@ -150,7 +150,7 @@ class SetTopicEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId): SetChatTopicRequest = {
-    val replyTo = TestProbe[SetChatTopicResponse]
+    val replyTo = TestProbe[SetChatTopicResponse]()
     SetChatTopicRequest(domainId, chatId, requester, "test", replyTo.ref)
   }
 }

@@ -138,7 +138,7 @@ class MarkSeenEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId, eventNumber: Long): MarkChatsEventsSeenRequest = {
-    val replyTo = TestProbe[MarkChatsEventsSeenResponse]
+    val replyTo = TestProbe[MarkChatsEventsSeenResponse]()
     MarkChatsEventsSeenRequest(domainId, chatId, requester, eventNumber, replyTo.ref)
   }
 }

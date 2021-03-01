@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.dev
 import java.io.File
 
 import com.orientechnologies.common.log.OLogManager
+import com.orientechnologies.orient.core.OConstants
 import com.orientechnologies.orient.server.OServer
 import com.orientechnologies.orient.server.config.{OServerConfigurationManager, OServerEntryConfiguration}
 import grizzled.slf4j.Logging
@@ -38,7 +39,7 @@ private[dev] final class EmbeddedOrientDB(databasesPath: String,
    * Starts up the embedded OrientDB instance.
    */
   def start(): Unit = {
-    logger.info("Starting up Embedded OrientDB")
+    logger.info(s"Starting up Embedded OrientDB (v${OConstants.getRawVersion})")
     if (!persistent && databasesDir.exists()) {
       logger.info("Removing old data, because the server is set to non-persistent.")
       deleteDirectory(databasesDir)

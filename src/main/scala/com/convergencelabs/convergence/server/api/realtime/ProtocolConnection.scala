@@ -95,7 +95,7 @@ private[realtime] final class ProtocolConnection(clientActor: ActorRef[ClientAct
     val requestId = nextRequestId
     nextRequestId += 1
 
-    val replyPromise = Promise[ClientResponseMessage]
+    val replyPromise = Promise[ClientResponseMessage]()
 
     val timeout = protocolConfig.defaultRequestTimeout
     val timeoutFuture = scheduler.scheduleOnce(timeout, () => {

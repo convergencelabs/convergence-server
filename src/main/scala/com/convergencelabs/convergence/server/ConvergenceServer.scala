@@ -215,6 +215,8 @@ private[server] object ConvergenceServer extends Logging {
           val roles = rolesEnv.split(",").toList.map(_.trim).filter(_.nonEmpty)
           val updated = baseConfig.withValue(AkkaConfig.AkkaClusterRoles, ConfigValueFactory.fromIterable(roles.asJava))
           updated
+        case Some(_) =>
+          baseConfig
         case None =>
           baseConfig
       }

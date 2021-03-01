@@ -19,7 +19,7 @@ import scalapb.GeneratedMessage
 import scala.concurrent.{Future, Promise}
 
 class TestReplyCallback() extends ReplyCallback {
-  private[this] val p = Promise[GeneratedMessage with ResponseMessage with ServerMessage]
+  private[this] val p = Promise[GeneratedMessage with ResponseMessage with ServerMessage]()
 
   def result: Future[GeneratedMessage with ResponseMessage with ServerMessage] = p.future
 

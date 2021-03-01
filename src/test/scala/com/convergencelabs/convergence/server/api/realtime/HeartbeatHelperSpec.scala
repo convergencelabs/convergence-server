@@ -38,7 +38,7 @@ class HeartbeatHelperSpec
   "A HeartbeatHelper" when {
     "started" must {
       "emit a ping request event once the ping interval has been reached" in {
-        val p = Promise[Unit]
+        val p = Promise[Unit]()
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest => p.success(())
@@ -55,7 +55,7 @@ class HeartbeatHelperSpec
       }
 
       "emit a pong timeout event once the ping interval plus pong timeout has been reached" in {
-        val p = Promise[Unit]
+        val p = Promise[Unit]()
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>
@@ -73,7 +73,7 @@ class HeartbeatHelperSpec
       }
 
       "not emit a pong timeout event if a message is received in time" in {
-        val p = Promise[Unit]
+        val p = Promise[Unit]()
 
         val hbh = new HeartbeatHelper(pingInterval, pongTimeout, testKit.scheduler, ec, {
           case PingRequest =>

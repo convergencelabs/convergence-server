@@ -164,7 +164,7 @@ class RemoveUserEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId, userToRemove: DomainUserId): RemoveUserFromChatRequest = {
-    val replyTo = TestProbe[RemoveUserFromChatResponse]
+    val replyTo = TestProbe[RemoveUserFromChatResponse]()
     RemoveUserFromChatRequest(domainId, chatId, requester, userToRemove, replyTo.ref)
   }
 }

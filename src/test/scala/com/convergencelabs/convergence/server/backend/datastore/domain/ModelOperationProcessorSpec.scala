@@ -198,7 +198,7 @@ class ModelOperationProcessorSpec
         modelData.children(emailsField) match {
           case ArrayValue(_, children) =>
             children.size shouldBe 2
-          case _ => fail
+          case _ => fail()
         }
       }
 
@@ -213,7 +213,7 @@ class ModelOperationProcessorSpec
           case ArrayValue(_, children) =>
             children.head shouldBe replaceVal
             children.size shouldBe 3
-          case _ => fail
+          case _ => fail()
         }
       }
 
@@ -239,7 +239,7 @@ class ModelOperationProcessorSpec
         modelData.children(emailsField) match {
           case ArrayValue(_, children) =>
             children shouldEqual setValue
-          case _ => fail
+          case _ => fail()
         }
       }
     }

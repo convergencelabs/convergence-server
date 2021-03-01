@@ -18,6 +18,7 @@ import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.actor.{ActorSystem => ClassicActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
+import akka.stream.scaladsl._
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration.FiniteDuration
@@ -53,9 +54,9 @@ private[server] final class ConvergenceRealtimeApi(system: ActorSystem[_],
    */
   def start(): Future[Unit] = {
     val service = new WebSocketService(system, clientCreator)
-
     Http()
-      .bindAndHandle(service.route, interface, websocketPort)
+      .newServerAt(interface, websocketPort)
+      .bind(service.route)
       .map { binding =>
         this.binding = Some(binding)
         logger.info(s"Realtime API started at: http://$interface:$websocketPort")

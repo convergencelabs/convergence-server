@@ -175,8 +175,8 @@ class ChatEventMessageProcessorSpec extends ScalaTestWithActorTestKit
   private case class Fixture(replyTo: TestProbe[JoinChatResponse], message: JoinChatRequest)
 
   private def fixture(): Fixture = {
-    val client = TestProbe[ChatClientActor.OutgoingMessage]
-    val replyTo = TestProbe[JoinChatResponse]
+    val client = TestProbe[ChatClientActor.OutgoingMessage]()
+    val replyTo = TestProbe[JoinChatResponse]()
     val message = JoinChatRequest(domainId, chatId, requester, client.ref, replyTo.ref)
     Fixture(replyTo, message)
   }

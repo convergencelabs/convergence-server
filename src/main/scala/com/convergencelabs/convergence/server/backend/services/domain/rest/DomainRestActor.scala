@@ -83,6 +83,8 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
             sessionStoreActor ! message
           case DomainRestMessageBody.Chat(message) =>
             chatActor ! message
+          case _ =>
+            logger.warn(s"Unexpected DomainRestMessageBody: $body")
         }
         Behaviors.same
 

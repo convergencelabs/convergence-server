@@ -15,9 +15,9 @@ object Dependencies {
 
   // Versions
   object Versions {
-    val akka      = "2.6.6"
-    val akkaHttp  = "10.1.12"
-    val orientDb  = "3.0.32"
+    val akka      = "2.6.13"
+    val akkaHttp  = "10.2.4"
+    val orientDb  = "3.0.37"
     val log4j     = "2.13.3"
     val jackson   = "2.10.4"
   }
@@ -84,7 +84,7 @@ object Dependencies {
     val jacksonJdk8        = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8"     % Versions.jackson          // Apache 2.0
     val jacksonJsr310      = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310"   % Versions.jackson          // Apache 2.0
     val jacksonScala       = "com.fasterxml.jackson.module" %% "jackson-module-scala"       % Versions.jackson          // Apache 2.0
-    val parboiled          = "org.parboiled"            %% "parboiled"                      % "2.2.0"                   // Apache 2.0
+    val parboiled          = "org.parboiled"            %% "parboiled"                      % "2.2.1"                   // Apache 2.0
   }
 
   object Test {

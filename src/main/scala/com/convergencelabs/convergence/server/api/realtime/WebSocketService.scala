@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import akka.actor
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, ActorSystem, Scheduler}
@@ -20,7 +19,7 @@ import akka.http.scaladsl.model.{RemoteAddress, StatusCodes}
 import akka.http.scaladsl.server.Directive._
 import akka.http.scaladsl.server.{Directives, Route}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.stream.{CompletionStrategy, OverflowStrategy}
+import akka.stream.{CompletionStrategy, Materializer, OverflowStrategy, SystemMaterializer}
 import akka.util.{ByteString, ByteStringBuilder, Timeout}
 import com.convergencelabs.convergence.server.api.realtime.ClientActorCreator.CreateClientResponse
 import com.convergencelabs.convergence.server.api.rest.InfoService.InfoRestResponse
@@ -56,10 +55,7 @@ private[realtime] final class WebSocketService(system: ActorSystem[_],
 
   private[this] implicit val ec: ExecutionContextExecutor = system.executionContext
   private[this] implicit val scheduler: Scheduler = system.scheduler
-
-
-  // Needed by akka http that still uses Classic actors
-  private[this] implicit val classicSystem: actor.ActorSystem = system.toClassic
+  private[this] implicit val materializer: Materializer = SystemMaterializer.get(system).materializer
 
   val route: Route = {
     path("") {
@@ -90,7 +86,7 @@ private[realtime] final class WebSocketService(system: ActorSystem[_],
                                               domain: String,
                                               remoteAddress: RemoteAddress,
                                               ua: Option[String]): Route = {
-    extractUpgradeToWebSocket { upgrade =>
+    extractWebSocketUpgrade { upgrade =>
       logger.debug(s"A web socket connection request received for domain: $namespace/$domain")
       onComplete(createClientActor(namespace, domain, remoteAddress, ua)) {
         case Failure(cause) =>
@@ -140,7 +136,7 @@ private[realtime] final class WebSocketService(system: ActorSystem[_],
             .limit(maxFrames)
             .completionTimeout(maxStreamDuration)
             .runFold(new ByteStringBuilder())((b, e) => b.append(e))
-            .map(b => b.result)
+            .map(b => b.result())
             .flatMap(msg => Future.successful(ClientActor.IncomingBinaryMessage(msg.toArray)))
       }
       .mapAsync(parallelism = 3)(identity)

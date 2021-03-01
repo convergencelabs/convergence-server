@@ -52,12 +52,12 @@ class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String,
 
   def deserialize(implicit format: Formats): PartialFunction[(TypeInfo, JValue), T] = {
     case (TypeInfo(SuperClass, _), json) => json match {
-      case JObject(JField(name, JString(typeId)) :: rest) =>
+      case JObject(JField(_, JString(typeId)) :: rest) =>
         typeMap.get(typeId) match {
           case Some(clazz) =>
             Extraction.extract(JObject(rest), TypeInfo(clazz, None)).asInstanceOf[T]
           case None =>
-            throw new MappingException(s"No class mapping for subclass of ${SuperClass.getName} with type id ${typeId}.")
+            throw new MappingException(s"No class mapping for subclass of ${SuperClass.getName} with type id $typeId.")
         }
     }
   }
@@ -82,7 +82,7 @@ class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String,
  * for details.
  */
 object PolymorphicSerializer {
-  def apply[T: Manifest](typeField: String, typeMap: Map[String, Class[_ <: T]]) = {
+  def apply[T: Manifest](typeField: String, typeMap: Map[String, Class[_ <: T]]): PolymorphicSerializer[T] = {
     new PolymorphicSerializer[T](typeField, typeMap)
   }
 }
@@ -117,7 +117,7 @@ class SimpleNamePolymorphicSerializer[T: Manifest](typeField: String, classes: L
  * for details.
  */
 object SimpleNamePolymorphicSerializer {
-  def apply[T: Manifest](typeField: String, classes: List[Class[_ <: T]]) = {
+  def apply[T: Manifest](typeField: String, classes: List[Class[_ <: T]]): SimpleNamePolymorphicSerializer[T] = {
     new SimpleNamePolymorphicSerializer[T](typeField, classes)
   }
 }

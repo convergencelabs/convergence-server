@@ -79,6 +79,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
   }
 
   def createDomainDatabase(domainId: DomainId, anonymousAuth: Boolean, database: DomainDatabase): Future[Unit] = {
+    logger.debug(s"Creating domain database ${domainId}")
     val DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = database
     val provisionRequest = DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
     createDomainDatabase(provisionRequest)

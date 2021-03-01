@@ -149,7 +149,7 @@ class PublishMessageEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId): PublishChatMessageRequest = {
-    val replyTo = TestProbe[PublishChatMessageResponse]
+    val replyTo = TestProbe[PublishChatMessageResponse]()
     PublishChatMessageRequest(domainId, chatId, requester, "test", replyTo.ref)
   }
 }

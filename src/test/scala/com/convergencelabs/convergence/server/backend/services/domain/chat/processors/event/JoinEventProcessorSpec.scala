@@ -154,8 +154,8 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
   }
 
   private def createMessage(requester: DomainUserId): JoinChatRequest = {
-    val replyTo = TestProbe[JoinChatResponse]
-    val client = TestProbe[ChatClientActor.OutgoingMessage]
+    val replyTo = TestProbe[JoinChatResponse]()
+    val client = TestProbe[ChatClientActor.OutgoingMessage]()
     JoinChatRequest(domainId, chatId, requester, client.ref, replyTo.ref)
   }
 }
