@@ -27,6 +27,7 @@ import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
 import scala.util.Success
 
@@ -113,9 +114,9 @@ private[dev] final class ConvergenceDevServer() extends Logging {
 
     orientDb.start()
 
-    // Note: This is set so high because the orient db installation might
-    // take some time to complete.
-    implicit val t: Timeout = Timeout(2, TimeUnit.MINUTES)
+    implicit val t: Timeout = Timeout(Duration.fromNanos(
+      backend.settings.config.getDuration("convergence.server-startup-timeout").toNanos))
+
     implicit val sys: Scheduler = backend.scheduler
     implicit val ec: ExecutionContext = ExecutionContext.global
 
