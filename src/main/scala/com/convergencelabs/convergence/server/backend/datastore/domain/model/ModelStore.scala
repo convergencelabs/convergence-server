@@ -11,17 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model
 
-import java.time.Instant
-import java.util.Date
-
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.ODocumentToObjectValue
-import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.query.Ast.SelectStatement
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.query.{ModelQueryBuilder, ModelQueryParameters, QueryParser}
+import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
+import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.services.domain.model.ModelQueryResult
 import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.model
@@ -38,12 +35,14 @@ import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JObject
 import org.parboiled2.ParseError
 
+import java.time.Instant
+import java.util.Date
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
 class ModelStore private[domain](dbProvider: DatabaseProvider,
-                                       operationStore: ModelOperationStore,
-                                       snapshotStore: ModelSnapshotStore)
+                                 operationStore: ModelOperationStore,
+                                 snapshotStore: ModelSnapshotStore)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -58,12 +57,11 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
       .map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
 
-  def createModel(
-                   modelId: String,
-                   collectionId: String,
-                   data: ObjectValue,
-                   overridePermissions: Boolean,
-                   worldPermissions: ModelPermissions): Try[Model] = {
+  def createModel(modelId: String,
+                  collectionId: String,
+                  data: ObjectValue,
+                  overridePermissions: Boolean,
+                  worldPermissions: ModelPermissions): Try[Model] = {
 
     val createdTime = Instant.now()
     val modifiedTime = createdTime
@@ -276,9 +274,11 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
             ModelPermissions(read = false, write = false, remove = false, manage = false),
             results.remove(Fields.ValuePrefix).asInstanceOf[Long])
 
-          val values = results.asScala.toList map Function.tupled { (field, value) =>
-            (as.getOrElse(field, field), DataValueToJValue.toJson(oDocumentToDataValue(value.asInstanceOf[ODocument])))
-          }
+          val values = results.asScala.toList
+            .filter { case (_, v) => v != null }
+            .map(Function.tupled { (field, value) =>
+              (as.getOrElse(field, field), DataValueToJValue.toJson(oDocumentToDataValue(value.asInstanceOf[ODocument])))
+            })
           ModelQueryResult(meta, JObject(values))
         }
       }
