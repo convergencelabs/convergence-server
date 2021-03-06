@@ -11,23 +11,23 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayInsertOperationMapper.{ArrayInsertOperationToODocument, ODocumentToArrayInsertOperation, DocumentClassName => ArrayInsertDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayMoveOperationMapper.{ArrayMoveOperationToODocument, ODocumentToArrayMoveOperation, DocumentClassName => ArrayMoveDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayRemoveOperationMapper.{ArrayRemoveOperationToODocument, ODocumentToArrayRemoveOperation, DocumentClassName => ArrayRemoveDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayReplaceOperationMapper.{ArrayReplaceOperationToODocument, ODocumentToArrayReplaceOperation, DocumentClassName => ArrayReplaceDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArraySetOperationMapper.{ArraySetOperationToODocument, ODocumentToArraySetOperation, DocumentClassName => ArraySetDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanSetOperationMapper.{BooleanSetOperationToODocument, ODocumentToBooleanSetOperation, DocumentClassName => BooleanSetDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.CompoundOperationMapper.{CompoundOperationToODocument, ODocumentToCompoundOperation, DocumentClassName => CompoundDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateSetOperationMapper.{DateSetOperationToODocument, ODocumentToDateSetOperation, DocumentClassName => DateSetDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberAddOperationMapper.{NumberAddOperationToODocument, ODocumentToNumberAddOperation, DocumentClassName => NumberAddDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberSetOperationMapper.{NumberSetOperationToODocument, ODocumentToNumberSetOperation, DocumentClassName => NumberSetDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectAddPropertyOperationMapper.{ODocumentToObjectAddPropertyOperation, ObjectAddPropertyOperationToODocument, DocumentClassName => ObjectAddPropertyDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectRemovePropertyOperationMapper.{ODocumentToObjectRemovePropertyOperation, ObjectRemovePropertyOperationToODocument, DocumentClassName => ObjectRemovePropertyDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetOperationMapper.{ODocumentToObjectSetOperation, ObjectSetOperationToODocument, DocumentClassName => ObjectSetDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetPropertyOperationMapper.{ODocumentToObjectSetPropertyOperation, ObjectSetPropertyOperationToODocument, DocumentClassName => ObjectSetPropertyDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringInsertOperationMapper.{ODocumentToStringInsertOperation, StringInsertOperationToODocument, DocumentClassName => StringInsertDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringRemoveOperationMapper.{ODocumentToStringRemoveOperation, StringRemoveOperationToODocument, DocumentClassName => StringRemoveDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSetOperationMapper.{ODocumentToStringSetOperation, StringSetOperationToODocument, DocumentClassName => StringSetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayInsertOperationMapper.{arrayInsertOperationToODocument, oDocumentToArrayInsertOperation, DocumentClassName => ArrayInsertDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayMoveOperationMapper.{arrayMoveOperationToODocument, oDocumentToArrayMoveOperation, DocumentClassName => ArrayMoveDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayRemoveOperationMapper.{arrayRemoveOperationToODocument, oDocumentToArrayRemoveOperation, DocumentClassName => ArrayRemoveDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayReplaceOperationMapper.{arrayReplaceOperationToODocument, oDocumentToArrayReplaceOperation, DocumentClassName => ArrayReplaceDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArraySetOperationMapper.{arraySetOperationToODocument, oDocumentToArraySetOperation, DocumentClassName => ArraySetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanSetOperationMapper.{booleanSetOperationToODocument, oDocumentToBooleanSetOperation, DocumentClassName => BooleanSetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.CompoundOperationMapper.{compoundOperationToODocument, oDocumentToCompoundOperation, DocumentClassName => CompoundDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateSetOperationMapper.{dateSetOperationToODocument, oDocumentToDateSetOperation, DocumentClassName => DateSetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberAddOperationMapper.{numberAddOperationToODocument, oDocumentToNumberAddOperation, DocumentClassName => NumberAddDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberSetOperationMapper.{numberSetOperationToODocument, oDocumentToNumberSetOperation, DocumentClassName => NumberSetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectAddPropertyOperationMapper.{oDocumentToObjectAddPropertyOperation, objectAddPropertyOperationToODocument, DocumentClassName => ObjectAddPropertyDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectRemovePropertyOperationMapper.{oDocumentToObjectRemovePropertyOperation, objectRemovePropertyOperationToODocument, DocumentClassName => ObjectRemovePropertyDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetOperationMapper.{oDocumentToObjectSetOperation, objectSetOperationToODocument, DocumentClassName => ObjectSetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetPropertyOperationMapper.{oDocumentToObjectSetPropertyOperation, objectSetPropertyOperationToODocument, DocumentClassName => ObjectSetPropertyDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringInsertOperationMapper.{oDocumentToStringInsertOperation, stringInsertOperationToODocument, DocumentClassName => StringInsertDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringRemoveOperationMapper.{oDocumentToStringRemoveOperation, stringRemoveOperationToODocument, DocumentClassName => StringRemoveDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSetOperationMapper.{oDocumentToStringSetOperation, stringSetOperationToODocument, DocumentClassName => StringSetDocName}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.orientechnologies.orient.core.record.impl.ODocument
 
@@ -35,7 +35,7 @@ object OrientDBOperationMapper {
 
   def oDocumentToOperation(opAsDoc: ODocument): AppliedOperation = {
     opAsDoc.getClassName match {
-      case CompoundDocName => opAsDoc.asCompoundOperation
+      case CompoundDocName => oDocumentToCompoundOperation(opAsDoc)
       case _ => oDocumentToDiscreteOperation(opAsDoc)
     }
   }
@@ -43,34 +43,34 @@ object OrientDBOperationMapper {
   // scalastyle:off cyclomatic.complexity
   private[mapper] def oDocumentToDiscreteOperation(doc: ODocument): AppliedDiscreteOperation = {
     doc.getClassName match {
-      case StringInsertDocName => doc.asStringInsertOperation
-      case StringRemoveDocName => doc.asStringRemoveOperation
-      case StringSetDocName => doc.asStringSetOperation
+      case StringInsertDocName => oDocumentToStringInsertOperation(doc)
+      case StringRemoveDocName => oDocumentToStringRemoveOperation(doc)
+      case StringSetDocName => oDocumentToStringSetOperation(doc)
 
-      case ArrayInsertDocName => doc.asArrayInsertOperation
-      case ArrayRemoveDocName => doc.asArrayRemoveOperation
-      case ArrayReplaceDocName => doc.asArrayReplaceOperation
-      case ArrayMoveDocName => doc.asArrayMoveOperation
-      case ArraySetDocName => doc.asArraySetOperation
+      case ArrayInsertDocName => oDocumentToArrayInsertOperation(doc)
+      case ArrayRemoveDocName => oDocumentToArrayRemoveOperation(doc)
+      case ArrayReplaceDocName => oDocumentToArrayReplaceOperation(doc)
+      case ArrayMoveDocName => oDocumentToArrayMoveOperation(doc)
+      case ArraySetDocName => oDocumentToArraySetOperation(doc)
 
-      case ObjectAddPropertyDocName => doc.asObjectAddPropertyOperation
-      case ObjectSetPropertyDocName => doc.asObjectSetPropertyOperation
-      case ObjectRemovePropertyDocName => doc.asObjectRemovePropertyOperation
-      case ObjectSetDocName => doc.asObjectSetOperation
+      case ObjectAddPropertyDocName => oDocumentToObjectAddPropertyOperation(doc)
+      case ObjectSetPropertyDocName => oDocumentToObjectSetPropertyOperation(doc)
+      case ObjectRemovePropertyDocName => oDocumentToObjectRemovePropertyOperation(doc)
+      case ObjectSetDocName => oDocumentToObjectSetOperation(doc)
 
-      case NumberAddDocName => doc.asNumberAddOperation
-      case NumberSetDocName => doc.asNumberSetOperation
+      case NumberAddDocName => oDocumentToNumberAddOperation(doc)
+      case NumberSetDocName => oDocumentToNumberSetOperation(doc)
 
-      case BooleanSetDocName => doc.asBooleanSetOperation
-      
-      case DateSetDocName => doc.asDateSetOperation
+      case BooleanSetDocName => oDocumentToBooleanSetOperation(doc)
+
+      case DateSetDocName => oDocumentToDateSetOperation(doc)
     }
   }
   // scalastyle:on cyclomatic.complexity
 
   def operationToODocument(op: AppliedOperation): ODocument = {
     op match {
-      case op: AppliedCompoundOperation => op.asODocument
+      case op: AppliedCompoundOperation => compoundOperationToODocument(op)
       case op: AppliedDiscreteOperation => discreteOperationToODocument(op)
     }
   }
@@ -79,32 +79,32 @@ object OrientDBOperationMapper {
   private[this] def discreteOperationToODocument(op: AppliedDiscreteOperation): ODocument = {
     op match {
       // String Operations
-      case op: AppliedStringInsertOperation => op.asODocument
-      case op: AppliedStringRemoveOperation => op.asODocument
-      case op: AppliedStringSetOperation => op.asODocument
+      case op: AppliedStringInsertOperation => stringInsertOperationToODocument(op)
+      case op: AppliedStringRemoveOperation => stringRemoveOperationToODocument(op)
+      case op: AppliedStringSetOperation => stringSetOperationToODocument(op)
 
       // Array Operations
-      case op: AppliedArrayInsertOperation => op.asODocument
-      case op: AppliedArrayRemoveOperation => op.asODocument
-      case op: AppliedArrayMoveOperation => op.asODocument
-      case op: AppliedArrayReplaceOperation => op.asODocument
-      case op: AppliedArraySetOperation => op.asODocument
+      case op: AppliedArrayInsertOperation => arrayInsertOperationToODocument(op)
+      case op: AppliedArrayRemoveOperation => arrayRemoveOperationToODocument(op)
+      case op: AppliedArrayMoveOperation => arrayMoveOperationToODocument(op)
+      case op: AppliedArrayReplaceOperation => arrayReplaceOperationToODocument(op)
+      case op: AppliedArraySetOperation => arraySetOperationToODocument(op)
 
       // Object Operations
-      case op: AppliedObjectSetPropertyOperation => op.asODocument
-      case op: AppliedObjectAddPropertyOperation => op.asODocument
-      case op: AppliedObjectRemovePropertyOperation => op.asODocument
-      case op: AppliedObjectSetOperation => op.asODocument
+      case op: AppliedObjectSetPropertyOperation => objectSetPropertyOperationToODocument(op)
+      case op: AppliedObjectAddPropertyOperation => objectAddPropertyOperationToODocument(op)
+      case op: AppliedObjectRemovePropertyOperation => objectRemovePropertyOperationToODocument(op)
+      case op: AppliedObjectSetOperation => objectSetOperationToODocument(op)
 
       // Number Operations
-      case op: AppliedNumberAddOperation => op.asODocument
-      case op: AppliedNumberSetOperation => op.asODocument
+      case op: AppliedNumberAddOperation => numberAddOperationToODocument(op)
+      case op: AppliedNumberSetOperation => numberSetOperationToODocument(op)
 
       // Boolean Operations
-      case op: AppliedBooleanSetOperation => op.asODocument
-      
+      case op: AppliedBooleanSetOperation => booleanSetOperationToODocument(op)
+
       // Date Operations
-      case op: AppliedDateSetOperation => op.asODocument
+      case op: AppliedDateSetOperation => dateSetOperationToODocument(op)
     }
   }
   // scalastyle:on cyclomatic.complexity

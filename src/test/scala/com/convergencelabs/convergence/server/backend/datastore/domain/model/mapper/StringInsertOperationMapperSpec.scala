@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringInsertOperationMapper.{ODocumentToStringInsertOperation, StringInsertOperationToODocument}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringInsertOperationMapper.{oDocumentToStringInsertOperation, stringInsertOperationToODocument}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringInsertOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
@@ -25,15 +25,15 @@ class StringInsertOperationMapperSpec
     "when converting StringInsertOperation operations" must {
       "correctly map and unmap a StringInsertOperation" in {
         val op = AppliedStringInsertOperation("vid", noOp = true, 4, "test") // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asStringInsertOperation
+        val opDoc = stringInsertOperationToODocument(op)
+        val reverted = oDocumentToStringInsertOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asStringInsertOperation
+          oDocumentToStringInsertOperation(invalid)
         }
       }
     }

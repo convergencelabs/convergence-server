@@ -11,47 +11,36 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import java.util.{List => JavaList}
-
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model.ArrayValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.executor.OResult
 
+import java.util.{List => JavaList}
 import scala.jdk.CollectionConverters._
-import scala.language.implicitConversions
 
 object ArrayValueMapper extends ODocumentMapper {
 
-  private[domain] implicit class ArrayValueToODocument(val obj: ArrayValue) extends AnyVal {
-    def asODocument: ODocument = arrayValueToODocument(obj)
-  }
-
-  private[domain] implicit def arrayValueToODocument(obj: ArrayValue): ODocument = {
+  private[domain] def arrayValueToODocument(obj: ArrayValue): ODocument = {
     val ArrayValue(id, children) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.Id, id)
-    val docChildren = children map { v => v.asODocument }
+    val docChildren = children map { v => DataValueMapper.dataValueToODocument(v) }
     doc.field(Fields.Children, docChildren.asJava)
     doc
   }
 
-  private[domain] implicit class ODocumentToArrayValue(val d: ODocument) extends AnyVal {
-    def asArrayValue: ArrayValue = oDocumentToArrayValue(d)
-  }
-
-  private[domain] implicit def oDocumentToArrayValue(doc: ODocument): ArrayValue = {
+  private[domain] def oDocumentToArrayValue(doc: ODocument): ArrayValue = {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
-    val children: JavaList[Any] = doc.field(Fields.Children);
+    val children: JavaList[Any] = doc.field(Fields.Children)
     val dataValues = children.asScala map {
       case result: OResult =>
-        result.toElement.asInstanceOf[ODocument].asDataValue
+        DataValueMapper.oDocumentToDataValue(result.toElement.asInstanceOf[ODocument])
       case v =>
-        v.asInstanceOf[ODocument].asDataValue
+        DataValueMapper.oDocumentToDataValue(v.asInstanceOf[ODocument])
     }
     model.ArrayValue(id, dataValues.toList)
   }

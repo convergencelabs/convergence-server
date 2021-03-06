@@ -11,13 +11,13 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import java.time.Instant
-
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateSetOperationMapper.{DateSetOperationToODocument, ODocumentToDateSetOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateSetOperationMapper.{dateSetOperationToODocument, oDocumentToDateSetOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedDateSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.time.Instant
 
 class DateSetOperationMapperSpec
     extends AnyWordSpec
@@ -28,15 +28,15 @@ class DateSetOperationMapperSpec
       "correctly map and unmap a DateSetOperation" in {
         val date = java.util.Date.from(Instant.now()).toInstant
         val op = AppliedDateSetOperation("vid", noOp = true, date, Some(date))
-        val opDoc = op.asODocument
-        val reverted = opDoc.asDateSetOperation
+        val opDoc = dateSetOperationToODocument(op)
+        val reverted = oDocumentToDateSetOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asDateSetOperation
+          oDocumentToDateSetOperation(invalid)
         }
       }
     }

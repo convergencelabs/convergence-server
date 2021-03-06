@@ -17,15 +17,9 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.model.domain.model.DateValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object DateValueMapper extends ODocumentMapper {
 
-  private[domain] implicit class DateValueToODocument(val obj: DateValue) extends AnyVal {
-    def asODocument: ODocument = dateValueToODocument(obj)
-  }
-
-  private[domain] implicit def dateValueToODocument(obj: DateValue): ODocument = {
+  private[domain] def dateValueToODocument(obj: DateValue): ODocument = {
     val DateValue(id, value) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.Id, id)
@@ -33,16 +27,12 @@ object DateValueMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToDateValue(val d: ODocument) extends AnyVal {
-    def asDateValue: DateValue = oDocumentToDateValue(d)
-  }
-
-  private[domain] implicit def oDocumentToDateValue(doc: ODocument): DateValue = {
+  private[domain] def oDocumentToDateValue(doc: ODocument): DateValue = {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val value = doc.field(Fields.Value).asInstanceOf[Date]
-    DateValue(id, value.toInstant());
+    DateValue(id, value.toInstant);
   }
 
   private[domain] val DocumentClassName = "DateValue"

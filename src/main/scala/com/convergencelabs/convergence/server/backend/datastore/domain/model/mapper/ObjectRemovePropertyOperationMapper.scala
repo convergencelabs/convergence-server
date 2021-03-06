@@ -12,40 +12,30 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectRemovePropertyOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object ObjectRemovePropertyOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class ObjectRemovePropertyOperationToODocument(val s: AppliedObjectRemovePropertyOperation) extends AnyVal {
-    def asODocument: ODocument = objectRemovePropertyOperationToODocument(s)
-  }
-
-  private[domain] implicit def objectRemovePropertyOperationToODocument(obj: AppliedObjectRemovePropertyOperation): ODocument = {
+  private[domain] def objectRemovePropertyOperationToODocument(obj: AppliedObjectRemovePropertyOperation): ODocument = {
     val AppliedObjectRemovePropertyOperation(id, noOp, prop, oldValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    val oldValDoc = (oldValue map {_.asODocument})
-    doc.field(Fields.OldValue, oldValDoc.getOrElse(null))
+    val oldValDoc = oldValue.map(dataValueToODocument)
+    doc.field(Fields.OldValue, oldValDoc.orNull)
     doc
   }
 
-  private[domain] implicit class ODocumentToObjectRemovePropertyOperation(val d: ODocument) extends AnyVal {
-    def asObjectRemovePropertyOperation: AppliedObjectRemovePropertyOperation = oDocumentToObjectRemovePropertyOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToObjectRemovePropertyOperation(doc: ODocument): AppliedObjectRemovePropertyOperation = {
+  private[domain] def oDocumentToObjectRemovePropertyOperation(doc: ODocument): AppliedObjectRemovePropertyOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[ODocument]) map {_.asDataValue}
+    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[ODocument]).map(oDocumentToDataValue)
     AppliedObjectRemovePropertyOperation(id, noOp, prop, oldValue)
   }
 

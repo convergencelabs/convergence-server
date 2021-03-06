@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayRemoveOperationMapper.{ArrayRemoveOperationToODocument, ODocumentToArrayRemoveOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayRemoveOperationMapper.{arrayRemoveOperationToODocument, oDocumentToArrayRemoveOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArrayRemoveOperation
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -22,20 +22,19 @@ class ArrayRemoveOperationMapperSpec
     extends AnyWordSpec
     with Matchers {
 
-
   "An ArrayRemoveOperationMapper" when {
     "when converting ArrayRemoveOperation operations" must {
       "correctly map and unmap a ArrayRemoveOperation" in {
         val op = AppliedArrayRemoveOperation("vid", noOp = true, 4, Some(StringValue("oldId", "oldValue"))) // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asArrayRemoveOperation
+        val opDoc = arrayRemoveOperationToODocument(op)
+        val reverted = oDocumentToArrayRemoveOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asArrayRemoveOperation
+          oDocumentToArrayRemoveOperation(invalid)
         }
       }
     }

@@ -15,15 +15,9 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object StringValueMapper extends ODocumentMapper {
 
-  private[domain] implicit class StringValueToODocument(val obj: StringValue) extends AnyVal {
-    def asODocument: ODocument = stringValueToODocument(obj)
-  }
-
-  private[domain] implicit def stringValueToODocument(obj: StringValue): ODocument = {
+  private[domain] def stringValueToODocument(obj: StringValue): ODocument = {
     val StringValue(id, value) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.Id, id)
@@ -31,11 +25,7 @@ object StringValueMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToStringValue(val d: ODocument) extends AnyVal {
-    def asStringValue: StringValue = oDocumentToStringValue(d)
-  }
-
-  private[domain] implicit def oDocumentToStringValue(doc: ODocument): StringValue = {
+  private[domain] def oDocumentToStringValue(doc: ODocument): StringValue = {
     validateDocumentClass(doc, DocumentClassName, OpDocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

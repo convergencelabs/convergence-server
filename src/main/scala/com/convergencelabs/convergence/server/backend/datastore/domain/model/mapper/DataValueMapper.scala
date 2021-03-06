@@ -12,13 +12,13 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayValueMapper.{ArrayValueToODocument, ODocumentToArrayValue, DocumentClassName => ArrayValueDocName, OpDocumentClassName => ArrayOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanValueMapper.{BooleanValueToODocument, ODocumentToBooleanValue, DocumentClassName => BooleanValueDocName, OpDocumentClassName => BooleanOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateValueMapper.{DateValueToODocument, ODocumentToDateValue, DocumentClassName => DateValueDocName, OpDocumentClassName => DateOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DoubleValueMapper.{DoubleValueToODocument, ODocumentToDoubleValue, DocumentClassName => DoubleValueDocName, OpDocumentClassName => DoubleOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NullValueMapper.{NullValueToODocument, ODocumentToNullValue, DocumentClassName => NullValueDocName, OpDocumentClassName => NullOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.{ODocumentToObjectValue, ObjectValueToODocument, DocumentClassName => ObjectValueDocName, OpDocumentClassName => ObjectOpValueDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringValueMapper.{ODocumentToStringValue, StringValueToODocument, DocumentClassName => StringValueDocName, OpDocumentClassName => StringOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayValueMapper.{arrayValueToODocument, oDocumentToArrayValue, DocumentClassName => ArrayValueDocName, OpDocumentClassName => ArrayOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanValueMapper.{booleanValueToODocument, oDocumentToBooleanValue, DocumentClassName => BooleanValueDocName, OpDocumentClassName => BooleanOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DateValueMapper.{dateValueToODocument, oDocumentToDateValue, DocumentClassName => DateValueDocName, OpDocumentClassName => DateOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DoubleValueMapper.{doubleValueToODocument, oDocumentToDoubleValue, DocumentClassName => DoubleValueDocName, OpDocumentClassName => DoubleOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NullValueMapper.{nullValueToODocument, oDocumentToNullValue, DocumentClassName => NullValueDocName, OpDocumentClassName => NullOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.{oDocumentToObjectValue, objectValueToODocument, DocumentClassName => ObjectValueDocName, OpDocumentClassName => ObjectOpValueDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringValueMapper.{oDocumentToStringValue, stringValueToODocument, DocumentClassName => StringValueDocName, OpDocumentClassName => StringOpValueDocName}
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.orientechnologies.orient.core.record.impl.ODocument
 
@@ -26,35 +26,27 @@ import scala.language.implicitConversions
 
 object DataValueMapper extends ODocumentMapper {
 
-  private[domain] implicit class DataValueToODocument(val value: DataValue) extends AnyVal {
-    def asODocument: ODocument = dataValueToODocument(value)
-  }
-
   private[domain] implicit def dataValueToODocument(data: DataValue): ODocument = {
     data match {
-      case data: ObjectValue => data.asODocument
-      case data: ArrayValue => data.asODocument
-      case data: StringValue => data.asODocument
-      case data: BooleanValue => data.asODocument
-      case data: DoubleValue => data.asODocument
-      case data: NullValue => data.asODocument
-      case data: DateValue => data.asODocument
+      case data: ObjectValue => objectValueToODocument(data)
+      case data: ArrayValue => arrayValueToODocument(data)
+      case data: StringValue => stringValueToODocument(data)
+      case data: BooleanValue => booleanValueToODocument(data)
+      case data: DoubleValue => doubleValueToODocument(data)
+      case data: NullValue => nullValueToODocument(data)
+      case data: DateValue => dateValueToODocument(data)
     }
-  }
-
-  private[domain] implicit class ODocumentToDataValue(val d: ODocument) extends AnyVal {
-    def asDataValue: DataValue = oDocumentToDataValue(d)
   }
 
   private[domain] implicit def oDocumentToDataValue(doc: ODocument): DataValue = {
     doc.getClassName match {
-      case ObjectValueDocName | ObjectOpValueDocName => doc.asObjectValue
-      case ArrayValueDocName | ArrayOpValueDocName => doc.asArrayValue
-      case StringValueDocName | StringOpValueDocName => doc.asStringValue
-      case BooleanValueDocName | BooleanOpValueDocName => doc.asBooleanValue
-      case DoubleValueDocName | DoubleOpValueDocName => doc.asDoubleValue
-      case NullValueDocName | NullOpValueDocName => doc.asNullValue
-      case DateValueDocName | DateOpValueDocName => doc.asDateValue
+      case ObjectValueDocName | ObjectOpValueDocName => oDocumentToObjectValue(doc)
+      case ArrayValueDocName | ArrayOpValueDocName => oDocumentToArrayValue(doc)
+      case StringValueDocName | StringOpValueDocName => oDocumentToStringValue(doc)
+      case BooleanValueDocName | BooleanOpValueDocName => oDocumentToBooleanValue(doc)
+      case DoubleValueDocName | DoubleOpValueDocName => oDocumentToDoubleValue(doc)
+      case NullValueDocName | NullOpValueDocName => oDocumentToNullValue(doc)
+      case DateValueDocName | DateOpValueDocName => oDocumentToDateValue(doc)
     }
   }
 }

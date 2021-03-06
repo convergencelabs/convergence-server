@@ -14,42 +14,33 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 import java.util.{List => JavaList}
 
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArraySetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.jdk.CollectionConverters._
-import scala.language.implicitConversions
 
 object ArraySetOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class ArraySetOperationToODocument(val s: AppliedArraySetOperation) extends AnyVal {
-    def asODocument: ODocument = arraySetOperationToODocument(s)
-  }
-
-  private[domain] implicit def arraySetOperationToODocument(obj: AppliedArraySetOperation): ODocument = {
+  private[domain] def arraySetOperationToODocument(obj: AppliedArraySetOperation): ODocument = {
     val AppliedArraySetOperation(id, noOp, value, oldValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
-    val docValue = value map(_.asODocument);
+    val docValue = value.map(dataValueToODocument)
     doc.field(Fields.Val, docValue.asJava)
-    val oldValueDoc = oldValue map {_ map {_.asODocument}} map {_.asJava};
+    val oldValueDoc = oldValue map {_.map(dataValueToODocument)} map {_.asJava}
     doc.field(Fields.OldValue, oldValueDoc.orNull)
     doc
   }
 
-  private[domain] implicit class ODocumentToArraySetOperation(val d: ODocument) extends AnyVal {
-    def asArraySetOperation: AppliedArraySetOperation = oDocumentToArraySetOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToArraySetOperation(doc: ODocument): AppliedArraySetOperation = {
+  private[domain] def oDocumentToArraySetOperation(doc: ODocument): AppliedArraySetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
-    val value = doc.field(Fields.Val).asInstanceOf[JavaList[ODocument]].asScala.toList.map {v => v.asDataValue}
-    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[JavaList[ODocument]]) map {_.asScala.toList.map {_.asDataValue}}
+    val value = doc.field(Fields.Val).asInstanceOf[JavaList[ODocument]].asScala.toList.map {v => oDocumentToDataValue(v)}
+    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[JavaList[ODocument]]).map {_.asScala.toList.map(oDocumentToDataValue)}
     AppliedArraySetOperation(id, noOp, value, oldValue)
   }
 

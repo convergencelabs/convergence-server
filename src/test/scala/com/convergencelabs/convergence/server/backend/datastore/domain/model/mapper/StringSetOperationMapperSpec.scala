@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSetOperationMapper.{ODocumentToStringSetOperation, StringSetOperationToODocument}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSetOperationMapper.{oDocumentToStringSetOperation, stringSetOperationToODocument}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
@@ -25,15 +25,15 @@ class StringSetOperationMapperSpec
     "when converting StringSetOperation operations" must {
       "correctly map and unmap a StringSetOperation" in {
         val op = AppliedStringSetOperation("vid", noOp = true, "test", Some("oldValue"))
-        val opDoc = op.asODocument
-        val reverted = opDoc.asStringSetOperation
+        val opDoc = stringSetOperationToODocument(op)
+        val reverted = oDocumentToStringSetOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asStringSetOperation
+          oDocumentToStringSetOperation(invalid)
         }
       }
     }

@@ -11,11 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.collection
 
-import java.time.Duration
-import java.util
-
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{modelSnapshotConfigToODocument, oDocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelPermissionsStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.CollectionClass.{ClassName, Fields, Indices}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
@@ -29,6 +26,8 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 
+import java.time.Duration
+import java.util
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -190,13 +189,15 @@ object CollectionStore {
     doc.setProperty(Fields.Id, collection.id)
     doc.setProperty(Fields.Description, collection.description)
     doc.setProperty(Fields.OverrideSnapshotConfig, collection.overrideSnapshotConfig)
-    doc.setProperty(Fields.SnapshotConfig, collection.snapshotConfig.asODocument, OType.EMBEDDED)
+    doc.setProperty(Fields.SnapshotConfig, modelSnapshotConfigToODocument(collection.snapshotConfig), OType.EMBEDDED)
     doc.setProperty(Fields.WorldPermissions, ModelPermissionsStore.collectionPermissionToDoc(collection.worldPermissions))
   }
 
   def docToCollection(doc: ODocument): Collection = {
     val snapshotConfigDoc: ODocument = doc.getProperty(Fields.SnapshotConfig)
-    val snapshotConfig = Option(snapshotConfigDoc) map (_.asModelSnapshotConfig) getOrElse CollectionStore.DefaultSnapshotConfig
+    val snapshotConfig = Option(snapshotConfigDoc)
+      .map(oDocumentToModelSnapshotConfig)
+      .getOrElse(CollectionStore.DefaultSnapshotConfig)
     domain.collection.Collection(
       doc.getProperty(Fields.Id),
       doc.getProperty(Fields.Description),

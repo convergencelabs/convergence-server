@@ -16,7 +16,7 @@ import java.util.Date
 
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.ODocumentToDataValue
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectValueMapper.ODocumentToObjectValue
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
@@ -277,7 +277,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
             results.remove(Fields.ValuePrefix).asInstanceOf[Long])
 
           val values = results.asScala.toList map Function.tupled { (field, value) =>
-            (as.getOrElse(field, field), DataValueToJValue.toJson(value.asInstanceOf[ODocument].asDataValue))
+            (as.getOrElse(field, field), DataValueToJValue.toJson(oDocumentToDataValue(value.asInstanceOf[ODocument])))
           }
           ModelQueryResult(meta, JObject(values))
         }
@@ -348,10 +348,10 @@ object ModelStore {
       doc.getProperty(Fields.ValuePrefix))
   }
 
-  def docToModel(doc: ODocument): Model = {
+  private def docToModel(doc: ODocument): Model = {
     // TODO This can be cleaned up.. it seems like in some cases we are getting an ORecordId back
-    // and in other cases an ODocument. This handles both cases.  We should figure out what
-    // is supposed to come back and why it might be coming back as the other.
+    //  and in other cases an ODocument. This handles both cases.  We should figure out what
+    //  is supposed to come back and why it might be coming back as the other.
     val data: ODocument = doc.getProperty(Fields.Data).asInstanceOf[OIdentifiable].getRecord[ODocument]
     model.Model(docToModelMetaData(doc), data.asObjectValue)
   }

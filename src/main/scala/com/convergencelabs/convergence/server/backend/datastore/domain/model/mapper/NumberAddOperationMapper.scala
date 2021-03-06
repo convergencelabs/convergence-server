@@ -15,15 +15,9 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedNumberAddOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object NumberAddOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class NumberAddOperationToODocument(val s: AppliedNumberAddOperation) extends AnyVal {
-    def asODocument: ODocument = numberAddOperationToODocument(s)
-  }
-
-  private[domain] implicit def numberAddOperationToODocument(obj: AppliedNumberAddOperation): ODocument = {
+  private[domain] def numberAddOperationToODocument(obj: AppliedNumberAddOperation): ODocument = {
     val AppliedNumberAddOperation(id, noOp, value) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
@@ -32,11 +26,7 @@ object NumberAddOperationMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToNumberAddOperation(val d: ODocument) extends AnyVal {
-    def asNumberAddOperation: AppliedNumberAddOperation = oDocumentToNumberAddOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToNumberAddOperation(doc: ODocument): AppliedNumberAddOperation = {
+  private[domain] def oDocumentToNumberAddOperation(doc: ODocument): AppliedNumberAddOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

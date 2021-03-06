@@ -11,22 +11,16 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import java.time.Duration
-
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
+import java.time.Duration
 
 object ModelSnapshotConfigMapper extends ODocumentMapper {
 
-  private[domain] implicit class ModelSnapshotConfigToODocument(val snapshotConfig: ModelSnapshotConfig) extends AnyVal {
-    def asODocument: ODocument = snapshotConfigToODocument(snapshotConfig)
-  }
-
-  private[domain] implicit def snapshotConfigToODocument(snapshotConfig: ModelSnapshotConfig): ODocument = {
+  private[domain] def modelSnapshotConfigToODocument(snapshotConfig: ModelSnapshotConfig): ODocument = {
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Enabled, snapshotConfig.snapshotsEnabled)
     doc.field(Fields.TriggerByVersion, snapshotConfig.triggerByVersion)
@@ -40,11 +34,7 @@ object ModelSnapshotConfigMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToModelSnapshotConfig(val doc: ODocument) extends AnyVal {
-    def asModelSnapshotConfig: ModelSnapshotConfig = oDocumentToModelSnapshotConfig(doc)
-  }
-
-  private[domain] implicit def oDocumentToModelSnapshotConfig(doc: ODocument): ModelSnapshotConfig = {
+  private[domain] def oDocumentToModelSnapshotConfig(doc: ODocument): ModelSnapshotConfig = {
     validateDocumentClass(doc, DocumentClassName)
 
     val minTimeIntervalMillis: Long = doc.field(Fields.MinTimeInterval)

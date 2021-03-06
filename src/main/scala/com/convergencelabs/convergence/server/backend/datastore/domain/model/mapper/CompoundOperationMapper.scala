@@ -19,15 +19,10 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import scala.jdk.CollectionConverters._
-import scala.language.implicitConversions
 
 object CompoundOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class CompoundOperationToODocument(val s: AppliedCompoundOperation) extends AnyVal {
-    def asODocument: ODocument = compoundOperationToODocument(s)
-  }
-
-  private[domain] implicit def compoundOperationToODocument(obj: AppliedCompoundOperation): ODocument = {
+  private[domain] def compoundOperationToODocument(obj: AppliedCompoundOperation): ODocument = {
     val AppliedCompoundOperation(ops) = obj
     val doc = new ODocument(DocumentClassName)
     val opDocs = ops.map(OrientDBOperationMapper.operationToODocument)
@@ -35,11 +30,7 @@ object CompoundOperationMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToCompoundOperation(val d: ODocument) extends AnyVal {
-    def asCompoundOperation: AppliedCompoundOperation = oDocumentToCompoundOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToCompoundOperation(doc: ODocument): AppliedCompoundOperation = {
+  private[domain] def oDocumentToCompoundOperation(doc: ODocument): AppliedCompoundOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val opDocs: JavaList[ODocument] = doc.field(Fields.Ops, OType.EMBEDDEDLIST)

@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetOperationMapper.{ODocumentToObjectSetOperation, ObjectSetOperationToODocument}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetOperationMapper.{oDocumentToObjectSetOperation, objectSetOperationToODocument}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectSetOperation
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -26,15 +26,15 @@ class ObjectSetOperationMapperSpec
     "when converting ObjectSetOperation operations" must {
       "correctly map and unmap a ObjectSetOperation" in {
         val op = AppliedObjectSetOperation("vid", noOp = true, Map("foo" -> StringValue("vid2", "test")), Some(Map("old" -> StringValue("oldId", "oldValue"))))
-        val opDoc = op.asODocument
-        val reverted = opDoc.asObjectSetOperation
+        val opDoc = objectSetOperationToODocument(op)
+        val reverted = oDocumentToObjectSetOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asObjectSetOperation
+          oDocumentToObjectSetOperation(invalid)
         }
       }
     }

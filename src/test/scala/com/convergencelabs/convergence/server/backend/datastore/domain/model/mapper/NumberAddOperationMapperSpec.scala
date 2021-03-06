@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberAddOperationMapper.{NumberAddOperationToODocument, ODocumentToNumberAddOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberAddOperationMapper.{numberAddOperationToODocument, oDocumentToNumberAddOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedNumberAddOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
@@ -25,15 +25,15 @@ class NumberAddOperationMapperSpec
     "when converting NumberAddOperation operations" must {
       "correctly map and unmap a NumberAddOperation" in {
         val op = AppliedNumberAddOperation("vid", noOp = true, 4) // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asNumberAddOperation
+        val opDoc = numberAddOperationToODocument(op)
+        val reverted = oDocumentToNumberAddOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asNumberAddOperation
+          oDocumentToNumberAddOperation(invalid)
         }
       }
     }

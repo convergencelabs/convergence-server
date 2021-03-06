@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.config
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{modelSnapshotConfigToODocument, oDocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
@@ -35,7 +35,7 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
     db.command("DELETE FROM DomainConfig")
 
     val doc = db.newElement("DomainConfig")
-    doc.setProperty(Fields.ModelSnapshotConfig, modelSnapshotConfig.asODocument, OType.EMBEDDED)
+    doc.setProperty(Fields.ModelSnapshotConfig, modelSnapshotConfigToODocument(modelSnapshotConfig), OType.EMBEDDED)
     doc.setProperty(Fields.AdminPublicKey, tokenKeyPair.publicKey)
     doc.setProperty(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
     doc.setProperty(Fields.AnonymousAuth, anonymousAuthEnabled)
@@ -72,7 +72,7 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
       .getDocument(db, query)
       .map { doc =>
         val configDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
-        configDoc.asModelSnapshotConfig
+        oDocumentToModelSnapshotConfig(configDoc)
       }
   }
 
@@ -90,7 +90,7 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
       .getDocument(db, query)
       .flatMap { doc =>
         Try {
-          val configDoc = modelSnapshotConfig.asODocument
+          val configDoc = modelSnapshotConfigToODocument(modelSnapshotConfig)
           doc.field("modelSnapshotConfig", configDoc)
           doc.save()
         }

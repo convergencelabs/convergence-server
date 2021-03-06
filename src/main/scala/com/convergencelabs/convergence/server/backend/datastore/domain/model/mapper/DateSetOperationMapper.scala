@@ -17,29 +17,19 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedDateSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object DateSetOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class DateSetOperationToODocument(val s: AppliedDateSetOperation) extends AnyVal {
-    def asODocument: ODocument = dateSetOperationToODocument(s)
-  }
-
-  private[domain] implicit def dateSetOperationToODocument(obj: AppliedDateSetOperation): ODocument = {
+  private[domain] def dateSetOperationToODocument(obj: AppliedDateSetOperation): ODocument = {
     val AppliedDateSetOperation(id, noOp, value, oldValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, Date.from(value))
-    doc.field(Fields.OldValue, oldValue.map(Date.from(_)).getOrElse(null))
+    doc.field(Fields.OldValue, oldValue.map(Date.from).getOrElse(null))
     doc
   }
 
-  private[domain] implicit class ODocumentToDateSetOperation(val d: ODocument) extends AnyVal {
-    def asDateSetOperation: AppliedDateSetOperation = oDocumentToDateSetOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToDateSetOperation(doc: ODocument): AppliedDateSetOperation = {
+  private[domain] def oDocumentToDateSetOperation(doc: ODocument): AppliedDateSetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

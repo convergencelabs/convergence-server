@@ -15,29 +15,19 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object StringSetOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class StringSetOperationToODocument(val s: AppliedStringSetOperation) extends AnyVal {
-    def asODocument: ODocument = stringSetOperationToODocument(s)
-  }
-
-  private[domain] implicit def stringSetOperationToODocument(obj: AppliedStringSetOperation): ODocument = {
+  private[domain] def stringSetOperationToODocument(obj: AppliedStringSetOperation): ODocument = {
     val AppliedStringSetOperation(id, noOp, value, oldValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Val, value)
-    doc.field(Fields.OldValue, oldValue.getOrElse(null))
+    doc.field(Fields.OldValue, oldValue.orNull)
     doc
   }
 
-  private[domain] implicit class ODocumentToStringSetOperation(val d: ODocument) extends AnyVal {
-    def asStringSetOperation: AppliedStringSetOperation = oDocumentToStringSetOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToStringSetOperation(doc: ODocument): AppliedStringSetOperation = {
+  private[domain] def oDocumentToStringSetOperation(doc: ODocument): AppliedStringSetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

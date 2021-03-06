@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectAddPropertyOperationMapper.{ODocumentToObjectAddPropertyOperation, ObjectAddPropertyOperationToODocument}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectAddPropertyOperationMapper.{oDocumentToObjectAddPropertyOperation, objectAddPropertyOperationToODocument}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectAddPropertyOperation
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -26,15 +26,15 @@ class ObjectAddPropertyOperationMapperSpec
     "when converting ObjectAddPropertyOperation operations" must {
       "correctly map and unmap a ObjectAddPropertyOperation" in {
         val op = AppliedObjectAddPropertyOperation("vid", noOp = true, "foo", StringValue("vid1", "bar"))
-        val opDoc = op.asODocument
-        val reverted = opDoc.asObjectAddPropertyOperation
+        val opDoc = objectAddPropertyOperationToODocument(op)
+        val reverted = oDocumentToObjectAddPropertyOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asObjectAddPropertyOperation
+          oDocumentToObjectAddPropertyOperation(invalid)
         }
       }
     }

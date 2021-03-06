@@ -12,12 +12,10 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArrayInsertOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
-
-import scala.language.implicitConversions
 
 object ArrayInsertOperationMapper extends ODocumentMapper {
 
@@ -25,27 +23,23 @@ object ArrayInsertOperationMapper extends ODocumentMapper {
     def asODocument: ODocument = arrayInsertOperationToODocument(s)
   }
 
-  private[domain] implicit def arrayInsertOperationToODocument(obj: AppliedArrayInsertOperation): ODocument = {
+  private[domain] def arrayInsertOperationToODocument(obj: AppliedArrayInsertOperation): ODocument = {
     val AppliedArrayInsertOperation(id, noOp, index, value) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
-    doc.field(Fields.Val, value.asODocument, OType.EMBEDDED)
+    doc.field(Fields.Val, dataValueToODocument(value), OType.EMBEDDED)
     doc
   }
 
-  private[domain] implicit class ODocumentToArrayInsertOperation(val d: ODocument) extends AnyVal {
-    def asArrayInsertOperation: AppliedArrayInsertOperation = oDocumentToArrayInsertOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToArrayInsertOperation(doc: ODocument): AppliedArrayInsertOperation = {
+  private[domain] def oDocumentToArrayInsertOperation(doc: ODocument): AppliedArrayInsertOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val idx = doc.field(Fields.Idx).asInstanceOf[Int]
-    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
+    val value = oDocumentToDataValue(doc.field(Fields.Val).asInstanceOf[ODocument])
     AppliedArrayInsertOperation(id, noOp, idx, value)
   }
 

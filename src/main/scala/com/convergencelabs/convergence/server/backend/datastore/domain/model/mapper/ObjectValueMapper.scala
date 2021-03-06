@@ -11,15 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import java.util.{Map => JavaMap}
-
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.model.domain.model.ObjectValue
 import com.orientechnologies.orient.core.id.ORecordId
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.executor.OResult
 
+import java.util.{Map => JavaMap}
 import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 
@@ -33,7 +32,7 @@ object ObjectValueMapper extends ODocumentMapper {
     val ObjectValue(id, children) = obj
     val doc = new ODocument(OpDocumentClassName)
     doc.field(Fields.Id, id)
-    val docChildren = children map { case (k, v) => (k, v.asODocument) }
+    val docChildren = children map { case (k, v) => (k, dataValueToODocument(v)) }
     doc.field(Fields.Children, docChildren.asJava)
     doc
   }
@@ -48,12 +47,12 @@ object ObjectValueMapper extends ODocumentMapper {
     val id = doc.getProperty(Fields.Id).asInstanceOf[String]
     val children: JavaMap[String, Any] = doc.getProperty(Fields.Children)
     val dataValues = children.asScala map {
-      case (k, v) if v.isInstanceOf[OResult] =>
-        (k, v.asInstanceOf[OResult].toElement.asInstanceOf[ODocument].asDataValue)
-      case (k, v) if v.isInstanceOf[ORecordId] =>
-        (k, v.asInstanceOf[ORecordId].getRecord.asInstanceOf[ODocument].asDataValue)
+      case (k, v: OResult) =>
+        (k, oDocumentToDataValue(v.toElement.asInstanceOf[ODocument]))
+      case (k, v: ORecordId) =>
+        (k, oDocumentToDataValue(v.getRecord.asInstanceOf[ODocument]))
       case (k, v) =>
-        (k, v.asInstanceOf[ODocument].asDataValue)
+        (k, oDocumentToDataValue(v.asInstanceOf[ODocument]))
     }
 
     ObjectValue(id, dataValues.toMap)

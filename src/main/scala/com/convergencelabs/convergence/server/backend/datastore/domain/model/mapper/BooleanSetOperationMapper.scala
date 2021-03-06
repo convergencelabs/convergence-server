@@ -15,15 +15,9 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedBooleanSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object BooleanSetOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class BooleanSetOperationToODocument(val s: AppliedBooleanSetOperation) extends AnyVal {
-    def asODocument: ODocument = numberSetOperationToODocument(s)
-  }
-
-  private[domain] implicit def numberSetOperationToODocument(op: AppliedBooleanSetOperation): ODocument = {
+  private[domain] def booleanSetOperationToODocument(op: AppliedBooleanSetOperation): ODocument = {
     val AppliedBooleanSetOperation(id, noOp, value, oldValue) = op
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
@@ -33,11 +27,7 @@ object BooleanSetOperationMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToBooleanSetOperation(val d: ODocument) extends AnyVal {
-    def asBooleanSetOperation: AppliedBooleanSetOperation = oDocumentToBooleanSetOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToBooleanSetOperation(doc: ODocument): AppliedBooleanSetOperation = {
+  private[domain] def oDocumentToBooleanSetOperation(doc: ODocument): AppliedBooleanSetOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

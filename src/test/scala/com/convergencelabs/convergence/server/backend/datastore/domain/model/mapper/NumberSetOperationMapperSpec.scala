@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberSetOperationMapper.{NumberSetOperationToODocument, ODocumentToNumberSetOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.NumberSetOperationMapper.{numberSetOperationToODocument, oDocumentToNumberSetOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedNumberSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
@@ -25,15 +25,15 @@ class NumberSetOperationMapperSpec
     "when converting NumberSetOperation operations" must {
       "correctly map and unmap a NumberSetOperation" in {
         val op = AppliedNumberSetOperation("vid", noOp = true, 4, Some(2)) // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asNumberSetOperation
+        val opDoc = numberSetOperationToODocument(op)
+        val reverted = oDocumentToNumberSetOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asNumberSetOperation
+          oDocumentToNumberSetOperation(invalid)
         }
       }
     }

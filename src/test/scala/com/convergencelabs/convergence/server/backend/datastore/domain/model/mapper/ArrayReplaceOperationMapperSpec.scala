@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayReplaceOperationMapper.{ArrayReplaceOperationToODocument, ODocumentToArrayReplaceOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayReplaceOperationMapper.{arrayReplaceOperationToODocument, oDocumentToArrayReplaceOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArrayReplaceOperation
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -26,15 +26,15 @@ class ArrayReplaceOperationMapperSpec
     "when converting ArrayReplaceOperation operations" must {
       "correctly map and unmap a ArrayReplaceOperation" in {
         val op = AppliedArrayReplaceOperation("vid", noOp = true, 4, StringValue("arom-test", "test"), Some(StringValue("oldId", "oldValue"))) // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asArrayReplaceOperation
+        val opDoc = arrayReplaceOperationToODocument(op)
+        val reverted = oDocumentToArrayReplaceOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asArrayReplaceOperation
+          oDocumentToArrayReplaceOperation(invalid)
         }
       }
     }

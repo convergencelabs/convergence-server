@@ -15,30 +15,20 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object StringRemoveOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class StringRemoveOperationToODocument(val s: AppliedStringRemoveOperation) extends AnyVal {
-    def asODocument: ODocument = stringRemoveOperationToODocument(s)
-  }
-
-  private[domain] implicit def stringRemoveOperationToODocument(obj: AppliedStringRemoveOperation): ODocument = {
+  private[domain] def stringRemoveOperationToODocument(obj: AppliedStringRemoveOperation): ODocument = {
     val AppliedStringRemoveOperation(id, noOp, index, length, oldValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
     doc.field(Fields.Length, length)
-    doc.field(Fields.OldValue, oldValue.getOrElse(null))   
+    doc.field(Fields.OldValue, oldValue.orNull)
     doc
   }
 
-  private[domain] implicit class ODocumentToStringRemoveOperation(val d: ODocument) extends AnyVal {
-    def asStringRemoveOperation: AppliedStringRemoveOperation = oDocumentToStringRemoveOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToStringRemoveOperation(doc: ODocument): AppliedStringRemoveOperation = {
+  private[domain] def oDocumentToStringRemoveOperation(doc: ODocument): AppliedStringRemoveOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanSetOperationMapper.{BooleanSetOperationToODocument, ODocumentToBooleanSetOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.BooleanSetOperationMapper.{booleanSetOperationToODocument, oDocumentToBooleanSetOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedBooleanSetOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
@@ -25,15 +25,15 @@ class BooleanSetOperationMapperSpec
     "when converting BooleanSetOperation operations" must {
       "correctly map and unmap a BooleanSetOperation" in {
         val op = AppliedBooleanSetOperation("vid", noOp = true, value = true, Some(false))
-        val opDoc = op.asODocument
-        val reverted = opDoc.asBooleanSetOperation
+        val opDoc = booleanSetOperationToODocument(op)
+        val reverted = oDocumentToBooleanSetOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asBooleanSetOperation
+          oDocumentToBooleanSetOperation(invalid)
         }
       }
     }

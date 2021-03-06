@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.CompoundOperationMapper.{CompoundOperationToODocument, ODocumentToCompoundOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.CompoundOperationMapper.{compoundOperationToODocument, oDocumentToCompoundOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{AppliedArrayRemoveOperation, AppliedCompoundOperation, AppliedObjectSetOperation}
 import com.convergencelabs.convergence.server.model.domain.model.{DataValue, StringValue}
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -30,15 +30,15 @@ class CompoundOperationMapperSpec
           AppliedArrayRemoveOperation("vid2", noOp = true, 3, Some(StringValue("oldId", "oldValue"))))
 
         val op = AppliedCompoundOperation(ops)
-        val opDoc = op.asODocument
-        val reverted = opDoc.asCompoundOperation
+        val opDoc = compoundOperationToODocument(op)
+        val reverted = oDocumentToCompoundOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asCompoundOperation
+          oDocumentToCompoundOperation(invalid)
         }
       }
     }

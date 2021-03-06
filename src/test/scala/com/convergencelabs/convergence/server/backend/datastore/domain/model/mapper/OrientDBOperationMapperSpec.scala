@@ -22,9 +22,6 @@ class OrientDBOperationMapperSpec
 
   val valueId = "vid"
 
-  private val jsonString = StringValue("jsonString", "A String")
-  private val jsonInt = DoubleValue("jsonInt", 4) // scalastyle:off magic.number
-
   private val complexJsonArray = ArrayValue("complexJsonArray", List(
     StringValue("av-1", "A String"),
     DoubleValue("av-2", 2),

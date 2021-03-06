@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper.{DataValueToODocument, ODocumentToDataValue}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.DataValueMapper._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedObjectSetPropertyOperation
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -31,9 +31,9 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Prop, prop)
-    doc.field(Fields.Val, value.asODocument, OType.EMBEDDED)
-    val oldValDoc = (oldValue map {_.asODocument})
-    doc.field(Fields.OldValue, oldValDoc.getOrElse(null))
+    doc.field(Fields.Val, dataValueToODocument(value), OType.EMBEDDED)
+    val oldValDoc = oldValue.map(dataValueToODocument)
+    doc.field(Fields.OldValue, oldValDoc.orNull)
     doc
   }
 
@@ -47,8 +47,8 @@ object ObjectSetPropertyOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val prop = doc.field(Fields.Prop).asInstanceOf[String]
-    val value = doc.field(Fields.Val).asInstanceOf[ODocument].asDataValue
-    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[ODocument]) map {_.asDataValue}
+    val value = oDocumentToDataValue(doc.field(Fields.Val).asInstanceOf[ODocument])
+    val oldValue = Option(doc.field(Fields.OldValue).asInstanceOf[ODocument]).map(oDocumentToDataValue)
     AppliedObjectSetPropertyOperation(id, noOp, prop, value, oldValue)
   }
 

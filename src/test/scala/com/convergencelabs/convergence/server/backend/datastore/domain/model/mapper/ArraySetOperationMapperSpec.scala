@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArraySetOperationMapper.{ArraySetOperationToODocument, ODocumentToArraySetOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArraySetOperationMapper.{arraySetOperationToODocument, oDocumentToArraySetOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArraySetOperation
 import com.convergencelabs.convergence.server.model.domain.model.{DataValue, StringValue}
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -28,15 +28,15 @@ class ArraySetOperationMapperSpec
         val oldChildren: List[DataValue] = List(StringValue("asom-test-old", "oldString"))
         val children: List[DataValue] = List(StringValue("asom-test", "test"))
         val op = AppliedArraySetOperation("vid", noOp = true, children, Some(oldChildren))
-        val opDoc = op.asODocument
-        val reverted = opDoc.asArraySetOperation
+        val opDoc = arraySetOperationToODocument(op)
+        val reverted = oDocumentToArraySetOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asArraySetOperation
+          oDocumentToArraySetOperation(invalid)
         }
       }
     }

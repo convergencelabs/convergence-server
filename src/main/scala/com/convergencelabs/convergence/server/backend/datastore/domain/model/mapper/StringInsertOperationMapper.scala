@@ -15,15 +15,9 @@ import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringInsertOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 
-import scala.language.implicitConversions
-
 object StringInsertOperationMapper extends ODocumentMapper {
 
-  private[domain] implicit class StringInsertOperationToODocument(val s: AppliedStringInsertOperation) extends AnyVal {
-    def asODocument: ODocument = stringInsertOperationToODocument(s)
-  }
-
-  private[domain] implicit def stringInsertOperationToODocument(obj: AppliedStringInsertOperation): ODocument = {
+  private[domain] def stringInsertOperationToODocument(obj: AppliedStringInsertOperation): ODocument = {
     val AppliedStringInsertOperation(id, noOp, index, value) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
@@ -33,11 +27,7 @@ object StringInsertOperationMapper extends ODocumentMapper {
     doc
   }
 
-  private[domain] implicit class ODocumentToStringInsertOperation(val d: ODocument) extends AnyVal {
-    def asStringInsertOperation: AppliedStringInsertOperation = oDocumentToStringInsertOperation(d)
-  }
-
-  private[domain] implicit def oDocumentToStringInsertOperation(doc: ODocument): AppliedStringInsertOperation = {
+  private[domain] def oDocumentToStringInsertOperation(doc: ODocument): AppliedStringInsertOperation = {
     validateDocumentClass(doc, DocumentClassName)
 
     val id = doc.field(Fields.Id).asInstanceOf[String]

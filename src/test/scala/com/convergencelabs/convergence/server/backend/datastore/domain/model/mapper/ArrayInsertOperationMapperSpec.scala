@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayInsertOperationMapper.{ArrayInsertOperationToODocument, ODocumentToArrayInsertOperation}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ArrayInsertOperationMapper.{arrayInsertOperationToODocument, oDocumentToArrayInsertOperation}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedArrayInsertOperation
 import com.convergencelabs.convergence.server.model.domain.model.StringValue
 import com.orientechnologies.orient.core.record.impl.ODocument
@@ -26,15 +26,15 @@ class ArrayInsertOperationMapperSpec
     "when converting ArrayInsertOperation operations" must {
       "correctly map and unmap a ArrayInsertOperation" in {
         val op = AppliedArrayInsertOperation("vid", noOp = true, 4, StringValue("aiom-test", "test")) // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asArrayInsertOperation
+        val opDoc = arrayInsertOperationToODocument(op)
+        val reverted = oDocumentToArrayInsertOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asArrayInsertOperation
+          oDocumentToArrayInsertOperation(invalid)
         }
       }
     }

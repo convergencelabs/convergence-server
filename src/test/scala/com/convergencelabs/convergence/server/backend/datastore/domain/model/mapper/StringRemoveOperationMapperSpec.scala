@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringRemoveOperationMapper.{ODocumentToStringRemoveOperation, StringRemoveOperationToODocument}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringRemoveOperationMapper.{oDocumentToStringRemoveOperation, stringRemoveOperationToODocument}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringRemoveOperation
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
@@ -25,15 +25,15 @@ class StringRemoveOperationMapperSpec
     "when converting StringRemoveOperation operations" must {
       "correctly map and unmap a StringRemoveOperation" in {
         val op = AppliedStringRemoveOperation("vid", noOp = true, 4, 4, Some("test")) // scalastyle:ignore magic.number
-        val opDoc = op.asODocument
-        val reverted = opDoc.asStringRemoveOperation
+        val opDoc = stringRemoveOperationToODocument(op)
+        val reverted = oDocumentToStringRemoveOperation(opDoc)
         op shouldBe reverted
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asStringRemoveOperation
+          oDocumentToStringRemoveOperation(invalid)
         }
       }
     }

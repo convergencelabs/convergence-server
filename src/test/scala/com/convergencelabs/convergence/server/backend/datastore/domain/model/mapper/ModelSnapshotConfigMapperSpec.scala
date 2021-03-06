@@ -11,15 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper
 
-import java.time.Duration
-import java.time.temporal.ChronoUnit
-
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{ModelSnapshotConfigToODocument, ODocumentToModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{modelSnapshotConfigToODocument, oDocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.model.domain
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.orientechnologies.orient.core.record.impl.ODocument
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 class ModelSnapshotConfigMapperSpec
     extends AnyWordSpec
@@ -39,15 +38,15 @@ class ModelSnapshotConfigMapperSpec
           Duration.of(1, ChronoUnit.SECONDS),
           Duration.of(2, ChronoUnit.SECONDS))
 
-        val doc = modelSnapshotConfig.asODocument
-        val reverted = doc.asModelSnapshotConfig
+        val doc = modelSnapshotConfigToODocument(modelSnapshotConfig)
+        val reverted = oDocumentToModelSnapshotConfig(doc)
         reverted shouldBe modelSnapshotConfig
       }
 
       "not allow an invalid document class name" in {
         val invalid = new ODocument("SomeClass")
         intercept[IllegalArgumentException] {
-          invalid.asModelSnapshotConfig
+          oDocumentToModelSnapshotConfig(invalid)
         }
       }
     }
