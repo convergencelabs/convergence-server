@@ -58,7 +58,7 @@ private[realtime] object DataValueProtoConverters {
   def protoMapToDataValueMap(values: Map[String, ProtoDataValue]): Either[InvalidDataValue.type, Map[String, DataValue]] = {
     values.map { case (key, value) =>
       protoToDataValue(value).map((key, _))
-    }.partitionMap(identity) match {
+    }.partitionMap(scala.Predef.identity) match {
       case (Nil, children) =>
         Right(children.toMap)
       case (_, _) =>
@@ -70,7 +70,7 @@ private[realtime] object DataValueProtoConverters {
     protoSeqToDataValueList(arrayValue.children).map(ArrayValue(arrayValue.id, _))
 
   def protoSeqToDataValueList(values: Seq[ProtoDataValue]): Either[InvalidDataValue.type, List[DataValue]] = {
-    values.toList.map(protoToDataValue).partitionMap(identity) match {
+    values.toList.map(protoToDataValue).partitionMap(scala.Predef.identity) match {
       case (Nil, children) =>
         Right(children)
       case (_, _) =>

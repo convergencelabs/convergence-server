@@ -185,7 +185,7 @@ class ModelOperationProcessorSpec
         modelData.children(emailsField) match {
           case ArrayValue(_, children) =>
             children.head shouldBe insertVal
-          case _ => fail
+          case _ => fail()
         }
       }
 
@@ -510,11 +510,11 @@ class ModelOperationProcessorSpec
   }
 
   def vidsAllExist(vids: List[String], dbProvider: DatabaseProvider): Try[Boolean] = Try {
-    vids.map(vid => vidExists(vid, dbProvider).get).forall(identity)
+    vids.map(vid => vidExists(vid, dbProvider).get).forall(scala.Predef.identity)
   }
 
   def vidsNoneExist(vids: List[String], dbProvider: DatabaseProvider): Try[Boolean] = Try {
-    !vids.map(vid => vidExists(vid, dbProvider).get).exists(identity)
+    !vids.map(vid => vidExists(vid, dbProvider).get).exists(scala.Predef.identity)
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {

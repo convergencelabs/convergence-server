@@ -177,10 +177,10 @@ private[domain] final class DomainModelService(domainRestActor: ActorRef[DomainR
     }
 
     modelClusterRegion.ask[RealtimeModelActor.CreateRealtimeModelResponse](r =>
-      RealtimeModelActor.CreateRealtimeModelRequest(domain, modelId, collectionId, objectValue, overrideWorld, worldPermissions, userPerms, None, r))
+      RealtimeModelActor.CreateRealtimeModelRequest(domain, modelId, collectionId, objectValue, None, overrideWorld, worldPermissions, userPerms, None, r))
       .map(_.response.fold(
         {
-          case RealtimeModelActor.ModelAlreadyExistsError() =>
+          case RealtimeModelActor.ModelAlreadyExistsError(_) =>
             conflictsResponse("modelId", modelId)
           case RealtimeModelActor.UnauthorizedError(_) =>
             ForbiddenError

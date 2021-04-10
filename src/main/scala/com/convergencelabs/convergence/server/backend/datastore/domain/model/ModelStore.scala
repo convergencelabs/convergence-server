@@ -60,11 +60,12 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   def createModel(modelId: String,
                   collectionId: String,
                   data: ObjectValue,
+                  createdTime: Option[Instant],
                   overridePermissions: Boolean,
                   worldPermissions: ModelPermissions): Try[Model] = {
 
-    val createdTime = Instant.now()
-    val modifiedTime = createdTime
+    val created = createdTime.getOrElse(Instant.now())
+    val modifiedTime = created
     val version = 1
     val valuePrefix = 1
 
@@ -73,7 +74,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
         modelId,
         collectionId,
         version,
-        createdTime,
+        created,
         modifiedTime,
         overridePermissions,
         worldPermissions,

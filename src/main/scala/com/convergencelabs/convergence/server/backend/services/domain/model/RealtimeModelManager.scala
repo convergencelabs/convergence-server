@@ -435,6 +435,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
             collectionId,
             modelId,
             rootObject,
+            None,
             overridePermissions,
             worldPermissions,
             userPermissions) map { _ =>

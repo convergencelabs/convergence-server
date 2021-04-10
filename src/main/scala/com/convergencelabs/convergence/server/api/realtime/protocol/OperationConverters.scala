@@ -41,7 +41,7 @@ private[realtime] object OperationConverters {
     val mapped: List[Either[OperationMappingError, DiscreteOperation]] =
       op.operations.map(opData => mapIncomingDiscrete(opData)).toList
 
-    (mapped.partitionMap(identity) match {
+    (mapped.partitionMap(scala.Predef.identity) match {
       case (Nil, operations) => Right(operations)
       case (errors, _) => Left(errors.head)
     })

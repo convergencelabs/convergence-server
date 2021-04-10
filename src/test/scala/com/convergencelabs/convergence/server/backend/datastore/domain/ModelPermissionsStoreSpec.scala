@@ -156,8 +156,8 @@ class ModelPermissionsStoreSpec
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
       provider.collectionStore.ensureCollectionExists(collection1).get
-      provider.modelStore.createModel(model1, collection1, ObjectValue("vid", Map()), overridePermissions = true, modelPermissions).get
-      provider.modelStore.createModel(model2, collection1, ObjectValue("vid", Map()), overridePermissions = true, modelPermissions).get
+      provider.modelStore.createModel(model1, collection1, ObjectValue("vid", Map()), None, overridePermissions = true, modelPermissions).get
+      provider.modelStore.createModel(model2, collection1, ObjectValue("vid", Map()), None, overridePermissions = true, modelPermissions).get
       provider.userStore.createDomainUser(DomainUser(user1.userType, user1.username, None, None, None, None, None)).get
       provider.userStore.createDomainUser(DomainUser(user2.userType, user2.username, None, None, None, None, None)).get
       testCode(provider)

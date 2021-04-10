@@ -12,12 +12,12 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import java.util.UUID
-
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.convergence.server.backend.services.domain.UnauthorizedException
 import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions, ModelSnapshot, ModelSnapshotMetaData, ObjectValue}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
+import java.time.Instant
 import scala.util.{Failure, Success, Try}
 
 final case class CollectionAutoCreateDisabled(message: String) extends Exception(message)
@@ -33,6 +33,7 @@ private[model] class ModelCreator {
                   collectionId: String,
                   modelId: String,
                   data: ObjectValue,
+                  createdTime: Option[Instant],
                   overrideWorld: Option[Boolean],
                   worldPermissions: Option[ModelPermissions],
                   userPermissions: Map[DomainUserId, ModelPermissions]): Try[Model] = {
@@ -42,7 +43,7 @@ private[model] class ModelCreator {
     } flatMap { _ =>
       val ow = overrideWorld.getOrElse(false)
       val worldPerms = worldPermissions.getOrElse(ModelPermissions(read = false, write = false, remove = false, manage = false))
-      val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, ow, worldPerms)
+      val model = persistenceProvider.modelStore.createModel(modelId, collectionId, data, createdTime, ow, worldPerms)
       model
     } flatMap { model =>
       val ModelMetaData(model.metaData.id, model.metaData.collection, version, created, _, _, _, model.metaData.valuePrefix) = model.metaData

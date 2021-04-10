@@ -14,7 +14,6 @@ package com.convergencelabs.convergence.server.api.realtime
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.TimeoutException
-
 import akka.actor.typed._
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors, TimerScheduler}
@@ -23,7 +22,7 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model.ModelOfflineSubscriptionChangeRequestMessage.ModelOfflineSubscriptionData
 import com.convergencelabs.convergence.proto.model.ModelsQueryResponseMessage.ModelResult
 import com.convergencelabs.convergence.proto.model.OfflineModelUpdatedMessage.{ModelUpdateData, OfflineModelInitialData, OfflineModelUpdateData}
-import com.convergencelabs.convergence.proto.model.{ObjectValue => _, ModelPermissionsData => ProtoModelPermissions, _}
+import com.convergencelabs.convergence.proto.model.{ModelPermissionsData => ProtoModelPermissions, ObjectValue => _, _}
 import com.convergencelabs.convergence.proto.{ClientMessage, ModelMessage, NormalMessage, RequestMessage}
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{SendServerMessage, SendServerRequest}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
@@ -45,7 +44,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.google.protobuf.struct.Value
 import com.google.protobuf.struct.Value.Kind.{StringValue => ProtoString}
 import grizzled.slf4j.Logging
-import org.json4s.JsonAST.{JInt, JString}
+import org.json4s.JsonAST.{JInt, JString, JValue}
 import scalapb.GeneratedMessage
 
 import scala.collection.mutable.ListBuffer
@@ -874,7 +873,15 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   }
 
   private[this] def onCreateRealtimeModelRequest(request: CreateRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
-    val CreateRealtimeModelRequestMessage(collectionId, optionalModelId, data, overridePermissions, worldPermissionsData, userPermissionsData, _) = request
+    val CreateRealtimeModelRequestMessage(
+      collectionId,
+      optionalModelId,
+      data,
+      createdTime,
+      overridePermissions,
+      worldPermissionsData,
+      userPermissionsData,
+      _) = request
     data match {
       case Some(createData) =>
         protoToObjectValue(createData).fold(
@@ -896,6 +903,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
                   modelId,
                   collectionId,
                   modelRoot,
+                  createdTime.map(timestampToInstant),
                   Some(overridePermissions),
                   worldPermissions,
                   userPermissions,
@@ -903,8 +911,14 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
                   _))
               .map(_.response.fold(
                 {
-                  case RealtimeModelActor.ModelAlreadyExistsError() =>
-                    cb.expectedError(ErrorCodes.ModelAlreadyExists, s"A model with the id '$modelId' already exists.")
+                  case RealtimeModelActor.ModelAlreadyExistsError(fingerprint) =>
+                    val data: Map[String, JValue] = fingerprint
+                      .map(fp => Map("fingerprint" -> JString(fp)))
+                      .getOrElse(Map())
+                    cb.expectedError(
+                      ErrorCodes.ModelAlreadyExists,
+                      s"A model with the id '$modelId' already exists.",
+                      data)
                   case RealtimeModelActor.UnauthorizedError(message) =>
                     cb.reply(ErrorMessages.Unauthorized(message))
                   case RealtimeModelActor.InvalidCreationDataError(message) =>

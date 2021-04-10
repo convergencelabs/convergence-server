@@ -362,6 +362,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
           collectionId,
           modelId,
           data,
+          None,
           overridePermissions,
           worldPermissions,
           userPermissions)
@@ -377,9 +378,9 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   }
 
   private[this] def createModel(msg: CreateRealtimeModelRequest): Unit = {
-    val CreateRealtimeModelRequest(_, modelId, collectionId, data, overridePermissions, worldPermissions, userPermissions, session, replyTo) = msg
+    val CreateRealtimeModelRequest(_, modelId, collectionId, data, createdTime, overridePermissions, worldPermissions, userPermissions, session, replyTo) = msg
     debug(s"$identityString: Creating model.")
-    if (collectionId.length == 0) {
+    if (collectionId.isEmpty) {
       replyTo ! CreateRealtimeModelResponse(Left(InvalidCreationDataError("The collectionId can not be empty when creating a model")))
     } else {
       modelCreator
@@ -389,6 +390,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
           collectionId,
           modelId,
           data,
+          createdTime,
           overridePermissions,
           worldPermissions,
           userPermissions)
@@ -398,8 +400,12 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
         }
         .recover {
           case _: DuplicateValueException =>
-            CreateRealtimeModelResponse(Left(ModelAlreadyExistsError()))
-          case e: UnauthorizedException =>
+            // TODO improve model fingerprint logic when fingerprint added
+            //  to the database.
+            val fingerprint: Option[String] = this.persistenceProvider.modelStore.getModelMetaData(modelId)
+              .map(_.map(_.createdTime.toEpochMilli.toString)).getOrElse(None)
+              CreateRealtimeModelResponse(Left(ModelAlreadyExistsError(fingerprint)))
+          case _: UnauthorizedException =>
             CreateRealtimeModelResponse(Left(UnauthorizedError("Not allowed to create a model in this collection")))
           case e: Exception =>
             error(s"Could not create model: $modelId", e)
@@ -543,6 +549,7 @@ object RealtimeModelActor {
                                               modelId: String,
                                               collectionId: String,
                                               data: ObjectValue,
+                                              createdTime: Option[Instant],
                                               overridePermissions: Option[Boolean],
                                               worldPermissions: Option[ModelPermissions],
                                               userPermissions: Map[DomainUserId, ModelPermissions],
@@ -852,7 +859,7 @@ object RealtimeModelActor {
   final case class ModelDeletedWhileOpeningError() extends AnyRef
     with OpenRealtimeModelError
 
-  final case class ModelAlreadyExistsError() extends AnyRef
+  final case class ModelAlreadyExistsError(fingerprint: Option[String]) extends AnyRef
     with CreateRealtimeModelError
 
   final case class ClientDataRequestError(message: String) extends AnyRef

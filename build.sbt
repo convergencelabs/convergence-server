@@ -54,7 +54,7 @@ lazy val root = (project in file("."))
     normalizedName := "convergence-server",
     description := "The Convergence Server core classes.",
     scalacOptions := Seq("-deprecation", "-feature"),
-    discoveredMainClasses in Compile := Seq(),
+    Compile/ discoveredMainClasses := Seq(),
     fork := true,
     libraryDependencies ++=
       akkaCore ++
@@ -108,9 +108,9 @@ lazy val dist = (project in file("distribution"))
     maintainer := "info@convergencelabs.com",
 
     crossPaths := false,
-    discoveredMainClasses in Compile := Seq(),
+    Compile / discoveredMainClasses := Seq(),
     executableScriptName := "convergence-server",
-    mainClass in Compile := Some("com.convergencelabs.convergence.server.ConvergenceServer"),
+    Compile / mainClass := Some("com.convergencelabs.convergence.server.ConvergenceServer"),
 
     bashScriptExtraDefines += """addApp "-c ${app_home}/../conf/convergence-server.conf"""",
     bashScriptExtraDefines += """addJava "-Dlog4j.configurationFile=${app_home}/../conf/log4j2.xml"""",
@@ -120,15 +120,15 @@ lazy val dist = (project in file("distribution"))
     batScriptExtraDefines += """call :add_java "-Dlog4j.configurationFile=%APP_HOME%\conf\log4j2.xml"""",
     batScriptExtraDefines += """call :add_java "-Dnashorn.args=--no-deprecation-warning"""",
 
-    packageZip := (baseDirectory in Compile).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".zip"),
-    artifact in(Universal, packageZip) ~= { (art: Artifact) => art.withType("zip").withExtension("zip") },
-    packageTgz := (baseDirectory in Compile).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".tgz"),
-    artifact in(Universal, packageTgz) ~= { (art: Artifact) => art.withType("tgz").withExtension("tgz") },
+    packageZip := (Compile / baseDirectory).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".zip"),
+    Universal /  packageZip / artifact ~= { (art: Artifact) => art.withType("zip").withExtension("zip") },
+    packageTgz := (Compile/ baseDirectory).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".tgz"),
+    Universal / packageTgz / artifact ~= { (art: Artifact) => art.withType("tgz").withExtension("tgz") },
 
-    publish := (publish dependsOn(packageBin in Universal, packageZipTarball in Universal)).value,
-    publishSigned := (publishSigned dependsOn(packageBin in Universal, packageZipTarball in Universal)).value,
+    publish := (publish dependsOn(Universal/ packageBin, Universal/ packageZipTarball)).value,
+    publishSigned := (publishSigned dependsOn(Universal / packageBin, Universal / packageZipTarball)).value,
   ))
-  .settings(addArtifact(artifact in(Universal, packageZip), packageZip in Universal))
-  .settings(addArtifact(artifact in(Universal, packageTgz), packageTgz in Universal))
+  .settings(addArtifact(Universal / packageZip / artifact, Universal / packageZip))
+  .settings(addArtifact(Universal / packageTgz / artifact, Universal / packageTgz))
   .enablePlugins(JavaAppPackaging, UniversalDeployPlugin)
   .dependsOn(root)

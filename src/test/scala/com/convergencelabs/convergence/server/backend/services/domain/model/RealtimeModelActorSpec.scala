@@ -143,7 +143,7 @@ class RealtimeModelActorSpec
           val req2 = client2.expectMessageType[ModelClientActor.ClientAutoCreateModelConfigRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
           // Now mock that the data is there.
-          Mockito.when(persistenceProvider.modelStore.createModel(modelId, collectionId, modelJsonData, overridePermissions = true, modelPermissions))
+          Mockito.when(persistenceProvider.modelStore.createModel(modelId, collectionId, modelJsonData, None, overridePermissions = true, modelPermissions))
             .thenReturn(Success(Model(ModelMetaData(collectionId, modelId, 0, now, now, overridePermissions = true, modelPermissions, 1), modelJsonData)))
           Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(Matchers.any())).thenReturn(Success(()))
           Mockito.when(persistenceProvider.modelStore.getModel(modelId)).thenReturn(Success(Some(modelData)))
@@ -177,7 +177,7 @@ class RealtimeModelActorSpec
 
           // Verify that the model and snapshot were created.
           // FIXME use ary capture to match it.
-          verify(modelCreator, times(1)).createModel(any(), any(), any(), any(), any(), any(), any(), any())
+          verify(modelCreator, times(1)).createModel(any(), any(), any(), any(), any(), any(), any(), any(), any())
         }
       }
     }
@@ -345,12 +345,13 @@ class RealtimeModelActorSpec
             Matchers.eq(data),
             any(),
             any(),
+            any(),
             any()))
             .thenReturn(Success(domain.model.Model(domain.model.ModelMetaData(noModelId, collectionId, 0, now, now, overridePermissions = true, modelPermissions, 1), data)))
 
           Mockito.when(persistenceProvider.modelSnapshotStore.createSnapshot(any())).thenReturn(Success(()))
           val createReplyTo: TestProbe[RealtimeModelActor.CreateRealtimeModelResponse] = testKit.createTestProbe()
-          realtimeModelActor ! RealtimeModelActor.CreateRealtimeModelRequest(domainFqn, noModelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1), createReplyTo.ref)
+          realtimeModelActor ! RealtimeModelActor.CreateRealtimeModelRequest(domainFqn, noModelId, collectionId, data, None, Some(true), Some(modelPermissions), Map(), Some(skU1S1), createReplyTo.ref)
           val resp: RealtimeModelActor.CreateRealtimeModelResponse =
             createReplyTo.expectMessageType[RealtimeModelActor.CreateRealtimeModelResponse](FiniteDuration(1, TimeUnit.SECONDS))
           assert(resp.response.isRight)
@@ -364,10 +365,10 @@ class RealtimeModelActorSpec
           val data = ObjectValue("", Map())
 
           realtimeModelActor ! RealtimeModelActor.CreateRealtimeModelRequest(
-            domainFqn, modelId, collectionId, data, Some(true), Some(modelPermissions), Map(), Some(skU1S1), client.ref)
+            domainFqn, modelId, collectionId, data, None, Some(true), Some(modelPermissions), Map(), Some(skU1S1), client.ref)
           val msg = client.expectMessageType[RealtimeModelActor.CreateRealtimeModelResponse](FiniteDuration(1, TimeUnit.SECONDS))
           assert(msg.response.isLeft)
-          msg.response.left.map(err => err shouldBe ModelAlreadyExistsError())
+          msg.response.left.map(err => err shouldBe a[ModelAlreadyExistsError])
         }
       }
     }
@@ -555,8 +556,18 @@ class RealtimeModelActorSpec
 
   trait MockDatabaseWithModel extends TestFixture {
     Mockito.when(persistenceProvider.modelStore.modelExists(modelId)).thenReturn(Success(true))
-    Mockito.when(modelCreator.createModel(any(), any(), Matchers.eq(collectionId), Matchers.eq(modelId), any(), any(), any(), any()))
+    Mockito.when(modelCreator.createModel(any(), any(), Matchers.eq(collectionId), Matchers.eq(modelId), any(), any(), any(), any(), any()))
       .thenReturn(Failure(DuplicateValueException("modelId")))
+
+    Mockito.when(persistenceProvider.modelStore.getModelMetaData(modelId))
+      .thenReturn(Success(Some(ModelMetaData(modelId,
+        collectionId,
+        0,
+        Instant.now(),
+        Instant.now(),
+        overridePermissions = true,
+        ModelPermissions(read = true, write = true, remove = true, manage = true),
+        0))))
 
     Mockito.when(persistenceProvider.modelStore.deleteModel(modelId)).thenReturn(Success(()))
 
@@ -593,6 +604,7 @@ class RealtimeModelActorSpec
       Matchers.eq(collectionId),
       Matchers.eq(modelId),
       Matchers.eq(modelJsonData),
+      any(),
       any(),
       any(),
       any()))
