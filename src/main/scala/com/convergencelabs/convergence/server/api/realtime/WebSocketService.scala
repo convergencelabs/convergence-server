@@ -139,7 +139,7 @@ private[realtime] final class WebSocketService(system: ActorSystem[_],
             .map(b => b.result())
             .flatMap(msg => Future.successful(ClientActor.IncomingBinaryMessage(msg.toArray)))
       }
-      .mapAsync(parallelism = 3)(identity)
+      .mapAsync(parallelism = 3)(scala.Predef.identity)
       .via(createClientActorFlow(clientActor))
       .map {
         case WebSocketService.OutgoingBinaryMessage(msg) => BinaryMessage.Strict(ByteString.fromArray(msg))

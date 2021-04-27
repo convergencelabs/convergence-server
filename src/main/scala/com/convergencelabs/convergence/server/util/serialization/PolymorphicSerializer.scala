@@ -41,7 +41,7 @@ import scala.language.postfixOps
 class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String, Class[_ <: T]]) extends Serializer[T] {
 
   // Ensure we don't have any duplicate mappings
-  private[this] val counts = typeMap.values.groupBy(identity).view.mapValues(_.size).toMap
+  private[this] val counts = typeMap.values.groupBy(scala.Predef.identity).view.mapValues(_.size).toMap
   counts.find(_._2 > 1) map { clazz =>
     throw new IllegalArgumentException(
       "Mappings need to be unique, but a class was mapped to more than one type id: " + clazz._1)
