@@ -47,7 +47,7 @@ object OrientDBPlugin extends AutoPlugin {
       }
 
       val orientDbStudio = "orientdb-studio"
-      val cp = (managedClasspath in Compile).value
+      val cp = (Compile / managedClasspath).value
       val matches = cp.toList.filter { f =>
         val moduleId = f.metadata.get(AttributeKey[ModuleID]("moduleID"))
         moduleId.exists(_.name.contains(orientDbStudio))
