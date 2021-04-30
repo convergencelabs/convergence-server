@@ -18,6 +18,8 @@ import com.jsuereth.sbtpgp.PgpKeys._
 // Global Settings
 //
 
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 ThisBuild / resolvers += Resolver.sonatypeRepo("snapshots")
 
 ThisBuild / organization := "com.convergencelabs"
@@ -25,7 +27,6 @@ ThisBuild / organizationName := "Convergence Labs, Inc."
 ThisBuild / organizationHomepage := Some(url("http://convergencelabs.com"))
 
 ThisBuild / homepage := Some(url("https://convergence.io"))
-ThisBuild / maintainer := "info@convergencelabs.com"
 
 ThisBuild / licenses += "GPLv3" -> url("https://www.gnu.org/licenses/gpl-3.0.html")
 
