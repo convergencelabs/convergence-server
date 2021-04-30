@@ -3,7 +3,7 @@ dist: xenial
 
 language: scala
 scala:
-  - 2.13.2
+  - 2.13.5
 
 script:
   - sbt -J-Xmx3G -J-Xss5M compile
