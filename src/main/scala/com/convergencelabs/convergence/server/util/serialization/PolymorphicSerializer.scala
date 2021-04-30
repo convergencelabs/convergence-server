@@ -59,6 +59,8 @@ class PolymorphicSerializer[T: Manifest](typeField: String, typeMap: Map[String,
           case None =>
             throw new MappingException(s"No class mapping for subclass of ${SuperClass.getName} with type id $typeId.")
         }
+      case c: Any =>
+        throw new MappingException(s"Invalid mapping because element was not a JSON Object: " + c.getClass.getName)
     }
   }
 
