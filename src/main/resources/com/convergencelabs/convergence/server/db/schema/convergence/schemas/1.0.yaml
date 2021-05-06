@@ -52,9 +52,9 @@ actions:
 
   - action: CreateIndex
     className: DomainSchemaVersionLog
-    name: DomainSchemaVersionLog.version
+    name: DomainSchemaVersionLog.domain_version
     type: Unique
-    properties: [version]
+    properties: [domain, version]
 
 ########## DomainSchemaDeltaLog Class ##########
 
