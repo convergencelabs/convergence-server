@@ -151,6 +151,36 @@ class ModelPermissionsStoreSpec
         retrievedPermissions shouldEqual Map(user2 -> permissions)
       }
     }
+
+    "removing all permissions for a user" must {
+      "delete the correct permissions for models and collections" in withTestData { provider =>
+        val cp1 = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user1, cp1).get
+
+        val cp2 = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
+        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user2, cp2).get
+
+        val mp1 = ModelPermissions(read = true, write = false, remove = true, manage = false)
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, user1, mp1).get
+
+        val mp2 = ModelPermissions(read = true, write = false, remove = true, manage = false)
+        provider.modelPermissionsStore.updateModelUserPermissions(model1, user2, mp2).get
+
+        provider.modelPermissionsStore.removeAllModelAndCollectionPermissionsForUser(user1)
+
+        val retrievedCps = provider.modelPermissionsStore.getAllCollectionUserPermissions(collection1).get
+        retrievedCps shouldEqual Map(user2 -> cp2)
+
+        val retrievedCp = provider.modelPermissionsStore.getCollectionUserPermissions(collection1, user1).get
+        retrievedCp shouldEqual None
+
+        val retrievedMps = provider.modelPermissionsStore.getAllModelUserPermissions(model1).get
+        retrievedMps shouldEqual Map(user2 -> mp2)
+
+        val retrievedMp = provider.modelPermissionsStore.getModelUserPermissions(model1, user1).get
+        retrievedMp shouldEqual None
+      }
+    }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {

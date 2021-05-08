@@ -143,7 +143,7 @@ class UserGroupStoreSpec
       }
     }
 
-    "removing a user" must {
+    "removing a user from a group" must {
       "remove a user that is not already a member" in withUsers { store =>
         store.createUserGroup(group1).get
         store.createUserGroup(group2).get
@@ -157,7 +157,7 @@ class UserGroupStoreSpec
         store.getUserGroup(group2.id).get.value shouldBe group2
       }
 
-      "ingore removing a user that is not already a memeber" in withUsers { store =>
+      "ignore removing a user that is not already a member" in withUsers { store =>
         store.createUserGroup(group1).get
 
         store.removeUserFromGroup(group1.id, noUserId)
@@ -172,6 +172,21 @@ class UserGroupStoreSpec
 
       "fail with EntityNotFound for a group that does not exist" in withUsers { store =>
         store.removeUserFromGroup("no group", User1.toUserId).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+
+    "removing a user from all groups" must {
+      "remove the correct user from all groups" in withUsers { store =>
+        val g1 = UserGroup("id1", "group 1", Set(User1.toUserId, User2.toUserId))
+        store.createUserGroup(g1).get
+
+        val g2 = UserGroup("id2", "group 2", Set(User1.toUserId, User2.toUserId, User3.toUserId))
+        store.createUserGroup(g2).get
+
+        store.removeUserFromAllGroups(User1.toUserId).get
+
+        store.getUserGroup(g1.id).get.get.members shouldBe Set(User2.toUserId)
+        store.getUserGroup(g2.id).get.get.members shouldBe Set(User2.toUserId, User3.toUserId)
       }
     }
 

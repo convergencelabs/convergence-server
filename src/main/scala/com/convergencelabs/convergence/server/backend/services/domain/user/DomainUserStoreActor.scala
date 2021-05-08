@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.user
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.{Ok, PagedData}
-import com.convergencelabs.convergence.server.backend.datastore.domain.user.{CreateNormalDomainUser, DomainUserField, DomainUserStore, UpdateDomainUser}
+import com.convergencelabs.convergence.server.backend.datastore.domain.user._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
@@ -25,7 +25,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import scala.util.Success
 
 private final class DomainUserStoreActor(context: ActorContext[DomainUserStoreActor.Message],
-                                         userStore: DomainUserStore)
+                                         userStore: DomainUserStore,
+                                         userDeleter: DomainUserDeletionOrchestrator)
   extends AbstractBehavior[DomainUserStoreActor.Message](context) {
 
   import DomainUserStoreActor._
@@ -143,7 +144,7 @@ private final class DomainUserStoreActor(context: ActorContext[DomainUserStoreAc
 
   private[this] def onDeleteUser(message: DeleteUserRequest): Unit = {
     val DeleteUserRequest(username, replyTo) = message
-    userStore
+    userDeleter
       .deleteNormalDomainUser(username)
       .map(_ => Right(Ok()))
       .recover {
@@ -159,8 +160,8 @@ private final class DomainUserStoreActor(context: ActorContext[DomainUserStoreAc
 
 
 object DomainUserStoreActor {
-  def apply(userStore: DomainUserStore): Behavior[Message] =
-    Behaviors.setup(context => new DomainUserStoreActor(context, userStore))
+  def apply(userStore: DomainUserStore, userDeleter: DomainUserDeletionOrchestrator): Behavior[Message] =
+    Behaviors.setup(context => new DomainUserStoreActor(context, userStore, userDeleter))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

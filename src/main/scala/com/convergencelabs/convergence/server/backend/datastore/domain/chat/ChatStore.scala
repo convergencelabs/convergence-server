@@ -107,18 +107,18 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
   }
 
   private[this] val GetChatInfosQuery =
-    """|SELECT 
-       |  max(eventNo) as eventNo, 
+    """|SELECT
+       |  max(eventNo) as eventNo,
        |  max(timestamp) as timestamp,
-       |  chat.id as id, 
-       |  chat.type as type, 
+       |  chat.id as id,
+       |  chat.type as type,
        |  chat.created as created,
        |  chat.private as private,
-       |  chat.name as name, 
+       |  chat.name as name,
        |  chat.topic as topic,
        |  chat.members as members
        |FROM
-       |  ChatEvent 
+       |  ChatEvent
        |WHERE
        |  chat.id IN :chatIds
        |GROUP BY (chat)
@@ -543,6 +543,19 @@ class ChatStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
       """.stripMargin
 
     val params = Map("chatId" -> chatId, "username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
+    OrientDBUtil.execute(db, script, params).map(_ => ())
+  }
+
+  def removeUserFromAllChats(userId: DomainUserId): Try[Unit] = withDb { db =>
+    val script =
+      """
+        |BEGIN;
+        |LET user = (SELECT FROM User WHERE username = :username AND userType = :userType);
+        |UPDATE Chat REMOVE members = members[user IN $user] WHERE members CONTAINS (user IN $user);
+        |DELETE FROM ChatMember WHERE user IN $user;
+        |COMMIT;
+      """.stripMargin
+    val params = Map("username" -> userId.username, "userType" -> userId.userType.toString.toLowerCase)
     OrientDBUtil.execute(db, script, params).map(_ => ())
   }
 

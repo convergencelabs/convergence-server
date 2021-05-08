@@ -48,7 +48,7 @@ class RemoveUserEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(permissionsStore.userHasPermission(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
-        Mockito.when(permissionsStore.removeAllPermissionsForUser(Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.removeAllPermissionsForUserByTarget(Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val response = RemoveUserEventProcessor.execute(message, state, chatStore, permissionsStore)
@@ -98,7 +98,7 @@ class RemoveUserEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(chatStore.addChatUserRemovedEvent(Matchers.any())).thenReturn(Success(()))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.removeAllPermissionsForUser(Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.removeAllPermissionsForUserByTarget(Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val timestamp = Instant.now()
@@ -109,7 +109,7 @@ class RemoveUserEventProcessorSpec extends ScalaTestWithActorTestKit
 
 
         Mockito.verify(chatStore).addChatUserRemovedEvent(event)
-        Mockito.verify(permissionsStore).removeAllPermissionsForUser(event.userRemoved, ChatPermissionTarget(state.id))
+        Mockito.verify(permissionsStore).removeAllPermissionsForUserByTarget(event.userRemoved, ChatPermissionTarget(state.id))
       }
 
       "fail when the persistence operations fail" in {

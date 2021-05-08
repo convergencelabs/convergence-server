@@ -17,6 +17,7 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.ConvergenceJwtUtil
 import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserDeletionOrchestrator
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
@@ -120,7 +121,9 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
     domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId) map { provider =>
       domainConfigStore = provider.configStore
       statsActor = context.spawn(DomainStatsActor(provider), "DomainStats")
-      userStoreActor = context.spawn(DomainUserStoreActor(provider.userStore), "UserStore")
+      val userDeleter = new DomainUserDeletionOrchestrator(
+        provider.userStore, provider.userGroupStore, provider.chatStore, provider.permissionsStore, provider.modelPermissionsStore)
+      userStoreActor = context.spawn(DomainUserStoreActor(provider.userStore, userDeleter), "UserStore")
       configStoreActor = context.spawn(ConfigStoreActor(provider.configStore), "ConfigStore")
       collectionStoreActor = context.spawn(CollectionStoreActor(provider.collectionStore), "CollectionStore")
       modelStoreActor = context.spawn(ModelStoreActor(provider), "ModelStore")

@@ -559,6 +559,24 @@ class PermissionsStoreSpec
           Set(WorldPermission(permission1), WorldPermission(permission2))
       }
     }
+
+    "removing a user" must {
+      "correctly remove all permissions" in withTestData { provider =>
+        provider.permissionsStore.addPermissionsForUser(Set(permission1, permission2), user1, ChatPermissionTarget(chat1Id)).get
+        provider.permissionsStore.addPermissionsForUser(Set(permission1, permission2), user1, ChatPermissionTarget(chat2Id)).get
+        provider.permissionsStore.addPermissionsForUser(Set(permission1, permission2), user2, ChatPermissionTarget(chat1Id)).get
+
+        provider.permissionsStore.removeAllPermissionsForUser(user1).get
+
+        provider.permissionsStore.getPermissionsForUser(user1, ChatPermissionTarget(chat1Id)).get shouldBe Set()
+        provider.permissionsStore.getPermissionsForUser(user1, ChatPermissionTarget(chat2Id)).get shouldBe Set()
+
+        provider.permissionsStore.getPermissionsForUser(user2, ChatPermissionTarget(chat1Id)).get shouldBe Set(permission1, permission2)
+
+        provider.permissionsStore.getUserPermissionsForTarget(ChatPermissionTarget(chat1Id)).get shouldBe
+          Set(UserPermission(user2, permission1), UserPermission(user2, permission2))
+      }
+    }
   }
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {

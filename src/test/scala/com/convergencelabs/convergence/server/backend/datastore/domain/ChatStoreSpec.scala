@@ -137,6 +137,22 @@ class ChatStoreSpec
       }
     }
 
+    "removing a user from all chats" must {
+      "correctly remove the right user from all chats" in withTestData { provider =>
+        val chatId = provider.chatStore.createChat(
+          Some(channel1Id), ChatType.Channel, Instant.now(), ChatMembership.Public, "test1", "testTopic",
+          Some(Set(user1Id, user2Id)), user2Id).get
+
+        provider.chatStore.removeUserFromAllChats(user1Id).get
+
+        val members = provider.chatStore.getChatMembers(channel1Id).get
+        members shouldEqual Set(user2Id)
+
+        val chat = provider.chatStore.getChatState(chatId).get
+        chat.members shouldEqual Map(user2Id -> ChatMember(chatId, user2Id, 0L))
+      }
+    }
+
     "getting a direct chat channel by its members" must {
       "return the correct chat channel" in withTestData { provider =>
         val members = Set(user1Id, user2Id)

@@ -130,7 +130,7 @@ class DomainUserStore private[domain](dbProvider: DatabaseProvider)
     OrientDBUtil.mutateOneDocument(db, DeleteDomainUserQuery, params)
   }
 
-  private val DeleteDomainUserQuery =
+  private[this] val DeleteDomainUserQuery =
     s"""
        |UPDATE
        |  User

@@ -376,10 +376,10 @@ class ModelPermissionsStore(dbProvider: DatabaseProvider) extends AbstractDataba
       userModelPermissions <- OrientDBUtil.findDocumentFromSingleValueIndex(db, Classes.ModelUserPermissions.Indices.User_Model, List(userRID, modelRID))
       result <- Try {
         userModelPermissions match {
-          case Some(exisitingPermissions) =>
+          case Some(existingPermissions) =>
             // This user already has permissions for this model set, so we just need to update them.
-            exisitingPermissions.setProperty(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
-            exisitingPermissions.save()
+            existingPermissions.setProperty(Classes.ModelUserPermissions.Fields.Permissions, modelPermissionToDoc(permissions))
+            existingPermissions.save()
             ()
           case None =>
             // This user does not already have permissions for this model, so we need to
@@ -400,6 +400,21 @@ class ModelPermissionsStore(dbProvider: DatabaseProvider) extends AbstractDataba
         }
       }
     } yield result
+  }
+
+  private[this] val RemoveModelUserPermissionsCommand = "UPDATE Model REMOVE userPermissions = userPermissions[user = :user]"
+  private[this] val RemoveCollectionUserPermissionsCommand = "UPDATE Collection REMOVE userPermissions = userPermissions[user = :user]"
+  private[this] val RemoveAllCollectionPermissionsForUserCommand = "DELETE FROM CollectionUserPermissions WHERE user = :user"
+  private[this] val RemoveAllModelPermissionsForUserCommand = "DELETE FROM ModelUserPermissions WHERE user = :user"
+
+  def removeAllModelAndCollectionPermissionsForUser(userId: DomainUserId): Try[Unit] = tryWithDb { db =>
+    for {
+      userRid <- DomainUserStore.getUserRid(userId.username, userId.userType, db)
+      _ <- OrientDBUtil.command(db, RemoveModelUserPermissionsCommand, Map("user" -> userRid))
+      _ <- OrientDBUtil.command(db, RemoveAllModelPermissionsForUserCommand, Map("user" -> userRid))
+      _ <- OrientDBUtil.command(db, RemoveCollectionUserPermissionsCommand, Map("user" -> userRid))
+      _ <- OrientDBUtil.command(db, RemoveAllCollectionPermissionsForUserCommand, Map("user" -> userRid))
+    } yield ()
   }
 
   def removeModelUserPermissions(id: String, userId: DomainUserId): Try[Unit] = tryWithDb { db =>

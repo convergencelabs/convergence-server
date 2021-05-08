@@ -12,7 +12,6 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.group
 
 import java.util
-
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
@@ -28,7 +27,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 import scala.jdk.CollectionConverters._
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class UserGroupStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
@@ -126,20 +125,32 @@ class UserGroupStore(dbProvider: DatabaseProvider)
   def removeUserFromGroup(id: String, userId: DomainUserId): Try[Unit] = withDb { db =>
     DomainUserStore.getUserRid(userId, db)
       .recoverWith {
-        case cause: EntityNotFoundException =>
+        case _: EntityNotFoundException =>
           Failure(EntityNotFoundException(
             s"Could not remove user from group, because the user does not exists: $userId",
             Some(userId)))
-      }.flatMap { userRid =>
-      val query = "UPDATE UserGroup REMOVE members = :user WHERE id = :id"
-      val params = Map("user" -> userRid, "id" -> id)
-      OrientDBUtil.mutateOneDocument(db, query, params)
-    }.recoverWith {
-      case cause: EntityNotFoundException =>
-        Failure(EntityNotFoundException(
-          s"Could not remove user from group, because the group does not exists: $id",
-          Some(id)))
-    }
+      }
+      .flatMap { userRid =>
+        val query = "UPDATE UserGroup REMOVE members = :user WHERE id = :id"
+        val params = Map("user" -> userRid, "id" -> id)
+        OrientDBUtil.mutateOneDocument(db, query, params)
+      }
+      .recoverWith {
+        case _: EntityNotFoundException =>
+          Failure(EntityNotFoundException(
+            s"Could not remove user from group, because the group does not exists: $id",
+            Some(id)))
+      }
+  }
+
+  def removeUserFromAllGroups(userId: DomainUserId): Try[Unit] = withDb { db =>
+    DomainUserStore.findUserRid(userId, db).flatMap(
+      _.map { userRid =>
+        val query = "UPDATE UserGroup REMOVE members = :user WHERE members CONTAINS :user"
+        val params = Map("user" -> userRid)
+        OrientDBUtil.command(db, query, params).map(_ => ())
+      }.getOrElse(Success(()))
+    )
   }
 
   def getUserGroup(id: String): Try[Option[UserGroup]] = withDb { db =>

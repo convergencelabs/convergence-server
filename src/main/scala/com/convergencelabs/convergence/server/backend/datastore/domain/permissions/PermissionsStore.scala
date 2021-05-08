@@ -84,16 +84,16 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
           )
       }
       query =
-      s"""SELECT count(*) as count
-         |  FROM Permission
-         |  WHERE
-         |    permission = :permission AND
-         |    $forClause
-         |    (
-         |      not(assignedTo IS DEFINED) OR
-         |      assignedTo = :user OR
-         |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
-         |    )""".stripMargin
+        s"""SELECT count(*) as count
+           |  FROM Permission
+           |  WHERE
+           |    permission = :permission AND
+           |    $forClause
+           |    (
+           |      not(assignedTo IS DEFINED) OR
+           |      assignedTo = :user OR
+           |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+           |    )""".stripMargin
       has <- OrientDBUtil
         .getDocument(db, query, params)
         .map(doc => doc.getProperty("count").asInstanceOf[Long] > 0)
@@ -117,16 +117,16 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       forRecord <- resolveNonGlobalTarget(db, target)
       userRid <- DomainUserStore.getUserRid(userId, db)
       query =
-      """SELECT permission
-        |  FROM Permission
-        |  WHERE
-        |    permission in :permissions AND
-        |    (not(forRecord IS DEFINED) OR forRecord = :forRecord) AND
-        |    (
-        |      not(assignedTo IS DEFINED) OR
-        |      assignedTo = :user OR
-        |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
-        |    )""".stripMargin
+        """SELECT permission
+          |  FROM Permission
+          |  WHERE
+          |    permission in :permissions AND
+          |    (not(forRecord IS DEFINED) OR forRecord = :forRecord) AND
+          |    (
+          |      not(assignedTo IS DEFINED) OR
+          |      assignedTo = :user OR
+          |      (assignedTo.@class = 'UserGroup' AND assignedTo.members CONTAINS :user)
+          |    )""".stripMargin
       params = Map("user" -> userRid, "forRecord" -> forRecord, "permissions" -> filter.asJava)
       permissions <- OrientDBUtil
         .queryAndMap(db, query, params)(_.getProperty(Classes.Permission.Fields.Permission).asInstanceOf[String])
@@ -328,12 +328,32 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
     } yield ()
   }
 
-  def removeAllPermissionsForUser(userId: DomainUserId, target: PermissionTarget): Try[Unit] = withDbTransaction { db =>
+  def removeAllPermissionsForUserByTarget(userId: DomainUserId, target: PermissionTarget): Try[Unit] = withDbTransaction { db =>
     for {
       forRecord <- resolveTarget(db, target)
       userRid <- DomainUserStore.getUserRid(userId, db)
       _ <- removeAllPermissionsForGranteeAndTarget(db, GrantedToRid(userRid), forRecord)
     } yield ()
+  }
+
+  def removeAllPermissionsForUser(userId: DomainUserId): Try[Unit] = withDbTransaction { db =>
+    for {
+      userRid <- DomainUserStore.getUserRid(userId, db)
+      _ <- removeAllUserPermissionsOnAllTargetsForUserRid(db, userRid)
+      _ <- removeAllUserPermissionsForUserRid(db, userRid)
+    } yield ()
+    Success(())
+  }
+
+  private[this] def removeAllUserPermissionsOnAllTargetsForUserRid(db: ODatabaseDocument, userRid: ORID): Try[Unit] = {
+    // TODO make this more abstract when we have more permission targets.
+    val command = "UPDATE Chat REMOVE permissions = permissions[assignedTo = :user] WHERE permissions CONTAINS(assignedTo = :user)"
+    OrientDBUtil.command(db, command, Map("user" -> userRid)).map(_ => ())
+  }
+
+  private[this] def removeAllUserPermissionsForUserRid(db: ODatabaseDocument, userRid: ORID): Try[Unit] = {
+    val command = "DELETE FROM permission WHERE assignedTo = :user"
+    OrientDBUtil.command(db, command, Map("user" -> userRid)).map(_ => ())
   }
 
   private[this] def removePermissionsForUser(db: ODatabaseDocument,
@@ -517,6 +537,17 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
     } yield ()
   }
 
+  /**
+   * This method removes permissions from both the permissions class, as well
+   * as from the permissions field of the record the permissions are assigned
+   * too, if it exists.
+   *
+   * @param db             The database instance to use.
+   * @param permissionRids The permissions instances to remove.
+   * @param forRecord      The target to remove the permission from, or None
+   *                       for the global targets.
+   * @return A try indicating success or failure.
+   */
   private[this] def removePermissionsByRid(db: ODatabaseDocument,
                                            permissionRids: Set[ORID],
                                            forRecord: Option[ORID]): Try[Unit] = {
@@ -538,32 +569,44 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    * too, if it exists.
    *
    * @param permissions The permissions to remove.
-   * @param assignedTo  The assignee to remove the permissions from, or None
+   * @param grantee     The assignee to remove the permissions from, or None
    *                    to remove the permission from the world.
-   * @param forRecord   The target to remove the permission from, or None
-   *                    for tall targets.
+   * @param target      The target to remove the permission from, or None
+   *                    for the global target.
    * @return A try indicating success or failure.
    */
   private[this] def removePermissions(db: ODatabaseDocument,
                                       permissions: Set[String],
-                                      assignedTo: Option[ORID],
-                                      forRecord: Option[ORID]): Try[Unit] = {
+                                      grantee: Option[ORID],
+                                      target: Option[ORID]): Try[Unit] = {
     for {
-      permissionRids <- Try(permissions.flatMap(findPermissionRid(db, _, assignedTo, forRecord).get))
-      _ <- removePermissionsByRid(db, permissionRids, forRecord)
+      permissionRids <- Try(permissions.flatMap(findPermissionRid(db, _, grantee, target).get))
+      _ <- removePermissionsByRid(db, permissionRids, target)
     } yield ()
   }
 
   private[this] def findPermissionRid(db: ODatabaseDocument,
-                                     permission: String,
-                                     assignedTo: Option[ORID],
-                                     forRecord: Option[ORID]): Try[Option[ORID]] = {
-    val assignedToRid = assignedTo.orNull
+                                      permission: String,
+                                      grantee: Option[ORID],
+                                      forRecord: Option[ORID]): Try[Option[ORID]] = {
+    val assignedToRid = grantee.orNull
     val forRecordRid = forRecord.orNull
     OrientDBUtil.findIdentityFromSingleValueIndex(
       db,
       Classes.Permission.Indices.AssignedTo_ForRecord_Permission,
       List(assignedToRid, forRecordRid, permission))
+  }
+
+  private[this] def getAllPermissionsForGrantee[T](db: ODatabaseDocument,
+                                                   grantee: PermissionGrantee,
+                                                   mapper: ODocument => T): Try[Set[T]] = {
+    val sb = new StringBuilder
+    sb.append("SELECT FROM Permission WHERE ")
+    val params = addGranteeParam(sb, Map(), grantee)
+    val query = sb.toString()
+    OrientDBUtil
+      .queryAndMap(db, query, params)(mapper)
+      .map(_.toSet)
   }
 
   private[this] def getPermissionsByGranteeAndTargetRid[T](db: ODatabaseDocument,
