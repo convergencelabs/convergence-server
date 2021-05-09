@@ -276,7 +276,15 @@ object CollectionStoreActor {
     new JsonSubTypes.Type(value = classOf[GetCollectionRequest], name = "get_collection"),
     new JsonSubTypes.Type(value = classOf[GetCollectionsRequest], name = "get_collections"),
     new JsonSubTypes.Type(value = classOf[GetCollectionSummariesRequest], name = "get_collection_summaries"),
-    new JsonSubTypes.Type(value = classOf[UpdateCollectionRequest], name = "update_collection")
+    new JsonSubTypes.Type(value = classOf[UpdateCollectionRequest], name = "update_collection"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionPermissionsRequest], name = "update_collection_permissions"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionWorldPermissionsRequest], name = "get_collection_world_perms"),
+    new JsonSubTypes.Type(value = classOf[SetCollectionWorldPermissionsRequest], name = "set_collection_world_perms"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionUserPermissionsRequest], name = "get_collection_user_perms"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionUserPermissionsRequest], name = "get_collection_user_perms"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionPermissionsForUserRequest], name = "get_collection_perms_for_user"),
+    new JsonSubTypes.Type(value = classOf[SetCollectionPermissionsForUserRequest], name = "set_collection_perms_for_user"),
+    new JsonSubTypes.Type(value = classOf[RemoveCollectionPermissionsForUserRequest], name = "remove_collection_perms_for_user"),
   ))
   sealed trait Message extends CborSerializable
 
