@@ -55,8 +55,8 @@ object SchemaEqualityTester extends Logging {
     val indexManager1 = db1.getMetadata.getIndexManager
     val indexManager2 = db2.getMetadata.getIndexManager
 
-    val indexes = indexManager1.getIndexes.asScala.toSet map { index: OIndex[_] => index.getName }
-    val indexes2 = indexManager2.getIndexes.asScala.toSet map { index: OIndex[_] => index.getName }
+    val indexes = indexManager1.getIndexes.asScala.toSet map { index: OIndex => index.getName }
+    val indexes2 = indexManager2.getIndexes.asScala.toSet map { index: OIndex => index.getName }
 
     assume(indexes.subsetOf(indexes2), "Databases have different indexes!")
     assume(indexes2.subsetOf(indexes), "Databases have different indexes!")
@@ -76,7 +76,7 @@ object SchemaEqualityTester extends Logging {
     }
   }
 
-  private[this] def assertIndexEqual(index1: OIndex[_], index2: OIndex[_]): Unit = {
+  private[this] def assertIndexEqual(index1: OIndex, index2: OIndex): Unit = {
     // TODO: Figure out how to compare metaData
     assume(index1.getName == index2.getName, "Index name is not the same!")
     assume(index1.getType == index2.getType, "Index type for ${index1.getName} is not the same!")

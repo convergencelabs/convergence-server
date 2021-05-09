@@ -298,7 +298,6 @@ private[schema] final class DeltaProcessor(delta: Delta, db: ODatabaseDocument) 
       case IndexType.Unique => OClass.INDEX_TYPE.UNIQUE
       case IndexType.NotUnique => OClass.INDEX_TYPE.NOTUNIQUE
       case IndexType.FullText => OClass.INDEX_TYPE.FULLTEXT
-      case IndexType.Dictionary => OClass.INDEX_TYPE.DICTIONARY
       case IndexType.Proxy => OClass.INDEX_TYPE.PROXY
       case IndexType.UniqueHashIndex => OClass.INDEX_TYPE.UNIQUE_HASH_INDEX
       case IndexType.NotUniqueHashIndex => OClass.INDEX_TYPE.NOTUNIQUE_HASH_INDEX

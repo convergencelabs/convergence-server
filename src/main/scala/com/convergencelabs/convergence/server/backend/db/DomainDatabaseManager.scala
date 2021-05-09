@@ -11,9 +11,10 @@
 
 package com.convergencelabs.convergence.server.backend.db
 
+import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
+
 import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
-
 import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProviderImpl
 import com.convergencelabs.convergence.server.backend.db.schema.{DomainSchemaManager, SchemaManager}
 import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
@@ -42,6 +43,7 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
     createDatabase(dbName) flatMap { _ =>
       setAdminCredentials(dbName, dbAdminUsername, dbAdminPassword)
     } flatMap { _ =>
+      logger.debug(s"Connecting with domain database admin user: $dbBaseUri/$dbName")
       val provider = new SingleDatabaseProvider(dbBaseUri, dbName, dbAdminUsername, dbAdminPassword)
       val result = provider
         .connect()
@@ -68,46 +70,42 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
   }
 
   private[this] def setAdminCredentials(dbName: String, adminUsername: String, adminPassword: String): Try[Unit] = Try {
-    logger.debug(s"Updating database admin credentials: $dbBaseUri/$dbName")
+    logger.debug(s"Creating database admin user credentials: $dbBaseUri/$dbName")
     // Orient DB has three default users. admin, reader and writer. They all
     // get created with their passwords equal to their usernames. We want
     // to change the admin and writer and delete the reader.
     val orientDb = new OrientDB(dbBaseUri, dbRootUsername, dbRootPassword, OrientDBConfig.defaultConfig())
     val db = orientDb.open(dbName, dbRootUsername, dbRootPassword)
 
-    // Change the admin username / password and then reconnect
-    val adminUser = db.getMetadata.getSecurity.getUser(OrientDefaultAdmin)
-    adminUser.setName(adminUsername)
-    adminUser.setPassword(adminPassword)
-    adminUser.save()
+    val adminUser = db.getMetadata.getSecurity.createUser(adminUsername, adminUsername, "admin")
 
-    logger.debug(s"Database admin credentials set, reconnecting: $dbBaseUri/$dbName")
-
-    // Close and reconnect with the new credentials to make sure everything
-    // we set properly.
+    // Close the connection with the root user.
     db.close()
     orientDb.close()
+
+    logger.debug(s"Database admin credentials created: $dbBaseUri/$dbName")
   }
 
   private[this] def configureNonAdminUsers(dbProvider: DatabaseProvider, dbUsername: String, dbPassword: String): Try[Unit] = {
     dbProvider.tryWithDatabase { db =>
-      logger.debug(s"Updating normal user credentials: $dbBaseUri/${db.getName}")
+      logger.debug(s"Creating normal user credentials: $dbBaseUri/${db.getName}")
 
       // Change the username and password of the normal user
-      val normalUser = db.getMetadata.getSecurity.getUser(OrientDefaultWriter)
-      normalUser.setName(dbUsername)
-      normalUser.setPassword(dbPassword)
-      normalUser.save()
+      db.getMetadata.getSecurity.createUser(dbUsername, dbPassword, "writer")
 
       // FIXME work around for this: https://github.com/orientechnologies/orientdb/issues/8535
       val writer = db.getMetadata.getSecurity.getRole("writer")
       writer.addRule(ORule.ResourceGeneric.CLASS, OSequence.CLASS_NAME, ORole.PERMISSION_READ + ORole.PERMISSION_UPDATE)
       writer.save()
 
-      logger.debug(s"Deleting 'reader' user credentials: $dbBaseUri/${db.getName}")
-      // Delete the reader user since we do not need it.
-      db.getMetadata.getSecurity.getUser(OrientDefaultReader).getDocument.delete()
-      ()
+      val grant =
+      """
+      |CREATE SECURITY POLICY default_6 SET CREATE = (FALSE), READ = (TRUE), BEFORE UPDATE = (TRUE), AFTER UPDATE = (TRUE), DELETE = (FALSE);
+      |GRANT POLICY default_6 ON database.class.OSequence TO writer;
+      """.stripMargin
+
+      OrientDBUtil.execute(db, grant).map(_ => ())
+      // END workaround
     }
   }
 

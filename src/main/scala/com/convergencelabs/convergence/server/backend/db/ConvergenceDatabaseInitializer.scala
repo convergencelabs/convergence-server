@@ -175,10 +175,13 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * @return The connected database or a Failure.
    */
   private[this] def createAndGetConvergenceDatabase(orientDb: OrientDB): Try[ODatabaseDocument] = Try {
-    orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
-    logger.debug("Convergence database created, connecting as default admin user")
+    val adminUsername = dbServerConfig.getString("admin-username")
+    val adminPassword = dbServerConfig.getString("admin-password")
 
-    val db = orientDb.open(convergenceDatabase, "admin", "admin")
+    orientDb.create(convergenceDatabase, ODatabaseType.PLOCAL)
+    logger.debug("Convergence database created, connecting as database root user")
+
+    val db = orientDb.open(convergenceDatabase, adminUsername, adminPassword)
     logger.info("Connected to convergence database")
     db
   }
@@ -198,20 +201,11 @@ final class ConvergenceDatabaseInitializer(config: Config,
     val adminUsername = convergenceDbConfig.getString("admin-username")
     val adminPassword = convergenceDbConfig.getString("admin-password")
 
-    logger.debug("Deleting default 'reader' user.")
-    db.getMetadata.getSecurity.getUser("reader").getDocument.delete()
+    logger.debug("Creating 'writer' user credentials.")
+    db.getMetadata.getSecurity.createUser(username, password, "writer")
 
-    logger.debug("Setting 'writer' user credentials.")
-    val writerUser = db.getMetadata.getSecurity.getUser("writer")
-    writerUser.setName(username)
-    writerUser.setPassword(password)
-    writerUser.save()
-
-    logger.debug("Setting 'admin' user credentials.")
-    val adminUser = db.getMetadata.getSecurity.getUser("admin")
-    adminUser.setName(adminUsername)
-    adminUser.setPassword(adminPassword)
-    adminUser.save()
+    logger.debug("Creating 'admin' user credentials.")
+    db.getMetadata.getSecurity.createUser(adminUsername, adminPassword, "admin")
 
     ()
   }

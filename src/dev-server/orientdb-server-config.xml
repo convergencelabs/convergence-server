@@ -60,6 +60,8 @@
             <parameters>
                 <parameter name="enabled" value="true"/>
                 <parameter name="allowedLanguages" value="SQL"/>
+                <!--  Comma separated packages  allowed in JS scripts eg. java.math.*, java.util.ArrayList -->
+                <parameter name="allowedPackages" value=""/>
             </parameters>
         </handler>
         <!-- CUSTOM SQL FUNCTIONS -->
@@ -108,6 +110,8 @@
                         will be taken -->
                     <parameter name="network.http.charset" value="utf-8"/>
                     <parameter value="true" name="network.http.jsonResponseError"/>
+                    <parameter value="Content-Security-Policy: frame-ancestors 'none'"
+                               name="network.http.additionalResponseHeaders"></parameter>
                     <!-- Define additional HTTP headers to always send as response -->
                     <!-- Allow cross-site scripting -->
                     <!-- parameter name="network.http.additionalResponseHeaders" value="Access-Control-Allow-Origin:
@@ -125,7 +129,9 @@
                             <entry name="http.cache:default" value="Cache-Control: max-age=120"/>
                         </parameters>
                     </command>
-                    <command pattern="GET|gephi/*" implementation="com.orientechnologies.orient.server.network.protocol.http.command.get.OServerCommandGetGephi"/>
+                    <command pattern="GET|gephi/*"
+                             implementation="com.orientechnologies.orient.server.network.protocol.http.command.get.OServerCommandGetGephi"/>
+
                 </commands>
             </listener>
         </listeners>
@@ -135,11 +141,14 @@
     <storages>
     </storages>
     <users>
-        <user name="root" password="password" resources="*" />
+        <user name="root" password="password" resources="*"/>
     </users>
     <properties>
+        <!-- PROFILER: configures the profiler as <seconds-for-snapshot>,<archive-snapshot-size>,<summary-size> -->
         <entry name="profiler.enabled" value="false"/>
-	    <entry name="log.console.level" value="SEVERE" />
-	    <entry name="log.file.level" value="SEVERE"/>
+        <!-- <entry name="profiler.config" value="30,10,10" /> -->
+        <entry name="log.console.level" value="SEVERE"/>
+        <entry name="log.file.level" value="SEVERE"/>
     </properties>
 </orient-server>
+

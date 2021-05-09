@@ -51,6 +51,7 @@ class ModelSnapshotStore private[domain](dbProvider: DatabaseProvider)
   def createSnapshot(modelSnapshot: ModelSnapshot): Try[Unit] = withDb { db =>
     modelSnapshotToDoc(modelSnapshot, db)
       .flatMap(doc => Try {
+        doc.getProperty(Classes.ModelSnapshot.Fields.Data).asInstanceOf[ODocument].save()
         db.save(doc)
         ()
       })

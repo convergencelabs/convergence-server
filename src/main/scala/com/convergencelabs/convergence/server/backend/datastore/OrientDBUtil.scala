@@ -14,8 +14,9 @@ package com.convergencelabs.convergence.server.backend.datastore
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset, TryWithResource}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.db.record.OIdentifiable
-import com.orientechnologies.orient.core.id.ORID
-import com.orientechnologies.orient.core.index.{OCompositeKey, OIndex}
+import com.orientechnologies.orient.core.id.{ORID, ORecordId}
+import com.orientechnologies.orient.core.index.OCompositeKey
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.OElement
 import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.sql.executor.OResultSet
@@ -43,7 +44,7 @@ object OrientDBUtil {
    * field indicating the number of mutated records.
    */
   def commandReturningCount(db: ODatabaseDocument, command: String, params: Map[String, Any] = Map()): Try[Long] = {
-    this.singleResultCommand(db, command, params).flatMap( result => {
+    this.singleResultCommand(db, command, params).flatMap(result => {
       val count: Long = result.getProperty(CountField)
       Option(count)
         .map(Success(_))
@@ -111,12 +112,9 @@ object OrientDBUtil {
   }
 
   def indexContains(db: ODatabaseDocument, index: String, key: Any): Try[Boolean] = {
-    for {
-      oIndex <- getIndex(db, index)
-      contains <- Try(oIndex.contains(key))
-    } yield {
-      contains
-    }
+    val query = s"SELECT rid FROM INDEX:$index WHERE key = :key"
+    val params = Map("key" -> key)
+    findDocument(db, query, params).map(_.isDefined)
   }
 
   def getIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[ORID] = {
@@ -124,36 +122,19 @@ object OrientDBUtil {
   }
 
   def getIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[ORID] = {
-    for {
-      oIndex <- getIndex(db, index)
-      identity <- Try(Option(oIndex.get(key).asInstanceOf[OIdentifiable]))
-        .flatMap {
-          case Some(doc) => Success(doc.getIdentity)
-          case None => Failure(EntityNotFoundException())
-        }
-    } yield {
-      identity
-    }
+    val query = s"SELECT rid FROM INDEX:$index WHERE key = :key"
+    val params = Map("key" -> key)
+    getDocument(db, query, params).map(_.eval("rid").asInstanceOf[ORID])
   }
 
   def getIdentitiesFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ORID]] = {
     if (keys.isEmpty) {
       Success(List())
     } else {
-      val processedKeys = keys.map({
-        // Note we do this because of this
-        //   https://github.com/orientechnologies/orientdb/issues/8751
-        case oc: OCompositeKey => oc.getKeys
-        case l: List[_] => l.asJava
-        case v: Any => v
-      }).asJava
-
+      val processedKeys = keys.map(processIndexKey).asJava
       val params = Map("keys" -> processedKeys)
       val query = s"SELECT FROM INDEX:$index WHERE key IN :keys"
-      OrientDBUtil.queryAndMap(db, query, params) { doc =>
-        val rid = doc.eval("rid").asInstanceOf[ORID]
-        rid
-      }
+      OrientDBUtil.queryAndMap(db, query, params)(_.eval("rid").asInstanceOf[ORID])
     }
   }
 
@@ -162,7 +143,9 @@ object OrientDBUtil {
   }
 
   def findIdentityFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[Option[ORID]] = {
-    Try(Option(db.getMetadata.getIndexManager.getIndex(index).get(key).asInstanceOf[OIdentifiable]).map(_.getIdentity))
+    val query = s"SELECT rid FROM INDEX:$index WHERE key = :key"
+    val params = Map("key" -> key)
+    findDocumentAndMap(db, query, params)(_.eval("rid").asInstanceOf[ORID])
   }
 
   def getDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[_]): Try[ODocument] = {
@@ -182,12 +165,10 @@ object OrientDBUtil {
   }
 
   def findDocumentFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[Option[ODocument]] = {
-    Try(Option(db
-      .getMetadata
-      .getIndexManager
-      .getIndex(index)
-      .get(key).asInstanceOf[OIdentifiable]))
-      .map(_.map(_.getRecord.asInstanceOf[ODocument]))
+    val query = s"SELECT rid FROM INDEX:$index WHERE key = :key"
+    val params = Map("key" -> key)
+    findDocumentAndMap(db, query, params)(_.getProperty("rid").asInstanceOf[ODocument
+    ])
   }
 
   def getDocumentsFromSingleValueIndex(db: ODatabaseDocument, index: String, keys: List[Any]): Try[List[ODocument]] = {
@@ -201,7 +182,7 @@ object OrientDBUtil {
         case v: Any => v
       }).asJava
       val params = Map("keys" -> processedKeys)
-      val query = s"SELECT FROM INDEX:$index WHERE key IN :keys"
+      val query = s"SELECT rid FROM INDEX:$index WHERE key IN :keys"
       OrientDBUtil.query(db, query, params).map(_.map(_.getProperty("rid").asInstanceOf[OIdentifiable].getRecord.asInstanceOf[ODocument]))
     }
   }
@@ -211,31 +192,9 @@ object OrientDBUtil {
   }
 
   def deleteFromSingleValueIndex(db: ODatabaseDocument, index: String, key: Any): Try[Unit] = {
-    // FIXME this should work, but for some reason does not seem to work.
-    //    for {
-    //      oIndex <- getIndex(db, index)
-    //      deleted <- Try(oIndex.remove(key))
-    //    } yield {
-    //      deleted match {
-    //        case true =>
-    //          Success(())
-    //        case false =>
-    //          Failure(EntityNotFoundException())
-    //      }
-    //    }
-
-    for {
-      oIndex <- getIndex(db, index)
-      rid <- Try(Option(oIndex.get(key).asInstanceOf[ORID]))
-      _ <- rid match {
-        case Some(rid) =>
-          Try(db.delete(rid)).map(_ => ())
-        case None =>
-          Failure(EntityNotFoundException())
-      }
-    } yield {
-      ()
-    }
+    val query = s"DELETE FROM INDEX:$index WHERE key = :key"
+    val params = Map("key" -> key)
+    mutateOneDocument(db, query, params)
   }
 
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, keys: List[_]): Try[Unit] = {
@@ -243,30 +202,11 @@ object OrientDBUtil {
   }
 
   def deleteFromSingleValueIndexIfExists(db: ODatabaseDocument, index: String, key: Any): Try[Unit] = {
-    Try {
-      Option(db.getMetadata.getIndexManager.getIndex(index).get(key).asInstanceOf[OIdentifiable]).map(_.getIdentity)
-    }.flatMap {
-      case Some(rid) => Try(db.delete(rid)).map(_ => ())
-      case None => Success(())
-    }
+    val query = s"DELETE FROM INDEX:$index WHERE key = :key"
+    val params = Map("key" -> key)
+    command(db, query, params).map(_ => ())
   }
 
-  def getIndex(db: ODatabaseDocument, index: String): Try[OIndex[_]] = {
-    Option(db.getMetadata.getIndexManager.getIndex(index)) match {
-      case Some(oIndex) =>
-        Success(oIndex)
-      case None =>
-        // TODO Workaround for https://github.com/orientechnologies/orientdb/issues/8397
-        db.getMetadata.reload()
-        Option(db.getMetadata.getIndexManager.getIndex(index)) match {
-          case Some(oIndex) =>
-            Success(oIndex)
-          case None =>
-            Failure(new IllegalArgumentException("Index not found: " + index))
-        }
-
-    }
-  }
 
   /////////////////////////////////////////////////////////////////////////////
   // Sequence Methods
@@ -361,5 +301,15 @@ object OrientDBUtil {
     }
     rs.close()
     docs.toList
+  }
+
+  private[this] def processIndexKey(key: Any): Any = {
+    key match {
+      // Note we do this because of this
+      //   https://github.com/orientechnologies/orientdb/issues/8751
+      case oc: OCompositeKey => oc.getKeys
+      case l: List[_] => l.asJava
+      case v: Any => v
+    }
   }
 }

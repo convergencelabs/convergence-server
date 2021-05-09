@@ -55,7 +55,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
                    displayName: String,
                    owner: String): Try[DomainDatabase] = {
 
-    val dbName = Math.abs(UUID.randomUUID().getLeastSignificantBits).toString
+    val dbName = s"domain-${domainId.namespace}-${domainId.domainId}-${Math.abs(UUID.randomUUID().getLeastSignificantBits)}"
     val (dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = if (randomizeCredentials) {
       (UUID.randomUUID().toString, UUID.randomUUID().toString,
         UUID.randomUUID().toString, UUID.randomUUID().toString)
