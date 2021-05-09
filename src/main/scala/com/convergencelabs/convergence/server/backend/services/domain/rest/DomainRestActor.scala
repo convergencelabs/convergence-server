@@ -122,10 +122,10 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
       domainConfigStore = provider.configStore
       statsActor = context.spawn(DomainStatsActor(provider), "DomainStats")
       val userDeleter = new DomainUserDeletionOrchestrator(
-        provider.userStore, provider.userGroupStore, provider.chatStore, provider.permissionsStore, provider.modelPermissionsStore)
+        provider.userStore, provider.userGroupStore, provider.chatStore, provider.permissionsStore, provider.modelPermissionsStore, provider.collectionPermissionsStore)
       userStoreActor = context.spawn(DomainUserStoreActor(provider.userStore, userDeleter), "UserStore")
       configStoreActor = context.spawn(ConfigStoreActor(provider.configStore), "ConfigStore")
-      collectionStoreActor = context.spawn(CollectionStoreActor(provider.collectionStore), "CollectionStore")
+      collectionStoreActor = context.spawn(CollectionStoreActor(provider.collectionStore, provider.collectionPermissionsStore), "CollectionStore")
       modelStoreActor = context.spawn(ModelStoreActor(provider), "ModelStore")
       modelPermissionsStoreActor = context.spawn(ModelPermissionsStoreActor(provider.modelPermissionsStore), "ModelPermissionsStore")
       keyStoreActor = context.spawn(JwtAuthKeyStoreActor(provider.jwtAuthKeyStore), "JwtAuthKeyStore")

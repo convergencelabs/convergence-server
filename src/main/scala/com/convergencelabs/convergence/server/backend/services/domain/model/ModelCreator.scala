@@ -75,11 +75,11 @@ private[model] class ModelCreator {
       if (exists) {
         userId match {
           case Some(uid) =>
-            persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(collectionId, uid).flatMap {
+            persistenceProvider.collectionPermissionsStore.getCollectionPermissionsForUser(collectionId, uid).flatMap {
               case Some(p) =>
                 Success(p)
               case None =>
-                persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)
+                persistenceProvider.collectionPermissionsStore.getCollectionWorldPermissions(collectionId)
             } flatMap { permissions =>
               if (permissions.create) {
                 Success(())

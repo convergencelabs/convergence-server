@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.backend.datastore.AbstractPersistenceProvider
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.collection.{CollectionPermissionsStore, CollectionStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
@@ -30,7 +30,7 @@ trait DomainPersistenceProvider {
   val domainId: DomainId
 
   val dbProvider: DatabaseProvider
-  
+
   val configStore: DomainConfigStore
 
   val userStore: DomainUserStore
@@ -49,14 +49,18 @@ trait DomainPersistenceProvider {
 
   val collectionStore: CollectionStore
 
+  val collectionPermissionsStore: CollectionPermissionsStore
+
   val modelOperationProcessor: ModelOperationProcessor
 
   val modelPermissionsStore: ModelPermissionsStore
 
+  val modelPermissionCalculator: ModelPermissionCalculator
+
   val chatStore: ChatStore
 
   val permissionsStore: PermissionsStore
-  
+
   def validateConnection(): Try[Unit]
 
   def shutdown(): Unit
@@ -85,9 +89,13 @@ class DomainPersistenceProviderImpl(val domainId: DomainId,
 
   val collectionStore = new CollectionStore(dbProvider)
 
+  val collectionPermissionsStore = new CollectionPermissionsStore(dbProvider)
+
   val modelOperationProcessor = new ModelOperationProcessor(dbProvider, modelOperationStore, modelStore)
 
   val modelPermissionsStore = new ModelPermissionsStore(dbProvider)
+
+  val modelPermissionCalculator = new ModelPermissionCalculator(dbProvider, modelPermissionsStore, collectionPermissionsStore)
 
   val chatStore = new ChatStore(dbProvider)
 

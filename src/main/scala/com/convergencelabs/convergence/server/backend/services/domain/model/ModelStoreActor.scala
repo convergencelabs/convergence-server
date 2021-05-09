@@ -91,7 +91,7 @@ private final class ModelStoreActor(context: ActorContext[ModelStoreActor.Messag
 
   private[this] def onGetModelUpdate(request: GetModelUpdateRequest): Unit = {
     val GetModelUpdateRequest(modelId, currentVersion, currentPermissions, userId, replyTo) = request
-    persistenceProvider.modelPermissionsStore.getUsersCurrentModelPermissions(modelId, userId).flatMap {
+    persistenceProvider.modelPermissionCalculator.getUsersCurrentModelPermissions(modelId, userId).flatMap {
       case Some(permissions) =>
         if (permissions.read) {
           // Model still exists and is still readable. Check to see if the

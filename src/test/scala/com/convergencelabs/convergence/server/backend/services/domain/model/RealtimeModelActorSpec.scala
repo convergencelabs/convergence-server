@@ -514,9 +514,9 @@ class RealtimeModelActorSpec
 
     Mockito.when(persistenceProvider.collectionStore.collectionExists(collectionId)).thenReturn(Success(true))
 
-    Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)))
-    Mockito.when(persistenceProvider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[DomainUserId, CollectionPermissions]()))
-    Mockito.when(persistenceProvider.modelPermissionsStore.getCollectionUserPermissions(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(None))
+    Mockito.when(persistenceProvider.collectionPermissionsStore.getCollectionWorldPermissions(collectionId)).thenReturn(Success(CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)))
+    Mockito.when(persistenceProvider.collectionPermissionsStore.getAllCollectionUserPermissions(collectionId)).thenReturn(Success(Map[DomainUserId, CollectionPermissions]()))
+    Mockito.when(persistenceProvider.collectionPermissionsStore.getCollectionPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(None))
     Mockito.when(persistenceProvider.modelPermissionsStore.updateModelUserPermissions(Matchers.any(), Matchers.any(), Matchers.any())).thenReturn(Success(()))
     Mockito.when(persistenceProvider.modelPermissionsStore.updateAllModelUserPermissions(Matchers.any(), Matchers.any())).thenReturn(Success(()))
     Mockito.when(persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)).thenReturn(Success(false))

@@ -15,10 +15,8 @@ import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundEx
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.model.domain.model.{ModelPermissions, ObjectValue}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
-import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -100,65 +98,8 @@ class ModelPermissionsStoreSpec
       }
     }
 
-    "retrieving the collection world permissions" must {
-      "be equal to those just set" in withTestData { provider =>
-        val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.modelPermissionsStore.setCollectionWorldPermissions(collection1, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionWorldPermissions(collection1).get
-        retrievedPermissions shouldEqual permissions
-      }
-
-      "fail if collection does not exist" in withTestData { provider =>
-        provider.modelPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId).failure
-      }
-    }
-
-    "retrieving the collection user permissions" must {
-      "be equal to those just set" in withTestData { provider =>
-        val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user1, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionUserPermissions(collection1, user1).get
-        retrievedPermissions shouldEqual Some(permissions)
-      }
-
-      "be none if no permissions are set" in withTestData { provider =>
-        val retrievedPermissions = provider.modelPermissionsStore.getCollectionUserPermissions(collection1, user1).get
-        retrievedPermissions shouldEqual None
-      }
-    }
-
-    "retrieving all collection user permissions" must {
-      "contain all those just set" in withTestData { provider =>
-        val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user1, permissions).get
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user2, permissions).get
-        val retrievedPermissions = provider.modelPermissionsStore.getAllCollectionUserPermissions(collection1).get
-        retrievedPermissions shouldEqual Map(user1 -> permissions, user2 -> permissions)
-      }
-
-      "fail if collection does not exist" in withTestData { provider =>
-        an[EntityNotFoundException] should be thrownBy provider.modelPermissionsStore.getAllCollectionUserPermissions(nonExistentCollectionId).get
-      }
-    }
-
-    "deleting a collection user permissions" must {
-      "must no longer be set on the collection" in withTestData { provider =>
-        val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user1, permissions).get
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user2, permissions).get
-        provider.modelPermissionsStore.removeCollectionUserPermissions(collection1, user1)
-        val retrievedPermissions = provider.modelPermissionsStore.getAllCollectionUserPermissions(collection1).get
-        retrievedPermissions shouldEqual Map(user2 -> permissions)
-      }
-    }
-
     "removing all permissions for a user" must {
-      "delete the correct permissions for models and collections" in withTestData { provider =>
-        val cp1 = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user1, cp1).get
-
-        val cp2 = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.modelPermissionsStore.updateCollectionUserPermissions(collection1, user2, cp2).get
+      "delete the correct permissions for models" in withTestData { provider =>
 
         val mp1 = ModelPermissions(read = true, write = false, remove = true, manage = false)
         provider.modelPermissionsStore.updateModelUserPermissions(model1, user1, mp1).get
@@ -166,13 +107,7 @@ class ModelPermissionsStoreSpec
         val mp2 = ModelPermissions(read = true, write = false, remove = true, manage = false)
         provider.modelPermissionsStore.updateModelUserPermissions(model1, user2, mp2).get
 
-        provider.modelPermissionsStore.removeAllModelAndCollectionPermissionsForUser(user1)
-
-        val retrievedCps = provider.modelPermissionsStore.getAllCollectionUserPermissions(collection1).get
-        retrievedCps shouldEqual Map(user2 -> cp2)
-
-        val retrievedCp = provider.modelPermissionsStore.getCollectionUserPermissions(collection1, user1).get
-        retrievedCp shouldEqual None
+        provider.modelPermissionsStore.removeAllModelPermissionsForUser(user1)
 
         val retrievedMps = provider.modelPermissionsStore.getAllModelUserPermissions(model1).get
         retrievedMps shouldEqual Map(user2 -> mp2)

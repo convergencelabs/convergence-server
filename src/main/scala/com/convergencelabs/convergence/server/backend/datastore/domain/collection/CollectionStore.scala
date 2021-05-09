@@ -190,7 +190,7 @@ object CollectionStore {
     doc.setProperty(Fields.Description, collection.description)
     doc.setProperty(Fields.OverrideSnapshotConfig, collection.overrideSnapshotConfig)
     doc.setProperty(Fields.SnapshotConfig, modelSnapshotConfigToODocument(collection.snapshotConfig), OType.EMBEDDED)
-    doc.setProperty(Fields.WorldPermissions, ModelPermissionsStore.collectionPermissionToDoc(collection.worldPermissions))
+    doc.setProperty(Fields.WorldPermissions, CollectionPermissionsStore.collectionPermissionToDoc(collection.worldPermissions))
   }
 
   def docToCollection(doc: ODocument): Collection = {
@@ -203,7 +203,7 @@ object CollectionStore {
       doc.getProperty(Fields.Description),
       doc.getProperty(Fields.OverrideSnapshotConfig),
       snapshotConfig,
-      ModelPermissionsStore.docToCollectionPermissions(doc.getProperty(Fields.WorldPermissions)))
+      CollectionPermissionsStore.docToCollectionPermissions(doc.getProperty(Fields.WorldPermissions)))
   }
 
   def getCollectionRid(id: String, db: ODatabaseDocument): Try[ORID] = {

@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.user
 
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionPermissionsStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelPermissionsStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
@@ -27,7 +28,9 @@ class DomainUserDeletionOrchestrator(private val domainUserStore: DomainUserStor
                                      private val userGroupStore: UserGroupStore,
                                      private val chatStore: ChatStore,
                                      private val permissionsStore: PermissionsStore,
-                                     private val modelPermissionsStore: ModelPermissionsStore) {
+                                     private val modelPermissionsStore: ModelPermissionsStore,
+                                     private val collectionPermissionsStore: CollectionPermissionsStore
+                                    ) {
 
   /**
    * Deletes a normal user from all relevant places in the datastore.
@@ -38,7 +41,8 @@ class DomainUserDeletionOrchestrator(private val domainUserStore: DomainUserStor
     val userId = DomainUserId(DomainUserType.Normal, username)
     for {
       _ <- permissionsStore.removeAllPermissionsForUser(userId)
-      _ <- modelPermissionsStore.removeAllModelAndCollectionPermissionsForUser(userId)
+      _ <- modelPermissionsStore.removeAllModelPermissionsForUser(userId)
+      _ <- collectionPermissionsStore.removeAllCollectionPermissionsForUser(userId)
       _ <- userGroupStore.removeUserFromAllGroups(userId)
       _ <- chatStore.removeUserFromAllChats(userId)
       _ <- domainUserStore.deleteNormalDomainUser(username)

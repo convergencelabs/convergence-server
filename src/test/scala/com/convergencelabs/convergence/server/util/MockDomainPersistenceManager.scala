@@ -10,14 +10,15 @@
  */
 
 package com.convergencelabs.convergence.server.util
+
 import akka.actor.typed.{ActorRef, ActorSystem}
 import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
+import com.convergencelabs.convergence.server.backend.datastore.domain.collection.{CollectionPermissionsStore, CollectionStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationProcessor, ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationProcessor, ModelOperationStore, ModelPermissionCalculator, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
@@ -46,7 +47,7 @@ class MockDomainPersistenceProvider(override val domainId: DomainId)
   extends DomainPersistenceProvider with MockitoSugar {
 
   val dbProvider: DatabaseProvider = mock[DatabaseProvider]
-  
+
   val configStore: DomainConfigStore = mock[DomainConfigStore]
 
   val userStore: DomainUserStore = mock[DomainUserStore]
@@ -72,13 +73,17 @@ class MockDomainPersistenceProvider(override val domainId: DomainId)
   val chatStore: ChatStore = mock[ChatStore]
 
   val permissionsStore: PermissionsStore = mock[PermissionsStore]
-  
+
+  val collectionPermissionsStore: CollectionPermissionsStore = mock[CollectionPermissionsStore]
+
+  val modelPermissionCalculator: ModelPermissionCalculator = mock[ModelPermissionCalculator]
+
   private[this] var validateConnectionResponse: Try[Unit] = Success(())
-  
+
   def setValidateConnectionResponse(result: Try[Unit]): Unit = {
     this.validateConnectionResponse = result
   }
-  
+
   def validateConnection(): Try[Unit] = {
     this.validateConnectionResponse
   }

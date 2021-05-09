@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import java.time.Duration
-
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -28,16 +26,18 @@ import com.convergencelabs.convergence.server.backend.services.domain.rest.Domai
 import com.convergencelabs.convergence.server.model
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
-import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions, CollectionSummary}
+import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions, CollectionSummary, CollectionWorldAndUserPermissions}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
+import java.time.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 private[domain] final class DomainCollectionService(domainRestActor: ActorRef[DomainRestActor.Message],
-                              scheduler: Scheduler,
-                              executionContext: ExecutionContext,
-                              timeout: Timeout)
+                                                    scheduler: Scheduler,
+                                                    executionContext: ExecutionContext,
+                                                    timeout: Timeout)
   extends AbstractDomainRestService(scheduler, executionContext, timeout) {
 
   import DomainCollectionService._
@@ -63,6 +63,40 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
           } ~ put {
             entity(as[CollectionUpdateData]) { updateData =>
               complete(updateCollection(domain, collectionId, updateData))
+            }
+          }
+        } ~ pathPrefix("permissions") {
+          pathEnd {
+            get {
+              complete(getCollectionPermissions(domain, collectionId))
+            }
+          } ~ pathPrefix("world") {
+            pathEnd {
+              get {
+                complete(getCollectionWorldPermissions(domain, collectionId))
+              } ~ put {
+                entity(as[CollectionPermissionsData]) { permissions =>
+                  complete(setCollectionWorldPermissions(domain, collectionId, permissions))
+                }
+              }
+            }
+          } ~ pathPrefix("user") {
+            pathEnd {
+              get {
+                complete(getCollectionUserPermissions(domain, collectionId))
+              }
+            } ~ pathPrefix(Segment) { username: String =>
+              pathEnd {
+                get {
+                  complete(getCollectionPermissionsForUser(domain, collectionId, username))
+                } ~ put {
+                  entity(as[CollectionPermissionsData]) { permissions =>
+                    complete(setCollectionPermissionsForUser(domain, collectionId, username, permissions))
+                  }
+                } ~ delete {
+                  complete(removeCollectionPermissionsForUser(domain, collectionId, username))
+                }
+              }
             }
           }
         }
@@ -129,7 +163,6 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
           CreatedResponse
         })
       )
-
   }
 
   private[this] def updateCollection(domain: DomainId, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
@@ -187,6 +220,124 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
           okResponse(response)
         }))
   }
+
+  //
+  // Permissions
+  //
+
+  def getCollectionPermissions(domain: DomainId, collectionId: String): Future[RestResponse] = {
+    domainRestActor
+      .ask[GetCollectionPermissionsResponse](r =>
+        DomainRestMessage(domain, GetCollectionPermissionsRequest(collectionId, r)))
+      .map(_.permissions.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        { permissions =>
+          val data = collectionWorldAndUserPermissionsToData(permissions)
+          okResponse(data)
+        }))
+  }
+
+  def getCollectionWorldPermissions(domain: DomainId, collectionId: String): Future[RestResponse] = {
+    domainRestActor
+      .ask[GetCollectionWorldPermissionsResponse](r =>
+        DomainRestMessage(domain, GetCollectionWorldPermissionsRequest(collectionId, r)))
+      .map(_.permissions.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        { permissions =>
+          val data = collectionPermissionsToData(permissions)
+          okResponse(data)
+        }
+      ))
+  }
+
+  def setCollectionWorldPermissions(domain: DomainId, collectionId: String, permissions: CollectionPermissionsData): Future[RestResponse] = {
+    val p = fromCollectionPermissions(permissions)
+    domainRestActor
+      .ask[SetCollectionWorldPermissionsResponse](r =>
+        DomainRestMessage(domain, SetCollectionWorldPermissionsRequest(collectionId, p, r)))
+      .map(_.response.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        {
+          permissions => OkResponse
+        }
+      ))
+  }
+
+  def getCollectionUserPermissions(domain: DomainId, collectionId: String): Future[RestResponse] = {
+    domainRestActor
+      .ask[GetCollectionUserPermissionsResponse](r =>
+        DomainRestMessage(domain, GetCollectionUserPermissionsRequest(collectionId, r)))
+      .map(_.permissions.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        { permissions =>
+          val data = permissions.map { case (k, v) => (k.username, collectionPermissionsToData(v)) }
+          okResponse(data)
+        }))
+  }
+
+  def getCollectionPermissionsForUser(domain: DomainId, collectionId: String, username: String): Future[RestResponse] = {
+    domainRestActor
+      .ask[GetCollectionPermissionsForUserResponse](r =>
+        DomainRestMessage(domain, GetCollectionPermissionsForUserRequest(collectionId, DomainUserId.normal(username), r)))
+      .map(_.permissions.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        { permissions =>
+          val data = collectionPermissionsToData(permissions)
+          okResponse(data)
+        }
+      ))
+  }
+
+  def setCollectionPermissionsForUser(domain: DomainId, collectionId: String, username: String, permissions: CollectionPermissionsData): Future[RestResponse] = {
+    val p = fromCollectionPermissions(permissions)
+    domainRestActor
+      .ask[SetCollectionPermissionsForUserResponse](r =>
+        DomainRestMessage(domain, SetCollectionPermissionsForUserRequest(collectionId, DomainUserId.normal(username), p, r)))
+      .map(_.response.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        {
+          _ => OkResponse
+        }
+      ))
+  }
+
+  def removeCollectionPermissionsForUser(domain: DomainId, collectionId: String, username: String): Future[RestResponse] = {
+    domainRestActor
+      .ask[RemoveCollectionPermissionsForUserResponse](r =>
+        DomainRestMessage(domain, RemoveCollectionPermissionsForUserRequest(collectionId, DomainUserId.normal(username), r)))
+      .map(_.response.fold(
+        {
+          case UnknownError() => InternalServerError
+          case CollectionNotFoundError() => NotFoundResponse
+        },
+        {
+          _ => DeletedResponse
+        }
+      ))
+  }
+
+
+  //
+  // Mapping
+  //
 
   private[this] def collectionDataToCollection(collectionData: CollectionData): Collection = {
     val CollectionData(
@@ -252,11 +403,26 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
     val collectionData = CollectionData(id, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
     collectionData
   }
+
+  private[this] def collectionPermissionsToData(permissions: CollectionPermissions): CollectionPermissionsData = {
+    val CollectionPermissions(create, read, write, remove, manage) = permissions
+    CollectionPermissionsData(create, read, write, remove, manage)
+  }
+
+  private[this] def fromCollectionPermissions(permissions: CollectionPermissionsData): CollectionPermissions = {
+    val CollectionPermissionsData(create, read, write, remove, manage) = permissions
+    CollectionPermissions(create, read, write, remove, manage)
+  }
+
+  private[this] def collectionWorldAndUserPermissionsToData(permissions: CollectionWorldAndUserPermissions): CollectionWorldAndUserPermissionsData = {
+    val CollectionWorldAndUserPermissions(world, user) = permissions
+    CollectionWorldAndUserPermissionsData(
+      collectionPermissionsToData(world),
+      user.map { case (k, v) => (k.username, collectionPermissionsToData(v)) })
+  }
 }
 
 object DomainCollectionService {
-
-  case class CollectionPermissionsData(read: Boolean, write: Boolean, remove: Boolean, manage: Boolean, create: Boolean)
 
   case class CollectionData(id: String,
                             description: String,
@@ -273,4 +439,12 @@ object DomainCollectionService {
                                    description: String,
                                    modelCount: Long)
 
+  case class CollectionPermissionsData(create: Boolean,
+                                       read: Boolean,
+                                       write: Boolean,
+                                       remove: Boolean,
+                                       manage: Boolean)
+
+  case class CollectionWorldAndUserPermissionsData(world: CollectionPermissionsData,
+                                                   user: Map[String, CollectionPermissionsData])
 }

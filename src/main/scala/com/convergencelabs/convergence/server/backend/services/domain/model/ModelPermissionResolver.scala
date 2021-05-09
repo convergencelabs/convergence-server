@@ -18,11 +18,12 @@ import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import scala.util.{Failure, Success, Try}
 
 private[model] class ModelPermissionResolver() {
+
   def getModelUserPermissions(modelId: String, userId: DomainUserId, persistenceProvider: DomainPersistenceProvider): Try[ModelPermissions] = {
     if (userId.isConvergence) {
       Success(ModelPermissions(read = true, write = true, remove = true, manage = true))
     } else {
-      val permissionsStore = persistenceProvider.modelPermissionsStore
+      val permissionsStore = persistenceProvider.modelPermissionCalculator
       permissionsStore.getUsersCurrentModelPermissions(modelId, userId) flatMap {
         case Some(p) => Success(p)
         case None => Failure(ModelNotFoundException(modelId))
@@ -33,8 +34,8 @@ private[model] class ModelPermissionResolver() {
   def getModelAndCollectionPermissions(modelId: String, collectionId: String, persistenceProvider: DomainPersistenceProvider): Try[RealtimeModelPermissions] = {
     for {
       overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
-      collectionWorld <- persistenceProvider.modelPermissionsStore.getCollectionWorldPermissions(collectionId)
-      collectionUsers <- persistenceProvider.modelPermissionsStore.getAllCollectionUserPermissions(collectionId)
+      collectionWorld <- persistenceProvider.collectionPermissionsStore.getCollectionWorldPermissions(collectionId)
+      collectionUsers <- persistenceProvider.collectionPermissionsStore.getAllCollectionUserPermissions(collectionId)
       modelWorld <- persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)
       modelUsers <- persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {

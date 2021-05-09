@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 - Convergence Labs, Inc.
+ * Copyright (c) 2021 - Convergence Labs, Inc.
  *
  * This file is part of the Convergence Server, which is released under
  * the terms of the GNU General Public License version 3 (GPLv3). A copy
@@ -11,13 +11,7 @@
 
 package com.convergencelabs.convergence.server.model.domain.collection
 
-object CollectionPermissions {
-  val None: CollectionPermissions =
-    CollectionPermissions(create = false, read = false, write = false, remove = false, manage = false)
-}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-final case class CollectionPermissions(create: Boolean,
-                                       read: Boolean,
-                                       write: Boolean,
-                                       remove: Boolean,
-                                       manage: Boolean)
+final case class CollectionWorldAndUserPermissions(worldPermissions: CollectionPermissions,
+                                                   userPermissions: Map[DomainUserId, CollectionPermissions])

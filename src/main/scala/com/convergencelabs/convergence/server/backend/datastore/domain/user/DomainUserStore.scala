@@ -14,10 +14,10 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.user
 import java.lang.{Long => JavaLong}
 import java.time.{Duration, Instant}
 import java.util.Date
-
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore._
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
+import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema.Classes
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.{DomainSchema, UserCredentialClass}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
@@ -564,5 +564,11 @@ object DomainUserStore {
 
   private def generateDeletedUsername(): String = {
     DeletedUsernameGenerator.nextString()
+  }
+
+  private[domain] def userDocToDomainUserId(user: OElement): DomainUserId = {
+    val username: String = user.getProperty(Classes.User.Fields.Username)
+    val userType: String = user.getProperty(Classes.User.Fields.UserType)
+    DomainUserId(DomainUserType.withName(userType), username)
   }
 }

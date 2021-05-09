@@ -335,7 +335,7 @@ object ModelPermissionsStoreActor {
   final case class SetModelUserPermissionsResponse(response: Either[SetModelUserPermissionsError, Ok]) extends CborSerializable
 
   //
-  // SetModelUserPermissions
+  // RemoveModelUserPermissions
   //
   final case class RemoveModelUserPermissionsRequest(modelId: String, userId: DomainUserId, replyTo: ActorRef[RemoveModelUserPermissionsResponse]) extends Message
 
