@@ -21,8 +21,6 @@ import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, Dom
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.util.Failure
-
 class CollectionPermissionsStoreSpec
   extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
@@ -50,7 +48,9 @@ class CollectionPermissionsStoreSpec
       }
 
       "fail if collection does not exist" in withTestData { provider =>
-        provider.collectionPermissionsStore.getCollectionWorldPermissions(nonExistentCollectionId) shouldBe a[Failure[EntityNotFoundException]]
+        provider.collectionPermissionsStore
+          .getCollectionWorldPermissions(nonExistentCollectionId)
+          .failed shouldBe an[EntityNotFoundException]
       }
     }
 

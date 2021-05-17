@@ -315,6 +315,9 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
 
   final case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
 
+  //
+  // Register
+  //
   final case class Register(timout: Timeout, replyTo: ActorRef[Registered]) extends Message
 
   final case class Registered()
