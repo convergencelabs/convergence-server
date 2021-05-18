@@ -1,9 +1,8 @@
-<div align="center">
-  <img alt="Convergence Logo" height="80" src="https://convergence.io/assets/img/convergence-logo.png" >
-</div>
+<img alt="Convergence Logo" height="80" src="https://convergence.io/assets/img/convergence-logo.png" >
 
 # Convergence Server
-[![Build Status](https://travis-ci.org/convergencelabs/convergence-server.svg?branch=master)](https://travis-ci.org/convergencelabs/convergence-server)
+![Build Status](https://github.com/convergencelabs/convergence-server/actions/workflows/build.yml/badge.svg
+)
 
 The Convergence Server is the main server side component of the [Convergence](https://convergence.io) Realtime Collaboration Framework. Convergence enables developers to rapidly integrate realtime collaboration directly into their applications.
 
