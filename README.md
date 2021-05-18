@@ -21,7 +21,7 @@ The following development tools are required to build the Convergence Server:
 
 * [Java](https://openjdk.java.net/) 11.x
 * [Scala](http://www.scala-lang.org/download/) 2.12.x 
-* [SBT](http://www.scala-sbt.org/) 1.3.x
+* [SBT](http://www.scala-sbt.org/) 1.5.x
 
 
 The standard SBT tasks can be used to compile and test the server.
@@ -35,7 +35,7 @@ The main entry point of the Convergence Server is the `com.convergencelabs.serve
 The Convergence Server uses the [SBT Native Packager](https://github.com/sbt/sbt-native-packager) to build its binary distribution. To stage the build run:
  
 ```shell script
-sbt stage
+sbt dist/stage
 ```
 
 The resultant build will be located in `target/universal/stage`.
