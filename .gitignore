@@ -8,4 +8,5 @@ target
 .history
 *.mdb
 .idea
+.bsp
 .vscode
