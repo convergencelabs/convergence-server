@@ -50,7 +50,7 @@ class CollectionPermissionsStoreSpec
       "fail if collection does not exist" in withTestData { provider =>
         provider.collectionPermissionsStore
           .getCollectionWorldPermissions(nonExistentCollectionId)
-          .failed shouldBe an[EntityNotFoundException]
+          .failed.get shouldBe an[EntityNotFoundException]
       }
     }
 
