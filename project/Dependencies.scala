@@ -15,11 +15,11 @@ object Dependencies {
 
   // Versions
   object Versions {
-    val akka      = "2.6.13"
+    val akka      = "2.6.14"
     val akkaHttp  = "10.2.4"
     val orientDb  = "3.0.37"
-    val log4j     = "2.13.3"
-    val jackson   = "2.10.4"
+    val log4j     = "2.14.1"
+    val jackson   = "2.11.4"
   }
 
   object Compile {
