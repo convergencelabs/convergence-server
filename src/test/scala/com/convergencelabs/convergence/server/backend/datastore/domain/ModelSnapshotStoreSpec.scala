@@ -84,10 +84,10 @@ class ModelSnapshotStoreSpec
           model.ModelSnapshotMetaData(person1Id, version, timestamp),
           ObjectValue("0:0", Map("key" -> StringValue("0:1", "value"))))
 
-        provider.modelSnapshotStore.createSnapshot(created).success
+        provider.modelSnapshotStore.createSnapshot(created).get
 
         val queried = provider.modelSnapshotStore.getSnapshot(person1Id, version)
-        queried.get.value shouldBe created
+        queried.get.get shouldBe created
       }
     }
 
@@ -95,7 +95,7 @@ class ModelSnapshotStoreSpec
       "return the correct snapshot when one exists" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val queried = provider.modelSnapshotStore.getSnapshot(person1Id, 1L).get
-        queried.value shouldBe p1Snapshot1
+        queried.get shouldBe p1Snapshot1
       }
 
       "return None when the specified version does not exist" in withPersistenceStore { provider =>
@@ -177,7 +177,7 @@ class ModelSnapshotStoreSpec
       "return the correct meta data for a model with snapshots" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val metaData = provider.modelSnapshotStore.getLatestSnapshotMetaDataForModel(person1Id).get
-        metaData.value.version shouldBe p1Snapshot20Version
+        metaData.get.version shouldBe p1Snapshot20Version
       }
 
       "return None when the specified model does not exist" in withPersistenceStore { provider =>
@@ -191,19 +191,19 @@ class ModelSnapshotStoreSpec
       "return the higher version when it is the closest" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 18).get
-        snapshotData.value.metaData.version shouldBe p1Snapshot20Version
+        snapshotData.get.metaData.version shouldBe p1Snapshot20Version
       }
 
       "return the lower version when it is the closest" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 14).get
-        snapshotData.value.metaData.version shouldBe p1Snapshot10Version
+        snapshotData.get.metaData.version shouldBe p1Snapshot10Version
       }
 
       "return the higher version when the requested version is equidistant from a higerh and lower snapshot" in withPersistenceStore { provider =>
         createSnapshots(provider)
         val snapshotData = provider.modelSnapshotStore.getClosestSnapshotByVersion(person1Id, 15).get
-        snapshotData.value.metaData.version shouldBe p1Snapshot20Version
+        snapshotData.get.metaData.version shouldBe p1Snapshot20Version
       }
     }
 
@@ -246,7 +246,7 @@ class ModelSnapshotStoreSpec
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 3
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get.length shouldBe 1
 
-        provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).success
+        provider.modelSnapshotStore.removeAllSnapshotsForCollection(CollectionId).get
 
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person1Id, QueryOffset(), QueryLimit()).get.length shouldBe 0
         provider.modelSnapshotStore.getSnapshotMetaDataForModel(person2Id, QueryOffset(), QueryLimit()).get.length shouldBe 0
