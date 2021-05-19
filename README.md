@@ -88,7 +88,12 @@ bin/convergence-server
 You will need a running OrientDB Server. The easiest way to accomplish that is using the following docker command:
 
 ```shell script
-docker run --rm --name orientdb -p 2424:2424 -p 2480:2480 -e ORIENTDB_ROOT_PASSWORD=password orientdb:3.0.31
+docker run --rm \
+  --name orientdb \
+  -p 2424:2424 \
+  -p 2480:2480 \
+  -e ORIENTDB_ROOT_PASSWORD=password \
+  orientdb:3.0.37
 ```
 
 ## Support
