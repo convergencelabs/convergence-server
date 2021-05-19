@@ -127,9 +127,10 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
     val response = authenticator
       .authenticate(credentials)
       .fold(
-        { _ =>
-          error(s"$identityString: Authentication failed")
-          AuthenticationResponse(Left(AuthenticationFailed()))
+        { msg =>
+
+            debug(s"$identityString: Authentication failed")
+            AuthenticationResponse(Left(AuthenticationFailed(msg)))
         },
         {
           case authSuccess@AuthenticationSuccess(DomainSessionAndUserId(sessionId, userId), _) =>
@@ -149,7 +150,7 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
                 error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
                 Failure(cause)
               }
-              .getOrElse(AuthenticationResponse(Left(AuthenticationFailed())))
+              .getOrElse(AuthenticationResponse(Left(AuthenticationFailed(None))))
         }
       )
 
@@ -359,7 +360,7 @@ object DomainActor {
                                          credentials: AuthenticationCredentials,
                                          replyTo: ActorRef[AuthenticationResponse]) extends Message
 
-  final case class AuthenticationFailed()
+  final case class AuthenticationFailed(msg: Option[String])
 
   final case class AuthenticationResponse(response: Either[AuthenticationFailed, AuthenticationSuccess]) extends CborSerializable
 

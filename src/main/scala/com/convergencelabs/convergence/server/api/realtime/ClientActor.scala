@@ -12,7 +12,6 @@
 package com.convergencelabs.convergence.server.api.realtime
 
 import java.util.concurrent.{TimeUnit, TimeoutException}
-
 import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.AskPattern._
@@ -27,6 +26,7 @@ import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{InvalidConvergenceMessageException, MessageDecodingException, MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
+import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.AuthenticationFailed
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
@@ -379,8 +379,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
           .ask[DomainActor.AuthenticationResponse](DomainActor.AuthenticationRequest(
             domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _))
           .map(_.response.fold(
-            { _ =>
-              cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData("")))
+            { case AuthenticationFailed(msg) =>
+              cb.reply(AuthenticationResponseMessage().withFailure(AuthFailureData(msg.getOrElse(""))))
               // TODO we should probably disconnect here. There is a bit of complexity
               //  where we want to disconnect AFTER this message goes out. The issue
               //  is that there are a few steps to sending a message and we don't

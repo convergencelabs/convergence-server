@@ -11,11 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
-import java.io.StringReader
-import java.security.spec.X509EncodedKeySpec
-import java.security.{KeyFactory, PublicKey}
-import java.time.{Duration, Instant}
-
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
@@ -34,6 +29,10 @@ import org.bouncycastle.openssl.PEMParser
 import org.jose4j.jwt.JwtClaims
 import org.jose4j.jwt.consumer.{InvalidJwtException, JwtConsumerBuilder}
 
+import java.io.StringReader
+import java.security.spec.X509EncodedKeySpec
+import java.security.{KeyFactory, PublicKey}
+import java.time.{Duration, Instant}
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success, Try}
 
@@ -42,16 +41,36 @@ object AuthenticationHandler {
   val AllowedClockSkew = 30
 }
 
-final class AuthenticationHandler(domainFqn: DomainId,
+/**
+ * The [AuthenticationHandler] class is a helper that assists the [DomainActor]
+ * in authentic users connecting to the real time API.
+ *
+ * @param domainId          The id of the domain to authenticate users against.
+ * @param domainConfigStore The store to obtain the configuration of the domain.
+ * @param jwtKeyStore       The store containing JWT Auth Keys for the domain.
+ * @param userStore         The user store for the domain.
+ * @param userGroupStore    The user group store for the domain.
+ * @param sessionStore      The session store for the domain where sessions should
+ *                          be created.
+ * @param ec                The execution context for asynchronous tasks.
+ */
+final class AuthenticationHandler(domainId: DomainId,
                                   domainConfigStore: DomainConfigStore,
-                                  keyStore: JwtAuthKeyStore,
+                                  jwtKeyStore: JwtAuthKeyStore,
                                   userStore: DomainUserStore,
                                   userGroupStore: UserGroupStore,
                                   sessionStore: SessionStore,
                                   private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
-  def authenticate(request: AuthenticationCredentials): Either[Unit, DomainActor.AuthenticationSuccess] = {
+  /**
+   * Processes an authentication request for the associated domain.
+   * @param request The auth request to process.
+   * @return An Either whose left value contains an optional error message if
+   *         authentication failed or a right containing information on the
+   *         successful authentication.
+   */
+  def authenticate(request: AuthenticationCredentials): Either[Option[String], DomainActor.AuthenticationSuccess] = {
     request match {
       case message: PasswordAuthRequest =>
         authenticatePassword(message)
@@ -68,42 +87,42 @@ final class AuthenticationHandler(domainFqn: DomainId,
   // Reconnect Auth
   //
 
-  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Either[Unit, DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
     userStore
       .validateAndRefreshReconnectToken(reconnectRequest.token, Duration.ofHours(24L))
       .flatMap {
         case Some(userId) =>
           authSuccess(userId, Some(reconnectRequest.token)).map(Right(_))
         case None =>
-          Success(Left(()))
+          Success(Left(None))
       }
       .recover {
         case cause =>
-          error(s"$domainFqn: Unable to authenticate a user via reconnect token.", cause)
-          Left(())
+          error(s"$domainId: Unable to authenticate a user via reconnect token.", cause)
+          Left(None)
       }
-      .getOrElse(Left(()))
+      .getOrElse(Left(None))
   }
 
   //
   // Anonymous Auth
   //
 
-  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Either[Unit, DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
     val AnonymousAuthRequest(displayName) = authRequest
-    debug(s"$domainFqn: Processing anonymous authentication request with display name: $displayName")
+    debug(s"$domainId: Processing anonymous authentication request with display name: $displayName")
     domainConfigStore
       .isAnonymousAuthEnabled()
       .flatMap {
         case false =>
-          debug(s"$domainFqn: Anonymous auth is disabled; returning AuthenticationFailure.")
-          Success(Left(()))
+          debug(s"$domainId: Anonymous auth is disabled; returning AuthenticationFailure.")
+          Success(Left(Some("anonymous authentication is disabled")))
         case true =>
-          debug(s"$domainFqn: Anonymous auth is enabled; creating anonymous user.")
+          debug(s"$domainId: Anonymous auth is enabled; creating anonymous user.")
           userStore
             .createAnonymousDomainUser(displayName)
             .flatMap { username =>
-              debug(s"$domainFqn: Anonymous user created: $username")
+              debug(s"$domainId: Anonymous user created: $username")
               val userId = DomainUserId(DomainUserType.Anonymous, username)
               authSuccess(userId, None)
             }
@@ -111,17 +130,17 @@ final class AuthenticationHandler(domainFqn: DomainId,
       }
       .recover {
         case cause: Throwable =>
-          error(s"$domainFqn: Anonymous authentication error", cause)
-          Left(())
+          error(s"$domainId: Anonymous authentication error", cause)
+          Left(None)
       }
-      .getOrElse(Left(()))
+      .getOrElse(Left(None))
   }
 
   //
   // Password Auth
   //
-  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Either[Unit, DomainActor.AuthenticationSuccess] = {
-    logger.debug(s"$domainFqn: Authenticating by username and password")
+  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+    logger.debug(s"$domainId: Authenticating by username and password")
     userStore
       .validateNormalUserCredentials(authRequest.username, authRequest.password)
       .flatMap {
@@ -132,20 +151,20 @@ final class AuthenticationHandler(domainFqn: DomainId,
             Right(response)
           }
         case false =>
-          Success(Left(()))
+          Success(Left(None))
       }
       .recover {
         case cause: Throwable =>
-          error(s"$domainFqn: Unable to authenticate a user", cause)
-          Left(())
+          error(s"$domainId: Unable to authenticate a user", cause)
+          Left(None)
       }
-      .getOrElse(Left(()))
+      .getOrElse(Left(None))
   }
 
   //
   // JWT Auth
   //
-  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Either[Unit, DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
     // This implements a two pass approach to be able to get the key id.
     val firstPassJwtConsumer = new JwtConsumerBuilder()
       .setSkipAllValidators()
@@ -164,14 +183,14 @@ final class AuthenticationHandler(domainFqn: DomainId,
           .recover {
             case cause: InvalidJwtException =>
               logger.debug(s"Invalid JWT: ${cause.getMessage}")
-              Left(())
+              Left(None)
             case cause: Exception =>
-              error(s"$domainFqn: Unable to authenticate a user via jwt.", cause)
-              Left(())
+              error(s"$domainId: Unable to authenticate a user via jwt.", cause)
+              Left(None)
           }
-          .getOrElse(Left(()))
+          .getOrElse(Left(None))
       }
-      .getOrElse(Left(()))
+      .getOrElse(Left(None))
   }
 
   private[this] def getJWTPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {
@@ -179,11 +198,11 @@ final class AuthenticationHandler(domainFqn: DomainId,
       domainConfigStore.getAdminKeyPair() match {
         case Success(keyPair) => (Some(keyPair.publicKey), true)
         case _ =>
-          logger.error(s"$domainFqn: Unable to load admin key for domain")
+          logger.error(s"$domainId: Unable to load admin key for domain")
           (None, false)
       }
     } else {
-      keyStore.getKey(keyId) match {
+      jwtKeyStore.getKey(keyId) match {
         case Success(Some(key)) if key.enabled => (Some(key.key), false)
         case _ => (None, false)
       }
@@ -196,7 +215,7 @@ final class AuthenticationHandler(domainFqn: DomainId,
         Some((keyFactory.generatePublic(spec), admin))
       }.recoverWith {
         case e: Throwable =>
-          logger.warn(s"$domainFqn: Unable to decode jwt public key: " + e.getMessage)
+          logger.warn(s"$domainId: Unable to decode jwt public key: " + e.getMessage)
           Success(None)
       }.get
     }
@@ -227,10 +246,10 @@ final class AuthenticationHandler(domainFqn: DomainId,
 
       exists flatMap {
         case true =>
-          logger.debug(s"$domainFqn: User specified in JWT already exists, updating with latest claims.")
+          logger.debug(s"$domainId: User specified in JWT already exists, updating with latest claims.")
           updateUserFromJwt(userId, jwtClaims)
         case false =>
-          logger.debug(s"$domainFqn: User specified in JWT does not exist exist, Auto creating user.")
+          logger.debug(s"$domainId: User specified in JWT does not exist exist, Auto creating user.")
           lazyCreateUserFromJWT(userId, jwtClaims)
       } flatMap { _ =>
         authSuccess(userId, None) map { response =>
@@ -271,10 +290,10 @@ final class AuthenticationHandler(domainFqn: DomainId,
         Failure(new IllegalArgumentException("Can not authenticate an anonymous user via JWT"))
     }).recoverWith {
       case _: DuplicateValueException =>
-        logger.warn(s"$domainFqn: Attempted to auto create user, but user already exists, returning auth success.")
+        logger.warn(s"$domainId: Attempted to auto create user, but user already exists, returning auth success.")
         Success(username)
       case e: InvalidValueException =>
-        Failure(new IllegalArgumentException(s"$domainFqn: Lazy creation of user based on JWT authentication failed: $username", e))
+        Failure(new IllegalArgumentException(s"$domainId: Lazy creation of user based on JWT authentication failed: $username", e))
     }
   }
 
@@ -283,19 +302,19 @@ final class AuthenticationHandler(domainFqn: DomainId,
   //
 
   private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[DomainActor.AuthenticationSuccess] = {
-    logger.debug(s"$domainFqn: Creating session after authentication success.")
+    logger.debug(s"$domainId: Creating session after authentication success.")
     sessionStore.nextSessionId flatMap { sessionId =>
       reconnectToken match {
         case Some(reconnectToken) =>
           Success(DomainActor.AuthenticationSuccess(DomainSessionAndUserId(sessionId, userId), Some(reconnectToken)))
         case None =>
-          logger.debug(s"$domainFqn: Creating reconnect token.")
+          logger.debug(s"$domainId: Creating reconnect token.")
           userStore.createReconnectToken(userId, Duration.ofHours(24L)) map { token =>
-            logger.debug(s"$domainFqn: Returning auth success.")
+            logger.debug(s"$domainId: Returning auth success.")
             DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId(sessionId, userId), Some(token))
           } recover {
             case error: Throwable =>
-              logger.error(s"$domainFqn: Unable to create reconnect token", error)
+              logger.error(s"$domainId: Unable to create reconnect token", error)
               DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId(sessionId, userId), None)
           }
       }
