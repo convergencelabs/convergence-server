@@ -13,30 +13,33 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
-
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.db.{ConnectedSingleDatabaseProvider, DatabaseProvider}
 import com.orientechnologies.common.log.OLogManager
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
+import com.orientechnologies.orient.core.security.OGlobalUserImpl
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-object PersistenceStoreSpec {
-  val OrientDBAdmin = "admin"
-}
 
 abstract class PersistenceStoreSpec[S](category: NonRecordingSchemaManager.SchemaType.Value)
   extends AnyWordSpec
   with Matchers
   with BeforeAndAfterAll {
 
-  import PersistenceStoreSpec._
-
   OLogManager.instance().setConsoleLevel("WARNING")
 
   private[this] val dbCounter = new AtomicInteger(1)
-  private[this] val orientDB: OrientDB = new OrientDB(s"memory:target/orientdb/PersistenceStoreSpec/${getClass.getSimpleName}", OrientDBConfig.defaultConfig)
+
+  val OdbUserName = "root"
+  val OdbPassword = "password"
+
+  private[this] val config = OrientDBConfig.defaultConfig()
+  config.getUsers.add(new OGlobalUserImpl(OdbUserName, OdbPassword, "*"))
+
+  private[this] val orientDB: OrientDB = new OrientDB(
+    s"memory:target/orientdb/PersistenceStoreSpec/${getClass.getSimpleName}",
+    config)
 
   override protected def afterAll(): Unit = {
     orientDB.close()
@@ -44,10 +47,10 @@ abstract class PersistenceStoreSpec[S](category: NonRecordingSchemaManager.Schem
 
   def withPersistenceStore(testCode: S => Any): Unit = {
     // make sure no accidental collisions
-    val dbName = s"${getClass.getSimpleName}/${nextDbId()}"
+    val dbName = s"${getClass.getSimpleName}-${nextDbId()}"
 
-    orientDB.create(dbName, ODatabaseType.MEMORY)
-    val db = orientDB.open(dbName, OrientDBAdmin, OrientDBAdmin)
+    orientDB.create(dbName, ODatabaseType.MEMORY, config)
+    val db = orientDB.open(dbName, OdbUserName, OdbPassword)
     val dbProvider = new ConnectedSingleDatabaseProvider(db)
 
     try {
