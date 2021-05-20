@@ -11,12 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.Instant
-import java.util.Date
-
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
-import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -25,14 +19,14 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.time.Instant
+import java.util.Date
+
 // scalastyle:off magic.number
 class ModelSnapshotStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+    extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with Matchers {
-
-  override def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
-    new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 

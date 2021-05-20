@@ -11,13 +11,10 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
-import java.time.Instant
-
 import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import com.convergencelabs.convergence.server.util.actor._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
@@ -27,9 +24,13 @@ import com.convergencelabs.convergence.server.backend.services.domain.presence.P
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.util.actor._
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
+import java.time.Instant
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
@@ -69,8 +70,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       onAuthenticationRequest(message)
     case message: ClientDisconnected =>
       onClientDisconnect(message)
-    case DomainDeleted(id) =>
-      domainDeleted(id)
+    case InternalDomainStatusChanged(id, status) =>
+      domainStatusChanged(id, status)
     case msg: DomainStatusRequest =>
       onStatusRequest(msg)
     case _: ReceiveTimeout =>
@@ -83,28 +84,39 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Behavior[Message] = {
-    persistenceProvider.validateConnection()
-      .map { _ =>
-        context.cancelReceiveTimeout()
-        context.watch(message.clientActor)
+    (for {
+      status <- this.persistenceProvider.domainStatusProvider.getDomainStatus
+      response <- status match {
+        case None =>
+          Success(Left(DomainNotFound(message.domainId)))
+        case Some(DomainStatus.Online) =>
+          persistenceProvider.validateConnection()
+            .map { _ =>
+              context.cancelReceiveTimeout()
+              context.watch(message.clientActor)
 
-        connectedClients.add(message.clientActor)
+              connectedClients.add(message.clientActor)
 
-        val success = HandshakeSuccess(
-          this.children.modelStoreActor,
-          this.children.operationStoreActor,
-          this.children.identityServiceActor,
-          this.children.presenceServiceActor,
-          this.children.chatManagerActor)
-
-        HandshakeResponse(Right(success))
+              val success = HandshakeSuccess(
+                this.children.modelStoreActor,
+                this.children.operationStoreActor,
+                this.children.identityServiceActor,
+                this.children.presenceServiceActor,
+                this.children.chatManagerActor)
+              Right(success)
+            }
+        case Some(DomainStatus.Offline)=>
+          Success(Left(DomainNotFound(message.domainId)))
+        case _ =>
+          Success(Left(DomainUnavailable(message.domainId)))
       }
+    } yield response)
       .recover { cause: Throwable =>
         error(s"$identityString: Could not connect to domain database", cause)
         val failure = DomainDatabaseError(message.domainId)
-        HandshakeResponse(Left(failure))
+        Left(failure)
       }
-      .foreach(message.replyTo ! _)
+      .foreach(message.replyTo ! HandshakeResponse(_))
 
     Behaviors.same
   }
@@ -129,8 +141,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       .fold(
         { msg =>
 
-            debug(s"$identityString: Authentication failed")
-            AuthenticationResponse(Left(AuthenticationFailed(msg)))
+          debug(s"$identityString: Authentication failed")
+          AuthenticationResponse(Left(AuthenticationFailed(msg)))
         },
         {
           case authSuccess@AuthenticationSuccess(DomainSessionAndUserId(sessionId, userId), _) =>
@@ -217,15 +229,35 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
     super.passivate()
   }
 
-  private[this] def domainDeleted(domainId: DomainId): Behavior[Message] = {
+  private[this] def domainStatusChanged(domainId: DomainId, status: DomainStatus.Value): Behavior[Message] = {
     if (this.domainId == domainId) {
-      error(s"$identityString: Domain deleted, immediately passivating.")
-      this.connectedClients.foreach(_ ! ClientActor.Disconnect())
-      this.authenticatedClients.foreach { case (k, _) => k ! ClientActor.Disconnect() }
-      passivate()
+      status match {
+        case DomainStatus.Error =>
+          debug(s"$identityString: Domain in error state, immediately passivating.")
+          disconnectAndPassivate()
+        case DomainStatus.Offline =>
+          debug(s"$identityString: Domain going offline, immediately passivating.")
+          disconnectAndPassivate()
+        case DomainStatus.Maintenance =>
+          debug(s"$identityString: Domain in maintenance mode, immediately passivating.")
+          disconnectAndPassivate()
+        case DomainStatus.Deleting =>
+          debug(s"$identityString: Domain deleting, immediately passivating.")
+          disconnectAndPassivate()
+        case _ =>
+          // no-op
+          Behaviors.same
+      }
+
     } else {
       Behaviors.same
     }
+  }
+
+  private[this] def disconnectAndPassivate(): Behavior[Message] = {
+    this.connectedClients.foreach(_ ! ClientActor.Disconnect())
+    this.authenticatedClients.foreach { case (k, _) => k ! ClientActor.Disconnect() }
+    passivate()
   }
 
   //
@@ -239,8 +271,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
 
   override def initialize(msg: Message): Try[ShardedActorStatUpPlan] = {
     domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
-      case DomainLifecycleTopic.DomainDeleted(id) =>
-        DomainDeleted(id)
+      case DomainLifecycleTopic.DomainStatusChanged(id, status) =>
+        InternalDomainStatusChanged(id, status)
     })
 
     debug(s"$identityString: Acquiring domain persistence provider")
@@ -334,6 +366,12 @@ object DomainActor {
                                     replyTo: ActorRef[HandshakeResponse]) extends Message
 
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[DomainDatabaseError], name = "database_error"),
+    new JsonSubTypes.Type(value = classOf[DomainUnavailable], name = "unavailable")
+  ))
   sealed trait HandshakeError
 
   final case class DomainNotFound(domainId: DomainId) extends HandshakeError
@@ -374,7 +412,7 @@ object DomainActor {
 
   private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
-  final case class DomainDeleted(domainId: DomainId) extends Message
+  final case class InternalDomainStatusChanged(domainId: DomainId, status: DomainStatus.Value) extends Message
 
 
   //

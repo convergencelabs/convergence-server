@@ -11,10 +11,11 @@
 
 package com.convergencelabs.convergence.server.backend.db
 
+import com.convergencelabs.convergence.server.backend.datastore.convergence.DomainStore
+
 import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
-
-import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProviderImpl
+import com.convergencelabs.convergence.server.backend.datastore.domain.{DomainPersistenceProviderImpl, DomainStatusProvider}
 import com.convergencelabs.convergence.server.backend.db.schema.{DomainSchemaManager, SchemaManager}
 import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
@@ -130,7 +131,9 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
   private[this] def initDomain(domainId: DomainId, dbName: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
     logger.debug(s"Connecting as normal user to initialize domain: $dbBaseUri/$dbName")
     val provider = new SingleDatabaseProvider(dbBaseUri, dbName, username, password)
-    val persistenceProvider = new DomainPersistenceProviderImpl(domainId, provider)
+    val domainStore = new DomainStore(convergenceDbProvider)
+    val domainStatusProvider = new DomainStatusProvider(domainStore, domainId)
+    val persistenceProvider = new DomainPersistenceProviderImpl(domainId, provider, domainStatusProvider)
     provider
       .connect()
       .flatMap(_ => persistenceProvider.validateConnection())

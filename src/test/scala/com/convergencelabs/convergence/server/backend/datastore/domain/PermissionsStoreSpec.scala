@@ -11,20 +11,17 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.Instant
-
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions._
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
-import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatMembership, ChatType}
 import com.convergencelabs.convergence.server.model.domain.group.UserGroup
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.time.Instant
+
 class PermissionsStoreSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+  extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
@@ -48,9 +45,6 @@ class PermissionsStoreSpec
   private val permission1 = "permission1"
   private val permission2 = "permission2"
   private val permission3 = "permission3"
-
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
-    new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A PermissionsStore" when {
     "creating adding permissions" must {

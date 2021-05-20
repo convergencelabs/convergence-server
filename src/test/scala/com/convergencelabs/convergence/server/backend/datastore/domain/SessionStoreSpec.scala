@@ -13,12 +13,10 @@ package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionQueryType
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
+import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.session
 import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
-import com.convergencelabs.convergence.server.model.{DomainId, domain}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.OptionValues
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -27,7 +25,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 // scalastyle:off magic.number multiple.string.literals
 class SessionStoreSpec
-    extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+    extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with OptionValues
     with Matchers {
@@ -40,8 +38,6 @@ class SessionStoreSpec
   private val client = "javascript"
   private val clientVersion = "1.0"
   private val remoteHost = "127.0.0.1"
-
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A SessionStore" when {
     "creating a session" must {

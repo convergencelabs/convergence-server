@@ -12,9 +12,6 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
-import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.model.domain.model.{ModelPermissions, ObjectValue}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
@@ -22,7 +19,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class CollectionPermissionsStoreSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+  extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
@@ -34,9 +31,7 @@ class CollectionPermissionsStoreSpec
   private val user1 = DomainUserId.normal("user1")
   private val user2 = DomainUserId.normal("user2")
   private val nonExistentCollectionId = "not_real"
-  private val nonRealId = "not_real"
 
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   "A CollectionPermissionsStore" when {
     "retrieving the collection world permissions" must {

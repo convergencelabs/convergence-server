@@ -12,8 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.convergence
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.UserClass
-import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
-import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
+import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, PersistenceStoreSpec}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.server.user.User

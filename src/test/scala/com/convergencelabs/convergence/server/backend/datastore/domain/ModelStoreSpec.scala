@@ -11,14 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.text.SimpleDateFormat
-import java.time.Instant
-
-import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.services.domain.model.ModelQueryResult
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
@@ -28,22 +21,16 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-case class ModelStoreSpecStores(collection: CollectionStore, model: ModelStore, permissions: ModelPermissionsStore)
+import java.text.SimpleDateFormat
+import java.time.Instant
 
 // scalastyle:off magic.number
 class ModelStoreSpec
-  extends PersistenceStoreSpec[ModelStoreSpecStores](NonRecordingSchemaManager.SchemaType.Domain)
+  extends DomainPersistenceStoreSpec
   with AnyWordSpecLike
   with Matchers {
 
   val df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSz")
-
-  def createStore(dbProvider: DatabaseProvider): ModelStoreSpecStores = {
-    val modelStore = new ModelStore(dbProvider, new ModelOperationStore(dbProvider), new ModelSnapshotStore(dbProvider))
-    val collectionStore = new CollectionStore(dbProvider)
-    val permissionsStore = new ModelPermissionsStore(dbProvider)
-    ModelStoreSpecStores(collectionStore, modelStore, permissionsStore)
-  }
 
   private val modelPermissions = ModelPermissions(read = true, write = true, remove = true, manage = true)
 
@@ -108,108 +95,108 @@ class ModelStoreSpec
 
     "asked whether a model exists" must {
 
-      "return false if it doesn't exist" in withPersistenceStore { stores =>
-        stores.model.modelExists(notRealId).get shouldBe false
+      "return false if it doesn't exist" in withPersistenceStore { provider =>
+        provider.modelStore.modelExists(notRealId).get shouldBe false
       }
 
-      "return true if it does exist" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(person1Model).get
-        stores.model.modelExists(person1Id).get shouldBe true
+      "return true if it does exist" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(person1Model).get
+        provider.modelStore.modelExists(person1Id).get shouldBe true
       }
     }
 
     "creating a model" must {
-      "create a model that is not a duplicate model fqn" in withPersistenceStore { stores =>
+      "create a model that is not a duplicate model fqn" in withPersistenceStore { provider =>
         val modelId = "person4"
 
         val data = ObjectValue(
           "t1-data",
           Map("foo" -> StringValue("t1-foo", "bar")))
 
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(modelId, peopleCollectionId, data, None, overridePermissions = true, modelPermissions).get
-        val model = stores.model.getModel(modelId).get.value
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(modelId, peopleCollectionId, data, None, overridePermissions = true, modelPermissions).get
+        val model = provider.modelStore.getModel(modelId).get.value
         model.metaData.id shouldBe modelId
         model.metaData.version shouldBe 1
         model.data shouldBe data
       }
 
-      "not create a model that is a duplicate model fqn" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
+      "not create a model that is a duplicate model fqn" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
         val data = ObjectValue(
           "t2-data",
           Map("foo" -> StringValue("t2-foo", "bar")))
-        stores.model.createModel(person1Id, peopleCollectionId, data, None, overridePermissions = true, modelPermissions).get
-        stores.model.createModel(person1Id, peopleCollectionId, data, None, overridePermissions = true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
+        provider.modelStore.createModel(person1Id, peopleCollectionId, data, None, overridePermissions = true, modelPermissions).get
+        provider.modelStore.createModel(person1Id, peopleCollectionId, data, None, overridePermissions = true, modelPermissions).failure.exception shouldBe a[DuplicateValueException]
       }
     }
 
     "getting a model" must {
-      "return None if it doesn't exist" in withPersistenceStore { stores =>
-        stores.model.getModel(notRealId).get shouldBe None
+      "return None if it doesn't exist" in withPersistenceStore { provider =>
+        provider.modelStore.getModel(notRealId).get shouldBe None
       }
 
-      "return Some if it does exist" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(person1Model).get
-        stores.model.getModel(person1Id).get shouldBe defined
+      "return Some if it does exist" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(person1Model).get
+        provider.modelStore.getModel(person1Id).get shouldBe defined
       }
     }
 
     "getting model meta data for a specific model" must {
-      "return the correct meta data if it exists" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(person1Model).get
-        stores.model.getModelMetaData(person1Id).get.value shouldBe person1MetaData
+      "return the correct meta data if it exists" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(person1Model).get
+        provider.modelStore.getModelMetaData(person1Id).get.value shouldBe person1MetaData
       }
 
-      "return None if it does not exist" in withPersistenceStore { stores =>
-        stores.model.getModelMetaData(notRealId).get shouldBe None
+      "return None if it does not exist" in withPersistenceStore { provider =>
+        provider.modelStore.getModelMetaData(notRealId).get shouldBe None
       }
     }
 
     "getting all model meta data for a specific collection" must {
-      "return all meta data when no limit or offset are provided" in withPersistenceStore { stores =>
-        createAllPersonModels(stores)
+      "return all meta data when no limit or offset are provided" in withPersistenceStore { provider =>
+        createAllPersonModels(provider)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(), QueryLimit()).get
+        val list = provider.modelStore.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(), QueryLimit()).get
         list shouldBe List(
           person1MetaData,
           person2MetaData,
           person3MetaData)
       }
 
-      "return only the limited number of meta data when limit provided" in withPersistenceStore { stores =>
-        createAllPersonModels(stores)
+      "return only the limited number of meta data when limit provided" in withPersistenceStore { provider =>
+        createAllPersonModels(provider)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(), QueryLimit(1)).get
+        val list = provider.modelStore.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(), QueryLimit(1)).get
         list shouldBe List(person1MetaData)
       }
 
-      "return only the the correct number of meta data when an offset is provided" in withPersistenceStore { stores =>
-        createAllPersonModels(stores)
+      "return only the the correct number of meta data when an offset is provided" in withPersistenceStore { provider =>
+        createAllPersonModels(provider)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(1), QueryLimit()).get
+        val list = provider.modelStore.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(1), QueryLimit()).get
         list.length shouldBe 2
         list.head shouldBe person2MetaData
         list(1) shouldBe person3MetaData
       }
 
-      "return only the limited number of meta data when limit and offset provided" in withPersistenceStore { stores =>
-        createAllPersonModels(stores)
+      "return only the limited number of meta data when limit and offset provided" in withPersistenceStore { provider =>
+        createAllPersonModels(provider)
 
-        val list = stores.model.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(1), QueryLimit(1)).get
+        val list = provider.modelStore.getAllModelMetaDataInCollection(peopleCollectionId, QueryOffset(1), QueryLimit(1)).get
         list shouldBe List(person2MetaData)
       }
 
     }
 
     "getting all model meta data" must {
-      "return all meta data when no limit or offset are provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return all meta data when no limit or offset are provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val list = stores.model.getAllModelMetaData(QueryOffset(), QueryLimit()).get
+        val list = provider.modelStore.getAllModelMetaData(QueryOffset(), QueryLimit()).get
         list shouldBe List(
           company1MetaData,
           person1MetaData,
@@ -217,28 +204,28 @@ class ModelStoreSpec
           person3MetaData)
       }
 
-      "return correct meta data when a limit is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return correct meta data when a limit is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val list = stores.model.getAllModelMetaData(QueryOffset(), QueryLimit(2)).get
+        val list = provider.modelStore.getAllModelMetaData(QueryOffset(), QueryLimit(2)).get
         list shouldBe List(
           company1MetaData,
           person1MetaData)
       }
 
-      "return correct meta data when an offset is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return correct meta data when an offset is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val list = stores.model.getAllModelMetaData(QueryOffset(2), QueryLimit()).get
+        val list = provider.modelStore.getAllModelMetaData(QueryOffset(2), QueryLimit()).get
         list shouldBe List(
           person2MetaData,
           person3MetaData)
       }
 
-      "return correct meta data when an offset and limit are provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return correct meta data when an offset and limit are provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val list = stores.model.getAllModelMetaData(QueryOffset(1), QueryLimit(2)).get
+        val list = provider.modelStore.getAllModelMetaData(QueryOffset(1), QueryLimit(2)).get
         list shouldBe List(
           person1MetaData,
           person2MetaData)
@@ -246,31 +233,31 @@ class ModelStoreSpec
     }
 
     "updating a model for an operation" must {
-      "increment the version by 1" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(person1Model).get
-        stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, Instant.now())
+      "increment the version by 1" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(person1Model).get
+        provider.modelStore.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, Instant.now())
 
-        val modelAfter = stores.model.getModel(person1Id).get.get
+        val modelAfter = provider.modelStore.getModel(person1Id).get.get
         modelAfter.metaData.version shouldBe person1Model.metaData.version + 1
       }
 
-      "correctly set the timestamp" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(person1Model).get
+      "correctly set the timestamp" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(person1Model).get
         val timeStamp = Instant.now()
-        stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, timeStamp)
+        provider.modelStore.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, timeStamp)
 
-        val modelAfter = stores.model.getModel(person1Id).get.get
+        val modelAfter = provider.modelStore.getModel(person1Id).get.get
         modelAfter.metaData.modifiedTime.toEpochMilli shouldBe timeStamp.toEpochMilli
       }
 
-      "leave all other data intact" in withPersistenceStore { stores =>
-        stores.collection.ensureCollectionExists(peopleCollectionId)
-        stores.model.createModel(person1Model).get
-        stores.model.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, Instant.now())
+      "leave all other data intact" in withPersistenceStore { provider =>
+        provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+        provider.modelStore.createModel(person1Model).get
+        provider.modelStore.updateModelOnOperation(person1Id, person1Model.metaData.version + 1, Instant.now())
 
-        val modelAfter = stores.model.getModel(person1Id).get.get
+        val modelAfter = provider.modelStore.getModel(person1Id).get.get
         modelAfter.metaData.createdTime shouldBe person1Model.metaData.createdTime
         modelAfter.metaData.id shouldBe person1Id
         modelAfter.data shouldBe person1Model.data
@@ -278,55 +265,55 @@ class ModelStoreSpec
     }
 
     "querying model data" must {
-      "return only models in a single collection" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return only models in a single collection" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val result = stores.model.queryModels(s"SELECT FROM $peopleCollectionId", None).get
+        val result = provider.modelStore.queryModels(s"SELECT FROM $peopleCollectionId", None).get
         result.data.toSet shouldBe Set(
           ModelQueryResult(person1MetaData, DataValueToJValue.toJObject(person1Data)),
           ModelQueryResult(person2MetaData, DataValueToJValue.toJObject(person2Data)),
           ModelQueryResult(person3MetaData, DataValueToJValue.toJObject(person3Data)))
       }
 
-      "return correct models if a limit is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return correct models if a limit is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val result = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 2", None).get
+        val result = provider.modelStore.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 2", None).get
         result.data.toSet shouldBe Set(
           ModelQueryResult(person1MetaData, DataValueToJValue.toJObject(person1Data)),
           ModelQueryResult(person2MetaData, DataValueToJValue.toJObject(person2Data)))
       }
 
-      "return correct models if an offset is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return correct models if an offset is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val result = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC OFFSET 1", None).get
+        val result = provider.modelStore.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC OFFSET 1", None).get
         result.data.toSet shouldBe Set(
           ModelQueryResult(person2MetaData, DataValueToJValue.toJObject(person2Data)),
           ModelQueryResult(person3MetaData, DataValueToJValue.toJObject(person3Data)))
       }
 
-      "return correct models if an offset and limit is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return correct models if an offset and limit is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val result = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 1 OFFSET 1", None).get
+        val result = provider.modelStore.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC LIMIT 1 OFFSET 1", None).get
         result.data shouldBe List(ModelQueryResult(person2MetaData, DataValueToJValue.toJObject(person2Data)))
       }
 
-      "return models in correct order if orderBy ASC is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return models in correct order if orderBy ASC is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val result = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC", None).get
+        val result = provider.modelStore.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name ASC", None).get
         result.data shouldBe List(
           ModelQueryResult(person1MetaData, DataValueToJValue.toJObject(person1Data)),
           ModelQueryResult(person2MetaData, DataValueToJValue.toJObject(person2Data)),
           ModelQueryResult(person3MetaData, DataValueToJValue.toJObject(person3Data)))
       }
 
-      "return models in correct order if orderBy DESC is provided" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "return models in correct order if orderBy DESC is provided" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        val result = stores.model.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name DESC", None).get
+        val result = provider.modelStore.queryModels(s"SELECT FROM $peopleCollectionId ORDER BY name DESC", None).get
         result.data shouldBe List(
           ModelQueryResult(person3MetaData, DataValueToJValue.toJObject(person3Data)),
           ModelQueryResult(person2MetaData, DataValueToJValue.toJObject(person2Data)),
@@ -335,56 +322,56 @@ class ModelStoreSpec
     }
 
     "deleting a specific model" must {
-      "delete the specified model and no others" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "delete the specified model and no others" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        stores.model.getModel(person1Id).get shouldBe defined
-        stores.model.getModel(person2Id).get shouldBe defined
-        stores.model.getModel(company1Id).get shouldBe defined
+        provider.modelStore.getModel(person1Id).get shouldBe defined
+        provider.modelStore.getModel(person2Id).get shouldBe defined
+        provider.modelStore.getModel(company1Id).get shouldBe defined
 
-        stores.model.deleteModel(person1Id).get
+        provider.modelStore.deleteModel(person1Id).get
 
-        stores.model.getModel(person1Id).get shouldBe None
-        stores.model.getModel(person2Id).get shouldBe defined
-        stores.model.getModel(company1Id).get shouldBe defined
+        provider.modelStore.getModel(person1Id).get shouldBe None
+        provider.modelStore.getModel(person2Id).get shouldBe defined
+        provider.modelStore.getModel(company1Id).get shouldBe defined
       }
 
-      "return a failure for deleting a non-existent model" in withPersistenceStore { stores =>
-        createAllModels(stores)
-        stores.model.getModel(notRealId).get shouldBe None
-        stores.model.deleteModel(notRealId).failure.exception shouldBe a[EntityNotFoundException]
+      "return a failure for deleting a non-existent model" in withPersistenceStore { provider =>
+        createAllModels(provider)
+        provider.modelStore.getModel(notRealId).get shouldBe None
+        provider.modelStore.deleteModel(notRealId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
 
     "deleting all models in collection" must {
-      "delete the models in the specified and no others" in withPersistenceStore { stores =>
-        createAllModels(stores)
+      "delete the models in the specified and no others" in withPersistenceStore { provider =>
+        createAllModels(provider)
 
-        stores.model.getModel(person1Id).get shouldBe defined
-        stores.model.getModel(person2Id).get shouldBe defined
-        stores.model.getModel(person3Id).get shouldBe defined
-        stores.model.getModel(company1Id).get shouldBe defined
+        provider.modelStore.getModel(person1Id).get shouldBe defined
+        provider.modelStore.getModel(person2Id).get shouldBe defined
+        provider.modelStore.getModel(person3Id).get shouldBe defined
+        provider.modelStore.getModel(company1Id).get shouldBe defined
 
-        stores.model.deleteAllModelsInCollection(peopleCollectionId).success
+        provider.modelStore.deleteAllModelsInCollection(peopleCollectionId).success
 
-        stores.model.getModel(person1Id).get shouldBe None
-        stores.model.getModel(person2Id).get shouldBe None
-        stores.model.getModel(person3Id).get shouldBe None
-        stores.model.getModel(company1Id).get shouldBe defined
+        provider.modelStore.getModel(person1Id).get shouldBe None
+        provider.modelStore.getModel(person2Id).get shouldBe None
+        provider.modelStore.getModel(person3Id).get shouldBe None
+        provider.modelStore.getModel(company1Id).get shouldBe defined
       }
     }
   }
 
-  def createAllModels(stores: ModelStoreSpecStores): Unit = {
-    stores.collection.ensureCollectionExists(companyCollectionId)
-    stores.model.createModel(company1Model).get
-    createAllPersonModels(stores)
+  def createAllModels(provider: DomainPersistenceProvider): Unit = {
+    provider.collectionStore.ensureCollectionExists(companyCollectionId)
+    provider.modelStore.createModel(company1Model).get
+    createAllPersonModels(provider)
   }
 
-  def createAllPersonModels(stores: ModelStoreSpecStores): Unit = {
-    stores.collection.ensureCollectionExists(peopleCollectionId)
-    stores.model.createModel(person1Model).get
-    stores.model.createModel(person2Model).get
-    stores.model.createModel(person3Model).get
+  def createAllPersonModels(provider: DomainPersistenceProvider): Unit = {
+    provider.collectionStore.ensureCollectionExists(peopleCollectionId)
+    provider.modelStore.createModel(person1Model).get
+    provider.modelStore.createModel(person2Model).get
+    provider.modelStore.createModel(person3Model).get
   }
 }

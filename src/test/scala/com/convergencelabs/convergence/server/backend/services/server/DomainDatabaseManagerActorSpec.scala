@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.services.server
 
 import java.util.concurrent.TimeUnit
-
-import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
@@ -44,8 +44,8 @@ class DomainDatabaseManagerActorSpec
           (domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)))
           .thenReturn(Success(()))
 
-        val client = testKit.createTestProbe[CreateDomainDatabaseResponse]()
-        val message = CreateDomainDatabaseRequest(
+        private val client = testKit.createTestProbe[CreateDomainDatabaseResponse]()
+        private val message = CreateDomainDatabaseRequest(
           DomainDatabaseCreationData(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false),
           client.ref)
         domainDbManagerActor ! message
@@ -74,8 +74,7 @@ class DomainDatabaseManagerActorSpec
   trait TestFixture {
     val domainFqn: DomainId = DomainId("some", "domain")
     val domainData: DomainDatabaseManager = mock[DomainDatabaseManager]
-    val domainLifecycleTopic: TestProbe[DomainLifecycleTopic.TopicMessage] = testKit.createTestProbe()
-    val behavior = DomainDatabaseManagerActor(domainData, domainLifecycleTopic.ref)
-    val domainDbManagerActor = testKit.spawn(behavior)
+    val behavior: Behavior[DomainDatabaseManagerActor.Message] = DomainDatabaseManagerActor(domainData)
+    val domainDbManagerActor: ActorRef[DomainDatabaseManagerActor.Message] = testKit.spawn(behavior)
   }
 }

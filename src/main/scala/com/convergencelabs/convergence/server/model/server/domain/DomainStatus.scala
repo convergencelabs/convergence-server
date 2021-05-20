@@ -21,6 +21,25 @@ object DomainStatus extends Enumeration {
   val Offline: DomainStatus = Value("offline")
   val Maintenance: DomainStatus = Value("maintenance")
   val Deleting: DomainStatus = Value("deleting")
+
+  def withLowerCaseName(name: String): Option[DomainStatus.Value] = {
+    name match {
+      case "initializing" =>
+        Some(DomainStatus.Initializing)
+      case "error" =>
+        Some(DomainStatus.Error)
+      case "online" =>
+        Some(DomainStatus.Online)
+      case "offline" =>
+        Some(DomainStatus.Offline)
+      case "maintenance" =>
+        Some(DomainStatus.Maintenance)
+      case "deleting" =>
+        Some(DomainStatus.Deleting)
+      case _ =>
+        None
+    }
+  }
 }
 
 final class DomainStatusTypeReference extends TypeReference[DomainStatus.type]

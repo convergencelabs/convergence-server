@@ -12,9 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.user
 
 import java.time.Duration
-
-import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
-import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, SortOrder}
+import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, PersistenceStoreSpec, SortOrder}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}

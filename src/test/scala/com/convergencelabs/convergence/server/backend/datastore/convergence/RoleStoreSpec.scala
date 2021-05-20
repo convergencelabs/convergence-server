@@ -11,9 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.convergence
 
-import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
+import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, PersistenceStoreSpec}
 import com.convergencelabs.convergence.server.backend.datastore.convergence.RoleStore.{Role, UserRole, UserRoles}
-import com.convergencelabs.convergence.server.backend.datastore.domain.PersistenceStoreSpec
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId

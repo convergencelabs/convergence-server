@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.util.concurrent.{TimeUnit, TimeoutException}
 import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.AskPattern._
@@ -23,7 +22,7 @@ import com.convergencelabs.convergence.proto.core.AuthenticationResponseMessage.
 import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.ErrorData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
-import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.{InvalidConvergenceMessageException, MessageDecodingException, MessageReceived, ProtocolMessageEvent, ReplyCallback, RequestReceived}
+import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.AuthenticationFailed
@@ -36,6 +35,8 @@ import com.convergencelabs.convergence.server.backend.services.server.DomainLife
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUser
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus.{Deleting, Maintenance, Offline}
 import com.convergencelabs.convergence.server.util.UnexpectedErrorException
 import com.convergencelabs.convergence.server.util.concurrent.AskHandler
 import com.google.protobuf.struct.Value
@@ -43,6 +44,7 @@ import com.google.protobuf.struct.Value.Kind.StringValue
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
+import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -105,8 +107,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   private[this] var webSocketActor: ActorRef[WebSocketService.WebSocketMessage] = _
 
   domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
-    case DomainLifecycleTopic.DomainDeleted(id) =>
-      DomainDeleted(id)
+    case DomainLifecycleTopic.DomainStatusChanged(domainId, status) =>
+      InternalDomainStatusChanged(domainId, status)
   })
 
   timers.startSingleTimer(HandshakeTimerKey, HandshakeTimeout, protocolConfig.handshakeTimeout)
@@ -208,8 +210,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     case WebSocketError(cause) =>
       onConnectionError(cause)
 
-    case DomainDeleted(domainId) =>
-      domainDeleted(domainId)
+    case InternalDomainStatusChanged(domainId, status) =>
+      domainStatusChanged(domainId, status)
 
     case Disconnect() =>
       this.handleDisconnect()
@@ -290,10 +292,10 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
                 ("domain_not_found", s"The domain '${domainId.namespace}/${domainId.domainId}' does not exist")
               case DomainActor.DomainDatabaseError(_) =>
                 debug(s"$domainId: Handshake failure: The domain database could not be connected to.")
-                ("domain_not_found", s"The domain '${domainId.namespace}/${domainId.domainId}' could not connect to its database.")
+                ("domain_database_error", s"The domain '${domainId.namespace}/${domainId.domainId}' could not connect to its database.")
               case DomainActor.DomainUnavailable(_) =>
                 debug(s"$domainId: Handshake failure: The domain is unavailable.")
-                ("domain_not_found", s"The domain '${domainId.namespace}/${domainId.domainId}' is unavailable, please try again later.")
+                ("domain_unavailable", s"The domain '${domainId.namespace}/${domainId.domainId}' is unavailable, please try again later.")
             }
             cb.reply(HandshakeResponseMessage(success = false, Some(ErrorData(code, details)), retryOk = false))
             this.disconnect()
@@ -558,14 +560,30 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     this.disconnect()
   }
 
-  private[this] def domainDeleted(domainId: DomainId): Behavior[Message] = {
+  private[this] def domainStatusChanged(domainId: DomainId, status: DomainStatus.Value): Behavior[Message] = {
     if (this.domainId == domainId) {
-      error(s"$domainId: Domain deleted shutting down")
-      this.disconnect()
+      status match {
+        case DomainStatus.Error =>
+          debug(s"$domainId: Domain in an error state, shutting down")
+          this.disconnect()
+        case Offline =>
+          debug(s"$domainId: Domain going offline mode shutting down")
+          this.disconnect()
+        case Maintenance =>
+          debug(s"$domainId: Domain going into Maintenance mode shutting down")
+          this.disconnect()
+        case Deleting =>
+          debug(s"$domainId: Domain deleted shutting down")
+          this.disconnect()
+        case _ =>
+          Behaviors.same
+      }
     } else {
       Behaviors.same
     }
   }
+
+
 
   private[this] def getTimeoutFromConfig(path: String): Timeout = {
     Timeout(system.settings.config.getDuration(path).toNanos, TimeUnit.NANOSECONDS)
@@ -701,8 +719,7 @@ object ClientActor {
 
   final case class Disconnect() extends Message
 
-  private final case class DomainDeleted(domainId: DomainId) extends Message
-
+  private final case class InternalDomainStatusChanged(domainId: DomainId, status: DomainStatus.Value) extends Message
 }
 
 

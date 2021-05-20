@@ -11,11 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.{Duration, Instant}
-
 import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.model.DomainId
@@ -26,12 +23,13 @@ import org.scalatest.OptionValues
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.time.{Duration, Instant}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 // scalastyle:off magic.number multiple.string.literals
 class ModelOperationProcessorSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+  extends DomainPersistenceStoreSpec
   with AnyWordSpecLike
   with OptionValues
   with Matchers {
@@ -92,8 +90,6 @@ class ModelOperationProcessorSpec
       StringValue(email2VID, "second@email.com"),
       StringValue(email3VID, "another@email.com")))))
   private val person1Model = Model(person1MetaData, person1Data)
-
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("namespace", "domain"), dbProvider)
 
   "A ModelOperationProcessor" when {
 

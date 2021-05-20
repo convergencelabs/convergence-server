@@ -11,13 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.Instant
-
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.AppliedStringInsertOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperation, NewModelOperation}
-import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions, ObjectValue}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserType}
@@ -26,13 +21,13 @@ import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.time.Instant
+
 // scalastyle:off magic.number
 class ModelOperationStoreSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+  extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with Matchers {
-
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(DomainId("ns", "domain"), dbProvider)
 
   private val testUsername = "test"
   private val user = DomainUser(DomainUserType.Normal, testUsername, None, None, None, None, None)

@@ -78,6 +78,8 @@ class MockDomainPersistenceProvider(override val domainId: DomainId)
 
   val modelPermissionCalculator: ModelPermissionCalculator = mock[ModelPermissionCalculator]
 
+  override val domainStatusProvider: DomainStatusProvider = mock[DomainStatusProvider]
+
   private[this] var validateConnectionResponse: Try[Unit] = Success(())
 
   def setValidateConnectionResponse(result: Try[Unit]): Unit = {

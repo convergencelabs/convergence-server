@@ -11,13 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.Instant
-
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelOperationStore, ModelPermissionsStore, ModelSnapshotStore, ModelStore}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelPermissionsStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
@@ -26,79 +22,76 @@ import org.json4s.{DefaultFormats, Formats, JArray, JBool, JField, JInt, JObject
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.time.Instant
 import scala.language.postfixOps
 
-case class ModelStoreQuerySpecStores(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
+case class ModelStoreQuerySpecprovider(collection: CollectionStore, model: ModelStore, user: DomainUserStore, permissions: ModelPermissionsStore)
 
 // scalastyle:off magic.number
-class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores](NonRecordingSchemaManager.SchemaType.Domain) with AnyWordSpecLike with Matchers {
+class ModelStoreQuerySpec
+  extends DomainPersistenceStoreSpec
+  with AnyWordSpecLike
+    with Matchers {
 
   private implicit val formats: Formats = DefaultFormats
   private var vid = 0
 
-  def createStore(dbProvider: DatabaseProvider): ModelStoreQuerySpecStores = {
-    val modelStore = new ModelStore(dbProvider, new ModelOperationStore(dbProvider), new ModelSnapshotStore(dbProvider))
-    val collectionStore = new CollectionStore(dbProvider)
-    val userStore = new DomainUserStore(dbProvider)
-    val modelPermissionsStore = new ModelPermissionsStore(dbProvider)
-    ModelStoreQuerySpecStores(collectionStore, modelStore, userStore, modelPermissionsStore)
-  }
 
   "Querying a ModelStore" when {
 
     "using order by" must {
-      "return correct order when using ASC on top level field" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", None).get
+      "return correct order when using ASC on top level field" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY sField ASC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model1", "model2")
       }
-      "return correct order when using DESC on top level field" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField DESC", None).get
+      "return correct order when using DESC on top level field" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY sField DESC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model2", "model1")
       }
-      "return correct order when using ASC on field inside top level array" in withPersistenceStore { stores =>
-        createModels(stores)
-        val list = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] ASC", None).get
+      "return correct order when using ASC on field inside top level array" in withPersistenceStore { provider =>
+        createModels(provider)
+        val list = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] ASC", None).get
         list.data.map {
           _.metaData.id
         } shouldEqual List("model1", "model2")
       }
-      "return correct order when using DESC on field inside top level array" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] DESC", None).get
+      "return correct order when using DESC on field inside top level array" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY arrayField[0] DESC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model2", "model1")
       }
-      "return correct order when using ASC on field inside second level object" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 ASC", None).get
+      "return correct order when using ASC on field inside second level object" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 ASC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model1", "model2")
       }
-      "return correct order when using DESC on field inside second level object" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 DESC", None).get
+      "return correct order when using DESC on field inside second level object" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY oField.oField2 DESC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model2", "model1")
       }
-      "return correct order when using ASC on field only one model has" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field ASC", None).get
+      "return correct order when using ASC on field only one model has" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY model1Field ASC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model2", "model1")
       }
-      "return correct order when using DESC on field only one model has" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY model1Field DESC", None).get
+      "return correct order when using DESC on field only one model has" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY model1Field DESC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model1", "model2")
@@ -106,40 +99,40 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     }
 
     "permissions are set" must {
-      "return correct models when world is set to false" in withPersistenceStore { stores =>
-        createModels(stores)
-        createUsers(stores)
+      "return correct models when world is set to false" in withPersistenceStore { provider =>
+        createModels(provider)
+        createUsers(provider)
 
-        stores.permissions.setOverrideCollectionPermissions("model1", overridePermissions = true)
-        stores.permissions.setOverrideCollectionPermissions("model2", overridePermissions = true)
-        stores.permissions.setModelWorldPermissions("model1", ModelPermissions(read = false, write = false, remove = false, manage = false)).get
+        provider.modelPermissionsStore.setOverrideCollectionPermissions("model1", overridePermissions = true)
+        provider.modelPermissionsStore.setOverrideCollectionPermissions("model2", overridePermissions = true)
+        provider.modelPermissionsStore.setModelWorldPermissions("model1", ModelPermissions(read = false, write = false, remove = false, manage = false)).get
 
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some(DomainUserId.normal("test1"))).get
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some(DomainUserId.normal("test1"))).get
         results.data.map {
           _.metaData.id
-        } shouldEqual (List("model2"))
+        } shouldEqual List("model2")
       }
 
-      "return correct models when world is set to false but user permission is true" in withPersistenceStore { stores =>
-        createModels(stores)
-        createUsers(stores)
+      "return correct models when world is set to false but user permission is true" in withPersistenceStore { provider =>
+        createModels(provider)
+        createUsers(provider)
 
-        stores.permissions.setOverrideCollectionPermissions("model1", overridePermissions = true)
-        stores.permissions.setOverrideCollectionPermissions("model2", overridePermissions = true)
-        stores.permissions.setModelWorldPermissions("model1", ModelPermissions(read = false, write = false, remove = false, manage = false))
-        stores.permissions.updateModelUserPermissions("model1", DomainUserId.normal("test1"), ModelPermissions(read = true, write = true, remove = true, manage = true))
+        provider.modelPermissionsStore.setOverrideCollectionPermissions("model1", overridePermissions = true)
+        provider.modelPermissionsStore.setOverrideCollectionPermissions("model2", overridePermissions = true)
+        provider.modelPermissionsStore.setModelWorldPermissions("model1", ModelPermissions(read = false, write = false, remove = false, manage = false))
+        provider.modelPermissionsStore.updateModelUserPermissions("model1", DomainUserId.normal("test1"), ModelPermissions(read = true, write = true, remove = true, manage = true))
 
-        val results = stores.model.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some(DomainUserId.normal("test1"))).get
+        val results = provider.modelStore.queryModels("SELECT FROM collection1 ORDER BY sField ASC", Some(DomainUserId.normal("test1"))).get
         results.data.map {
           _.metaData.id
-        } shouldEqual (List("model1", "model2"))
+        } shouldEqual List("model1", "model2")
       }
     }
 
     "projection is used" must {
-      "return correct fields when projection is used" in withPersistenceStore { stores =>
-        createModels(stores)
-        val results = stores.model.queryModels("SELECT sField FROM collection1 WHERE bField = false ORDER BY sField ASC", None).get
+      "return correct fields when projection is used" in withPersistenceStore { provider =>
+        createModels(provider)
+        val results = provider.modelStore.queryModels("SELECT sField FROM collection1 WHERE bField = false ORDER BY sField ASC", None).get
         results.data.map {
           _.metaData.id
         } shouldEqual List("model2")
@@ -198,9 +191,9 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
     s"$vid"
   }
 
-  private[this] def createModels(stores: ModelStoreQuerySpecStores): Unit = {
-    stores.collection.ensureCollectionExists("collection1")
-    stores.model.createModel(jsonStringToModel(
+  private[this] def createModels(provider: DomainPersistenceProvider): Unit = {
+    provider.collectionStore.ensureCollectionExists("collection1")
+    provider.modelStore.createModel(jsonStringToModel(
       """{
            "collection": "collection1",
            "id": "model1",
@@ -220,7 +213,7 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
            }
           }""")).get
 
-    stores.model.createModel(jsonStringToModel(
+    provider.modelStore.createModel(jsonStringToModel(
       """{
            "collection": "collection1",
            "id": "model2",
@@ -240,8 +233,8 @@ class ModelStoreQuerySpec extends PersistenceStoreSpec[ModelStoreQuerySpecStores
           }""")).get
   }
 
-  private[this] def createUsers(stores: ModelStoreQuerySpecStores): Unit = {
-    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None, None))
-    stores.user.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None, None))
+  private[this] def createUsers(provider: DomainPersistenceProvider): Unit = {
+    provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test1", None, None, None, None, None))
+    provider.userStore.createDomainUser(DomainUser(DomainUserType.Normal, "test2", None, None, None, None, None))
   }
 }

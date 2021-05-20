@@ -21,9 +21,9 @@ import com.typesafe.config.Config
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 private final class DomainActorSharding(config: Config,
-                                  sharding: ClusterSharding,
-                                  numberOfShards: Int,
-                                  domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage])
+                                        sharding: ClusterSharding,
+                                        numberOfShards: Int,
+                                        domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage])
   extends ActorSharding[DomainActor.Message, Props](DomainActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
   override def extractEntityId(msg: DomainActor.Message): String = s"${msg.domainId.namespace}::${msg.domainId.domainId}"
 
@@ -50,8 +50,8 @@ private final class DomainActorSharding(config: Config,
 
 
 final case class Props(domainPersistenceManager: DomainPersistenceManager,
-                 domainPassivationTimeout: FiniteDuration,
-                 domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+                       domainPassivationTimeout: FiniteDuration,
+                       domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
 
 
 object DomainActorSharding {

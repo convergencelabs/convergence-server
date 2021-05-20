@@ -9,10 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.datastore.domain
-
-import java.time.Instant
-import java.util.concurrent.atomic.AtomicInteger
+package com.convergencelabs.convergence.server.backend.datastore
 
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.backend.db.{ConnectedSingleDatabaseProvider, DatabaseProvider}
@@ -21,6 +18,9 @@ import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBCo
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.time.Instant
+import java.util.concurrent.atomic.AtomicInteger
 
 object PersistenceStoreSpec {
   val OrientDBAdmin = "admin"

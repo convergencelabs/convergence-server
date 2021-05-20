@@ -11,21 +11,18 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.text.SimpleDateFormat
-import java.time.Instant
-
-import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAuthKeyStore
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain.jwt
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.text.SimpleDateFormat
+import java.time.Instant
+
 // scalastyle:off line.size.limit
 class JwtAuthKeyStoreSpec
-    extends PersistenceStoreSpec[JwtAuthKeyStore](NonRecordingSchemaManager.SchemaType.Domain)
+    extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
@@ -38,19 +35,16 @@ class JwtAuthKeyStoreSpec
     "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlqHvXYPseLVx2vCSCipw\nxOumeB2t3JFxXnQ1qC9QMcAydKT7oeTZEbJxgbpaeEy2QkH7J8drkfu78RBh9nFb\nJ3yh3/cZS09wMM4NQsmqqpee4qHromwR1N4MgYAzDGcnl0iHeaYc56tHt5n5ENjG\n+bjEULEGIFVbDs2MBxyswchyqRFGHse41uLxhybhDNkEQLUcqkbVesqVXGsz25Hi\nBdxfYRJ9+2x70GwxDf0nBfZb1fvUFZnCDJHKO/wqv5k9BcuCDLUOdRgJa7+E721V\nSvopddtRgEFnEWoOilcUWtF03CUy4tw3hv1VDcbXKsEma0KjP5IAvWFVI6dbDHeh\nLQIDAQAB\n-----END PUBLIC KEY-----\n",
     enabled = true)
 
-
-  def createStore(dbProvider: DatabaseProvider): JwtAuthKeyStore = new JwtAuthKeyStore(dbProvider)
-
   "A ApiKeyStore" when {
     "retrieving domain keys" must {
-      "return the correct list of all keys" in withPersistenceStore { store =>
-        store.importKey(jwtAuthKey)
-        store.getKeys(QueryOffset(), QueryLimit()).success.get shouldBe List(jwtAuthKey)
+      "return the correct list of all keys" in withPersistenceStore { provider =>
+        provider.jwtAuthKeyStore.importKey(jwtAuthKey)
+        provider.jwtAuthKeyStore.getKeys(QueryOffset(), QueryLimit()).success.get shouldBe List(jwtAuthKey)
       }
 
-      "return the correct key by id" in withPersistenceStore { store =>
-        store.importKey(jwtAuthKey)
-        store.getKey(jwtAuthKey.id).success.value.get shouldBe jwtAuthKey
+      "return the correct key by id" in withPersistenceStore { provider =>
+        provider.jwtAuthKeyStore.importKey(jwtAuthKey)
+        provider.jwtAuthKeyStore.getKey(jwtAuthKey.id).success.value.get shouldBe jwtAuthKey
       }
     }
   }

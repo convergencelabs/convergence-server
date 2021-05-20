@@ -22,9 +22,10 @@ import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.backend.services.server.{DomainStoreActor, RoleStoreActor}
 import com.convergencelabs.convergence.server.backend.services.server.DomainStoreActor._
+import com.convergencelabs.convergence.server.backend.services.server.{DomainStoreActor, RoleStoreActor}
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
@@ -81,6 +82,12 @@ private[rest] final class DomainService(schedule: Scheduler,
                 complete(updateDomain(namespace, domainId, request))
               }
             }
+          } ~ path("status") {
+            put {
+              entity(as[SetDomainStatusRestRequestData]) { request =>
+                complete(setDomainStatus(namespace, domainId, request))
+              }
+            }
           } ~
             domainUserService.route(authProfile, domain) ~
             domainCollectionService.route(authProfile, domain) ~
@@ -121,18 +128,19 @@ private[rest] final class DomainService(schedule: Scheduler,
                                offset: Option[Long],
                                limit: Option[Long]): Future[RestResponse] = {
     domainStoreActor
-      .ask[GetDomainsResponse](GetDomainsRequest(authProfile.data, namespace, filter, QueryOffset(offset), QueryLimit(limit), _))
+      .ask[GetDomainsResponse](
+        GetDomainsRequest(authProfile.data, namespace, filter, QueryOffset(offset), QueryLimit(limit), _))
       .map(_.domains.fold(
         _ => InternalServerError,
         { domains =>
           val response = okResponse(
             domains map { domain =>
-                DomainRestData(
-                  domain.displayName,
-                  domain.domainId.namespace,
-                  domain.domainId.domainId,
-                  None,
-                  domain.status.toString.toLowerCase)
+              DomainRestData(
+                domain.displayName,
+                domain.domainId.namespace,
+                domain.domainId.domainId,
+                None,
+                domain.status.toString.toLowerCase)
             })
           response
         }
@@ -140,7 +148,8 @@ private[rest] final class DomainService(schedule: Scheduler,
   }
 
   private[this] def getDomain(namespace: String, domainId: String): Future[RestResponse] = {
-    domainStoreActor.ask[GetDomainAndSchemaVersionResponse](GetDomainAndSchemaVersionRequest(namespace, domainId, _))
+    domainStoreActor.ask[GetDomainAndSchemaVersionResponse](
+      GetDomainAndSchemaVersionRequest(namespace, domainId, _))
       .map(_.domain.fold(
         {
           case DomainNotFound() =>
@@ -191,6 +200,33 @@ private[rest] final class DomainService(schedule: Scheduler,
         }
       ))
   }
+
+  private[this] def setDomainStatus(namespace: String, domainId: String, request: SetDomainStatusRestRequestData): Future[RestResponse] = {
+    val SetDomainStatusRestRequestData(domainStatus, message) = request
+    DomainStatus.withLowerCaseName(domainStatus).map { status =>
+      domainStoreActor.ask[SetDomainStatusResponse](
+        SetDomainStatusRequest(DomainId(namespace, domainId), status, message, _))
+        .map(_.response.fold(
+          {
+            case DomainNotFound() =>
+              NotFoundResponse
+            case InvalidDomainStatus() =>
+              invalidStatus(domainStatus)
+            case UnknownError() =>
+              InternalServerError
+          },
+          { _ =>
+            OkResponse
+          }
+        ))
+    }.getOrElse {
+      Future.successful(invalidStatus(domainStatus))
+    }
+  }
+
+  private[this] def invalidStatus(status: String): RestResponse = {
+    invalidValueResponse(s"Invalid status value '$status'.", Some("status"))
+  }
 }
 
 object DomainService {
@@ -198,5 +234,7 @@ object DomainService {
   case class CreateDomainRestRequestData(namespace: String, id: String, displayName: String)
 
   case class UpdateDomainRestRequestData(displayName: String)
+
+  case class SetDomainStatusRestRequestData(status: String, message: Option[String])
 
 }

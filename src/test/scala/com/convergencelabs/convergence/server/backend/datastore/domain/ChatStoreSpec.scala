@@ -11,12 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.Instant
-
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
-import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat._
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -24,12 +19,13 @@ import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.time.Instant
+
 class ChatStoreSpec
-  extends PersistenceStoreSpec[DomainPersistenceProvider](NonRecordingSchemaManager.SchemaType.Domain)
+  extends DomainPersistenceStoreSpec
   with AnyWordSpecLike
   with Matchers {
 
-  private val domainId = DomainId("namespace", "domain")
   private val user1 = "user1"
   private val user1Id = DomainUserId(DomainUserType.Normal, user1)
 
@@ -41,8 +37,6 @@ class ChatStoreSpec
 
   private val channel1Id = "channel1"
   private val firstId = "direct:1"
-
-  def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider = new DomainPersistenceProviderImpl(domainId, dbProvider)
 
   "A ChatChannelStore" when {
     "creating a chat channel" must {

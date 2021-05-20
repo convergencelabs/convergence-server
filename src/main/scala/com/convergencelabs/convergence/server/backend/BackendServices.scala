@@ -179,7 +179,7 @@ private[server] final class BackendServices(context: ActorContext[_],
 
     // Import, export, and domain / database provisioning
     val domainDatabaseManager = new DomainDatabaseManager(convergenceDbProvider, context.system.settings.config)
-    val domainDbManagerActor = context.spawn(DomainDatabaseManagerActor(domainDatabaseManager, domainLifecycleTopic), "DomainProvisioner")
+    val domainDbManagerActor = context.spawn(DomainDatabaseManagerActor(domainDatabaseManager), "DomainProvisioner")
 
     val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider)
     context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
@@ -196,7 +196,9 @@ private[server] final class BackendServices(context: ActorContext[_],
       domainCreationTimeout)
 
     val domainStoreActor = context.spawn(DomainStoreActor(
-      domainStore, configStore, roleStore, favoriteDomainStore, domainDeltaLogStore, domainVersionLogStore, domainCreator, domainDbManagerActor), "DomainStore")
+      domainStore, configStore, roleStore, favoriteDomainStore,
+      domainDeltaLogStore, domainVersionLogStore, domainCreator,
+      domainDbManagerActor, domainLifecycleTopic), "DomainStore")
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
     context.spawn(UserStoreActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")

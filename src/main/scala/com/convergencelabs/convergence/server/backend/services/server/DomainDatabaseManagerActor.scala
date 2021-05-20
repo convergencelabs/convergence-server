@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.services.server
 
-import akka.actor.typed.pubsub.Topic.Publish
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
@@ -24,8 +23,7 @@ import grizzled.slf4j.Logging
 import scala.concurrent.{ExecutionContext, Future}
 
 final class DomainDatabaseManagerActor private(context: ActorContext[DomainDatabaseManagerActor.Message],
-                                               domainDatabaseManager: DomainDatabaseManager,
-                                               domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+                                               domainDatabaseManager: DomainDatabaseManager)
   extends AbstractBehavior[DomainDatabaseManagerActor.Message](context) with Logging {
 
   private[this] implicit val ec: ExecutionContext = context.executionContext
@@ -57,9 +55,7 @@ final class DomainDatabaseManagerActor private(context: ActorContext[DomainDatab
     val DestroyDomainRequest(domainId, databaseUri, replyTo) = destroy
     Future {
       domainDatabaseManager.destroyDomain(databaseUri) map { _ =>
-        val message = DomainLifecycleTopic.DomainDeleted(domainId)
         replyTo ! DestroyDomainResponse(Right(Ok()))
-        domainLifecycleTopic ! Publish(message)
       } recover { cause =>
         error(s"Error destroying domain: $domainId", cause)
         replyTo ! DestroyDomainResponse(Left(UnknownError()))
@@ -72,9 +68,8 @@ final class DomainDatabaseManagerActor private(context: ActorContext[DomainDatab
 
 object DomainDatabaseManagerActor {
 
-  def apply(databaseManager: DomainDatabaseManager,
-            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
-    Behaviors.setup(context => new DomainDatabaseManagerActor(context, databaseManager, domainLifecycleTopic))
+  def apply(databaseManager: DomainDatabaseManager): Behavior[Message] =
+    Behaviors.setup(context => new DomainDatabaseManagerActor(context, databaseManager))
 
 
   /////////////////////////////////////////////////////////////////////////////

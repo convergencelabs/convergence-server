@@ -11,8 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.services.server
 
-import java.util.concurrent.TimeUnit
-
+import akka.actor.typed.pubsub.Topic.Publish
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
@@ -22,6 +21,7 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.{DestroyDomainRequest, DestroyDomainResponse}
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic.DomainStatusChanged
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.role.DomainRoleTarget
@@ -32,10 +32,32 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import grizzled.slf4j.Logging
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
+/**
+ * The [[DomainStoreActor]] handles request to manage the set of domains that
+ * exist in the system.
+ *
+ * @param context              The actor context for this actor.
+ * @param domainStore          The persistence store for domains.
+ * @param configStore          The persistence store for system configuration.
+ * @param roleStore            The persistence store for user roles.
+ * @param favoriteDomainStore  The persistence store for setting favorite
+ *                             domains.
+ *                             for each user.
+ * @param deltaLogStore        The persistence store for domain database
+ *                             deltas.
+ * @param versionLogStore      The persistence store for the domain database
+ *                             version log.
+ * @param domainCreator        A helper class that will create domains.
+ * @param domainDbManagerActor A help class that orchestrates the creation
+ *                             of databases for domains.
+ * @param domainLifecycleTopic A pub/sub topic to broadcast changes to domains
+ *                             to other parts of the system.
+ */
 private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Message],
                                      domainStore: DomainStore,
                                      configStore: ConfigStore,
@@ -44,7 +66,8 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
                                      deltaLogStore: DomainSchemaDeltaLogStore,
                                      versionLogStore: DomainSchemaVersionLogStore,
                                      domainCreator: DomainCreator,
-                                     domainDbManagerActor: ActorRef[DomainDatabaseManagerActor.Message])
+                                     domainDbManagerActor: ActorRef[DomainDatabaseManagerActor.Message],
+                                     domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
   extends AbstractBehavior[DomainStoreActor.Message](context) with Logging {
 
   import DomainStoreActor._
@@ -61,25 +84,27 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
   override def onMessage(msg: Message): Behavior[Message] = {
     msg match {
       case message: CreateDomainRequest =>
-        createDomain(message)
+        onCreateDomain(message)
       case message: DeleteDomainRequest =>
-        deleteDomain(message)
+        onDeleteDomain(message)
       case message: UpdateDomainRequest =>
-        updateDomain(message)
+        onUpdateDomain(message)
       case message: GetDomainRequest =>
-        handleGetDomain(message)
+        onGetDomain(message)
       case message: GetDomainAndSchemaVersionRequest =>
-        handleGetDomainAndSchemaVersion(message)
+        onGetDomainAndSchemaVersion(message)
       case message: GetDomainsRequest =>
         onGetDomains(message)
       case message: DeleteDomainsForUserRequest =>
-        deleteDomainsForUser(message)
+        onDeleteDomainsForUser(message)
+      case message: SetDomainStatusRequest =>
+        onSetDomainStatus(message)
     }
 
     Behaviors.same
   }
 
-  private[this] def createDomain(createRequest: CreateDomainRequest): Unit = {
+  private[this] def onCreateDomain(createRequest: CreateDomainRequest): Unit = {
     val CreateDomainRequest(namespace, id, displayName, anonymousAuth, owner, replyTo) = createRequest
     configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
     val domainId = DomainId(namespace, id)
@@ -107,7 +132,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
 
   }
 
-  private[this] def updateDomain(request: UpdateDomainRequest): Unit = {
+  private[this] def onUpdateDomain(request: UpdateDomainRequest): Unit = {
     val UpdateDomainRequest(namespace, domainId, displayName, replyTo) = request
 
     for {
@@ -133,7 +158,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
     }
   }
 
-  private[this] def deleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
+  private[this] def onDeleteDomain(deleteRequest: DeleteDomainRequest): Unit = {
     val DeleteDomainRequest(namespace, domainId, replyTo) = deleteRequest
     val domainFqn = DomainId(namespace, domainId)
     deleteDomain(domainFqn)
@@ -149,7 +174,12 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
 
   private[this] def deleteDomain(domainId: DomainId): Try[Unit] = {
     (for {
-      _ <- domainStore.setDomainStatus(domainId, DomainStatus.Deleting, "")
+      _ <- domainStore
+        .setDomainStatus(domainId, DomainStatus.Deleting, "")
+        .map { _ =>
+          val message = DomainLifecycleTopic.DomainStatusChanged(domainId, DomainStatus.Deleting)
+          domainLifecycleTopic ! Publish(message)
+        }
       domainDatabase <- domainStore.getDomainDatabase(domainId)
       result <- domainDatabase match {
         case Some(domainDatabase) =>
@@ -192,7 +222,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       }
   }
 
-  private[this] def deleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
+  private[this] def onDeleteDomainsForUser(request: DeleteDomainsForUserRequest): Unit = {
     val DeleteDomainsForUserRequest(username, replyTo) = request
     debug(s"Deleting domains for user: $username")
     domainStore.getDomainsInNamespace("~" + username)
@@ -214,10 +244,9 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
           DeleteDomainsForUserResponse(Left(UnknownError()))
       }
       .foreach(replyTo ! _)
-
   }
 
-  private[this] def handleGetDomain(getRequest: GetDomainRequest): Unit = {
+  private[this] def onGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId, replyTo) = getRequest
     domainStore
       .getDomain(DomainId(namespace, domainId))
@@ -235,7 +264,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       .foreach(replyTo ! _)
   }
 
-  private[this] def handleGetDomainAndSchemaVersion(getRequest: GetDomainAndSchemaVersionRequest): Unit = {
+  private[this] def onGetDomainAndSchemaVersion(getRequest: GetDomainAndSchemaVersionRequest): Unit = {
     val GetDomainAndSchemaVersionRequest(namespace, domainId, replyTo) = getRequest
     val id = DomainId(namespace, domainId)
 
@@ -275,6 +304,33 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       }
       .foreach(replyTo ! _)
   }
+
+  def onSetDomainStatus(msg: SetDomainStatusRequest): Unit = {
+    val SetDomainStatusRequest(domainId, status, message, replyTo) = msg
+    (for {
+      _ <- {
+        status match {
+          case DomainStatus.Initializing | DomainStatus.Deleting | DomainStatus.Error =>
+            Failure(InvalidStatusException())
+          case _ =>
+            Success(())
+        }
+      }
+      _ <- domainStore.setDomainStatus(domainId, status, message.getOrElse(""))
+    } yield {
+      domainLifecycleTopic ! Publish(DomainStatusChanged(domainId, status))
+      Right(Ok())
+    })
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(DomainNotFound())
+        case _: InvalidStatusException =>
+          Left(InvalidDomainStatus())
+        case _ =>
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! SetDomainStatusResponse(_))
+  }
 }
 
 object DomainStoreActor {
@@ -287,7 +343,8 @@ object DomainStoreActor {
             deltaLogStore: DomainSchemaDeltaLogStore,
             versionLogStore: DomainSchemaVersionLogStore,
             domainCreator: DomainCreator,
-            domainDatabaseManager: ActorRef[DomainDatabaseManagerActor.Message]): Behavior[Message] =
+            domainDatabaseManager: ActorRef[DomainDatabaseManagerActor.Message],
+            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
     Behaviors.setup(context => new DomainStoreActor(
       context,
       domainStore,
@@ -297,7 +354,10 @@ object DomainStoreActor {
       deltaLogStore,
       versionLogStore,
       domainCreator,
-      domainDatabaseManager))
+      domainDatabaseManager,
+      domainLifecycleTopic))
+
+  private case class InvalidStatusException() extends Exception
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -353,6 +413,24 @@ object DomainStoreActor {
   sealed trait DeleteDomainError
 
   final case class DeleteDomainResponse(response: Either[DeleteDomainError, Ok]) extends CborSerializable
+
+  //
+  // SetDomainStatus
+  //
+  final case class SetDomainStatusRequest(domainId: DomainId,
+                                          status: DomainStatus.Value,
+                                          message: Option[String],
+                                          replyTo: ActorRef[SetDomainStatusResponse]) extends Message
+
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
+    new JsonSubTypes.Type(value = classOf[InvalidDomainStatus], name = "invalid_status"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetDomainStatusError
+
+  final case class SetDomainStatusResponse(response: Either[SetDomainStatusError, Ok]) extends CborSerializable
+
 
   //
   // DeleteDomainsForUser
@@ -427,6 +505,10 @@ object DomainStoreActor {
     with DeleteDomainError
     with GetDomainError
     with GetDomainAndSchemaVersionError
+    with SetDomainStatusError
+
+  final case class InvalidDomainStatus() extends AnyRef
+    with SetDomainStatusError
 
   final case class UnknownError() extends AnyRef
     with CreateDomainError
@@ -436,5 +518,5 @@ object DomainStoreActor {
     with GetDomainsError
     with DeleteDomainsForUserError
     with GetDomainAndSchemaVersionError
-
+    with SetDomainStatusError
 }

@@ -12,10 +12,9 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import java.time.Duration
-
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
-import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
+import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, PersistenceStoreSpec}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.domain
