@@ -12,8 +12,8 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain.collection
 
 import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.ModelStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{modelSnapshotConfigToODocument, oDocumentToModelSnapshotConfig}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.{ModelPermissionsStore, ModelStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.CollectionClass.{ClassName, Fields, Indices}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
@@ -35,20 +35,24 @@ import scala.util.{Failure, Success, Try}
 class CollectionStore private[domain](dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider) {
 
-
   def collectionExists(id: String): Try[Boolean] = withDb { db =>
     val query = "SELECT id FROM Collection WHERE id = :id"
     val params = Map(Fields.Id -> id)
     OrientDBUtil.query(db, query, params).map(_.nonEmpty)
   }
 
-  //TODO: Do we need to be passing permissions in here
   def ensureCollectionExists(collectionId: String): Try[Unit] = {
     this.collectionExists(collectionId).flatMap {
       case true =>
         Success(())
       case false =>
-        createCollection(domain.collection.Collection(collectionId, collectionId, overrideSnapshotConfig = false, CollectionStore.DefaultSnapshotConfig, CollectionStore.DefaultWorldPermissions)).map { _ => () }
+        val collection = Collection(
+          collectionId,
+          collectionId,
+          overrideSnapshotConfig = false,
+          CollectionStore.DefaultSnapshotConfig,
+          CollectionStore.DefaultWorldPermissions)
+        createCollection(collection).map { _ => () }
     }
   }
 
@@ -79,17 +83,17 @@ class CollectionStore private[domain](dbProvider: DatabaseProvider)
     } yield ()
   }
 
-  def getCollection(id: String): Try[Option[Collection]] = withDb { db =>
+  def getCollection(id: String): Try[Collection] = withDb { db =>
     val query = "SELECT FROM Collection WHERE id = :id"
     val params = Map(Fields.Id -> id)
     OrientDBUtil
-      .findDocument(db, query, params)
-      .map(_.map(CollectionStore.docToCollection))
+      .getDocument(db, query, params)
+      .map(CollectionStore.docToCollection)
   }
 
   def getOrCreateCollection(collectionId: String): Try[Collection] = {
     ensureCollectionExists(collectionId)
-      .flatMap(_ => getCollection(collectionId).map(_.get))
+      .flatMap(_ => getCollection(collectionId))
   }
 
   def getAllCollections(idFilter: Option[String],
@@ -178,6 +182,7 @@ object CollectionStore {
     Duration.ofMillis(600000))
 
   private val DefaultWorldPermissions = CollectionPermissions(create = true, read = true, write = true, remove = true, manage = true)
+  private val DefaultUserPermissions: Map[String, CollectionPermissions] = Map()
 
   def collectionToDoc(collection: Collection): ODocument = {
     val doc = new ODocument(ClassName)
@@ -198,6 +203,7 @@ object CollectionStore {
     val snapshotConfig = Option(snapshotConfigDoc)
       .map(oDocumentToModelSnapshotConfig)
       .getOrElse(CollectionStore.DefaultSnapshotConfig)
+
     domain.collection.Collection(
       doc.getProperty(Fields.Id),
       doc.getProperty(Fields.Description),

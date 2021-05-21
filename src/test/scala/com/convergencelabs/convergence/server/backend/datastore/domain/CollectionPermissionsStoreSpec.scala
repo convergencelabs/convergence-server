@@ -52,7 +52,7 @@ class CollectionPermissionsStoreSpec
     "retrieving the collection user permissions" must {
       "be equal to those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user1, permissions).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user1, permissions).get
         val retrievedPermissions = provider.collectionPermissionsStore.getCollectionPermissionsForUser(collection1, user1).get
         retrievedPermissions shouldEqual Some(permissions)
       }
@@ -66,24 +66,24 @@ class CollectionPermissionsStoreSpec
     "retrieving all collection user permissions" must {
       "contain all those just set" in withTestData { provider =>
         val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user1, permissions).get
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user2, permissions).get
-        val retrievedPermissions = provider.collectionPermissionsStore.getAllCollectionUserPermissions(collection1).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user1, permissions).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user2, permissions).get
+        val retrievedPermissions = provider.collectionPermissionsStore.getCollectionUserPermissions(collection1).get
         retrievedPermissions shouldEqual Map(user1 -> permissions, user2 -> permissions)
       }
 
       "fail if collection does not exist" in withTestData { provider =>
-        an[EntityNotFoundException] should be thrownBy provider.collectionPermissionsStore.getAllCollectionUserPermissions(nonExistentCollectionId).get
+        an[EntityNotFoundException] should be thrownBy provider.collectionPermissionsStore.getCollectionUserPermissions(nonExistentCollectionId).get
       }
     }
 
     "deleting a collection user permissions" must {
       "must no longer be set on the collection" in withTestData { provider =>
         val permissions = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user1, permissions).get
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user2, permissions).get
-        provider.collectionPermissionsStore.removeCollectionUserPermissions(collection1, user1)
-        val retrievedPermissions = provider.collectionPermissionsStore.getAllCollectionUserPermissions(collection1).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user1, permissions).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user2, permissions).get
+        provider.collectionPermissionsStore.removeCollectionPermissionsForUser(collection1, user1)
+        val retrievedPermissions = provider.collectionPermissionsStore.getCollectionUserPermissions(collection1).get
         retrievedPermissions shouldEqual Map(user2 -> permissions)
       }
     }
@@ -91,14 +91,14 @@ class CollectionPermissionsStoreSpec
     "removing all permissions for a user" must {
       "delete the correct permissions for models and collections" in withTestData { provider =>
         val cp1 = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user1, cp1).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user1, cp1).get
 
         val cp2 = CollectionPermissions(create = false, read = true, write = false, remove = true, manage = false)
-        provider.collectionPermissionsStore.updateCollectionUserPermissions(collection1, user2, cp2).get
+        provider.collectionPermissionsStore.updateCollectionPermissionsForUser(collection1, user2, cp2).get
 
         provider.collectionPermissionsStore.removeAllCollectionPermissionsForUser(user1)
 
-        val retrievedCps = provider.collectionPermissionsStore.getAllCollectionUserPermissions(collection1).get
+        val retrievedCps = provider.collectionPermissionsStore.getCollectionUserPermissions(collection1).get
         retrievedCps shouldEqual Map(user2 -> cp2)
 
         val retrievedCp = provider.collectionPermissionsStore.getCollectionPermissionsForUser(collection1, user1).get

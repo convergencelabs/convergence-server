@@ -35,7 +35,7 @@ private[model] class ModelPermissionResolver() {
     for {
       overrideCollection <- persistenceProvider.modelPermissionsStore.modelOverridesCollectionPermissions(modelId)
       collectionWorld <- persistenceProvider.collectionPermissionsStore.getCollectionWorldPermissions(collectionId)
-      collectionUsers <- persistenceProvider.collectionPermissionsStore.getAllCollectionUserPermissions(collectionId)
+      collectionUsers <- persistenceProvider.collectionPermissionsStore.getCollectionUserPermissions(collectionId)
       modelWorld <- persistenceProvider.modelPermissionsStore.getModelWorldPermissions(modelId)
       modelUsers <- persistenceProvider.modelPermissionsStore.getAllModelUserPermissions(modelId)
     } yield {

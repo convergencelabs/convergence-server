@@ -26,8 +26,8 @@ import com.convergencelabs.convergence.server.backend.services.domain.rest.Domai
 import com.convergencelabs.convergence.server.model
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
-import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions, CollectionSummary, CollectionWorldAndUserPermissions}
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionAndUserPermissions, CollectionPermissions, CollectionSummary, CollectionWorldAndUserPermissions}
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
@@ -124,7 +124,6 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
         { results =>
           val collections = results.data.map(collectionToCollectionData)
           okResponse(PagedRestResponse(collections, results.offset, results.count))
-
         })
       )
   }
@@ -166,8 +165,8 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
   }
 
   private[this] def updateCollection(domain: DomainId, collectionId: String, collectionUpdateData: CollectionUpdateData): Future[RestResponse] = {
-    val CollectionUpdateData(description, worldPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData
-    val collectionData = CollectionData(collectionId, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
+    val CollectionUpdateData(description, worldPermissions, userPermissions, overrideSnapshotConfig, snapshotConfig) = collectionUpdateData
+    val collectionData = CollectionData(collectionId, description, worldPermissions, userPermissions, overrideSnapshotConfig, snapshotConfig)
     val collection = this.collectionDataToCollection(collectionData)
     domainRestActor
       .ask[UpdateCollectionResponse](r =>
@@ -257,7 +256,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
   }
 
   def setCollectionWorldPermissions(domain: DomainId, collectionId: String, permissions: CollectionPermissionsData): Future[RestResponse] = {
-    val p = fromCollectionPermissions(permissions)
+    val p = dataToCollectionPermissions(permissions)
     domainRestActor
       .ask[SetCollectionWorldPermissionsResponse](r =>
         DomainRestMessage(domain, SetCollectionWorldPermissionsRequest(collectionId, p, r)))
@@ -267,7 +266,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
           case CollectionNotFoundError() => NotFoundResponse
         },
         {
-          permissions => OkResponse
+          _ => OkResponse
         }
       ))
   }
@@ -304,7 +303,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
   }
 
   def setCollectionPermissionsForUser(domain: DomainId, collectionId: String, username: String, permissions: CollectionPermissionsData): Future[RestResponse] = {
-    val p = fromCollectionPermissions(permissions)
+    val p = dataToCollectionPermissions(permissions)
     domainRestActor
       .ask[SetCollectionPermissionsForUserResponse](r =>
         DomainRestMessage(domain, SetCollectionPermissionsForUserRequest(collectionId, DomainUserId.normal(username), p, r)))
@@ -339,11 +338,12 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
   // Mapping
   //
 
-  private[this] def collectionDataToCollection(collectionData: CollectionData): Collection = {
+  private[this] def collectionDataToCollection(collectionData: CollectionData): CollectionAndUserPermissions = {
     val CollectionData(
     id,
     description,
     CollectionPermissionsData(read, write, remove, manage, create),
+    userPermissionsData,
     overrideSnapshotConfig,
     ModelSnapshotPolicyData(
     snapshotsEnabled,
@@ -367,11 +367,20 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
       limitByTime,
       Duration.ofMillis(minimumTimeInterval),
       Duration.ofMillis(maximumTimeInterval))
-    val collection = model.domain.collection.Collection(id, description, overrideSnapshotConfig, snapshotConfig, CollectionPermissions(create, read, write, remove, manage))
-    collection
+
+    val userPermissions = userPermissionsData.map { case (username, permissions) =>
+      DomainUserId(DomainUserType.Normal, username) -> dataToCollectionPermissions(permissions)
+    }
+
+    val collection = Collection(
+      id, description, overrideSnapshotConfig, snapshotConfig,
+      CollectionPermissions(create, read, write, remove, manage),
+      )
+    CollectionAndUserPermissions(collection, userPermissions)
   }
 
-  private[this] def collectionToCollectionData(collection: Collection): CollectionData = {
+  private[this] def collectionToCollectionData(cap: CollectionAndUserPermissions): CollectionData = {
+    val CollectionAndUserPermissions(collection, userPermissions) = cap
     val Collection(
     id,
     description,
@@ -399,8 +408,12 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
       maximumTimeInterval.toMillis,
       limitByTime,
       minimumTimeInterval.toMillis)
-    val worldPermissions = CollectionPermissionsData(read, write, remove, manage, create)
-    val collectionData = CollectionData(id, description, worldPermissions, overrideSnapshotConfig, snapshotConfig)
+    val worldPermissionsData = CollectionPermissionsData(read, write, remove, manage, create)
+    val userPermissionsData = userPermissions.map { case (userId, permissions) =>
+      userId.username -> collectionPermissionsToData(permissions)
+    }
+    val collectionData = CollectionData(
+      id, description, worldPermissionsData, userPermissionsData, overrideSnapshotConfig, snapshotConfig)
     collectionData
   }
 
@@ -409,7 +422,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
     CollectionPermissionsData(create, read, write, remove, manage)
   }
 
-  private[this] def fromCollectionPermissions(permissions: CollectionPermissionsData): CollectionPermissions = {
+  private[this] def dataToCollectionPermissions(permissions: CollectionPermissionsData): CollectionPermissions = {
     val CollectionPermissionsData(create, read, write, remove, manage) = permissions
     CollectionPermissions(create, read, write, remove, manage)
   }
@@ -427,11 +440,13 @@ object DomainCollectionService {
   case class CollectionData(id: String,
                             description: String,
                             worldPermissions: CollectionPermissionsData,
+                            userPermissions: Map[String, CollectionPermissionsData],
                             overrideSnapshotPolicy: Boolean,
                             snapshotPolicy: ModelSnapshotPolicyData)
 
   case class CollectionUpdateData(description: String,
                                   worldPermissions: CollectionPermissionsData,
+                                  userPermissions: Map[String, CollectionPermissionsData],
                                   overrideSnapshotPolicy: Boolean,
                                   snapshotPolicy: ModelSnapshotPolicyData)
 
@@ -445,6 +460,6 @@ object DomainCollectionService {
                                        remove: Boolean,
                                        manage: Boolean)
 
-  case class CollectionWorldAndUserPermissionsData(world: CollectionPermissionsData,
-                                                   user: Map[String, CollectionPermissionsData])
+  case class CollectionWorldAndUserPermissionsData(worldPermissions: CollectionPermissionsData,
+                                                   userPermissions: Map[String, CollectionPermissionsData])
 }

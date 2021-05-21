@@ -16,7 +16,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.{Ok, PagedData}
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.{CollectionPermissionsStore, CollectionStore}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
-import com.convergencelabs.convergence.server.model.domain.collection.{Collection, CollectionPermissions, CollectionSummary, CollectionWorldAndUserPermissions}
+import com.convergencelabs.convergence.server.model.domain.collection.{CollectionAndUserPermissions, CollectionPermissions, CollectionSummary, CollectionWorldAndUserPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -73,14 +73,20 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
 
   private[this] def onGetCollections(msg: GetCollectionsRequest): Unit = {
     val GetCollectionsRequest(filter, offset, limit, replyTo) = msg
-    collectionStore
-      .getAllCollections(filter, offset, limit)
-      .map(c => Right(c))
-      .recover {
-        case cause =>
-          context.log.error("Unexpected error getting collections", cause)
-          Left(UnknownError())
-      }
+    (for {
+      collections <- collectionStore.getAllCollections(filter, offset, limit)
+      permissions <- collectionPermissionsStore.getUserPermissionsForCollection(collections.data.map(_.id))
+    } yield {
+      Right(PagedData(
+        collections.data.map(c => CollectionAndUserPermissions(c, permissions.getOrElse(c.id, Map()))),
+        collections.offset,
+        collections.count
+      ))
+    }).recover {
+      case cause =>
+        context.log.error("Unexpected error getting collections", cause)
+        Left(UnknownError())
+    }
       .foreach(replyTo ! GetCollectionsResponse(_))
   }
 
@@ -99,22 +105,29 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
 
   private[this] def onGetCollection(msg: GetCollectionRequest): Unit = {
     val GetCollectionRequest(collectionId, replyTo) = msg
-    collectionStore
-      .getCollection(collectionId)
-      .map(_.map(c => Right(c)).getOrElse(Left(CollectionNotFoundError())))
-      .recover {
-        case cause =>
-          context.log.error("Unexpected error getting collection", cause)
-          Left(UnknownError())
-      }
+    (for {
+      collection <- collectionStore.getCollection(collectionId)
+      userPermissions <- collectionPermissionsStore.getCollectionUserPermissions(collectionId)
+    } yield {
+      Right(CollectionAndUserPermissions(collection, userPermissions))
+    }).recover {
+      case _: EntityNotFoundException =>
+        Left(CollectionNotFoundError())
+      case cause =>
+        context.log.error("Unexpected error getting collection", cause)
+        Left(UnknownError())
+    }
       .foreach(replyTo ! GetCollectionResponse(_))
   }
 
   private[this] def onCreateCollection(msg: CreateCollectionRequest): Unit = {
-    val CreateCollectionRequest(collection, replyTo) = msg
-    collectionStore
-      .createCollection(collection)
-      .map(_ => Right(Ok()))
+    val CreateCollectionRequest(CollectionAndUserPermissions(collection, userPermissions), replyTo) = msg
+    (for {
+      _ <- collectionStore.createCollection(collection)
+      _ <- collectionPermissionsStore.setCollectionUserPermissions(collection.id, userPermissions)
+    } yield {
+      Right(Ok())
+    })
       .recover {
         case DuplicateValueException(field, _, _) =>
           Left(CollectionExists(field))
@@ -126,18 +139,21 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
   }
 
   private[this] def onUpdateCollection(msg: UpdateCollectionRequest): Unit = {
-    val UpdateCollectionRequest(collectionId, collection, replyTo) = msg
-    collectionStore
-      .updateCollection(collectionId, collection)
-      .map(_ => Right(Ok()))
-      .recover {
-        case _: EntityNotFoundException =>
-          Left(CollectionNotFoundError())
-        case cause =>
-          context.log.error("Unexpected error updating collection", cause)
-          Left(UnknownError())
-      }
-      .foreach(replyTo ! UpdateCollectionResponse(_))
+    val UpdateCollectionRequest(collectionId, collectionAndUserPermissions, replyTo) = msg
+    val CollectionAndUserPermissions(collection, userPermissions) = collectionAndUserPermissions
+
+    (for {
+      _ <- collectionStore.updateCollection(collectionId, collection)
+      _ <- collectionPermissionsStore.setCollectionUserPermissions(collectionId, userPermissions)
+    } yield {
+      Right(Ok())
+    }).recover {
+      case _: EntityNotFoundException =>
+        Left(CollectionNotFoundError())
+      case cause =>
+        context.log.error("Unexpected error updating collection", cause)
+        Left(UnknownError())
+    }.foreach(replyTo ! UpdateCollectionResponse(_))
   }
 
   private[this] def onDeleteCollection(msg: DeleteCollectionRequest): Unit = {
@@ -162,7 +178,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
     val GetCollectionPermissionsRequest(collectionId, replyTo) = msg
     (for {
       world <- collectionPermissionsStore.getCollectionWorldPermissions(collectionId)
-      user <- collectionPermissionsStore.getAllCollectionUserPermissions(collectionId)
+      user <- collectionPermissionsStore.getCollectionUserPermissions(collectionId)
     } yield {
       val response = CollectionWorldAndUserPermissions(world, user)
       Right(response)
@@ -207,7 +223,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
   def onGetCollectionUserPermissions(msg: GetCollectionUserPermissionsRequest): Unit = {
     val GetCollectionUserPermissionsRequest(collectionId, replyTo) = msg
     collectionPermissionsStore
-      .getAllCollectionUserPermissions(collectionId)
+      .getCollectionUserPermissions(collectionId)
       .map(userPermissions => Right(userPermissions))
       .recover {
         case _: EntityNotFoundException =>
@@ -235,7 +251,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
   def onSetCollectionPermissionsForUser(msg: SetCollectionPermissionsForUserRequest): Unit = {
     val SetCollectionPermissionsForUserRequest(collectionId, userId, permissions, replyTo) = msg
     collectionPermissionsStore
-      .updateCollectionUserPermissions(collectionId, userId, permissions)
+      .updateCollectionPermissionsForUser(collectionId, userId, permissions)
       .map(userPermissions => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
@@ -249,7 +265,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
   def onRemoveCollectionPermissionsForUser(msg: RemoveCollectionPermissionsForUserRequest): Unit = {
     val RemoveCollectionPermissionsForUserRequest(collectionId, userId, replyTo) = msg
     collectionPermissionsStore
-      .removeCollectionUserPermissions(collectionId, userId)
+      .removeCollectionPermissionsForUser(collectionId, userId)
       .map(_ => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
@@ -304,7 +320,7 @@ object CollectionStoreActor {
   ))
   sealed trait GetCollectionsError
 
-  final case class GetCollectionsResponse(collections: Either[GetCollectionsError, PagedData[Collection]]) extends CborSerializable
+  final case class GetCollectionsResponse(collections: Either[GetCollectionsError, PagedData[CollectionAndUserPermissions]]) extends CborSerializable
 
 
   //
@@ -338,7 +354,7 @@ object CollectionStoreActor {
   ))
   sealed trait GetCollectionError
 
-  final case class GetCollectionResponse(collection: Either[GetCollectionError, Collection]) extends CborSerializable
+  final case class GetCollectionResponse(collection: Either[GetCollectionError, CollectionAndUserPermissions]) extends CborSerializable
 
 
   //
@@ -358,7 +374,7 @@ object CollectionStoreActor {
   //
   // CreateCollection
   //
-  final case class CreateCollectionRequest(collection: Collection, replyTo: ActorRef[CreateCollectionResponse]) extends Message
+  final case class CreateCollectionRequest(collection: CollectionAndUserPermissions, replyTo: ActorRef[CreateCollectionResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -374,7 +390,7 @@ object CollectionStoreActor {
   //
   // UpdateCollection
   //
-  final case class UpdateCollectionRequest(collectionId: String, collection: Collection, replyTo: ActorRef[UpdateCollectionResponse]) extends Message
+  final case class UpdateCollectionRequest(collectionId: String, collection: CollectionAndUserPermissions, replyTo: ActorRef[UpdateCollectionResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

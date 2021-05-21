@@ -19,7 +19,6 @@ import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
@@ -33,29 +32,46 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
   import CollectionPermissionsStore._
   import schema.DomainSchema._
 
-  private[this] val CollectionWordPermissionsQuery = "SELECT worldPermissions FROM Collection WHERE id = :collectionId"
+  private[this] val GetCollectionWordPermissionsQuery =
+    "SELECT worldPermissions FROM Collection WHERE id = :collectionId"
 
   def getCollectionWorldPermissions(collectionId: String): Try[CollectionPermissions] = withDb { db =>
     val params = Map("collectionId" -> collectionId)
     OrientDBUtil
-      .getDocument(db, CollectionWordPermissionsQuery, params)
+      .getDocument(db, GetCollectionWordPermissionsQuery, params)
       .map(collectionDocToCollectionWorldPermissions)
   }
 
+  private[this] val SetCollectionWordPermissionsCommand =
+    "UPDATE Collection SET worldPermissions = :worldPermissions WHERE id = :collectionId"
+
   def setCollectionWorldPermissions(collectionId: String, permissions: CollectionPermissions): Try[Unit] = withDb { db =>
-    OrientDBUtil
-      .getDocumentFromSingleValueIndex(db, Classes.Collection.Indices.Id, collectionId)
-      .flatMap { collectionDoc =>
-        Try {
-          val permissionsDoc = collectionPermissionToDoc(permissions)
-          collectionDoc.setProperty(Classes.Collection.Fields.WorldPermissions, permissionsDoc, OType.EMBEDDED)
-          collectionDoc.save()
-          ()
-        }
-      }
+    val params = Map(
+      "collectionId" -> collectionId,
+      "worldPermissions" -> collectionPermissionToDoc(permissions)
+    )
+    OrientDBUtil.mutateOneDocument(db, SetCollectionWordPermissionsCommand, params)
   }
 
-  def getAllCollectionUserPermissions(collectionId: String): Try[Map[DomainUserId, CollectionPermissions]] = withDb { db =>
+  private[this] val GetPermissionsForCollectionsQuery =
+    "SELECT FROM CollectionUserPermissions WHERE collection IN :collectionIds"
+
+  def getUserPermissionsForCollection(collectionIds: List[String]): Try[Map[String, Map[DomainUserId, CollectionPermissions]]] = withDb { db =>
+    OrientDBUtil
+      .queryAndMap(db, GetPermissionsForCollectionsQuery, Map("collectionIds" -> collectionIds.asJava)) { doc =>
+        val collectionId = doc.eval("collection.id").asInstanceOf[String]
+        val userId = DomainUserStore.userDocToDomainUserId(doc.getProperty(Classes.CollectionUserPermissions.Fields.User))
+        val permissions = docToCollectionPermissions(doc.getProperty(Classes.CollectionUserPermissions.Fields.Permissions))
+        (collectionId, (userId, permissions))
+      }
+      .map(_
+        .groupBy(v => v._1)
+        .view
+        .mapValues(_.map(_._2).toMap).toMap
+      )
+  }
+
+  def getCollectionUserPermissions(collectionId: String): Try[Map[DomainUserId, CollectionPermissions]] = withDb { db =>
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, Classes.Collection.Indices.Id, collectionId)
       .map { collectionDoc =>
@@ -72,7 +88,7 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
       }
   }
 
-  def deleteAllCollectionUserPermissions(collectionId: String): Try[Unit] = tryWithDb { db =>
+  def deleteAllUserPermissionsForCollection(collectionId: String): Try[Unit] = tryWithDb { db =>
     OrientDBUtil
       .getDocumentFromSingleValueIndex(db, Classes.Collection.Indices.Id, collectionId)
       .flatMap { collectionDoc =>
@@ -89,52 +105,36 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
       }
   }
 
-  def updateAllCollectionUserPermissions(collectionId: String, userPermissions: Map[DomainUserId, Option[CollectionPermissions]]): Try[Unit] = withDb { db =>
-    CollectionStore.getCollectionRid(collectionId, db).flatMap { collectionRid =>
-      Try(userPermissions.map {
-        case (userId, permissions) =>
-          for {
-            userRid <- DomainUserStore.getUserRid(userId.username, userId.userType, db)
-            collectionPermissionRecord <- OrientDBUtil.findDocumentFromSingleValueIndex(db, Classes.CollectionUserPermissions.Indices.User_Collection, List(userRid, collectionRid))
-            result <- Try {
-              collectionPermissionRecord match {
-                case Some(collectionPermission) =>
-                  permissions match {
-                    case Some(permissions) =>
-                      collectionPermission.setProperty(
-                        Classes.CollectionUserPermissions.Fields.Permissions, collectionPermissionToDoc(permissions))
-                      collectionPermission.save()
-                      ()
-                    case None =>
-                      collectionPermission.delete()
-                      ()
-                  }
-                case None =>
-                  permissions match {
-                    case Some(permissions) =>
-                      val collectionPermissionsDoc: ODocument = db.newInstance(Classes.CollectionUserPermissions.ClassName)
-                      collectionPermissionsDoc.setProperty(Classes.CollectionUserPermissions.Fields.Collection, collectionRid)
-                      collectionPermissionsDoc.setProperty(Classes.CollectionUserPermissions.Fields.User, userRid)
-                      collectionPermissionsDoc.setProperty(Classes.CollectionUserPermissions.Fields.Permissions, collectionPermissionToDoc(permissions))
-                      collectionPermissionsDoc.save()
-                      ()
-                    case None =>
-                      // Nothing to do because there are no permissions and we were asked to delete them.
-                      ()
-                  }
-              }
-            }
-          } yield result
-      }.foreach(_.get))
-    }.flatMap { _ =>
-      val command =
-        """UPDATE Collection
-          |  SET userPermissions = (SELECT FROM CollectionUserPermissions WHERE collection.id = :collectionId)
-          |  WHERE id = :collectionId""".stripMargin
+  val GetUserPermissionsForCollectionQuery = "SELECT * FROM CollectionUserPermissions WHERE collection.id = :collectionId"
 
-      val params = Map("collectionId" -> collectionId)
-      OrientDBUtil.mutateOneDocument(db, command, params)
-    }
+  def setCollectionUserPermissions(collectionId: String, userPermissions: Map[DomainUserId, CollectionPermissions]): Try[Unit] = withDb { db =>
+    for {
+      permissionDocs <- OrientDBUtil.query(db, GetUserPermissionsForCollectionQuery, Map("collectionId" -> collectionId))
+      _ <- Try {
+        val permissionDocsByUserId = permissionDocs.map { doc =>
+          val userId = DomainUserStore.userDocToDomainUserId(doc.getProperty(Classes.CollectionUserPermissions.Fields.User))
+          (userId, doc)
+        }.toMap
+
+        val allUserIds = userPermissions.keySet ++ permissionDocsByUserId.keySet
+        allUserIds.foreach { userId =>
+          (userPermissions.get(userId), permissionDocsByUserId.get(userId)) match {
+            case (Some(permissions), Some(permissionsDoc)) =>
+              permissionsDoc.setProperty(
+                Classes.CollectionUserPermissions.Fields.Permissions, collectionPermissionToDoc(permissions))
+              permissionsDoc.save()
+            case (None, Some(doc)) =>
+              doc.delete()
+            case (Some(permissions), None) =>
+              createUserPermissions(db, collectionId, userId, permissions).get
+            case (None, None) =>
+            // Nothing to do because there are no permissions and we don't
+            // want any.
+          }
+        }
+      }
+      _ <- refreshCollectionPermissions(collectionId, db)
+    } yield {}
   }
 
   def getCollectionPermissionsForUser(collectionId: String, userId: DomainUserId, db: Option[ODatabaseDocument] = None): Try[Option[CollectionPermissions]] = withDb(db) { db =>
@@ -150,7 +150,7 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
       .map(_.map(doc => docToCollectionPermissions(doc.getProperty("permissions"))))
   }
 
-  def updateCollectionUserPermissions(collectionId: String, userId: DomainUserId, permissions: CollectionPermissions): Try[Unit] = withDb { db =>
+  def updateCollectionPermissionsForUser(collectionId: String, userId: DomainUserId, permissions: CollectionPermissions): Try[Unit] = withDb { db =>
     for {
       collectionRid <- CollectionStore.getCollectionRid(collectionId, db)
       userRid <- DomainUserStore.getUserRid(userId.username, userId.userType, db)
@@ -182,7 +182,8 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
     } yield result
   }
 
-  def removeCollectionUserPermissions(collectionId: String, userId: DomainUserId): Try[Unit] = tryWithDb { db =>
+  // FIXME update this to use a query
+  def removeCollectionPermissionsForUser(collectionId: String, userId: DomainUserId): Try[Unit] = tryWithDb { db =>
     for {
       collectionRid <- CollectionStore.getCollectionRid(collectionId, db)
       collection <- Try(collectionRid.getRecord[ODocument])
@@ -215,6 +216,35 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
       _ <- OrientDBUtil.command(db, RemoveCollectionUserPermissionsCommand, Map("user" -> userRid))
       _ <- OrientDBUtil.command(db, RemoveAllCollectionPermissionsForUserCommand, Map("user" -> userRid))
     } yield ()
+  }
+
+  private[this] def refreshCollectionPermissions(collectionId: String, db: ODatabaseDocument): Try[Unit] = {
+    val command =
+      """UPDATE Collection
+        |  SET userPermissions = (SELECT FROM CollectionUserPermissions WHERE collection.id = :collectionId)
+        |  WHERE id = :collectionId""".stripMargin
+
+    val params = Map("collectionId" -> collectionId)
+    OrientDBUtil.mutateOneDocument(db, command, params)
+  }
+
+  private[this] val CreatePermissionsCommand =
+    """
+      | INSERT INTO CollectionPermissions
+      | SET
+      |   collection = (SELECT FROM Collection WHERE id = :collectionId),
+      |   user = (SELECT FROM USer WHERE userType = :userType AND username = :username),
+      |   permissions = :permissions
+      |""".stripMargin
+
+  private[this] def createUserPermissions(db: ODatabaseDocument, collectionId: String, userId: DomainUserId, permissions: CollectionPermissions): Try[Unit] = {
+    val params = Map(
+      "collectionId" -> collectionId,
+      "userType" -> userId.userType.toString.toLowerCase,
+      "username" -> userId.username,
+      "permissions" -> collectionPermissionToDoc(permissions)
+    )
+    OrientDBUtil.mutateOneDocument(db, CreatePermissionsCommand, params)
   }
 }
 

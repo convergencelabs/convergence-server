@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
-import java.time.Duration
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.CollectionStore
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, PersistenceStoreSpec}
@@ -21,10 +20,11 @@ import com.convergencelabs.convergence.server.model.domain
 import com.convergencelabs.convergence.server.model.domain.collection
 import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
-import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import java.time.Duration
 
 // scalastyle:off magic.number
 class CollectionStoreSpec
@@ -72,12 +72,12 @@ class CollectionStoreSpec
     "creating a collection" must {
       "create a collection that is not a duplicate id" in withPersistenceStore { store =>
         store.createCollection(companyCollection).get
-        store.getCollection(companyCollection.id).get.value shouldBe companyCollection
+        store.getCollection(companyCollection.id).get shouldBe companyCollection
       }
 
       "properly handle a None snapshot config" in withPersistenceStore { store =>
         store.createCollection(companyCollection).get
-        store.getCollection(companyCollection.id).get.value shouldBe companyCollection
+        store.getCollection(companyCollection.id).get shouldBe companyCollection
       }
 
       "not create a collection that is not a duplicate collection id" in withPersistenceStore { store =>
@@ -87,28 +87,28 @@ class CollectionStoreSpec
     }
 
     "getting a collection" must {
-      "return None if it doesn't exist" in withPersistenceStore { store =>
-        store.getCollection(carsCollectionId).get shouldBe None
+      "return throw if it doesn't exist" in withPersistenceStore { store =>
+        store.getCollection(carsCollectionId).failed.get shouldBe an[EntityNotFoundException]
       }
 
       "return Some if it does exist" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
-        store.getCollection(peopleCollectionId).get.value shouldBe peopleCollection
+        store.getCollection(peopleCollectionId).get shouldBe peopleCollection
       }
     }
 
     "updating a collection" must {
       "successfully update an existing collection" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
-        val existing = store.getCollection(peopleCollectionId).get.value
+        val existing = store.getCollection(peopleCollectionId).get
         val updated = existing.copy(description = "updatedPeople", overrideSnapshotConfig = false, snapshotConfig = snapshotConfig)
         store.updateCollection(existing.id, updated).get
-        store.getCollection(peopleCollectionId).get.value shouldBe updated
+        store.getCollection(peopleCollectionId).get shouldBe updated
       }
 
       "successfully update an existing collection to a new id" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
-        val existing = store.getCollection(peopleCollectionId).get.value
+        val existing = store.getCollection(peopleCollectionId).get
         val newId = "newId"
         val updated = existing.copy(
           id = newId,
@@ -116,14 +116,14 @@ class CollectionStoreSpec
           overrideSnapshotConfig = false,
           snapshotConfig = snapshotConfig)
         store.updateCollection(existing.id, updated).get
-        store.getCollection(newId).get.value shouldBe updated
-        store.getCollection(peopleCollectionId).get shouldBe None
+        store.getCollection(newId).get shouldBe updated
+        store.getCollection(peopleCollectionId).failed.get shouldBe an[EntityNotFoundException]
       }
 
       "not allow a collection to be updated with an id that is already taken" in withPersistenceStore { store =>
         store.createCollection(peopleCollection).get
         store.createCollection(companyCollection)
-        val existing = store.getCollection(peopleCollectionId).get.value
+        val existing = store.getCollection(peopleCollectionId).get
         val updated = existing.copy(id = companyCollection.id)
         store.updateCollection(existing.id, updated).failure.exception shouldBe a[DuplicateValueException]
       }
@@ -182,19 +182,18 @@ class CollectionStoreSpec
         store.createCollection(peopleCollection).get
         store.createCollection(teamCollection).get
 
-        store.getCollection(peopleCollectionId).get shouldBe defined
-        store.getCollection(companyCollectionId).get shouldBe defined
-        store.getCollection(teamCollectionId).get shouldBe defined
+        store.getCollection(peopleCollectionId).get
+        store.getCollection(companyCollectionId).get
+        store.getCollection(teamCollectionId).get
 
         store.deleteCollection(peopleCollectionId).get
 
-        store.getCollection(peopleCollectionId).get shouldBe None
-        store.getCollection(companyCollectionId).get shouldBe defined
-        store.getCollection(teamCollectionId).get shouldBe defined
+        store.getCollection(peopleCollectionId).failed.get shouldBe a[EntityNotFoundException]
+        store.getCollection(companyCollectionId).get
+        store.getCollection(teamCollectionId).get
       }
 
       "return EntityNotFoundException for deleting a non-existent collection" in withPersistenceStore { store =>
-        store.getCollection(carsCollectionId).get shouldBe None
         store.deleteCollection(carsCollectionId).failure.exception shouldBe a[EntityNotFoundException]
       }
     }
