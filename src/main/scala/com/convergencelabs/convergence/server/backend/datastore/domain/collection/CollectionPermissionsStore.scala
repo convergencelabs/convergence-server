@@ -54,7 +54,7 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
   }
 
   private[this] val GetPermissionsForCollectionsQuery =
-    "SELECT FROM CollectionUserPermissions WHERE collection IN :collectionIds"
+    "SELECT FROM CollectionUserPermissions WHERE collection.id IN :collectionIds"
 
   def getUserPermissionsForCollection(collectionIds: List[String]): Try[Map[String, Map[DomainUserId, CollectionPermissions]]] = withDb { db =>
     OrientDBUtil
