@@ -14,17 +14,18 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.collecti
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema.Classes
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
-import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
+import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, EntityNotFoundException, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.collection.CollectionPermissions
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
+import com.orientechnologies.orient.core.exception.OValidationException
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
 import java.util.{List => JavaList}
 import scala.jdk.CollectionConverters._
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {
 
@@ -117,7 +118,10 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
             case (None, Some(doc)) =>
               doc.delete()
             case (Some(permissions), None) =>
-              createOrUpdateUserPermissions(db, collectionId, userId, permissions).get
+              createOrUpdateUserPermissions(db, collectionId, userId, permissions).recover {
+                case e: EntityNotFoundException =>
+                  logger.warn("Error creating collection user permissions: " + e.message)
+              }
             case (None, None) =>
             // Nothing to do because there are no permissions and we don't
             // want any.
@@ -146,7 +150,7 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
   def setCollectionPermissionsForUser(collectionId: String, userId: DomainUserId, permissions: CollectionPermissions): Try[Unit] = withDb { db =>
     for {
       _ <- createOrUpdateUserPermissions(db, collectionId, userId, permissions)
-      _ <-refreshCollectionPermissions(db, collectionId)
+      _ <- refreshCollectionPermissions(db, collectionId)
     } yield ()
   }
 
@@ -163,7 +167,7 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
     for {
       _ <- OrientDBUtil.command(db, RemoveCollectionPermissionsForUserCommand,
         Map("collectionId" -> collectionId, "username" -> userId.username, "userType" -> userId.userType.toString))
-      _ <-refreshCollectionPermissions(db, collectionId)
+      _ <- refreshCollectionPermissions(db, collectionId)
     } yield ()
   }
 
@@ -211,7 +215,22 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
       "username" -> userId.username,
       "permissions" -> collectionPermissionToDoc(permissions)
     )
-    OrientDBUtil.mutateOneDocument(db, UpsertUserPermissionsCommand, params)
+    OrientDBUtil
+      .mutateOneDocument(db, UpsertUserPermissionsCommand, params)
+      .recoverWith {
+        case e: OValidationException =>
+          // FIXME this is a bit of a hack.  Suggest a PR to orient db
+          //  to have this information included in the exception.
+          if (e.getMessage.contains("CollectionUserPermissions.user")) {
+            Failure(EntityNotFoundException("The specified user does not exist: " + userId))
+          } else if (e.getMessage.contains("CollectionUserPermissions.collection")) {
+            Failure(EntityNotFoundException("The specified collection does not exist: " + collectionId))
+          } else {
+            Failure(e)
+          }
+      }
+
+    // FIXME handle error
   }
 }
 
