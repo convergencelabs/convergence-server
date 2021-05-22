@@ -230,11 +230,11 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
 
   private[this] val CreatePermissionsCommand =
     """
-      | INSERT INTO CollectionPermissions
-      | SET
-      |   collection = (SELECT FROM Collection WHERE id = :collectionId),
-      |   user = (SELECT FROM USer WHERE userType = :userType AND username = :username),
-      |   permissions = :permissions
+      |INSERT INTO CollectionUserPermissions
+      |SET
+      |  collection = (SELECT FROM Collection WHERE id = :collectionId),
+      |  user = (SELECT FROM User WHERE userType = :userType AND username = :username),
+      |  permissions = :permissions
       |""".stripMargin
 
   private[this] def createUserPermissions(db: ODatabaseDocument, collectionId: String, userId: DomainUserId, permissions: CollectionPermissions): Try[Unit] = {
