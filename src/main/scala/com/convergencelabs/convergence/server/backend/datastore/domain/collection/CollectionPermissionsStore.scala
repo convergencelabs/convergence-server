@@ -173,7 +173,7 @@ class CollectionPermissionsStore(dbProvider: DatabaseProvider) extends AbstractD
       |UPDATE Collection REMOVE userPermissions = userPermissions[user.username = :username AND user.userType = :userType];
       |DELETE FROM CollectionUserPermissions WHERE user.username = :username AND user.userType = :userType;
       |""".stripMargin
-  
+
   def removeAllCollectionPermissionsForUser(userId: DomainUserId): Try[Unit] = tryWithDb { db =>
     OrientDBUtil.execute(db, RemoveAllCollectionPermissionsForUserScript,
       Map("username" -> userId.username, "userType" -> userId.userType.toString))

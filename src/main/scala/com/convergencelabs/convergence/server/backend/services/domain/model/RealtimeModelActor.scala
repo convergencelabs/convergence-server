@@ -405,8 +405,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
             val fingerprint: Option[String] = this.persistenceProvider.modelStore.getModelMetaData(modelId)
               .map(_.map(_.createdTime.toEpochMilli.toString)).getOrElse(None)
               CreateRealtimeModelResponse(Left(ModelAlreadyExistsError(fingerprint)))
-          case _: UnauthorizedException =>
-            CreateRealtimeModelResponse(Left(UnauthorizedError("Not allowed to create a model in this collection")))
+          case e: UnauthorizedException =>
+            CreateRealtimeModelResponse(Left(UnauthorizedError(e.getMessage)))
           case e: Exception =>
             error(s"Could not create model: $modelId", e)
             CreateRealtimeModelResponse(Left(UnknownError()))
