@@ -75,7 +75,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
     val GetCollectionsRequest(filter, offset, limit, replyTo) = msg
     (for {
       collections <- collectionStore.getAllCollections(filter, offset, limit)
-      permissions <- collectionPermissionsStore.getUserPermissionsForCollection(collections.data.map(_.id))
+      permissions <- collectionPermissionsStore.getUserPermissionsForCollections(collections.data.map(_.id))
     } yield {
       Right(PagedData(
         collections.data.map(c => CollectionAndUserPermissions(c, permissions.getOrElse(c.id, Map()))),
@@ -107,7 +107,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
     val GetCollectionRequest(collectionId, replyTo) = msg
     (for {
       collection <- collectionStore.getCollection(collectionId)
-      userPermissions <- collectionPermissionsStore.getCollectionUserPermissions(collectionId)
+      userPermissions <- collectionPermissionsStore.getUserPermissionsForCollection(collectionId)
     } yield {
       Right(CollectionAndUserPermissions(collection, userPermissions))
     }).recover {
@@ -124,7 +124,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
     val CreateCollectionRequest(CollectionAndUserPermissions(collection, userPermissions), replyTo) = msg
     (for {
       _ <- collectionStore.createCollection(collection)
-      _ <- collectionPermissionsStore.setCollectionUserPermissions(collection.id, userPermissions)
+      _ <- collectionPermissionsStore.setUserPermissionsForCollection(collection.id, userPermissions)
     } yield {
       Right(Ok())
     })
@@ -144,7 +144,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
 
     (for {
       _ <- collectionStore.updateCollection(collectionId, collection)
-      _ <- collectionPermissionsStore.setCollectionUserPermissions(collectionId, userPermissions)
+      _ <- collectionPermissionsStore.setUserPermissionsForCollection(collectionId, userPermissions)
     } yield {
       Right(Ok())
     }).recover {
@@ -178,7 +178,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
     val GetCollectionPermissionsRequest(collectionId, replyTo) = msg
     (for {
       world <- collectionPermissionsStore.getCollectionWorldPermissions(collectionId)
-      user <- collectionPermissionsStore.getCollectionUserPermissions(collectionId)
+      user <- collectionPermissionsStore.getUserPermissionsForCollection(collectionId)
     } yield {
       val response = CollectionWorldAndUserPermissions(world, user)
       Right(response)
@@ -223,7 +223,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
   def onGetCollectionUserPermissions(msg: GetCollectionUserPermissionsRequest): Unit = {
     val GetCollectionUserPermissionsRequest(collectionId, replyTo) = msg
     collectionPermissionsStore
-      .getCollectionUserPermissions(collectionId)
+      .getUserPermissionsForCollection(collectionId)
       .map(userPermissions => Right(userPermissions))
       .recover {
         case _: EntityNotFoundException =>
@@ -251,7 +251,7 @@ private final class CollectionStoreActor(context: ActorContext[CollectionStoreAc
   def onSetCollectionPermissionsForUser(msg: SetCollectionPermissionsForUserRequest): Unit = {
     val SetCollectionPermissionsForUserRequest(collectionId, userId, permissions, replyTo) = msg
     collectionPermissionsStore
-      .updateCollectionPermissionsForUser(collectionId, userId, permissions)
+      .setCollectionPermissionsForUser(collectionId, userId, permissions)
       .map(userPermissions => Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
