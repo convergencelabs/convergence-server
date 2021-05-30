@@ -11,20 +11,20 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-import java.time.Instant
-
-import com.convergencelabs.convergence.server.backend.datastore.convergence.{DomainSchemaDeltaLogEntry, DomainSchemaDeltaLogStore, DomainSchemaVersionLogEntry, DomainSchemaVersionLogStore, SchemaDeltaStatus}
+import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.model.DomainId
 
+import java.time.Instant
 import scala.util.Try
 
 private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
-                                   deltaStore: DomainSchemaDeltaLogStore,
-                                   versionStore: DomainSchemaVersionLogStore)
+                                                   domainStore: DomainStore,
+                                                   deltaStore: DomainSchemaDeltaLogStore,
+                                                   versionStore: DomainSchemaVersionLogStore)
   extends SchemaStatePersistence {
 
   override def installedVersion(): Try[Option[String]] = {
-    versionStore.getDomainSchemaVersion(domainId)
+    domainStore.findDomainDatabase(domainId).map(_.map(_.schemaVersion))
   }
 
   override def appliedDeltas(): Try[List[UpgradeDeltaId]] = {
@@ -69,5 +69,7 @@ private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
   override def recordNewVersion(version: String, date: Instant): Try[Unit] = {
     val entry = DomainSchemaVersionLogEntry(domainId, version, date)
     versionStore.createDomainSchemaVersionLogEntry(entry)
+
+    domainStore.setDomainSchemaVersion(domainId, version: String)
   }
 }

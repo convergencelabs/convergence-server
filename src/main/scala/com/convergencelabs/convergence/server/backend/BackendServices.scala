@@ -11,15 +11,13 @@
 
 package com.convergencelabs.convergence.server.backend
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Scheduler, SupervisorStrategy}
 import akka.cluster.typed.{ClusterSingleton, ClusterSingletonSettings, SingletonActor}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
-import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManager
+import com.convergencelabs.convergence.server.backend.db.schema._
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseManager, PooledDatabaseProvider}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseRequest
@@ -27,9 +25,10 @@ import com.convergencelabs.convergence.server.backend.services.server._
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.language.postfixOps
-import scala.util.{Success, Try}
+import scala.util.Try
 
 /**
  * The [[BackendServices]] class is the main entry point that bootstraps the
@@ -72,7 +71,6 @@ private[server] final class BackendServices(context: ActorContext[_],
     logger.info("Convergence Backend Services shutting down.")
     this.convergenceDbProvider.foreach(_.shutdown())
   }
-
 
   /**
    * Creates the connection pool to the Convergence database.
@@ -141,8 +139,30 @@ private[server] final class BackendServices(context: ActorContext[_],
    *                              database.
    * @return Success if the actors are started; a failure otherwise.
    */
-  private[this] def startActors(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): Try[Unit] = {
-    val dbServerConfig = persistenceConfig.getConfig("server")
+  private[this] def startActors(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): Try[Unit] = Try {
+    createUserSessionTokenReaperActor(convergenceDbProvider)
+    createDatabaseManager(persistenceConfig, convergenceDbProvider)
+    createStoreActors(persistenceConfig, convergenceDbProvider)
+  }
+
+  private[this] def createUserSessionTokenReaperActor(convergenceDbProvider: DatabaseProvider): Unit = {
+    // This is a cluster singleton that cleans up User Session Tokens after they have expired.
+    val singletonManager = ClusterSingleton(context.system)
+    singletonManager.init(SingletonActor(
+      Behaviors.supervise(UserSessionTokenReaperActor(new UserSessionTokenStore(convergenceDbProvider)))
+        .onFailure[Exception](SupervisorStrategy.restart), "UserSessionTokenReaper")
+      .withSettings(ClusterSingletonSettings(context.system).withRole("backed"))
+    )
+  }
+
+  /**
+   * Creates Actors that serve up basic low volume Convergence Services such as
+   * CRUD for users, roles, authentication, etc. These actors are not sharded.
+   */
+  private[this] def createStoreActors(persistenceConfig: Config,
+                                      convergenceDbProvider: DatabaseProvider): Unit = {
+    val domainCreationTimeoutMillis = persistenceConfig.getDuration("domain-databases.initialization-timeout").toMillis
+    val domainCreationTimeout = Timeout(domainCreationTimeoutMillis, TimeUnit.MILLISECONDS)
 
     val domainStore = new DomainStore(convergenceDbProvider)
     val userStore = new UserStore(convergenceDbProvider)
@@ -161,34 +181,15 @@ private[server] final class BackendServices(context: ActorContext[_],
 
     val userCreator = new UserCreator(convergenceDbProvider)
 
-    val singletonManager = ClusterSingleton(context.system)
-
-    // This is a cluster singleton that cleans up User Session Tokens after they have expired.
-    singletonManager.init(
-      SingletonActor(Behaviors.supervise(UserSessionTokenReaperActor(userSessionTokenStore))
-        .onFailure[Exception](SupervisorStrategy.restart), "UserSessionTokenReaper")
-        .withSettings(ClusterSingletonSettings(context.system).withRole("backed"))
-    )
-
-    //
-    // REST Services
-    //
-
-    // These are Actors that serve up basic low volume Convergence Services such as
-    // CRUD for users, roles, authentication, etc. These actors are not sharded.
-
-    // Import, export, and domain / database provisioning
     val domainDatabaseManager = new DomainDatabaseManager(convergenceDbProvider, context.system.settings.config)
     val domainDbManagerActor = context.spawn(DomainDatabaseManagerActor(domainDatabaseManager), "DomainProvisioner")
 
-    val databaseManager = new DatabaseManager(dbServerConfig.getString("uri"), convergenceDbProvider)
-    context.spawn(DatabaseManagerActor(databaseManager), "DatabaseManager")
-
-    val domainCreationTimeoutMillis = persistenceConfig.getDuration("domain-databases.initialization-timeout").toMillis
-    val domainCreationTimeout = Timeout(domainCreationTimeoutMillis, TimeUnit.MILLISECONDS)
-
+    // TODO move this up and handle the error better.
+    val repo = new SchemaMetaDataRepository(DomainSchemaManager.BasePath)
+    val latestVersion = repo.getLatestSchemaVersion().left.map(new IllegalStateException(_)).toTry.get
     val domainCreator: DomainCreator = new ActorBasedDomainCreator(
       convergenceDbProvider,
+      latestVersion,
       this.context.system.settings.config,
       domainDbManagerActor.narrow[CreateDomainDatabaseRequest],
       context.executionContext,
@@ -208,7 +209,30 @@ private[server] final class BackendServices(context: ActorContext[_],
     context.spawn(ConfigStoreActor(configStore), "ConfigStore")
     context.spawn(ServerStatusActor(domainStore, namespaceStore, convergenceVersionLogStore, convergenceDeltaLogStore), "ServerStatus")
     context.spawn(UserFavoriteDomainStoreActor(favoriteDomainStore), "FavoriteDomains")
+  }
 
-    Success(())
+  private[this] def createDatabaseManager(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): ActorRef[DatabaseManagerActor.Message] = {
+    val dbServerConfig = persistenceConfig.getConfig("server")
+    val convergenceRepo = new SchemaMetaDataRepository(ConvergenceSchemaManager.BasePath)
+    val domainRepo = new SchemaMetaDataRepository(DomainSchemaManager.BasePath)
+    (for {
+      convergenceSchemaVersion <- convergenceRepo
+        .readVersions()
+        .map(_.currentVersion)
+        .flatMap(SchemaVersion.parse)
+      domainSchemaVersion <- domainRepo
+        .readVersions()
+        .map(_.currentVersion)
+        .flatMap(SchemaVersion.parse)
+    } yield {
+      val databaseManager = new DatabaseManager(
+        dbServerConfig.getString("uri"),
+        convergenceDbProvider,
+        convergenceSchemaVersion,
+        domainSchemaVersion)
+      context.spawn(DatabaseManagerActor(databaseManager), name = "DatabaseManager")
+    }).fold({ err =>
+      throw new IllegalStateException(err.toString)
+    }, actor => actor)
   }
 }

@@ -21,13 +21,16 @@ object DomainClass extends OrientDbClass {
     val Id = "id"
     val Namespace = "namespace"
     val DisplayName = "displayName"
+    val Availability = "availability"
     val Status = "status"
     val StatusMessage = "statusMessage"
+
     val DatabaseName = "databaseName"
     val DatabaseUsername = "databaseUsername"
     val DatabasePassword = "databasePassword"
     val DatabaseAdminUsername = "databaseAdminUsername"
     val DatabaseAdminPassword = "databaseAdminPassword"
+    val DatabaseSchemaVersion = "databaseSchemaVersion"
   }
 
   object Eval {

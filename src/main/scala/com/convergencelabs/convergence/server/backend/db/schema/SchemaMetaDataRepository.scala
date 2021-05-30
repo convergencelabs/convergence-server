@@ -19,7 +19,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 import scala.io.Source
 import scala.reflect.Manifest
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
  * The [[SchemaMetaDataRepository]] is responsible for loading the meta data
@@ -50,7 +50,7 @@ import scala.util.Try
  * @param baseClassPath The base path within the classpath to load schema
  *                      meta data files from.
  */
-private[schema] class SchemaMetaDataRepository(baseClassPath: String) {
+class SchemaMetaDataRepository(baseClassPath: String) {
 
   import SchemaMetaDataRepository._
 
@@ -108,6 +108,20 @@ private[schema] class SchemaMetaDataRepository(baseClassPath: String) {
       .map(d => UpgradeDeltaAndScript(id, d.extracted, d.raw))
   }
 
+  /**
+   * A helper method that will get the latest schema version as
+   * a parsed schema object.
+   * @return
+   */
+  def getLatestSchemaVersion(): Either[String, SchemaVersion] = {
+    for {
+      versions <- this.readVersions()
+        .left.map( _ => "Could not read domain schema version index.")
+      currentDomainSchemaVersion <- SchemaVersion.parse(versions.currentVersion)
+        .left.map( err => "Could not parse latest domain schema version: " + err.version)
+    } yield currentDomainSchemaVersion
+  }
+
   private[this] def readFileAndDeserialize[T](path: String)(implicit mf: Manifest[T]): Either[ReadError, ExtractedAndRaw[T]] = {
     readFileFromClasspath(path) match {
       case None =>
@@ -131,25 +145,25 @@ private[schema] class SchemaMetaDataRepository(baseClassPath: String) {
   }
 }
 
-private[schema] object SchemaMetaDataRepository {
-  private val IndexFileName = "index.yaml"
-  private val SchemasSubPath = "schemas"
-  private val VersionsSubPath = "versions"
-  private val DeltasSubPath = "deltas"
+ object SchemaMetaDataRepository {
+   private[schema] val IndexFileName = "index.yaml"
+   private[schema] val SchemasSubPath = "schemas"
+   private[schema] val VersionsSubPath = "versions"
+   private[schema] val DeltasSubPath = "deltas"
 
-  def resolveIndexPath(basePath: String): String = {
+   private[schema] def resolveIndexPath(basePath: String): String = {
     s"$basePath/$IndexFileName"
   }
 
-  def resolveSchemaPath(basePath: String, version: String): String = {
+   private[schema] def resolveSchemaPath(basePath: String, version: String): String = {
     s"$basePath/$SchemasSubPath/$version.yaml"
   }
 
-  def resolveVersionPath(basePath: String, version: String): String = {
+   private[schema] def resolveVersionPath(basePath: String, version: String): String = {
     s"$basePath/$VersionsSubPath/$version.yaml"
   }
 
-  def resolveDeltaPath(basePath: String, deltaId: UpgradeDeltaId): String = {
+   private[schema] def resolveDeltaPath(basePath: String, deltaId: UpgradeDeltaId): String = {
     s"$basePath/$DeltasSubPath/${deltaId.id}${deltaId.tag.map(t => s"@$t").getOrElse("")}.yaml"
   }
 

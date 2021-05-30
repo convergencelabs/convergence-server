@@ -18,11 +18,11 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.datastore.convergence.DomainStore
-import com.convergencelabs.convergence.server.backend.datastore.domain.{DomainPersistenceProvider, DomainPersistenceProviderImpl, DomainStatusProvider}
+import com.convergencelabs.convergence.server.backend.datastore.domain.{DomainPersistenceProvider, DomainPersistenceProviderImpl, DomainStateProvider}
 import com.convergencelabs.convergence.server.backend.db.PooledDatabaseProvider
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainStatus}
 import grizzled.slf4j.Logging
 
 import java.util.concurrent.TimeUnit
@@ -60,6 +60,8 @@ private final class DomainPersistenceManagerActor(context: ActorContext[DomainPe
   domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
     case DomainLifecycleTopic.DomainStatusChanged(domainId, status) =>
       InternalDomainStatusChanged(domainId, status)
+    case DomainLifecycleTopic.DomainAvailabilityChanged(domainId, availability) =>
+      InternalDomainAvailabilityChanged(domainId, availability)
   })
 
   override def onMessage(msg: Message): Behavior[Message] = {
@@ -70,6 +72,8 @@ private final class DomainPersistenceManagerActor(context: ActorContext[DomainPe
         onRelease(domainId, requester)
       case InternalDomainStatusChanged(domainId, status) =>
         this.onDomainDeleted(domainId, status)
+      case InternalDomainAvailabilityChanged(domainId, availability) =>
+        // no-op
       case message: Register =>
         onRegister(message)
     }
@@ -168,7 +172,7 @@ private final class DomainPersistenceManagerActor(context: ActorContext[DomainPe
 
   private[this] def createProvider(domainId: DomainId): Try[DomainPersistenceProvider] = {
     debug(s"$domainId: Creating new persistence provider")
-    domainStore.getDomainDatabase(domainId) flatMap {
+    domainStore.findDomainDatabase(domainId) flatMap {
       case Some(domainInfo) =>
         debug(s"$domainId: Creating new connection pool: $baseDbUri/${domainInfo.database}")
 
@@ -177,7 +181,7 @@ private final class DomainPersistenceManagerActor(context: ActorContext[DomainPe
 
         val dbProvider = new PooledDatabaseProvider(baseDbUri, domainInfo.database, domainInfo.username, domainInfo.password, poolMin, poolMax)
 
-        val provider = new DomainPersistenceProviderImpl(domainId, dbProvider, new DomainStatusProvider(domainStore, domainId))
+        val provider = new DomainPersistenceProviderImpl(domainId, dbProvider, new DomainStateProvider(domainStore, domainId))
         dbProvider.connect()
           .flatMap(_ => provider.validateConnection())
           .flatMap { _ =>
@@ -315,9 +319,10 @@ object DomainPersistenceManagerActor extends DomainPersistenceManager with Loggi
   final case class Release(domainId: DomainId, requester: ActorRef[_]) extends Message
 
   //
-  // DomainDeleted
+  // Other Domain Messages
   //
   private final case class InternalDomainStatusChanged(domainId: DomainId, status: DomainStatus.Value) extends Message
+  private final case class InternalDomainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value) extends Message
 
   final case class DomainNotFoundException(domainId: DomainId) extends Exception(s"The requested domain does not exist: $domainId")
 

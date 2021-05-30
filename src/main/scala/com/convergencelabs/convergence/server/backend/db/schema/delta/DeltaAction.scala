@@ -53,7 +53,7 @@ private[schema] final case class AddProperty(className: String,
 
 private[schema] final case class AlterProperty(className: String,
                                                name: String,
-                                               property: PropertyOptions) extends DeltaAction
+                                               alterations: PropertyOptions) extends DeltaAction
 
 private[schema] final case class DropProperty(className: String,
                                               name: String) extends DeltaAction

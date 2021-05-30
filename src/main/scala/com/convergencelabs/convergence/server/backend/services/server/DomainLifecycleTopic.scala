@@ -15,13 +15,15 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.pubsub.Topic.Command
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.DomainAvailability
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 
 object DomainLifecycleTopic {
   sealed trait Message extends CborSerializable
 
-  final case class DomainStatusChanged(domainId: DomainId, status: DomainStatus) extends Message
+  final case class DomainStatusChanged(domainId: DomainId, databaseStatus: DomainStatus.Value) extends Message
+  final case class DomainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value) extends Message
 
   val TopicName: String = "DomainLifecycle"
 

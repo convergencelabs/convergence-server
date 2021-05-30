@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogEntry, ConvergenceSchemaDeltaLogStore, ConvergenceSchemaVersionLogEntry, ConvergenceSchemaVersionLogStore, DomainSchemaDeltaLogEntry, DomainSchemaDeltaLogStore, DomainSchemaVersionLogEntry, DomainSchemaVersionLogStore}
+import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager.SchemaUpgradeError
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseFactory}
 import com.convergencelabs.convergence.server.model.DomainId
@@ -20,8 +20,11 @@ import grizzled.slf4j.Logging
 import scala.util.Try
 
 private[backend] final class DatabaseManager(databaseUrl: String,
-                                             convergenceDbProvider: DatabaseProvider) extends Logging {
+                                             convergenceDbProvider: DatabaseProvider,
+                                             convergenceSchemaVersion: SchemaVersion,
+                                             domainSchemaVersion: SchemaVersion) extends Logging {
 
+  private[this] val domainStore = new DomainStore(convergenceDbProvider)
   private[this] val domainVersionStore = new DomainSchemaVersionLogStore(convergenceDbProvider)
   private[this] val convergenceVersionStore = new ConvergenceSchemaVersionLogStore(convergenceDbProvider)
   private[this] val convergenceDeltaStore = new ConvergenceSchemaDeltaLogStore(convergenceDbProvider)
@@ -34,9 +37,10 @@ private[backend] final class DatabaseManager(databaseUrl: String,
       healthy <- convergenceDeltaStore.isConvergenceDBHealthy()
       error <- convergenceDeltaStore.getLastDeltaError()
     } yield {
-      version.map { v =>
-        DatabaseSchemaStatus(v, healthy, error)
-      }
+      version.map(v =>
+        DatabaseSchemaStatus(
+          v, SchemaVersionUtil.computeSchemaVersionStatus(convergenceSchemaVersion, v), healthy, error)
+      )
     }
   }
 
@@ -56,13 +60,17 @@ private[backend] final class DatabaseManager(databaseUrl: String,
 
   def getDomainSchemaStatus(domainId: DomainId): Try[Option[DatabaseSchemaStatus]] = {
     for {
-      version <- domainVersionStore.getDomainSchemaVersion(domainId)
+      version <- domainStore.findDomainDatabase(domainId)
       healthy <- domainDeltaStore.isDomainDBHealthy(domainId)
       error <- domainDeltaStore.getLastDeltaErrorForDomain(domainId)
     } yield {
-      version.map { v =>
-        DatabaseSchemaStatus(v, healthy, error)
-      }
+      version.map(v =>
+        DatabaseSchemaStatus(
+          v.schemaVersion,
+          SchemaVersionUtil.computeSchemaVersionStatus(domainSchemaVersion, v.schemaVersion),
+          healthy,
+          error)
+      )
     }
   }
 
@@ -80,7 +88,7 @@ private[backend] final class DatabaseManager(databaseUrl: String,
       schemaManger = new DomainSchemaManager(domainId, convergenceDbProvider, db)
       _ <- schemaManger.upgrade().left.map(_ => "Error upgrading domain schema")
     }
-      yield ()
+    yield ()
   }
 
   def upgradeAllDomains(): Try[Unit] = {

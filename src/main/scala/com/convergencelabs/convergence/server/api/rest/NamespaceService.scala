@@ -86,7 +86,13 @@ private[rest] final class NamespaceService(namespaceActor: ActorRef[Message],
         },
         { namespaces =>
           val response = namespaces.map { n =>
-            val domainData = n.domains.map(d => DomainRestData(d.displayName, d.domainId.namespace, d.domainId.domainId, None, d.status.toString))
+            val domainData = n.domains.map(d => DomainRestData(
+              d.displayName,
+              d.domainId.namespace,
+              d.domainId.domainId,
+              d.availability.toString,
+              d.status.toString,
+              None))
             NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
           }
           okResponse(response)

@@ -11,18 +11,16 @@
 
 package com.convergencelabs.convergence.server.backend.db
 
-import java.time.Duration
-import java.util.concurrent.TimeUnit
-
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager.SchemaUpgradeError
-import com.convergencelabs.convergence.server.backend.db.schema.{ConvergenceSchemaManager, SchemaManager}
+import com.convergencelabs.convergence.server.backend.db.schema._
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
@@ -31,6 +29,8 @@ import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBCo
 import com.typesafe.config.Config
 import grizzled.slf4j.Logging
 
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
@@ -65,12 +65,21 @@ final class ConvergenceDatabaseInitializer(config: Config,
     for {
       orientDb <- createOrientDb()
       bootstrapped <- bootstrapIfDatabaseDoesNotExist(orientDb)
-      _ <- if (!bootstrapped) upgradeConvergenceDatabaseIfNeeded() else Success(())
-      _ <- if (!bootstrapped) autoConfigureServerAdminUserForExistingDatabase() else Success(())
+      _ <- if (!bootstrapped) processExistingSchema() else Success(())
       _ <- Try(orientDb.close())
     } yield {
       ()
     }
+  }
+
+  private[this] def processExistingSchema(): Try[Unit] = {
+
+    for {
+      dbProvider <- createConvergenceDatabaseProvider()
+      _ <- upgradeConvergenceDatabaseIfNeeded()
+      _ <- autoConfigureServerAdmin(dbProvider)
+      _ <- validateDomainSchemaVersions(dbProvider)
+    } yield ()
   }
 
   /**
@@ -153,11 +162,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
         // We need to also do this here because when we create the initial domains
         // we need to associate them with a user, so the admin user must be there
         // before hand.
-        _ <- if (config.hasPath("convergence.default-server-admin")) {
-          autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
-        } else {
-          Success(())
-        }
+        _ <- autoConfigureServerAdmin(dbProvider)
         _ <- bootstrapData(dbProvider, config)
         _ <- Try(dbProvider.shutdown())
       } yield ()
@@ -229,8 +234,8 @@ final class ConvergenceDatabaseInitializer(config: Config,
     schemaManager
       .install()
       .fold(
-        { _ =>
-          Failure(new IllegalStateException("Convergence database schema install failed"))
+        { err =>
+          Failure(new IllegalStateException("Convergence database schema install failed: " + err))
         },
         { _ =>
           logger.info("Convergence database schema installation complete")
@@ -240,44 +245,38 @@ final class ConvergenceDatabaseInitializer(config: Config,
   }
 
   /**
-   * A helper method that will reset the Convergence admin user information for
-   * an existing convergence database.
-   */
-  private[this] def autoConfigureServerAdminUserForExistingDatabase(): Try[Unit] = {
-    for {
-      dbProvider <- createConvergenceDatabaseProvider()
-      _ <- autoConfigureServerAdmin(dbProvider, config.getConfig("convergence.default-server-admin"))
-    } yield ()
-  }
-
-  /**
    * Creates or updates the ConvergenceServer's default admin user.
    *
    * @param dbProvider [[DatabaseProvider]] that points to the convergence
    *                   database.
-   * @param config     The ConvergenceServer's Config.
    */
-  private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider, config: Config): Try[Unit] = {
-    logger.debug("Configuring default server admin user")
-    val userStore = new UserStore(dbProvider)
+  private[this] def autoConfigureServerAdmin(dbProvider: DatabaseProvider): Try[Unit] = {
+    if (config.hasPath("convergence.default-server-admin")) {
+      logger.debug("Configuring default server admin user")
+      val serverAdminConfig = config.getConfig("convergence.default-server-admin")
+      val userStore = new UserStore(dbProvider)
 
-    val username = config.getString("username")
-    val password = config.getString("password")
-    userStore
-      .userExists(username)
-      .flatMap { exists =>
-        if (!exists) {
-          createServerAdminUser(dbProvider, config, username, password)
-        } else {
-          logger.debug("Admin user exists, updating password.")
-          userStore.setUserPassword(username, password)
+      val username = serverAdminConfig.getString("username")
+
+      userStore
+        .userExists(username)
+        .flatMap { exists =>
+          if (!exists) {
+            createServerAdminUser(dbProvider, serverAdminConfig)
+          } else {
+            logger.debug("Admin user exists, updating password.")
+            val password = serverAdminConfig.getString("password")
+            userStore.setUserPassword(username, password)
+          }
         }
-      }
-      .recoverWith {
-        case cause: Throwable =>
-          logger.error("Error creating server admin user", cause)
-          Failure(cause)
-      }
+        .recoverWith {
+          case cause: Throwable =>
+            logger.error("Error creating server admin user", cause)
+            Failure(cause)
+        }
+    } else {
+      Failure(new IllegalStateException("No server admin configured"))
+    }
   }
 
   /**
@@ -286,26 +285,22 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * exist.
    *
    * @param dbProvider A connection to the Convergence database.
-   * @param config     The server's config.
-   * @param username   The username to set.
-   * @param password   The password for the suer.
+   * @param serverAdminConfig     The server's config.
    */
-  private[this] def createServerAdminUser(dbProvider: DatabaseProvider,
-                                          config: Config,
-                                          username: String,
-                                          password: String): Try[Unit] = {
+  private[this] def createServerAdminUser(dbProvider: DatabaseProvider, serverAdminConfig: Config): Try[Unit] = {
     logger.debug("Admin user does not exist, creating.")
     val userCreator = new UserCreator(dbProvider)
 
-    val firstName = config.getString("firstName")
-    val lastName = config.getString("lastName")
-    val displayName = if (config.hasPath("displayName")) {
-      config.getString("displayName")
+    val username = serverAdminConfig.getString("username")
+    val firstName = serverAdminConfig.getString("firstName")
+    val lastName = serverAdminConfig.getString("lastName")
+    val displayName = if (serverAdminConfig.hasPath("displayName")) {
+      serverAdminConfig.getString("displayName")
     } else {
       "Server Admin"
     }
-    val email = config.getString("email")
-
+    val email = serverAdminConfig.getString("email")
+    val password = serverAdminConfig.getString("password")
     val user = User(username, email, firstName, lastName, displayName, None)
     userCreator.createUser(user, password, Roles.Server.ServerAdmin)
   }
@@ -373,55 +368,57 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * @param config     The servers config
    */
   private def bootstrapDomains(dbProvider: DatabaseProvider, config: Config): Try[Unit] = Try {
-    val namespaceStore = new NamespaceStore(dbProvider)
-    val favoriteStore = new UserFavoriteDomainStore(dbProvider)
-    val domainCreator = new InlineDomainCreator(dbProvider, config, ec)
-    val domains = config.getConfigList("convergence.bootstrap.domains")
-    val owner = config.getString("convergence.default-server-admin.username")
+    getLatestDomainSchemaVersion().map { latestVersion =>
+      val namespaceStore = new NamespaceStore(dbProvider)
+      val favoriteStore = new UserFavoriteDomainStore(dbProvider)
+      val domainCreator = new InlineDomainCreator(dbProvider, latestVersion, config, ec)
+      val domains = config.getConfigList("convergence.bootstrap.domains")
+      val owner = config.getString("convergence.default-server-admin.username")
 
-    domains.asScala.toList.foreach { domainConfig =>
-      val namespace = domainConfig.getString("namespace")
-      val id = domainConfig.getString("id")
-      val displayName = domainConfig.getString("displayName")
-      val favorite = domainConfig.getBoolean("favorite")
-      val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
+      domains.asScala.toList.foreach { domainConfig =>
+        val namespace = domainConfig.getString("namespace")
+        val id = domainConfig.getString("id")
+        val displayName = domainConfig.getString("displayName")
+        val favorite = domainConfig.getBoolean("favorite")
+        val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
 
-      logger.info(s"Bootstrapping domain '$namespace/$id'")
-      (for {
-        exists <- namespaceStore.namespaceExists(namespace)
-        _ <- if (!exists) {
-          Failure(new IllegalArgumentException("The namespace for a bootstrapped domain, must also be bootstrapped"))
-        } else {
-          Success(())
-        }
-      } yield {
-        implicit val ec: ExecutionContextExecutor = ExecutionContext.global
-        val domainId = DomainId(namespace, id)
-        val timeout = Timeout(4, TimeUnit.MINUTES)
-        domainCreator.createDomain(domainId, displayName, owner)
-          .map { dbInfo =>
-            val f = domainCreator
-              .createDomainDatabase(domainId, anonymousAuth, dbInfo)
-              .map { _ =>
-                logger.info(s"Bootstrapped domain '$namespace/$id'")
-
-                if (favorite) {
-                  val username = config.getString("convergence.default-server-admin.username")
-                  favoriteStore.addFavorite(username, DomainId(namespace, id)).get
-                }
-              }
-              .recover {
-                case cause =>
-                  logger.error(s"Error bootstrapping domain '$namespace/$id'", cause)
-              }
-
-            Await.ready(f, timeout.duration)
+        logger.info(s"Bootstrapping domain '$namespace/$id'")
+        (for {
+          exists <- namespaceStore.namespaceExists(namespace)
+          _ <- if (!exists) {
+            Failure(new IllegalArgumentException("The namespace for a bootstrapped domain, must also be bootstrapped"))
+          } else {
+            Success(())
           }
-      }).get
+        } yield {
+          implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+          val domainId = DomainId(namespace, id)
+          val timeout = Timeout(4, TimeUnit.MINUTES)
+          domainCreator.createDomain(domainId, displayName, owner)
+            .map { dbInfo =>
+              val f = domainCreator
+                .createDomainDatabase(domainId, anonymousAuth, dbInfo)
+                .map { _ =>
+                  logger.info(s"Bootstrapped domain '$namespace/$id'")
+
+                  if (favorite) {
+                    val username = config.getString("convergence.default-server-admin.username")
+                    favoriteStore.addFavorite(username, DomainId(namespace, id)).get
+                  }
+                }
+                .recover {
+                  case cause =>
+                    logger.error(s"Error bootstrapping domain '$namespace/$id'", cause)
+                }
+
+              Await.ready(f, timeout.duration)
+            }
+        }).get
+      }
     }
   }
 
-  def upgradeConvergenceDatabaseIfNeeded(): Try[Unit] = {
+  private[this] def upgradeConvergenceDatabaseIfNeeded(): Try[Unit] = {
     createConvergenceAdminDatabaseProvider().flatMap { dbProvider =>
       checkVersionAndMaybeUpgrade(dbProvider).fold(
         {
@@ -441,9 +438,9 @@ final class ConvergenceDatabaseInitializer(config: Config,
     }
   }
 
-  private def checkVersionAndMaybeUpgrade(dbProvider: DatabaseProvider): Either[SchemaUpgradeError, Unit] = {
+  private[this] def checkVersionAndMaybeUpgrade(dbProvider: DatabaseProvider): Either[SchemaUpgradeError, Unit] = {
     val schemaManager = new ConvergenceSchemaManager(dbProvider)
-    val upgradeResult = for {
+    for {
       latestVersion <- schemaManager.latestAvailableVersion()
       installedVersion <- schemaManager.currentlyInstalledVersion()
       _ <- if (latestVersion > installedVersion) {
@@ -455,22 +452,46 @@ final class ConvergenceDatabaseInitializer(config: Config,
         Right(())
       }
     } yield ()
-    upgradeResult
   }
 
-  private def createConvergenceDatabaseProvider(): Try[DatabaseProvider] = {
+  private[this] def validateDomainSchemaVersions(dbProvider: DatabaseProvider): Try[Unit] = {
+    val domainStore = new DomainStore(dbProvider)
+    for {
+      latestVersion <- getLatestDomainSchemaVersion()
+      databaseStates <- domainStore.getDomainDatabaseState()
+    } yield {
+      databaseStates.foreach { case (_, state) =>
+        val domainSchemaVersion = state.schemaVersion
+        if (domainSchemaVersion < latestVersion && state.status == DomainStatus.Ready) {
+          // needs upgrade
+        }
+      }
+    }
+  }
+
+  private[this] def getLatestDomainSchemaVersion(): Try[SchemaVersion] = {
+    val repo = new SchemaMetaDataRepository(DomainSchemaManager.BasePath)
+    repo.getLatestSchemaVersion() match {
+      case Left(err)  =>
+        Failure(new IllegalStateException(err))
+      case Right(version) =>
+        Success(version)
+    }
+  }
+
+  private[this] def createConvergenceDatabaseProvider(): Try[DatabaseProvider] = {
     val username = convergenceDbConfig.getString("username")
     val password = convergenceDbConfig.getString("password")
     createDatabaseProvider(username, password)
   }
 
-  private def createConvergenceAdminDatabaseProvider(): Try[DatabaseProvider] = {
+  private[this] def createConvergenceAdminDatabaseProvider(): Try[DatabaseProvider] = {
     val username = convergenceDbConfig.getString("admin-username")
     val password = convergenceDbConfig.getString("admin-password")
     createDatabaseProvider(username, password)
   }
 
-  private def createDatabaseProvider(username: String, password: String): Try[DatabaseProvider] = {
+  private[this] def createDatabaseProvider(username: String, password: String): Try[DatabaseProvider] = {
     val baseUri = dbServerConfig.getString("uri")
     val dbProvider = new SingleDatabaseProvider(baseUri, convergenceDatabase, username, password)
     dbProvider.connect().map(_ => dbProvider)
@@ -483,8 +504,9 @@ private case class UpgradeException(message: String) extends RuntimeException(me
  * A helper class that will create a domain synchronously.
  */
 private class InlineDomainCreator(provider: DatabaseProvider,
+                                  schemaVersion: SchemaVersion,
                                   config: Config,
-                                  ec: ExecutionContext) extends DomainCreator(provider, config, ec) {
+                                  ec: ExecutionContext) extends DomainCreator(provider, schemaVersion, config, ec) {
   private[this] val domainDatabaseManager = new DomainDatabaseManager(provider, config)
 
   override protected def createDomainDatabase(request: DomainDatabaseCreationData): Future[CreateDomainDatabaseResponse] = {

@@ -150,7 +150,7 @@ class RoleStoreSpec extends PersistenceStoreSpec[RoleStoreSpecStores](NonRecordi
       stores.userStore.createUser(TestUser, "password", "token").get
       stores.userStore.createUser(TestUser2, "password", "token2").get
       stores.namespaceStore.createNamespace(TestNamesapce)
-      stores.domainStore.createDomain(TestDomainFQN, "displayName", DomainDatabase("db1", "", "", "", "")).get
+      stores.domainStore.createDomain(TestDomainFQN, "displayName", DomainDatabase("db1", "1.0", "", "", "", "")).get
       testCode(stores)
     }
   }

@@ -18,7 +18,7 @@ import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.{DomainNotFound, DomainUnavailable, HandshakeResponse, Message}
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainState, DomainStatus}
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
 import com.typesafe.config.ConfigFactory
 import org.mockito.Mockito
@@ -42,38 +42,37 @@ class DomainActorSpec
   "A DomainActor" when {
     "receiving an initial handshake request" must {
       "respond with a handshake success if the domain is online" in new TestFixture {
-        Mockito.when(provider.domainStatusProvider.getDomainStatus)
-          .thenReturn(Success(Some(DomainStatus.Online)))
+        Mockito.when(provider.domainStateProvider.getDomainState())
+          .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Ready))))
         assert(handshake(domainId, domainActor).handshake.isRight)
       }
 
       "respond with a handshake error if the domain is offline" in new TestFixture {
-        Mockito.when(provider.domainStatusProvider.getDomainStatus)
-          .thenReturn(Success(Some(DomainStatus.Offline)))
+        Mockito.when(provider.domainStateProvider.getDomainState())
+          .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Offline, DomainStatus.Ready))))
         handshake(domainId, domainActor).handshake shouldBe Left(DomainNotFound(domainId))
       }
 
       "respond with a handshake error if the domain status can't be found" in new TestFixture {
-        Mockito.when(provider.domainStatusProvider.getDomainStatus)
-          .thenReturn(Success(None))
+        Mockito.when(provider.domainStateProvider.getDomainState()).thenReturn(Success(None))
         handshake(domainId, domainActor).handshake shouldBe Left(DomainNotFound(domainId))
       }
 
-      "respond with a handshake error if the domain is in maintenance mode" in new TestFixture {
-        Mockito.when(provider.domainStatusProvider.getDomainStatus)
-          .thenReturn(Success(Some(DomainStatus.Maintenance)))
-        handshake(domainId, domainActor).handshake shouldBe Left(DomainUnavailable(domainId))
+      "respond with a handshake success if the domain is in maintenance mode" in new TestFixture {
+        Mockito.when(provider.domainStateProvider.getDomainState())
+          .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Maintenance, DomainStatus.Ready))))
+        handshake(domainId, domainActor).handshake.isRight shouldBe true
       }
 
       "respond with a handshake error if the domain is in error status" in new TestFixture {
-        Mockito.when(provider.domainStatusProvider.getDomainStatus)
-          .thenReturn(Success(Some(DomainStatus.Error)))
+        Mockito.when(provider.domainStateProvider.getDomainState())
+          .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Error))))
         handshake(domainId, domainActor).handshake shouldBe Left(DomainUnavailable(domainId))
       }
 
       "respond with a handshake error if the domain is in initializing" in new TestFixture {
-        Mockito.when(provider.domainStatusProvider.getDomainStatus)
-          .thenReturn(Success(Some(DomainStatus.Initializing)))
+        Mockito.when(provider.domainStateProvider.getDomainState())
+          .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Initializing))))
         handshake(domainId, domainActor).handshake shouldBe Left(DomainUnavailable(domainId))
       }
     }

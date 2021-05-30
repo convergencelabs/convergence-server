@@ -15,7 +15,7 @@ import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueE
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.server.domain
-import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus, Namespace}
+import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainAvailability, DomainDatabase, DomainStatus, Namespace}
 import com.convergencelabs.convergence.server.model.{DomainId, server}
 import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
@@ -46,15 +46,15 @@ class DomainStoreSpec
   private val Namespace2 = Namespace(namespace2, "Namespace 2", userNamespace = false)
 
   private val ns1d1 = DomainId(namespace1, domain1)
-  private val ns1d1Database = DomainDatabase("ns1d1", "username", "password", "adminUsername", "adminPassword")
+  private val ns1d1Database = DomainDatabase("ns1d1", "1.0", "username", "password", "adminUsername", "adminPassword")
 
   private val ns1d2 = DomainId(namespace1, domain2)
-  private val ns1d2Database = DomainDatabase("ns1d2", "username", "password", "adminUsername", "adminPassword")
+  private val ns1d2Database = DomainDatabase("ns1d2", "1.0", "username", "password", "adminUsername", "adminPassword")
 
   private val ns1d3 = DomainId(namespace1, domain3)
 
   private val ns2d1 = DomainId("namespace2", "domain1")
-  private val ns2d1Database = DomainDatabase("ns2d1", "username", "password", "adminUsername", "adminPassword")
+  private val ns2d1Database = DomainDatabase("ns2d1", "1.0", "username", "password", "adminUsername", "adminPassword")
 
   "A DomainStore" when {
 
@@ -84,8 +84,8 @@ class DomainStoreSpec
     "creating a domain" must {
       "insert the domain correct record into the database" in withTestData { stores =>
         val fqn = DomainId(Namespace1.id, "test4")
-        val domain = server.domain.Domain(fqn, "Test Domain 4", DomainStatus.Initializing, "")
-        stores.domain.createDomain(fqn, "Test Domain 4", DomainDatabase("db", "", "", "", "")).get
+        val domain = server.domain.Domain(fqn, "Test Domain 4", DomainAvailability.Online, DomainStatus.Initializing, "")
+        stores.domain.createDomain(fqn, "Test Domain 4", DomainDatabase("db", "1.0", "", "", "", "")).get
         stores.domain.getDomain(fqn).get.value shouldBe domain
       }
 
@@ -121,16 +121,16 @@ class DomainStoreSpec
     }
 
     "updating a domain" must {
-      "sucessfully update an existing domain" in withTestData { stores =>
+      "successfully update an existing domain" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", ns1d1Database).get
-        val toUpdate = Domain(DomainId(namespace1, domain1), "Updated", DomainStatus.Offline, "offline")
+        val toUpdate = Domain(DomainId(namespace1, domain1), "Updated", DomainAvailability.Offline, DomainStatus.Error, "updated")
         stores.domain.updateDomain(toUpdate).get
         val queried = stores.domain.getDomain(ns1d1).get.value
         queried shouldBe toUpdate
       }
 
       "fail to update an non-existing domain" in withTestData { stores =>
-        val toUpdate = domain.Domain(DomainId(namespace1, domain3), "Updated", DomainStatus.Online, "")
+        val toUpdate = domain.Domain(DomainId(namespace1, domain3), "Updated", DomainAvailability.Online, DomainStatus.Ready, "")
         stores.domain.updateDomain(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
       }
     }

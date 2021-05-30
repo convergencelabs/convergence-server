@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain
+package com.convergencelabs.convergence.server.backend.services.domain.model
 
 import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 import org.scalatest.matchers.should.Matchers
@@ -25,20 +25,8 @@ class DomainStatusSpec
         DomainStatus.withName("initializing") shouldBe DomainStatus.Initializing
       }
       
-      "return Online when the string is 'online'" in {
-        DomainStatus.withName("online") shouldBe DomainStatus.Online
-      }
-      
-      "return Offline when the string is 'offline'" in {
-        DomainStatus.withName("offline") shouldBe DomainStatus.Offline
-      }
-      
       "return Error when the string is 'error'" in {
         DomainStatus.withName("error") shouldBe DomainStatus.Error
-      }
-      
-      "return Maintenance when the string is 'maintenance'" in {
-        DomainStatus.withName("maintenance") shouldBe DomainStatus.Maintenance
       }
       
       "return Deleting when the string is 'terminating'" in {
@@ -47,7 +35,7 @@ class DomainStatusSpec
     }
     
     "calling toString" must {
-      "return terminating when the string is 'Terminating'" in {
+      "return 'deleting' for a Deleting value" in {
         DomainStatus.Deleting.toString shouldBe "deleting"
       }
     }

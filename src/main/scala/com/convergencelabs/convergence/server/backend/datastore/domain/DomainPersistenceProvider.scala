@@ -61,7 +61,7 @@ trait DomainPersistenceProvider {
 
   val permissionsStore: PermissionsStore
 
-  val domainStatusProvider: DomainStatusProvider
+  val domainStateProvider: DomainStateProvider
 
   def validateConnection(): Try[Unit]
 
@@ -70,7 +70,7 @@ trait DomainPersistenceProvider {
 
 class DomainPersistenceProviderImpl(val domainId: DomainId,
                                     val dbProvider: DatabaseProvider,
-                                    val domainStatusProvider: DomainStatusProvider)
+                                    val domainStateProvider: DomainStateProvider)
     extends AbstractPersistenceProvider(dbProvider)
     with DomainPersistenceProvider {
 

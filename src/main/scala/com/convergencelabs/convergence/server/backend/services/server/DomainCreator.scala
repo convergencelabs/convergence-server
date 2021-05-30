@@ -12,11 +12,11 @@
 package com.convergencelabs.convergence.server.backend.services.server
 
 import java.util.UUID
-
 import com.convergencelabs.convergence.server.backend.datastore.DuplicateValueException
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
+import com.convergencelabs.convergence.server.backend.db.schema.SchemaVersion
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainDatabase, DomainStatus}
@@ -40,6 +40,7 @@ import scala.util.{Failure, Success, Try}
  * @param executionContext An execution context for asynchronous operations.
  */
 abstract class DomainCreator(dbProvider: DatabaseProvider,
+                             schemaVersion: SchemaVersion,
                              config: Config,
                              implicit val executionContext: ExecutionContext) extends Logging {
 
@@ -63,7 +64,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
       ("writer", "writer", "admin", "admin")
     }
 
-    val domainDbInfo = DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
+    val domainDbInfo = DomainDatabase(dbName, schemaVersion.versionString, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword)
 
     for {
       _ <- validate(domainId)
@@ -79,8 +80,8 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
   }
 
   def createDomainDatabase(domainId: DomainId, anonymousAuth: Boolean, database: DomainDatabase): Future[Unit] = {
-    logger.debug(s"Creating domain database ${domainId}")
-    val DomainDatabase(dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = database
+    logger.debug(s"Creating domain database $domainId")
+    val DomainDatabase(dbName, schemaVersion.versionString, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = database
     val provisionRequest = DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
     createDomainDatabase(provisionRequest)
       .map(_.response.fold(
@@ -90,8 +91,8 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
           this.updateStatusAfterProvisioning(domainId, DomainStatus.Error, msg)
         },
         { _ =>
-          debug(s"Domain provisioned, setting status to online: $dbName")
-          this.updateStatusAfterProvisioning(domainId, DomainStatus.Online)
+          debug(s"Domain provisioned, setting status to ready: $dbName")
+          this.updateStatusAfterProvisioning(domainId, DomainStatus.Ready)
         },
       ))
       .recover {
@@ -128,7 +129,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
 
   private[this] def updateStatusAfterProvisioning(domainId: DomainId, status: DomainStatus.Value, statusMessage: String = ""): Unit = {
     domainStore
-      .updateDomainStatus(domainId, status, statusMessage)
+      .setDomainStatus(domainId, status, statusMessage)
       .recover {
         case cause: Throwable =>
           logger.error("Could not update domain status after creation", cause)

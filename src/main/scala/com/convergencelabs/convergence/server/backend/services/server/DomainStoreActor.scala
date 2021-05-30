@@ -21,9 +21,9 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.{DestroyDomainRequest, DestroyDomainResponse}
-import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic.DomainStatusChanged
+import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic.DomainAvailabilityChanged
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainDatabase, DomainStatus}
+import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainAvailability, DomainDatabase, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.role.DomainRoleTarget
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
@@ -97,8 +97,8 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
         onGetDomains(message)
       case message: DeleteDomainsForUserRequest =>
         onDeleteDomainsForUser(message)
-      case message: SetDomainStatusRequest =>
-        onSetDomainStatus(message)
+      case message: SetDomainAvailabilityRequest =>
+        onSetDomainAvailability(message)
     }
 
     Behaviors.same
@@ -180,7 +180,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
           val message = DomainLifecycleTopic.DomainStatusChanged(domainId, DomainStatus.Deleting)
           domainLifecycleTopic ! Publish(message)
         }
-      domainDatabase <- domainStore.getDomainDatabase(domainId)
+      domainDatabase <- domainStore.findDomainDatabase(domainId)
       result <- domainDatabase match {
         case Some(domainDatabase) =>
           debug(s"Deleting domain database for $domainId: ${domainDatabase.database}")
@@ -270,11 +270,11 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
 
     (for {
       domain <- domainStore.getDomain(id)
-      schemaVersion <- versionLogStore.getDomainSchemaVersion(id)
+      database <- domainStore.getDomainDatabase(id)
     } yield {
       domain match {
         case Some(domain) =>
-          GetDomainAndSchemaVersionResponse(Right(DomainAndSchemaVersion(domain, schemaVersion)))
+          GetDomainAndSchemaVersionResponse(Right(DomainAndSchemaVersion(domain, database.schemaVersion)))
         case None =>
           GetDomainAndSchemaVersionResponse(Left(DomainNotFound()))
       }
@@ -305,31 +305,22 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       .foreach(replyTo ! _)
   }
 
-  def onSetDomainStatus(msg: SetDomainStatusRequest): Unit = {
-    val SetDomainStatusRequest(domainId, status, message, replyTo) = msg
-    (for {
-      _ <- {
-        status match {
-          case DomainStatus.Initializing | DomainStatus.Deleting | DomainStatus.Error =>
-            Failure(InvalidStatusException())
-          case _ =>
-            Success(())
-        }
+  def onSetDomainAvailability(msg: SetDomainAvailabilityRequest): Unit = {
+    val SetDomainAvailabilityRequest(domainId, availability, replyTo) = msg
+    domainStore.setDomainAvailability(domainId, availability)
+      .map { _ =>
+        domainLifecycleTopic ! Publish(DomainAvailabilityChanged(domainId, availability))
+        Right(Ok())
       }
-      _ <- domainStore.setDomainStatus(domainId, status, message.getOrElse(""))
-    } yield {
-      domainLifecycleTopic ! Publish(DomainStatusChanged(domainId, status))
-      Right(Ok())
-    })
       .recover {
         case _: EntityNotFoundException =>
           Left(DomainNotFound())
         case _: InvalidStatusException =>
-          Left(InvalidDomainStatus())
+          Left(InvalidDomainAvailability())
         case _ =>
           Left(UnknownError())
       }
-      .foreach(replyTo ! SetDomainStatusResponse(_))
+      .foreach(replyTo ! SetDomainAvailabilityResponse(_))
   }
 }
 
@@ -417,19 +408,18 @@ object DomainStoreActor {
   //
   // SetDomainStatus
   //
-  final case class SetDomainStatusRequest(domainId: DomainId,
-                                          status: DomainStatus.Value,
-                                          message: Option[String],
-                                          replyTo: ActorRef[SetDomainStatusResponse]) extends Message
+  final case class SetDomainAvailabilityRequest(domainId: DomainId,
+                                                availability: DomainAvailability.Value,
+                                                replyTo: ActorRef[SetDomainAvailabilityResponse]) extends Message
 
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
-    new JsonSubTypes.Type(value = classOf[InvalidDomainStatus], name = "invalid_status"),
+    new JsonSubTypes.Type(value = classOf[InvalidDomainAvailability], name = "invalid_status"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
-  sealed trait SetDomainStatusError
+  sealed trait SetDomainAvailabilityError
 
-  final case class SetDomainStatusResponse(response: Either[SetDomainStatusError, Ok]) extends CborSerializable
+  final case class SetDomainAvailabilityResponse(response: Either[SetDomainAvailabilityError, Ok]) extends CborSerializable
 
 
   //
@@ -468,7 +458,7 @@ object DomainStoreActor {
   ))
   sealed trait GetDomainAndSchemaVersionError
 
-  final case class DomainAndSchemaVersion(domain: Domain, schemaVersion: Option[String])
+  final case class DomainAndSchemaVersion(domain: Domain, schemaVersion: String)
 
   final case class GetDomainAndSchemaVersionResponse(domain: Either[GetDomainAndSchemaVersionError, DomainAndSchemaVersion]) extends CborSerializable
 
@@ -505,10 +495,10 @@ object DomainStoreActor {
     with DeleteDomainError
     with GetDomainError
     with GetDomainAndSchemaVersionError
-    with SetDomainStatusError
+    with SetDomainAvailabilityError
 
-  final case class InvalidDomainStatus() extends AnyRef
-    with SetDomainStatusError
+  final case class InvalidDomainAvailability() extends AnyRef
+    with SetDomainAvailabilityError
 
   final case class UnknownError() extends AnyRef
     with CreateDomainError
@@ -518,5 +508,5 @@ object DomainStoreActor {
     with GetDomainsError
     with DeleteDomainsForUserError
     with GetDomainAndSchemaVersionError
-    with SetDomainStatusError
+    with SetDomainAvailabilityError
 }

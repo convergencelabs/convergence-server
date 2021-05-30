@@ -65,7 +65,7 @@ class DomainDatabaseFactory(orientDbUrl: String, convergenceDbProvider: Database
   }
 
   private[this] def getDomainInfo(fqn: DomainId): Try[DomainDatabase] = {
-    domainStore.getDomainDatabase(fqn) flatMap {
+    domainStore.findDomainDatabase(fqn) flatMap {
       _ match {
         case Some(domainInfo) =>
           Success(domainInfo)

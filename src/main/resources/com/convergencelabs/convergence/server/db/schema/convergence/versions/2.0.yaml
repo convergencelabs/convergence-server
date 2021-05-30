@@ -1,0 +1,8 @@
+released: true
+releaseDate: 2021-06-30
+schemaSha256: b46ec0e08ddf99551dec137b4f06982c04fc5ee3a5bf05df8cb5ba31b275c3c9
+deltas:
+  - id: 2020_07_12_migrate_version_schema
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+  - id: 2021_05_31_domain_availability_and_schema_version
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb

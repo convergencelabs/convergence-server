@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 - Convergence Labs, Inc.
+ * Copyright (c) 2021 - Convergence Labs, Inc.
  *
  * This file is part of the Convergence Server, which is released under
  * the terms of the GNU General Public License version 3 (GPLv3). A copy
@@ -15,17 +15,18 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 
 import scala.util.Try
 
-object DomainStatus extends Enumeration {
-  val Ready: Value = Value("ready")
-  val Initializing: Value = Value("initializing")
-  val Error: Value = Value("error")
-  val Deleting: Value = Value("deleting")
-  val SchemaUpgradeRequired: Value = Value("schema-upgrade-required")
-  val SchemaUpgrading: Value = Value("schema-upgrading")
+/**
+ * The availability of the domain controls if the domain is
+ * accessible or not.
+ */
+object DomainAvailability extends Enumeration {
+  val Online: Value = Value("online")
+  val Offline: Value = Value("offline")
+  val Maintenance: Value = Value("maintenance")
 
-  def withNameOpt(name: String): Option[DomainStatus.Value] = {
-    Try(DomainStatus.withName(name)).map(Some(_)).getOrElse(None)
+  def withNameOpt(name: String): Option[DomainAvailability.Value] = {
+    Try(DomainAvailability.withName(name)).map(Some(_)).getOrElse(None)
   }
 }
 
-final class DomainStatusTypeReference extends TypeReference[DomainStatus.type]
+final class DomainAvailabilityTypeReference extends TypeReference[DomainAvailability.type]

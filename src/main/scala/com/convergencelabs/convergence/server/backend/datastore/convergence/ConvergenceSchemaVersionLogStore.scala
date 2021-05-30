@@ -11,15 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.convergence
 
-import java.time.Instant
-import java.util.Date
-
 import com.convergencelabs.convergence.server.backend.datastore.convergence.schema.ConvergenceSchemaVersionLogClass
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
+import com.convergencelabs.convergence.server.backend.db.schema.SchemaVersionUtil
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
+import java.util.Date
 import scala.util.Try
 
 class ConvergenceSchemaVersionLogStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistence(dbProvider) with Logging {

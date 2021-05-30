@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 - Convergence Labs, Inc.
+ * Copyright (c) 2021 - Convergence Labs, Inc.
  *
  * This file is part of the Convergence Server, which is released under
  * the terms of the GNU General Public License version 3 (GPLv3). A copy
@@ -11,7 +11,12 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-final case class DatabaseSchemaStatus(version: String,
-                                      versionStatus: DatabaseSchemaVersionStatus,
-                                      healthy: Boolean,
-                                      message: Option[String])
+sealed trait DatabaseSchemaVersionStatus
+
+case class DatabaseSchemaVersionError() extends DatabaseSchemaVersionStatus
+
+case class DatabaseSchemaNeedsUpgrade() extends DatabaseSchemaVersionStatus
+
+case class DatabaseSchemaVersionToHigh() extends DatabaseSchemaVersionStatus
+
+case class DatabaseSchemaVersionOk() extends DatabaseSchemaVersionStatus

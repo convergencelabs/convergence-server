@@ -25,7 +25,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.rest.Domai
 import com.convergencelabs.convergence.server.backend.services.server.DomainStoreActor._
 import com.convergencelabs.convergence.server.backend.services.server.{DomainStoreActor, RoleStoreActor}
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.DomainAvailability
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 
@@ -82,9 +82,9 @@ private[rest] final class DomainService(schedule: Scheduler,
                 complete(updateDomain(namespace, domainId, request))
               }
             }
-          } ~ path("status") {
+          } ~ path("availability") {
             put {
-              entity(as[SetDomainStatusRestRequestData]) { request =>
+              entity(as[SetDomainAvailabilityRestRequestData]) { request =>
                 complete(setDomainStatus(namespace, domainId, request))
               }
             }
@@ -139,8 +139,10 @@ private[rest] final class DomainService(schedule: Scheduler,
                 domain.displayName,
                 domain.domainId.namespace,
                 domain.domainId.domainId,
-                None,
-                domain.status.toString.toLowerCase)
+                domain.availability.toString,
+                domain.status.toString,
+                None
+                )
             })
           response
         }
@@ -162,8 +164,10 @@ private[rest] final class DomainService(schedule: Scheduler,
             domain.displayName,
             domain.domainId.namespace,
             domain.domainId.domainId,
-            version,
-            domain.status.toString.toLowerCase()))
+            domain.availability.toString,
+            domain.status.toString,
+            Some(version)
+            ))
         }
       ))
   }
@@ -201,17 +205,17 @@ private[rest] final class DomainService(schedule: Scheduler,
       ))
   }
 
-  private[this] def setDomainStatus(namespace: String, domainId: String, request: SetDomainStatusRestRequestData): Future[RestResponse] = {
-    val SetDomainStatusRestRequestData(domainStatus, message) = request
-    DomainStatus.withLowerCaseName(domainStatus).map { status =>
-      domainStoreActor.ask[SetDomainStatusResponse](
-        SetDomainStatusRequest(DomainId(namespace, domainId), status, message, _))
+  private[this] def setDomainStatus(namespace: String, domainId: String, request: SetDomainAvailabilityRestRequestData): Future[RestResponse] = {
+    val SetDomainAvailabilityRestRequestData(availabilityString) = request
+    DomainAvailability.withNameOpt(availabilityString).map { availability =>
+      domainStoreActor.ask[SetDomainAvailabilityResponse](
+        SetDomainAvailabilityRequest(DomainId(namespace, domainId), availability, _))
         .map(_.response.fold(
           {
             case DomainNotFound() =>
               NotFoundResponse
-            case InvalidDomainStatus() =>
-              invalidStatus(domainStatus)
+            case InvalidDomainAvailability() =>
+              invalidAvailability(availabilityString)
             case UnknownError() =>
               InternalServerError
           },
@@ -220,12 +224,12 @@ private[rest] final class DomainService(schedule: Scheduler,
           }
         ))
     }.getOrElse {
-      Future.successful(invalidStatus(domainStatus))
+      Future.successful(invalidAvailability(availabilityString))
     }
   }
 
-  private[this] def invalidStatus(status: String): RestResponse = {
-    invalidValueResponse(s"Invalid status value '$status'.", Some("status"))
+  private[this] def invalidAvailability(status: String): RestResponse = {
+    invalidValueResponse(s"Invalid availability value '$status'.", Some("availability"))
   }
 }
 
@@ -235,6 +239,6 @@ object DomainService {
 
   case class UpdateDomainRestRequestData(displayName: String)
 
-  case class SetDomainStatusRestRequestData(status: String, message: Option[String])
+  case class SetDomainAvailabilityRestRequestData(availability: String)
 
 }

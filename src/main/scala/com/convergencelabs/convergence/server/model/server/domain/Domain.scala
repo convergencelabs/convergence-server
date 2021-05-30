@@ -16,6 +16,8 @@ import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 
 final case class Domain(domainId: DomainId,
                         displayName: String,
+                        @JsonScalaEnumeration(classOf[DomainAvailabilityTypeReference])
+                        availability: DomainAvailability.Value,
                         @JsonScalaEnumeration(classOf[DomainStatusTypeReference])
                         status: DomainStatus.Value,
                         statusMessage: String)

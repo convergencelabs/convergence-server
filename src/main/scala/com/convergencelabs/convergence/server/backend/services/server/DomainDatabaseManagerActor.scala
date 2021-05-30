@@ -78,14 +78,23 @@ object DomainDatabaseManagerActor {
 
   sealed trait Message extends CborSerializable
 
+  //
+  // Create Domain Database
+  //
   final case class CreateDomainDatabaseRequest(data: DomainDatabaseCreationData, replyTo: ActorRef[CreateDomainDatabaseResponse]) extends Message
 
   final case class CreateDomainDatabaseResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
+  //
+  // Destroy Domain
+  //
   final case class DestroyDomainRequest(domainFqn: DomainId, databaseUri: String, replyTo: ActorRef[DestroyDomainResponse]) extends Message
 
   final case class DestroyDomainResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
+  //
+  // Errors
+  //
   final case class UnknownError(message: Option[String] = None)
 
 }

@@ -14,5 +14,6 @@ package com.convergencelabs.convergence.server.api.rest
 final case class DomainRestData(displayName: String,
                                 namespace: String,
                                 domainId: String,
-                                schemaVersion: Option[String],
-                                status: String)
+                                availability: String,
+                                status: String,
+                                schemaVersion: Option[String])

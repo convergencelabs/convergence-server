@@ -13,7 +13,8 @@ package com.convergencelabs.convergence.server.backend.services.server
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import com.convergencelabs.convergence.server.backend.db.ConvergenceDatabaseInitializer
+import com.convergencelabs.convergence.server.backend.db.{ConvergenceDatabaseInitializer, DomainDatabaseManager}
+import com.convergencelabs.convergence.server.backend.db.schema.DatabaseManager
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 

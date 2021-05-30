@@ -211,6 +211,7 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     info("Role 'backend' detected, activating Backend Services...")
 
     val singletonManager = ClusterSingleton(context.system)
+
     val convergenceDatabaseInitializerActor = singletonManager.init(
       SingletonActor(Behaviors.supervise(ConvergenceDatabaseInitializerActor())
         .onFailure[Exception](SupervisorStrategy.restart), "ConvergenceDatabaseInitializer")

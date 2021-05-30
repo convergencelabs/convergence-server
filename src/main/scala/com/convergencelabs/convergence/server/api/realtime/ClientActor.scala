@@ -35,8 +35,7 @@ import com.convergencelabs.convergence.server.backend.services.server.DomainLife
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUser
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus.{Deleting, Maintenance, Offline}
+import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainStatus}
 import com.convergencelabs.convergence.server.util.UnexpectedErrorException
 import com.convergencelabs.convergence.server.util.concurrent.AskHandler
 import com.google.protobuf.struct.Value
@@ -109,6 +108,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
     case DomainLifecycleTopic.DomainStatusChanged(domainId, status) =>
       InternalDomainStatusChanged(domainId, status)
+    case DomainLifecycleTopic.DomainAvailabilityChanged(domainId, availability) =>
+      InternalDomainAvailabilityChanged(domainId, availability)
   })
 
   timers.startSingleTimer(HandshakeTimerKey, HandshakeTimeout, protocolConfig.handshakeTimeout)
@@ -212,6 +213,9 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
     case InternalDomainStatusChanged(domainId, status) =>
       domainStatusChanged(domainId, status)
+
+    case InternalDomainAvailabilityChanged(domainId, availability) =>
+      domainAvailabilityChanged(domainId, availability)
 
     case Disconnect() =>
       this.handleDisconnect()
@@ -560,30 +564,33 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     this.disconnect()
   }
 
-  private[this] def domainStatusChanged(domainId: DomainId, status: DomainStatus.Value): Behavior[Message] = {
+  private[this] def domainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value): Behavior[Message] = {
     if (this.domainId == domainId) {
-      status match {
-        case DomainStatus.Error =>
-          debug(s"$domainId: Domain in an error state, shutting down")
-          this.disconnect()
-        case Offline =>
-          debug(s"$domainId: Domain going offline mode shutting down")
-          this.disconnect()
-        case Maintenance =>
-          debug(s"$domainId: Domain going into Maintenance mode shutting down")
-          this.disconnect()
-        case Deleting =>
-          debug(s"$domainId: Domain deleted shutting down")
-          this.disconnect()
-        case _ =>
+      availability match {
+        case DomainAvailability.Online =>
           Behaviors.same
+        case _ =>
+          debug(s"$domainId: Disconnecting client because domain availability changed to: " + availability )
+          this.disconnect()
       }
     } else {
       Behaviors.same
     }
   }
 
-
+  private[this] def domainStatusChanged(domainId: DomainId, status: DomainStatus.Value): Behavior[Message] = {
+    if (this.domainId == domainId) {
+      status match {
+        case DomainStatus.Ready =>
+          Behaviors.same
+        case _ =>
+          debug(s"$domainId: Disconnecting client because domain status changed to: " + status )
+          this.disconnect()
+      }
+    } else {
+      Behaviors.same
+    }
+  }
 
   private[this] def getTimeoutFromConfig(path: String): Timeout = {
     Timeout(system.settings.config.getDuration(path).toNanos, TimeUnit.NANOSECONDS)
@@ -643,7 +650,7 @@ object ClientActor {
   sealed trait Message
 
   /**
-   * Indicates that a handshake timeout with the connecting client has occured.
+   * Indicates that a handshake timeout with the connecting client has occurred.
    */
   private final case object HandshakeTimeout extends Message
 
@@ -720,6 +727,8 @@ object ClientActor {
   final case class Disconnect() extends Message
 
   private final case class InternalDomainStatusChanged(domainId: DomainId, status: DomainStatus.Value) extends Message
+
+  private final case class InternalDomainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value) extends Message
 }
 
 

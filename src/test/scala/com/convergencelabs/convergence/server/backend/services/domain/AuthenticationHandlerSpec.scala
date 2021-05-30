@@ -26,6 +26,7 @@ import com.convergencelabs.convergence.server.model.domain.jwt.{JwtAuthKey, JwtC
 import com.convergencelabs.convergence.server.model.domain.session
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.model.server.domain.DomainAvailability
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.util.io.pem.PemReader
 import org.jose4j.jws.{AlgorithmIdentifiers, JsonWebSignature}
@@ -53,67 +54,119 @@ class AuthenticationHandlerSpec()
 
   "A AuthenticationHandler" when {
     "authenticating a user by password" must {
+      "Not authenticate if Domain is offline" in new TestFixture {
+        private val result = authHandler.authenticate(
+          PasswordAuthRequest(existingUserName, existingCorrectPassword), DomainAvailability.Offline)
+        result.isLeft shouldBe true
+      }
+
+      "Not authenticate if Domain is under maintenance" in new TestFixture {
+        private val result = authHandler.authenticate(
+          PasswordAuthRequest(existingUserName, existingCorrectPassword), DomainAvailability.Maintenance)
+        result.isLeft shouldBe true
+      }
+
       "authenticate successfully for a correct username and password" in new TestFixture {
-        private val result = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingCorrectPassword))
+        private val result = authHandler.authenticate(
+          PasswordAuthRequest(existingUserName, existingCorrectPassword), DomainAvailability.Online)
         result shouldBe Right(AuthenticationSuccess(DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)))
       }
 
       "Fail authentication for an incorrect username and password" in new TestFixture {
-        private val result = authHandler.authenticate(PasswordAuthRequest(existingUserName, existingIncorrectPassword))
+        private val result = authHandler.authenticate(
+          PasswordAuthRequest(existingUserName, existingIncorrectPassword), DomainAvailability.Online)
         result shouldBe Left(None)
       }
 
       "fail authentication for a user that does not exist" in new TestFixture {
-        private val result = authHandler.authenticate(PasswordAuthRequest(nonExistingUser, ""))
+        private val result = authHandler.authenticate(
+          PasswordAuthRequest(nonExistingUser, ""), DomainAvailability.Online)
         result shouldBe Left(None)
       }
 
       "return an authentication error when validating the credentials fails" in new TestFixture {
-        private val result = authHandler.authenticate(PasswordAuthRequest(authFailureUser, authFailurePassword))
+        private val result = authHandler.authenticate(
+          PasswordAuthRequest(authFailureUser, authFailurePassword), DomainAvailability.Online)
         result shouldBe Left(None)
       }
     }
 
     "authenticating a user by token" must {
       "successfully authenticate a user with a valid key" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)))
+        private val result = authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)),
+          DomainAvailability.Online)
         result shouldBe Right(AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, missingKey)))
+        private val result = authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, missingKey)),
+          DomainAvailability.Online)
         result shouldBe Left(None)
       }
 
       "return an authentication failure for a disabled key" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, disabledKey.id)))
+        private val result = authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, disabledKey.id)),
+          DomainAvailability.Online)
         result shouldBe Left(None)
       }
 
       "return an authentication failure for an invalid key" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, invalidKey.id)))
+        private val result = authHandler.authenticate(JwtAuthRequest(
+          JwtGenerator.generate(existingUserName, invalidKey.id)),
+          DomainAvailability.Online)
         result shouldBe Left(None)
       }
 
       "return an authentication success for the admin key" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)))
+        private val result = authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)),
+          DomainAvailability.Online)
         result shouldBe Right(DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Convergence, existingUserName)), Some(reconnectToken)))
       }
 
       "return an authentication success lazily created user" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)))
+        private val result = authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)),
+          DomainAvailability.Online)
         result shouldBe Right(DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, lazyUserName)), Some(reconnectToken)))
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
-        private val result = authHandler.authenticate(JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id)))
+        private val result = authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id)),
+          DomainAvailability.Online)
         result shouldBe Left(None)
       }
 
       "return an authentication failure when the user can't be created" in new TestFixture {
-        private val authRequest = JwtAuthRequest(JwtGenerator.generate(brokenLazyUsername, enabledKey.id))
-        private val result = authHandler.authenticate(authRequest)
+        private val authRequest = JwtAuthRequest(
+          JwtGenerator.generate(brokenLazyUsername, enabledKey.id))
+        private val result = authHandler.authenticate(authRequest, DomainAvailability.Online)
         result shouldBe Left(None)
+      }
+
+      "Not authenticate if Domain is offline" in new TestFixture {
+        authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)),
+          DomainAvailability.Offline)
+          .isLeft shouldBe true
+      }
+
+      "Not authenticate if Domain is under maintenance for non admin user" in new TestFixture {
+        authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)),
+          DomainAvailability.Maintenance)
+          .isLeft shouldBe true
+      }
+
+      "Authenticate if Domain is under maintenance for admin user" in new TestFixture {
+        authHandler.authenticate(
+          JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)),
+          DomainAvailability.Online) shouldBe
+          Right(DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Convergence, existingUserName)), Some(reconnectToken)))
       }
     }
   }

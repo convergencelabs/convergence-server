@@ -14,7 +14,7 @@ import com.convergencelabs.convergence.server.backend.datastore.PersistenceStore
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.schema.NonRecordingSchemaManager
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainState, DomainStatus}
 import org.mockito.Mockito
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -26,8 +26,9 @@ class DomainPersistenceStoreSpec
 
   protected val domainId: DomainId = DomainId("ns", "domain")
 
-  protected val domainStatusProvider: DomainStatusProvider = mock[DomainStatusProvider]
-  Mockito.when(domainStatusProvider.getDomainStatus).thenReturn(Success(Some(DomainStatus.Online)))
+  protected val domainStatusProvider: DomainStateProvider = mock[DomainStateProvider]
+  Mockito.when(domainStatusProvider.getDomainState())
+    .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Ready))))
 
   protected def createStore(dbProvider: DatabaseProvider): DomainPersistenceProvider =
     new DomainPersistenceProviderImpl(domainId, dbProvider, domainStatusProvider)

@@ -22,6 +22,7 @@ import com.convergencelabs.convergence.server.model.domain.jwt.JwtConstants
 import com.convergencelabs.convergence.server.model.domain.session
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.model.server.domain.DomainAvailability
 import com.convergencelabs.convergence.server.util.TryWithResource
 import grizzled.slf4j.Logging
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -63,6 +64,9 @@ final class AuthenticationHandler(domainId: DomainId,
                                   private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
+  private[this] val MaintenanceModeMessage =
+    "Can not authenticate to a domain in maintenance mode."
+
   /**
    * Processes an authentication request for the associated domain.
    * @param request The auth request to process.
@@ -70,16 +74,28 @@ final class AuthenticationHandler(domainId: DomainId,
    *         authentication failed or a right containing information on the
    *         successful authentication.
    */
-  def authenticate(request: AuthenticationCredentials): Either[Option[String], DomainActor.AuthenticationSuccess] = {
-    request match {
-      case message: PasswordAuthRequest =>
-        authenticatePassword(message)
-      case message: JwtAuthRequest =>
-        authenticateJwt(message)
-      case message: ReconnectTokenAuthRequest =>
-        authenticateReconnectToken(message)
-      case message: AnonymousAuthRequest =>
-        authenticateAnonymous(message)
+  def authenticate(request: AuthenticationCredentials, availability: DomainAvailability.Value): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+    availability match {
+      case DomainAvailability.Online =>
+        request match {
+          case message: PasswordAuthRequest =>
+            authenticatePassword(message)
+          case message: JwtAuthRequest =>
+            authenticateJwt(message)
+          case message: ReconnectTokenAuthRequest =>
+            authenticateReconnectToken(message)
+          case message: AnonymousAuthRequest =>
+            authenticateAnonymous(message)
+        }
+      case DomainAvailability.Offline =>
+        Left(Some("Can not authenticate to an offline domain."))
+      case DomainAvailability.Maintenance =>
+        request match {
+          case message: JwtAuthRequest =>
+            authenticateJwt(message, availability == DomainAvailability.Maintenance)
+          case _ =>
+            Left(Some(MaintenanceModeMessage))
+        }
     }
   }
 
@@ -164,7 +180,7 @@ final class AuthenticationHandler(domainId: DomainId,
   //
   // JWT Auth
   //
-  private[this] def authenticateJwt(authRequest: JwtAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest, maintenanceMode: Boolean = false): Either[Option[String], DomainActor.AuthenticationSuccess] = {
     // This implements a two pass approach to be able to get the key id.
     val firstPassJwtConsumer = new JwtConsumerBuilder()
       .setSkipAllValidators()
@@ -178,17 +194,21 @@ final class AuthenticationHandler(domainId: DomainId,
 
     getJWTPublicKey(keyId)
       .map { case (publicKey, admin) =>
-        authenticateJwtWithPublicKey(authRequest, publicKey, admin)
-          .map(Right(_))
-          .recover {
-            case cause: InvalidJwtException =>
-              logger.debug(s"Invalid JWT: ${cause.getMessage}")
-              Left(None)
-            case cause: Exception =>
-              error(s"$domainId: Unable to authenticate a user via jwt.", cause)
-              Left(None)
-          }
-          .getOrElse(Left(None))
+        if (!maintenanceMode || admin ) {
+          authenticateJwtWithPublicKey(authRequest, publicKey, admin)
+            .map(Right(_))
+            .recover {
+              case cause: InvalidJwtException =>
+                logger.debug(s"Invalid JWT: ${cause.getMessage}")
+                Left(None)
+              case cause: Exception =>
+                error(s"$domainId: Unable to authenticate a user via jwt.", cause)
+                Left(None)
+            }
+            .getOrElse(Left(None))
+        } else {
+          Left(Some(MaintenanceModeMessage))
+        }
       }
       .getOrElse(Left(None))
   }

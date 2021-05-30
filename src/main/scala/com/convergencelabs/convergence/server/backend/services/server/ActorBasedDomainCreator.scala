@@ -16,18 +16,20 @@ import akka.actor.typed.{ActorRef, Scheduler}
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
+import com.convergencelabs.convergence.server.backend.db.schema.SchemaVersion
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.{CreateDomainDatabaseRequest, CreateDomainDatabaseResponse}
 import com.typesafe.config.Config
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class ActorBasedDomainCreator(databaseProvider: DatabaseProvider,
+                              schemaVersion: SchemaVersion,
                               config: Config,
                               domainProvisioner: ActorRef[CreateDomainDatabaseRequest],
                               executionContext: ExecutionContext,
                               implicit val scheduler: Scheduler,
                               timeout: Timeout)
-  extends DomainCreator(databaseProvider, config, executionContext) {
+  extends DomainCreator(databaseProvider, schemaVersion, config, executionContext) {
 
   override protected def createDomainDatabase(data: DomainDatabaseCreationData): Future[CreateDomainDatabaseResponse] = {
     implicit val t: Timeout = timeout

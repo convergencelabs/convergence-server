@@ -11,9 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
-import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, _}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain._
@@ -24,7 +24,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.presence.P
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainStatus}
 import com.convergencelabs.convergence.server.util.actor._
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
@@ -60,6 +60,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] var authenticator: AuthenticationHandler = _
   private[this] var children: DomainActorChildren = _
+  private[this] var status: DomainStatus.Value = _
+  private[this] var availability: DomainAvailability.Value = _
 
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = handleSignal orElse super.onSignal
 
@@ -72,6 +74,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       onClientDisconnect(message)
     case InternalDomainStatusChanged(id, status) =>
       domainStatusChanged(id, status)
+    case InternalDomainAvailabilityChanged(id, availability) =>
+      domainAvailabilityChanged(id, availability)
     case msg: DomainStatusRequest =>
       onStatusRequest(msg)
     case _: ReceiveTimeout =>
@@ -84,33 +88,13 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Behavior[Message] = {
-    (for {
-      status <- this.persistenceProvider.domainStatusProvider.getDomainStatus
-      response <- status match {
+    this.persistenceProvider.domainStateProvider.getDomainState()
+      .flatMap {
         case None =>
           Success(Left(DomainNotFound(message.domainId)))
-        case Some(DomainStatus.Online) =>
-          persistenceProvider.validateConnection()
-            .map { _ =>
-              context.cancelReceiveTimeout()
-              context.watch(message.clientActor)
-
-              connectedClients.add(message.clientActor)
-
-              val success = HandshakeSuccess(
-                this.children.modelStoreActor,
-                this.children.operationStoreActor,
-                this.children.identityServiceActor,
-                this.children.presenceServiceActor,
-                this.children.chatManagerActor)
-              Right(success)
-            }
-        case Some(DomainStatus.Offline)=>
-          Success(Left(DomainNotFound(message.domainId)))
-        case _ =>
-          Success(Left(DomainUnavailable(message.domainId)))
+        case Some(_) =>
+          processHandshakeForExistingDomain(message.clientActor)
       }
-    } yield response)
       .recover { cause: Throwable =>
         error(s"$identityString: Could not connect to domain database", cause)
         val failure = DomainDatabaseError(message.domainId)
@@ -119,6 +103,42 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       .foreach(message.replyTo ! HandshakeResponse(_))
 
     Behaviors.same
+  }
+
+  private[this] def processHandshakeForExistingDomain(clientActor: ActorRef[ClientActor.Disconnect]): Try[Either[HandshakeError, HandshakeSuccess]] = {
+    this.status match {
+      case DomainStatus.Ready =>
+        this.availability match {
+          case DomainAvailability.Offline =>
+            Success(Left(DomainNotFound(this.domainId)))
+          case _ =>
+            completeHandshake(clientActor)
+        }
+      case _ =>
+        if (this.availability == DomainAvailability.Offline) {
+          Success(Left(DomainNotFound(this.domainId)))
+        } else {
+          Success(Left(DomainUnavailable(this.domainId)))
+        }
+    }
+  }
+
+  private[this] def completeHandshake(clientActor: ActorRef[ClientActor.Disconnect]): Try[Either[HandshakeError, HandshakeSuccess]] = {
+    persistenceProvider.validateConnection()
+      .map { _ =>
+        context.cancelReceiveTimeout()
+        context.watch(clientActor)
+
+        connectedClients.add(clientActor)
+
+        val success = HandshakeSuccess(
+          this.children.modelStoreActor,
+          this.children.operationStoreActor,
+          this.children.identityServiceActor,
+          this.children.presenceServiceActor,
+          this.children.chatManagerActor)
+        Right(success)
+      }
   }
 
   private[this] def onAuthenticationRequest(message: AuthenticationRequest): Behavior[Message] = {
@@ -137,10 +157,9 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
     }
 
     val response = authenticator
-      .authenticate(credentials)
+      .authenticate(credentials, this.availability)
       .fold(
         { msg =>
-
           debug(s"$identityString: Authentication failed")
           AuthenticationResponse(Left(AuthenticationFailed(msg)))
         },
@@ -231,26 +250,47 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
 
   private[this] def domainStatusChanged(domainId: DomainId, status: DomainStatus.Value): Behavior[Message] = {
     if (this.domainId == domainId) {
-      status match {
-        case DomainStatus.Error =>
-          debug(s"$identityString: Domain in error state, immediately passivating.")
-          disconnectAndPassivate()
-        case DomainStatus.Offline =>
-          debug(s"$identityString: Domain going offline, immediately passivating.")
-          disconnectAndPassivate()
-        case DomainStatus.Maintenance =>
-          debug(s"$identityString: Domain in maintenance mode, immediately passivating.")
-          disconnectAndPassivate()
-        case DomainStatus.Deleting =>
-          debug(s"$identityString: Domain deleting, immediately passivating.")
-          disconnectAndPassivate()
-        case _ =>
-          // no-op
-          Behaviors.same
-      }
-
+      this.status = status
+      this.processAvailabilityAndStatus()
     } else {
       Behaviors.same
+    }
+  }
+
+  private[this] def domainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value): Behavior[Message] = {
+    if (this.domainId == domainId) {
+      this.availability = availability
+      this.processAvailabilityAndStatus()
+    } else {
+      Behaviors.same
+    }
+  }
+
+  private[this] def processAvailabilityAndStatus(): Behavior[Message] = {
+    this.availability match {
+      case DomainAvailability.Offline =>
+        debug(s"$identityString: Domain going offline, immediately passivating.")
+        disconnectAndPassivate()
+      case DomainAvailability.Maintenance =>
+        debug(s"$identityString: Domain in maintenance mode, immediately passivating.")
+        disconnectAndPassivate()
+      case DomainAvailability.Online =>
+        this.status match {
+          case DomainStatus.Error =>
+            debug(s"$identityString: Domain in error state, immediately passivating.")
+            disconnectAndPassivate()
+          case DomainStatus.Deleting =>
+            debug(s"$identityString: Domain deleting, immediately passivating.")
+            disconnectAndPassivate()
+          case DomainStatus.SchemaUpgradeRequired =>
+            debug(s"$identityString: Domain needs upgrading, immediately passivating.")
+            disconnectAndPassivate()
+          case DomainStatus.SchemaUpgrading =>
+            debug(s"$identityString: Domain upgrading, immediately passivating.")
+            disconnectAndPassivate()
+          case DomainStatus.Ready =>
+            Behaviors.same
+        }
     }
   }
 
@@ -270,14 +310,22 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   }
 
   override def initialize(msg: Message): Try[ShardedActorStatUpPlan] = {
-    domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
-      case DomainLifecycleTopic.DomainStatusChanged(id, status) =>
-        InternalDomainStatusChanged(id, status)
-    })
+    (for {
+      provider <- domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId)
+      domainState <- provider.domainStateProvider.getDomainState() flatMap {
+        case Some(state) => Success(state)
+        case None => Failure(DomainNotFoundException(domainId))
+      }
+    } yield {
+      this.status = domainState.status
+      this.availability = domainState.availability
 
-    debug(s"$identityString: Acquiring domain persistence provider")
-    domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId) map { provider =>
-      debug(s"$identityString: Acquired domain persistence provider")
+      domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
+        case DomainLifecycleTopic.DomainStatusChanged(id, status) =>
+          InternalDomainStatusChanged(id, status)
+        case DomainLifecycleTopic.DomainAvailabilityChanged(id, availability) =>
+          InternalDomainAvailabilityChanged(id, availability)
+      })
 
       this.persistenceProvider = provider
       this.authenticator = new AuthenticationHandler(
@@ -309,20 +357,21 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(domainId))
 
       StartUpRequired
-    } recoverWith {
-      // This is a special case, we know the domain was not found. In theory this
-      // should have been a handshake message, and we want to respond.
-      case _: DomainNotFoundException =>
-        msg match {
-          case msg: HandshakeRequest =>
-            msg.replyTo ! HandshakeResponse(Left(DomainNotFound(msg.domainId)))
-          case _ =>
-            warn(s"$identityString: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
-        }
-        Success(StartUpNotRequired)
-      case cause: Throwable =>
-        Failure(cause)
-    }
+    })
+      .recoverWith {
+        // This is a special case, we know the domain was not found. In theory this
+        // should have been a handshake message, and we want to respond.
+        case _: DomainNotFoundException =>
+          msg match {
+            case msg: HandshakeRequest =>
+              msg.replyTo ! HandshakeResponse(Left(DomainNotFound(msg.domainId)))
+            case _ =>
+              warn(s"$identityString: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
+          }
+          Success(StartUpNotRequired)
+        case cause: Throwable =>
+          Failure(cause)
+      }
   }
 }
 
@@ -412,8 +461,10 @@ object DomainActor {
 
   private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
-  final case class InternalDomainStatusChanged(domainId: DomainId, status: DomainStatus.Value) extends Message
+  final case class InternalDomainStatusChanged(domainId: DomainId,
+                                               status: DomainStatus.Value) extends Message
 
+  final case class InternalDomainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value) extends Message
 
   //
   // Supporting Classes

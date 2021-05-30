@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
+import scala.util.Try
+
 /**
  * Represents the version of a database schema with a single dot-notation
  * version schema (e.g. 1.0, 1.2, 2.0, etc.). The version scheme is of
@@ -50,13 +52,17 @@ case class SchemaVersion(version: Int, patch: Int) {
 
 object SchemaVersion {
   def parse(version: String): Either[InvalidSchemaVersion, SchemaVersion] = {
-    val MajorMinor = """(\d).(\d)""".r
+    val VersionPatch = """(\d).(\d)""".r
     version match {
-      case MajorMinor(major, minor) =>
+      case VersionPatch(major, minor) =>
         Right(SchemaVersion(major.toInt, minor.toInt))
       case _ =>
         Left(InvalidSchemaVersion(version))
     }
+  }
+
+  def parseTry(version: String): Try[SchemaVersion] = {
+    Try(parseUnsafe(version))
   }
 
   def parseUnsafe(version: String):  SchemaVersion = {

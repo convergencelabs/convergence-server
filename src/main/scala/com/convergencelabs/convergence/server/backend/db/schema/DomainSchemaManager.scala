@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-import com.convergencelabs.convergence.server.backend.datastore.convergence.{DomainSchemaDeltaLogStore, DomainSchemaVersionLogStore}
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{DomainSchemaDeltaLogStore, DomainSchemaVersionLogStore, DomainStore}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.DomainId
 
@@ -20,11 +20,12 @@ object DomainSchemaManager {
 }
 
 private[db] class DomainSchemaManager(domainId: DomainId,
-                                          convergenceDatabaseProvider: DatabaseProvider,
-                                          domainDatabaseProvider: DatabaseProvider) extends SchemaManager(
+                                      convergenceDatabaseProvider: DatabaseProvider,
+                                      domainDatabaseProvider: DatabaseProvider) extends SchemaManager(
   new SchemaMetaDataRepository(DomainSchemaManager.BasePath),
   new DomainSchemaStatePersistence(
     domainId,
+    new DomainStore(convergenceDatabaseProvider),
     new DomainSchemaDeltaLogStore(convergenceDatabaseProvider),
     new DomainSchemaVersionLogStore(convergenceDatabaseProvider)
   ),

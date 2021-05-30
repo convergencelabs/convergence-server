@@ -9,9 +9,12 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.db.schema
+package com.convergencelabs.convergence.server.model.server.domain
 
-final case class DatabaseSchemaStatus(version: String,
-                                      versionStatus: DatabaseSchemaVersionStatus,
-                                      healthy: Boolean,
-                                      message: Option[String])
+import com.convergencelabs.convergence.server.backend.db.schema.SchemaVersion
+import com.convergencelabs.convergence.server.model.DomainId
+
+final case class DomainDatabaseState(domainId: DomainId,
+                                     database: String,
+                                     schemaVersion: SchemaVersion,
+                                     status: DomainStatus.Value)

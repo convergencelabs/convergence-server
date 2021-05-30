@@ -11,12 +11,9 @@
 
 package com.convergencelabs.convergence.server.backend.db
 
-import com.convergencelabs.convergence.server.util.TryWithResource
-import com.orientechnologies.orient.core.config.OGlobalConfiguration
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
-import com.orientechnologies.orient.core.db.{ODatabase, ODatabasePool, OrientDB, OrientDBConfig}
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 /**
  * A trait that provides methods for performing operations wth a database
