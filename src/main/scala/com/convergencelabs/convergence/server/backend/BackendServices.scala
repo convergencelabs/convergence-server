@@ -202,7 +202,7 @@ private[server] final class BackendServices(context: ActorContext[_],
       domainDbManagerActor, domainLifecycleTopic), "DomainStore")
 
     context.spawn(AuthenticationActor(userStore, userApiKeyStore, roleStore, configStore, userSessionTokenStore), "Authentication")
-    context.spawn(UserStoreActor(userStore, roleStore, userCreator, domainStoreActor), "UserManager")
+    context.spawn(UserStoreActor(userStore, roleStore, namespaceStore, userCreator, domainStoreActor), "UserManager")
     context.spawn(NamespaceStoreActor(namespaceStore, roleStore, configStore), "NamespaceStore")
     context.spawn(RoleStoreActor(roleStore), "RoleStore")
     context.spawn(UserApiKeyStoreActor(userApiKeyStore), "UserApiKeyStore")

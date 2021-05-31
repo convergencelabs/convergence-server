@@ -29,6 +29,7 @@ final class UserCreator(dbProvider: DatabaseProvider) extends Logging {
   val bearerTokenGen = new RandomStringGenerator(32)
 
   def createUser(user: User, password: String, serverRole: String): Try[Unit] = dbProvider.withDatabase { db =>
+    // FIXME use transactions here.
     for {
       _ <- userStore.createUser(user, password, bearerTokenGen.nextString())
       _ <- roleStore.setUserRoleForTarget(user.username, ServerRoleTarget(), serverRole)

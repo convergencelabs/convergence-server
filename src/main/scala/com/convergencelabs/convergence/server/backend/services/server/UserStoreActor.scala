@@ -12,14 +12,13 @@
 package com.convergencelabs.convergence.server.backend.services.server
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.backend.datastore.convergence.{RoleStore, UserStore}
+import com.convergencelabs.convergence.server.backend.datastore.convergence.{NamespaceStore, RoleStore, UserStore}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException, InvalidValueException}
 import com.convergencelabs.convergence.server.model.server.role.ServerRoleTarget
 import com.convergencelabs.convergence.server.model.server.user.User
@@ -35,6 +34,7 @@ import scala.language.postfixOps
 private final class UserStoreActor(context: ActorContext[UserStoreActor.Message],
                                    userStore: UserStore,
                                    roleStore: RoleStore,
+                                   namespaceStore: NamespaceStore,
                                    userCreator: UserCreator,
                                    domainStoreActor: ActorRef[DomainStoreActor.Message])
   extends AbstractBehavior[UserStoreActor.Message](context) {
@@ -80,16 +80,16 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
     val user = User(username, email, firstName, lastName, displayName, None)
     userCreator
       .createUser(user, password, serverRole)
-      .map(_ => CreateConvergenceUserResponse(Right(Ok())))
+      .map(_ => Right(Ok()))
       .recover {
         case InvalidValueException(_, message, _) =>
-          CreateConvergenceUserResponse(Left(InvalidValueError(message)))
+          Left(InvalidValueError(message))
         case DuplicateValueException(field, _, _) =>
-          CreateConvergenceUserResponse(Left(UserAlreadyExistsError(field)))
+          Left(UserAlreadyExistsError(field))
         case _ =>
-          CreateConvergenceUserResponse(Left(UnknownError()))
+          Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! CreateConvergenceUserResponse(_))
   }
 
   private[this] def onGetConvergenceUser(message: GetConvergenceUserRequest): Unit = {
@@ -142,6 +142,7 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
         FutureUtils.tryToFuture {
           for {
             _ <- roleStore.removeAllRolesForUser(username)
+            _ <- namespaceStore.deleteUserNamespace(username)
             _ <- userStore.deleteUser(username)
           } yield ()
         }
@@ -241,9 +242,10 @@ object UserStoreActor {
 
   def apply(userStore: UserStore,
             roleStore: RoleStore,
+            namespaceStore: NamespaceStore,
             userCreator: UserCreator,
             domainStoreActor: ActorRef[DomainStoreActor.Message]): Behavior[Message] =
-    Behaviors.setup(context => new UserStoreActor(context, userStore, roleStore, userCreator, domainStoreActor))
+    Behaviors.setup(context => new UserStoreActor(context, userStore, roleStore, namespaceStore, userCreator, domainStoreActor))
 
   final case class ConvergenceUserInfo(user: User, globalRole: String)
 
@@ -274,7 +276,7 @@ object UserStoreActor {
   ))
   sealed trait CreateConvergenceUserError
 
-  final case class UserAlreadyExistsError(filed: String) extends CreateConvergenceUserError
+  final case class UserAlreadyExistsError(field: String) extends CreateConvergenceUserError
 
   final case class CreateConvergenceUserResponse(response: Either[CreateConvergenceUserError, Ok]) extends CborSerializable
 
