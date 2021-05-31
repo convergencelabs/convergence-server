@@ -99,7 +99,7 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
       roles <- roleStore.getRolesForUsersAndTarget(Set(username), ServerRoleTarget())
     } yield {
       user.map { u =>
-        val globalRole = roles.get(u.username).flatMap(_.headOption).getOrElse("")
+        val globalRole = roles.getOrElse(u.username, "")
         ConvergenceUserInfo(u, globalRole)
       }
     })
@@ -121,7 +121,7 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
       roles <- roleStore.getRolesForUsersAndTarget(users.map(_.username).toSet, ServerRoleTarget())
     } yield {
       users.map { user =>
-        val globalRole = roles.get(user.username).flatMap(_.headOption).getOrElse("")
+        val globalRole = roles.getOrElse(user.username, "")
         ConvergenceUserInfo(user, globalRole)
       }.toSet
     })
@@ -178,7 +178,7 @@ private final class UserStoreActor(context: ActorContext[UserStoreActor.Message]
     val update = User(username, email, firstName, lastName, displayName, None)
     (for {
       - <- userStore.updateUser(update)
-      _ <- roleStore.setUserRolesForTarget(username, ServerRoleTarget(), Set(globalRole))
+      _ <- roleStore.setUserRoleForTarget(username, ServerRoleTarget(), globalRole)
     } yield ())
       .map(_ => UpdateConvergenceUserResponse(Right(Ok())))
       .recover {

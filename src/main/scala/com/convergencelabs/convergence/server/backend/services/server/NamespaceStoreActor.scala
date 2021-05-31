@@ -118,14 +118,14 @@ private final class NamespaceStoreActor(context: ActorContext[NamespaceStoreActo
   }
 
   private[this] def onGetAccessibleNamespaces(getRequest: GetAccessibleNamespacesRequest): Unit = {
-    val GetAccessibleNamespacesRequest(authProfileData, _, offset, limit, replyTo) = getRequest
+    val GetAccessibleNamespacesRequest(authProfileData, filter, offset, limit, replyTo) = getRequest
     val authProfile = AuthorizationProfile(authProfileData)
 
     val namespaces = if (authProfile.hasGlobalPermission(Permissions.Server.ManageDomains)) {
-      namespaceStore.getAllNamespacesAndDomains(offset, limit)
+      namespaceStore.getAllNamespacesAndDomains(filter, offset, limit)
     } else {
       namespaceStore
-        .getAccessibleNamespaces(authProfile.username)
+        .getAccessibleNamespaces(authProfile.username, filter, offset, limit)
         .flatMap(namespaces => namespaceStore.getNamespaceAndDomains(namespaces.map(_.id).toSet, offset, limit))
     }
 

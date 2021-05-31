@@ -75,7 +75,7 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
           case _: NamespaceNotFoundException =>
             Failure(NamespaceNotFoundError())
         }
-      _ <- roleStore.setUserRolesForTarget(owner, DomainRoleTarget(domainId), Set(Roles.Domain.Owner))
+      _ <- roleStore.setUserRoleForTarget(owner, DomainRoleTarget(domainId), Roles.Domain.Owner)
     } yield domainDbInfo
   }
 

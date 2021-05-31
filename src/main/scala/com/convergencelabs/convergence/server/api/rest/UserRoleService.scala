@@ -98,15 +98,13 @@ private[rest] final class UserRoleService(roleActor: ActorRef[Message],
             InternalServerError
         },
         { userRoles =>
-          val response = userRoles.filter(_.roles.nonEmpty)
-            .map(userRole => (userRole.username, userRole.roles.head.role.name))
-          okResponse(response)
+          okResponse(userRoles)
         })
       )
   }
 
   private[this] def updateUserRolesForTarget(target: RoleTarget, userRoles: Map[String, String]): Future[RestResponse] = {
-    val mappedRoles = userRoles.map(entry => entry._1 -> Set(entry._2))
+    val mappedRoles = userRoles.map(entry => entry._1 -> entry._2)
     roleActor
       .ask[UpdateRolesForTargetResponse](UpdateRolesForTargetRequest(target, mappedRoles, _))
       .map(_.response.fold(

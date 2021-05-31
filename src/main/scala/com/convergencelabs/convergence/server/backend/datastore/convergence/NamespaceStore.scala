@@ -65,7 +65,7 @@ class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersi
     OrientDBUtil.queryAndMap(db, query)(docToNamespace)
   }
 
-  def getAccessibleNamespaces(username: String): Try[List[Namespace]] = withDb { db =>
+  def getAccessibleNamespaces(username: String, filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[List[Namespace]] = withDb { db =>
     val accessQuery = """
         |SELECT
         |  expand(set(target))
@@ -75,7 +75,11 @@ class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersi
         |  user IN (SELECT FROM User WHERE username = :username) AND
         |  role.permissions CONTAINS (id = 'namespace-access') AND
         |  target.@class = 'Namespace'""".stripMargin
-    OrientDBUtil.query(db, accessQuery, Map(Params.Username -> username)).map(_.map(docToNamespace))
+    val (filterWhere, filterParams) = buildNamespaceFilter(filter, " AND ")
+    val orderBy = " ORDER BY id ASC"
+    val pagedQuery = OrientDBUtil.buildPagedQuery(accessQuery + filterWhere + orderBy , limit, offset)
+    val params = Map(Params.Username -> username) ++ filterParams
+    OrientDBUtil.query(db, pagedQuery, params).map(_.map(docToNamespace))
   }
 
   def getNamespaceAndDomains(namespaces: Set[String], offset: QueryOffset, limit: QueryLimit): Try[Set[NamespaceAndDomains]] = withDb { db =>
@@ -85,10 +89,20 @@ class NamespaceStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersi
     OrientDBUtil.query(db, query, params).flatMap(getNamespaceAndDomainsFromDocs(_, db))
   }
 
-  def getAllNamespacesAndDomains(offset: QueryOffset, limit: QueryLimit): Try[Set[NamespaceAndDomains]] = withDb { db =>
-    val baseQuery = "SELECT FROM Namespace WHERE userNamespace = false ORDER BY id ASC"
-    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
-    OrientDBUtil.query(db, query).flatMap(getNamespaceAndDomainsFromDocs(_, db))
+  def getAllNamespacesAndDomains(filter: Option[String], offset: QueryOffset, limit: QueryLimit): Try[Set[NamespaceAndDomains]] = withDb { db =>
+    val baseQuery = "SELECT FROM Namespace WHERE userNamespace = false"
+    val (filterSQL, filterParams) = buildNamespaceFilter(filter," AND ")
+    val orderBy = " ORDER BY id ASC"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery + filterSQL + orderBy, limit, offset)
+    OrientDBUtil.query(db, query, filterParams).flatMap(getNamespaceAndDomainsFromDocs(_, db))
+  }
+
+  private[this] def buildNamespaceFilter(filter: Option[String], prefix: String): (String, Map[String, Any]) = {
+    filter.map(filter => {
+      val where = prefix + "(id.toLowerCase() LIKE :filter OR displayName.toLowerCase() LIKE :filter)"
+      val params = Map[String, Any](Params.Filter -> s"%$filter%")
+      (where, params)
+    }).getOrElse("", Map[String, Any]())
   }
 
   private[this] def getNamespaceAndDomainsFromDocs(docs: List[ODocument], db: ODatabaseDocument): Try[Set[NamespaceAndDomains]] = {
@@ -146,6 +160,7 @@ object NamespaceStore {
     val Username = "username"
     val Id = "id"
     val DisplayName = "displayName"
+    val Filter = "filter"
   }
 
   def namespaceToDoc(namespace: Namespace, db: ODatabaseDocument): Try[ODocument] = Try {

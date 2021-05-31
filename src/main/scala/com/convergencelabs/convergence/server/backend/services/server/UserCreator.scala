@@ -31,9 +31,9 @@ final class UserCreator(dbProvider: DatabaseProvider) extends Logging {
   def createUser(user: User, password: String, serverRole: String): Try[Unit] = dbProvider.withDatabase { db =>
     for {
       _ <- userStore.createUser(user, password, bearerTokenGen.nextString())
-      _ <- roleStore.setUserRolesForTarget(user.username, ServerRoleTarget(), Set(serverRole))
+      _ <- roleStore.setUserRoleForTarget(user.username, ServerRoleTarget(), serverRole)
       namespace <- namespaceStore.createUserNamespace(user.username)
-      _ <- roleStore.setUserRolesForTarget(user.username, NamespaceRoleTarget(namespace), Set(Roles.Namespace.Owner))
+      _ <- roleStore.setUserRoleForTarget(user.username, NamespaceRoleTarget(namespace), Roles.Namespace.Owner)
     } yield {
       ()
     }

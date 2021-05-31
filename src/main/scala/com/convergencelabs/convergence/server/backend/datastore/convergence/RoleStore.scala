@@ -55,21 +55,21 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
       .map(docToRole)
   }
 
-  def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, Set[String]]): Try[Unit] = withDb { db =>
+  def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, String]): Try[Unit] = withDb { db =>
     // FIXME do in transaction
     Try {
-      userRoles.foreach {
-        case (username, roles) => setUserRolesForTarget(username, target, roles).get
+      userRoles.foreach { case (username, roles) =>
+        setUserRoleForTarget(username, target, roles).get
       }
     }
   }
 
-  def setUserRolesForTarget(username: String, target: RoleTarget, roles: Set[String]): Try[Unit] = withDb { db =>
+  def setUserRoleForTarget(username: String, target: RoleTarget, role: String): Try[Unit] = withDb { db =>
     // FIXME: Do these two steps in a transaction
 
     for {
       userOrid <- UserStore.getUserRid(username, db)
-      roleOrids <- Try(roles.map { getRolesRid(_, target.targetClass, db).get })
+      roleOrid <- getRoleRid(role, target.targetClass, db)
       targetRid <- selectTarget(target, db)
       _ <- targetRid match {
         case Some(rid) =>
@@ -82,13 +82,11 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
           OrientDBUtil.commandReturningCount(db, query, params)
       }
       _ <- Try {
-        roleOrids.foreach { roleOrid =>
           val userRoleDoc: ODocument = db.newInstance(UserRoleClass.ClassName)
           userRoleDoc.setProperty(UserRoleClass.Fields.User, userOrid)
           targetRid.foreach(t => userRoleDoc.setProperty(UserRoleClass.Fields.Target, t))
           userRoleDoc.setProperty(UserRoleClass.Fields.Role, roleOrid)
           userRoleDoc.save()
-        }
       }
     } yield ()
   }
@@ -118,11 +116,11 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     }
   }
 
-  def getRolesForUsersAndTarget(usernames: Set[String], target: RoleTarget): Try[Map[String, Set[String]]] = withDb { db =>
+  def getRolesForUsersAndTarget(usernames: Set[String], target: RoleTarget): Try[Map[String, String]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT
-        |   user.username AS username, target, set(role.name) AS roles
+        |   user.username AS username, target, role.name AS role
         |FROM
         |  UserRole
         |WHERE
@@ -133,30 +131,30 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
     val params = Map("usernames" -> usernames.asJava) ++ targetParams
     OrientDBUtil.queryAndMap(db, query, params) { doc =>
       val username: String = doc.getProperty("username")
-      val roles = doc.getProperty("roles").asInstanceOf[java.util.Set[String]]
-      username -> roles.asScala.toSet
+      val role = doc.getProperty("role").asInstanceOf[String]
+      username -> role
     }.map(_.toMap)
   }
 
-  def getUserRolesForTarget(username: String, target: RoleTarget): Try[Set[Role]] = withDb { db =>
+  def getUserRoleForTarget(username: String, target: RoleTarget): Try[Option[Role]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT
-        |   expand(set(role))
+        |   expand(role)
         |FROM
         |  UserRole
         |WHERE
         |  user.username = :username AND
         |  $targetWhere""".stripMargin
     val params = Map("username" -> username) ++ targetParams
-    OrientDBUtil.query(db, query, params).map(_.map(docToRole).toSet)
+    OrientDBUtil.findDocumentAndMap(db, query, params)(docToRole)
   }
 
-  def getAllUserRolesForTarget(target: RoleTarget): Try[Set[UserRoles]] = withDb { db =>
+  def getAllUserRolesForTarget(target: RoleTarget): Try[Map[String, UserRole]] = withDb { db =>
     val (targetWhere, targetParams) = buildTargetWhere(target)
     val query = s"""
         |SELECT
-        |  user.username AS username, target, set(role) AS roles
+        |  user.username AS username, target, role
         |FROM
         |  UserRole
         |WHERE
@@ -167,10 +165,10 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
       val user: String = result.getProperty("username")
       val targetDoc: ODocument = result.getProperty("target")
       val target = docToRoleTarget(Option(targetDoc))
-      val roleDocs = result.getProperty("roles").asInstanceOf[java.util.Set[ORID]].asScala.toSet
-      val roles = roleDocs.map(r => docToRole(r.getRecord.asInstanceOf[ODocument]))
-      UserRoles(user, roles.map(r => UserRole(r, target)))
-    }).toSet)
+      val roleDoc = result.getProperty("role").asInstanceOf[OIdentifiable]
+      val role = docToRole(roleDoc.getRecord.asInstanceOf[ODocument])
+      (user, UserRole(role, target))
+    }).toMap)
   }
 
   def removeUserRoleFromTarget(target: RoleTarget, username: String): Try[Unit] = withDb { db =>
@@ -199,7 +197,7 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
 
   private[this] val RemoveAllRolesForUserCommand = s"DELETE FROM UserRole WHERE user.username = :username"
 
-  private[this] def getRolesRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {
+  private[this] def getRoleRid(name: String, target: Option[RoleTargetType.Value], db: ODatabaseDocument): Try[ORID] = {
     OrientDBUtil.getIdentityFromSingleValueIndex(db, RoleClass.Indices.NameTargetClass, List(name, target.map(_.toString).orNull))
   }
 

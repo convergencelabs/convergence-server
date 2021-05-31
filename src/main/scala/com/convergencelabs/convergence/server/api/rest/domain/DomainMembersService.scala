@@ -75,16 +75,15 @@ private[domain] final class DomainMembersService(roleStoreActor: ActorRef[RoleSt
             InternalServerError
         },
         { userRoles =>
-          val roleMap = userRoles.map(ur => (ur.username, ur.roles.head.role.name)).toMap
-          okResponse(roleMap)
+          okResponse(userRoles)
         })
       )
   }
 
   private[this] def setAllMembers(domain: DomainId, userRoles: Map[String, String], authProfile: AuthorizationProfile): Future[RestResponse] = {
     // Force the current user to be an owner.
-    val mapped = userRoles.map { case (username, role) => (username, Set(role)) } +
-      (authProfile.username -> Set(Roles.Domain.Owner))
+    val mapped = userRoles.map { case (username, role) => (username, role) } +
+      (authProfile.username -> Roles.Domain.Owner)
     roleStoreActor
       .ask[SetAllUserRolesForTargetResponse](SetAllUserRolesForTargetRequest(role.DomainRoleTarget(domain), mapped, _))
       .map(_.response.fold(
@@ -104,7 +103,7 @@ private[domain] final class DomainMembersService(roleStoreActor: ActorRef[RoleSt
 
   private[this] def getRoleForUser(domain: DomainId, username: String): Future[RestResponse] = {
     roleStoreActor
-      .ask[GetUserRolesForTargetResponse](GetUserRolesForTargetRequest(username, role.DomainRoleTarget(domain), _))
+      .ask[GetUserRoleForTargetResponse](GetUserRoleForTargetRequest(username, role.DomainRoleTarget(domain), _))
       .map(_.roles.fold(
         {
           case UserNotFoundError() =>
@@ -128,7 +127,7 @@ private[domain] final class DomainMembersService(roleStoreActor: ActorRef[RoleSt
       Future.successful(forbiddenResponse(Some("You can not set your own user's role.")))
     } else {
       roleStoreActor
-        .ask[SetUsersRolesForTargetResponse](SetUsersRolesForTargetRequest(username, server.role.DomainRoleTarget(domain), Set(role), _))
+        .ask[SetUsersRolesForTargetResponse](SetUsersRolesForTargetRequest(username, server.role.DomainRoleTarget(domain), role, _))
         .map(_.response.fold(
           {
             case UserNotFoundError() =>
