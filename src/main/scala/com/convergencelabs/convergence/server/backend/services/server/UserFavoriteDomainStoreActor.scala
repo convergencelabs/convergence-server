@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.User
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.Domain
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
-import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.language.postfixOps
 
@@ -112,6 +112,7 @@ object UserFavoriteDomainStoreActor {
                                             domain: DomainId,
                                             replyTo: ActorRef[AddFavoriteDomainResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -125,6 +126,7 @@ object UserFavoriteDomainStoreActor {
   //
   final case class RemoveFavoriteDomainRequest(username: String, domain: DomainId, replyTo: ActorRef[RemoveFavoriteDomainResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -138,6 +140,7 @@ object UserFavoriteDomainStoreActor {
   //
   final case class GetFavoritesForUserRequest(username: String, replyTo: ActorRef[GetFavoritesForUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")

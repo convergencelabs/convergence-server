@@ -23,7 +23,7 @@ import com.convergencelabs.convergence.server.model.server.role.NamespaceRoleTar
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
-import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.language.postfixOps
@@ -182,6 +182,7 @@ object NamespaceStoreActor {
                                           displayName: String,
                                           replyTo: ActorRef[CreateNamespaceResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
     new JsonSubTypes.Type(value = classOf[NamespaceAlreadyExistsError], name = "already_exists")
@@ -199,7 +200,7 @@ object NamespaceStoreActor {
                                           namespaceId: String,
                                           displayName: String,
                                           replyTo: ActorRef[UpdateNamespaceResponse]) extends Message
-
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
     new JsonSubTypes.Type(value = classOf[NamespaceNotFoundError], name = "not_found")
@@ -213,6 +214,7 @@ object NamespaceStoreActor {
   //
   final case class DeleteNamespaceRequest(requester: String, namespaceId: String, replyTo: ActorRef[DeleteNamespaceResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
     new JsonSubTypes.Type(value = classOf[NamespaceNotFoundError], name = "not_found")
@@ -231,7 +233,7 @@ object NamespaceStoreActor {
                                                   @JsonDeserialize(contentAs = classOf[Long])
                                                   limit: QueryLimit,
                                                   replyTo: ActorRef[GetAccessibleNamespacesResponse]) extends Message
-
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
@@ -245,6 +247,7 @@ object NamespaceStoreActor {
   //
   final case class GetNamespaceRequest(namespaceId: String, replyTo: ActorRef[GetNamespaceResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
     new JsonSubTypes.Type(value = classOf[NamespaceNotFoundError], name = "not_found")

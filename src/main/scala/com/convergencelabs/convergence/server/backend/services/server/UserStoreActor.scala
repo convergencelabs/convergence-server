@@ -25,7 +25,7 @@ import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
-import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.concurrent.ExecutionContextExecutor
@@ -269,6 +269,7 @@ object UserStoreActor {
                                                 globalRole: String,
                                                 replyTo: ActorRef[CreateConvergenceUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserAlreadyExistsError], name = "user_exists"),
     new JsonSubTypes.Type(value = classOf[InvalidValueError], name = "invalid"),
@@ -291,6 +292,7 @@ object UserStoreActor {
                                                 globalRole: String,
                                                 replyTo: ActorRef[UpdateConvergenceUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -309,6 +311,7 @@ object UserStoreActor {
                                                        displayName: String,
                                                        replyTo: ActorRef[UpdateConvergenceUserProfileResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -322,6 +325,7 @@ object UserStoreActor {
   //
   final case class SetPasswordRequest(username: String, password: String, replyTo: ActorRef[SetPasswordResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -335,6 +339,7 @@ object UserStoreActor {
   //
   final case class DeleteConvergenceUserRequest(username: String, replyTo: ActorRef[DeleteConvergenceUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -353,6 +358,7 @@ object UserStoreActor {
                                               limit: QueryLimit,
                                               replyTo: ActorRef[GetConvergenceUsersResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
@@ -365,6 +371,7 @@ object UserStoreActor {
   //
   final case class GetConvergenceUserRequest(username: String, replyTo: ActorRef[GetConvergenceUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -378,6 +385,7 @@ object UserStoreActor {
   //
   final case class GetUserBearerTokenRequest(username: String, replyTo: ActorRef[GetUserBearerTokenResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -391,6 +399,7 @@ object UserStoreActor {
   //
   final case class RegenerateUserBearerTokenRequest(username: String, replyTo: ActorRef[RegenerateUserBearerTokenResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")

@@ -383,6 +383,7 @@ object DomainStoreActor {
   //
   final case class UpdateDomainRequest(namespace: String, domainId: String, displayName: String, replyTo: ActorRef[UpdateDomainResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainAlreadyExistsError], name = "domain_exists"),
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
@@ -397,6 +398,7 @@ object DomainStoreActor {
   //
   final case class DeleteDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[DeleteDomainResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -412,6 +414,7 @@ object DomainStoreActor {
                                                 availability: DomainAvailability.Value,
                                                 replyTo: ActorRef[SetDomainAvailabilityResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
     new JsonSubTypes.Type(value = classOf[InvalidDomainAvailability], name = "invalid_status"),
@@ -427,6 +430,7 @@ object DomainStoreActor {
   //
   final case class DeleteDomainsForUserRequest(username: String, replyTo: ActorRef[DeleteDomainsForUserResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))

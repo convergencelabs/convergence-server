@@ -17,7 +17,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.BuildInfo
 import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogStore, ConvergenceSchemaVersionLogStore, DomainStore, NamespaceStore}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
-import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 private final class ServerStatusActor(context: ActorContext[ServerStatusActor.Message],
                                       domainStore: DomainStore,
@@ -80,6 +80,7 @@ object ServerStatusActor {
   //
   final case class GetStatusRequest(replyTo: ActorRef[GetStatusResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))

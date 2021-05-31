@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.backend.datastore.convergence.Role
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.model.server.role.RoleTarget
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
-import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 import scala.language.postfixOps
 
@@ -212,6 +212,7 @@ object RoleStoreActor {
   //
   final case class CreateRoleRequest(role: Role, replyTo: ActorRef[CreateRoleResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[RoleExistsError], name = "role_exists"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
