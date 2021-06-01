@@ -922,7 +922,15 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
                   case RealtimeModelActor.UnauthorizedError(message) =>
                     cb.reply(ErrorMessages.Unauthorized(message))
                   case RealtimeModelActor.InvalidCreationDataError(message) =>
-                    badRequest(message)
+                    cb.expectedError(
+                      ErrorCodes.InvalidModelCreationData,
+                      message,
+                      Map())
+                  case RealtimeModelActor.CollectionDoesNotExistError(message) =>
+                    cb.expectedError(
+                      ErrorCodes.CollectionDoesNotExist,
+                      message,
+                      Map("collectionId" -> JString(collectionId)))
                   case RealtimeModelActor.UnknownError() =>
                     cb.unexpectedError("could not create model")
                 },

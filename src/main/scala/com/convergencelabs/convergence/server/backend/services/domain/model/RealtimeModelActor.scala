@@ -407,6 +407,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
               CreateRealtimeModelResponse(Left(ModelAlreadyExistsError(fingerprint)))
           case e: UnauthorizedException =>
             CreateRealtimeModelResponse(Left(UnauthorizedError(e.getMessage)))
+          case e: CollectionAutoCreateDisabledException =>
+            CreateRealtimeModelResponse(Left(CollectionDoesNotExistError(e.message)))
           case e: Exception =>
             error(s"Could not create model: $modelId", e)
             CreateRealtimeModelResponse(Left(UnknownError()))
@@ -561,11 +563,14 @@ object RealtimeModelActor {
     new JsonSubTypes.Type(value = classOf[ModelAlreadyExistsError], name = "model_exists"),
     new JsonSubTypes.Type(value = classOf[InvalidCreationDataError], name = "invalid_data"),
     new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
-    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown"),
+    new JsonSubTypes.Type(value = classOf[CollectionDoesNotExistError], name = "no_collection")
   ))
   sealed trait CreateRealtimeModelError
 
   final case class InvalidCreationDataError(message: String) extends CreateRealtimeModelError
+
+  final case class CollectionDoesNotExistError(message: String) extends CreateRealtimeModelError
 
   final case class CreateRealtimeModelResponse(response: Either[CreateRealtimeModelError, String]) extends CborSerializable
 

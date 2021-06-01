@@ -342,7 +342,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
     val CollectionData(
     id,
     description,
-    CollectionPermissionsData(read, write, remove, manage, create),
+    CollectionPermissionsData(create, read, write, remove, manage),
     userPermissionsData,
     overrideSnapshotConfig,
     ModelSnapshotPolicyData(
@@ -408,7 +408,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
       maximumTimeInterval.toMillis,
       limitByTime,
       minimumTimeInterval.toMillis)
-    val worldPermissionsData = CollectionPermissionsData(read, write, remove, manage, create)
+    val worldPermissionsData = CollectionPermissionsData(create, read, write, remove, manage)
     val userPermissionsData = userPermissions.map { case (userId, permissions) =>
       userId.username -> collectionPermissionsToData(permissions)
     }

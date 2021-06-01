@@ -11,5 +11,5 @@ actions:
   - action: CreateIndex
     className: DataValue
     name: DataValue.model
-    type: HashIndex
+    type: NotUniqueHashIndex
     properties: [model]

@@ -229,7 +229,7 @@ actions:
   - action: CreateIndex
     className: DataValue
     name: DataValue.model
-    type: UniqueHashIndex
+    type: NotUniqueHashIndex
     properties: [model]
 
 

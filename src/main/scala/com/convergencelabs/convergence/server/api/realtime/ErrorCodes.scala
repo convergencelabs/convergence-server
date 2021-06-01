@@ -63,6 +63,10 @@ object ErrorCodes extends Enumeration {
 
   val ModelClientDataRequestFailure: ErrorCode = Value("data_request_failure")
 
+  val InvalidModelCreationData: ErrorCode = Value("invalid_model_creation_data")
+
+  val CollectionDoesNotExist: ErrorCode = Value("collection_does_not_exist")
+
   val ModelClosingAfterError: ErrorCode = Value("model_closing_after_error")
 
   val ModelInvalidQuery: ErrorCode = Value("invalid_query")
