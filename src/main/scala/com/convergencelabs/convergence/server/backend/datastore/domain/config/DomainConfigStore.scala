@@ -14,8 +14,8 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.config
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{modelSnapshotConfigToODocument, oDocumentToModelSnapshotConfig}
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
+import com.convergencelabs.convergence.server.model.domain.{CollectionConfig, ModelSnapshotConfig}
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
@@ -24,18 +24,19 @@ import scala.util.Try
 
 class DomainConfigStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
-  with Logging {
+    with Logging {
 
   import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainConfigClass._
 
-  def initializeDomainConfig(
-    tokenKeyPair: JwtKeyPair,
-    modelSnapshotConfig: ModelSnapshotConfig,
-    anonymousAuthEnabled: Boolean): Try[Unit] = tryWithDb { db =>
+  def initializeDomainConfig(tokenKeyPair: JwtKeyPair,
+                             collectionConfig: CollectionConfig,
+                             modelSnapshotConfig: ModelSnapshotConfig,
+                             anonymousAuthEnabled: Boolean): Try[Unit] = tryWithDb { db =>
     db.command("DELETE FROM DomainConfig")
 
     val doc = db.newElement("DomainConfig")
     doc.setProperty(Fields.ModelSnapshotConfig, modelSnapshotConfigToODocument(modelSnapshotConfig), OType.EMBEDDED)
+    doc.setProperty(Fields.CollectionConfig, DomainConfigStore.collectionConfigToODocument(collectionConfig), OType.EMBEDDED)
     doc.setProperty(Fields.AdminPublicKey, tokenKeyPair.publicKey)
     doc.setProperty(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
     doc.setProperty(Fields.AnonymousAuth, anonymousAuthEnabled)
@@ -91,10 +92,25 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
       .flatMap { doc =>
         Try {
           val configDoc = modelSnapshotConfigToODocument(modelSnapshotConfig)
-          doc.field("modelSnapshotConfig", configDoc)
+          doc.field(Fields.ModelSnapshotConfig, configDoc)
           doc.save()
         }
       }
+  }
+
+  def getCollectionConfig(): Try[CollectionConfig] = withDb { db =>
+    val query = "SELECT collectionConfig FROM DomainConfig"
+    OrientDBUtil
+      .getDocument(db, query)
+      .map { doc =>
+        val configDoc: ODocument = doc.field(Fields.CollectionConfig, OType.EMBEDDED)
+        DomainConfigStore.docToCollectionConfig(configDoc)
+      }
+  }
+
+  def setCollectionConfig(config: CollectionConfig): Try[Unit] = tryWithDb { db =>
+    val command = "UPDATE DomainConfig SET collectionConfig.autoCreate = :autoCreate"
+    OrientDBUtil.command(db, command, Map("autoCreate" -> config.autoCreate))
   }
 
   def getAdminKeyPair(): Try[JwtKeyPair] = withDb { db =>
@@ -109,13 +125,27 @@ class DomainConfigStore(dbProvider: DatabaseProvider)
   }
 
   def setAdminKeyPair(pair: JwtKeyPair): Try[Unit] = withDb { db =>
-    val query = """
-          |UPDATE
-          |  DomainConfig
-          |SET
-          |  adminPublicKey = :publicKey,
-          |  adminPrivateKey = :privateKey""".stripMargin
+    val query =
+      """
+        |UPDATE
+        |  DomainConfig
+        |SET
+        |  adminPublicKey = :publicKey,
+        |  adminPrivateKey = :privateKey""".stripMargin
     val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey)
     OrientDBUtil.mutateOneDocument(db, query, params)
+  }
+}
+
+object DomainConfigStore {
+  def collectionConfigToODocument(config: CollectionConfig): ODocument = {
+    val doc = new ODocument("CollectionConfig")
+    doc.setProperty("autoCreate", config.autoCreate)
+    doc
+  }
+
+  def docToCollectionConfig(doc: ODocument): CollectionConfig = {
+    val autoCreate = doc.getProperty("autoCreate").asInstanceOf[Boolean]
+    CollectionConfig(autoCreate)
   }
 }

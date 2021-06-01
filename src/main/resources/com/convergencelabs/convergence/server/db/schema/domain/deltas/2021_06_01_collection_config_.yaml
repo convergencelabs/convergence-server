@@ -1,0 +1,44 @@
+description: |-
+  Adds an index for DataVales by model so that deleting all operations
+  for a model is faster.
+
+actions:
+
+  ##
+  ## 1. Add the CollectionConfig class
+  ##
+  - action: CreateClass
+      name: CollectionConfig
+      properties:
+        - { name: autoCreate, type: Boolean, constraints: { mandatory: true, notNull: true } }
+
+  ##
+  ## 2. Add the property to the DomainConfig class, but make it
+  ##    not mandatory to start with since the existing record
+  ##    will not have it.
+  ##
+  - action: AddPropery
+    className: DomainConfig
+    property:
+      name: collectionConfig
+      type: Embedded
+      linkedClass: CollectionConfig
+      constraints: {mandatory: false, notNull: true}}
+
+  ##
+  ## 3. Update the current DomainConfig record to add the data
+  ##    before we add the mandatory property.
+  ##
+  - action: RunSqlCommand
+      command: |-
+        UPDATE DomainConfig SET collectionConfig = CONTENT {autoCreate: true};
+
+  ##
+  ## 4. Alter the DomainConfig.collectionConfig class to make the
+  ##    collectionConfig class mandatory now.
+  ##
+  - action: AddPropery
+    className: DomainConfig
+    name: collectionConfig
+    alterations:
+      constraints: {mandatory: true, notNull: true}}

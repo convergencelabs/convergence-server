@@ -156,6 +156,7 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
         logger.debug(s"Initializing domain: $dbBaseUri/$dbName")
         persistenceProvider.configStore.initializeDomainConfig(
           keyPair,
+          DefaultCollectionConfig,
           DefaultSnapshotConfig,
           anonymousAuth)
       } map { _ =>
@@ -197,6 +198,9 @@ object DomainDatabaseManager {
     limitedByTime = false,
     JavaDuration.of(0, ChronoUnit.MINUTES),
     JavaDuration.of(0, ChronoUnit.MINUTES))
+
+  val DefaultCollectionConfig: domain.CollectionConfig = domain.CollectionConfig(
+    autoCreate = true)
 
   val OrientDefaultAdmin = "admin"
   val OrientDefaultReader = "reader"

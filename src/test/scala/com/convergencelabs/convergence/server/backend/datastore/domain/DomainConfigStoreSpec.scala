@@ -26,6 +26,8 @@ class DomainConfigStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
+  private val initialCollectionConfig = domain.CollectionConfig(true)
+
   private val initialSnapshotConfig = domain.ModelSnapshotConfig(
     snapshotsEnabled = false,
     triggerByVersion = false,
@@ -94,7 +96,11 @@ class DomainConfigStoreSpec
 
   def withTestData(testCode: DomainPersistenceProvider => Any): Unit = {
     this.withPersistenceStore { provider =>
-      provider.configStore.initializeDomainConfig(initialAdminKeyPair, initialSnapshotConfig, anonymousAuthEnabled = false)
+      provider.configStore.initializeDomainConfig(
+        initialAdminKeyPair,
+        initialCollectionConfig,
+        initialSnapshotConfig,
+        anonymousAuthEnabled = false)
       testCode(provider)
     }
   }

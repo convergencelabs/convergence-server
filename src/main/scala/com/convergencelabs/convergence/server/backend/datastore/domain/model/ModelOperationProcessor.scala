@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.model
 
-import java.util.Date
-
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
@@ -22,12 +20,13 @@ import com.orientechnologies.orient.core.id.ORID
 import com.orientechnologies.orient.core.record.impl.ODocument
 import grizzled.slf4j.Logging
 
+import java.util.Date
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 class ModelOperationProcessor private[domain](dbProvider: DatabaseProvider,
-                                                    modelOpStore: ModelOperationStore,
-                                                    modelStore: ModelStore)
+                                              modelOpStore: ModelOperationStore,
+                                              modelStore: ModelStore)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
@@ -182,8 +181,7 @@ class ModelOperationProcessor private[domain](dbProvider: DatabaseProvider,
     }
   }
 
-  private[this] def applyObjectSetPropertyOperation(
-                                                     modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocument): Try[Unit] = {
+  private[this] def applyObjectSetPropertyOperation(modelId: String, operation: AppliedObjectSetPropertyOperation, db: ODatabaseDocument): Try[Unit] = {
     Try {
       val value = OrientDataValueBuilder.dataValueToODocument(operation.value, getModelRid(modelId, db))
       value.save()

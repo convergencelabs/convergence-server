@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.rest.domain
 
-import java.time.Duration
-
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -25,9 +23,10 @@ import com.convergencelabs.convergence.server.backend.services.domain.config.Con
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.{DomainRestMessage, Message}
 import com.convergencelabs.convergence.server.model
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.model.domain.{CollectionConfig, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 
+import java.time.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 private[domain] final class DomainConfigService(domainRestActor: ActorRef[Message],
@@ -50,18 +49,27 @@ private[domain] final class DomainConfigService(domainRestActor: ActorRef[Messag
             complete(setAnonymousAuthEnabled(domain, request))
           }
         }
-      } ~
-        path("modelSnapshotPolicy") {
-          get {
-            complete(getModelSnapshotPolicy(domain))
-          } ~ put {
+      } ~ path("modelSnapshotPolicy") {
+        get {
+          complete(getModelSnapshotPolicy(domain))
+        } ~ put {
+          authorize(canManageDomainSettings(domain, authProfile)) {
             entity(as[ModelSnapshotPolicyData]) { policyData =>
-              authorize(canManageDomainSettings(domain, authProfile)) {
-                complete(setModelSnapshotPolicy(domain, policyData))
-              }
+              complete(setModelSnapshotPolicy(domain, policyData))
             }
           }
         }
+      } ~ path("collection") {
+        get {
+          complete(getCollectionConfig(domain))
+        } ~ put {
+          authorize(canManageDomainSettings(domain, authProfile)) {
+            entity(as[CollectionConfigData]) { config =>
+              complete(setCollectionConfig(domain, config))
+            }
+          }
+        }
+      }
     }
   }
 
@@ -165,6 +173,32 @@ private[domain] final class DomainConfigService(domainRestActor: ActorRef[Messag
         }
       ))
   }
+
+  private[this] def getCollectionConfig(domain: DomainId): Future[RestResponse] = {
+    domainRestActor
+      .ask[GetCollectionConfigResponse](r => DomainRestMessage(domain, GetCollectionConfigRequest(r)))
+      .map(_.response.fold(
+        { _ =>
+          InternalServerError
+        }, { case CollectionConfig(autoCreate) =>
+          okResponse(CollectionConfigData(autoCreate))
+        }
+      ))
+  }
+
+  private[this] def setCollectionConfig(domain: DomainId, configData: CollectionConfigData): Future[RestResponse] = {
+    val CollectionConfigData(autoCreate) = configData
+    val config = CollectionConfig(autoCreate)
+    domainRestActor
+      .ask[SetCollectionConfigResponse](r => DomainRestMessage(domain, SetCollectionConfigRequest(config, r)))
+      .map(_.response.fold(
+        { _ =>
+          InternalServerError
+        }, { _ =>
+          OkResponse
+        }
+      ))
+  }
 }
 
 object DomainConfigService {
@@ -182,5 +216,7 @@ object DomainConfigService {
                                      maximumTimeInterval: Long,
                                      limitByTime: Boolean,
                                      minimumTimeInterval: Long)
+
+  case class CollectionConfigData(autoCreate: Boolean)
 
 }

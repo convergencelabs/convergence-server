@@ -1,0 +1,19 @@
+description: |-
+  Updates the indices for the UserRole table. The code assumes that a given
+  user can only have one role per target. However, the existing index is
+  unique on only user, target AND, role.  This does not prevent a user from
+  having more than one role for a target, which is not desireable. This delta
+  removes the existing with all three attributes, and replaces it with on
+  that is unique only on user and target.
+
+actions:
+
+  ##
+  ## 1. Add the index.
+  ##
+
+  - action: CreateIndex
+    className: UserRole
+    name: UserRole.user_target
+    type: UniqueHashIndex
+    properties: [ user, target ]

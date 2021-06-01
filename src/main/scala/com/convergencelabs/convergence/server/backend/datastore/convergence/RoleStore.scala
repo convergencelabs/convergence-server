@@ -55,7 +55,7 @@ class RoleStore(dbProvider: DatabaseProvider) extends AbstractDatabasePersistenc
       .map(docToRole)
   }
 
-  def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, String]): Try[Unit] = withDb { db =>
+  def setUserRolesForTarget(target: RoleTarget, userRoles: Map[String, String]): Try[Unit] = {
     // FIXME do in transaction
     Try {
       userRoles.foreach { case (username, roles) =>

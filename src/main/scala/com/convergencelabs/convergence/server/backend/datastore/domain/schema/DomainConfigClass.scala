@@ -16,6 +16,7 @@ object DomainConfigClass extends OrientDbClass {
 
   object Fields {
     val ModelSnapshotConfig = "modelSnapshotConfig"
+    val CollectionConfig = "collectionConfig"
     val AdminPublicKey = "adminPublicKey"
     val AdminPrivateKey = "adminPrivateKey"
     val AnonymousAuth = "anonymousAuth"

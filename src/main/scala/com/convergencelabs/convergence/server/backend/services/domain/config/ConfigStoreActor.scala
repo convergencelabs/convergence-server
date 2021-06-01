@@ -15,7 +15,7 @@ import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.model.domain.{CollectionConfig, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
@@ -35,6 +35,10 @@ private final class ConfigStoreActor(context: ActorContext[ConfigStoreActor.Mess
         onGetModelSnapshotPolicy(msg)
       case msg: SetModelSnapshotPolicyRequest =>
         onSetModelSnapshotPolicy(msg)
+      case msg: GetCollectionConfigRequest =>
+        onGetCollectionConfig(msg)
+      case msg: SetCollectionConfigRequest =>
+        onSetCollectionConfig(msg)
     }
 
     Behaviors.same
@@ -88,6 +92,30 @@ private final class ConfigStoreActor(context: ActorContext[ConfigStoreActor.Mess
       }
       .foreach(replyTo ! _)
   }
+
+  private[this] def onGetCollectionConfig(msg: GetCollectionConfigRequest): Unit = {
+    val GetCollectionConfigRequest(replyTo) = msg
+    store
+      .getCollectionConfig()
+      .map(config => Right(config))
+      .recover { cause =>
+        context.log.error("Unexpected error getting collection config", cause)
+        Left(UnknownError())
+      }
+      .foreach(replyTo ! GetCollectionConfigResponse(_))
+  }
+
+  private[this] def onSetCollectionConfig(msg: SetCollectionConfigRequest): Unit = {
+    val SetCollectionConfigRequest(config, replyTo) = msg
+    store
+      .setCollectionConfig(config)
+      .map(_ => Right(Ok()))
+      .recover { cause =>
+        context.log.error("Unexpected error setting collection config", cause)
+        Left(UnknownError())
+      }
+      .foreach(replyTo ! SetCollectionConfigResponse(_))
+  }
 }
 
 
@@ -103,8 +131,10 @@ object ConfigStoreActor {
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[GetAnonymousAuthRequest], name = "get_anonymous_auth"),
     new JsonSubTypes.Type(value = classOf[GetModelSnapshotPolicyRequest], name = "get_model_snapshot_config"),
+    new JsonSubTypes.Type(value = classOf[GetCollectionConfigRequest], name = "get_collection_config"),
     new JsonSubTypes.Type(value = classOf[SetAnonymousAuthRequest], name = "set_anonymous_auth"),
     new JsonSubTypes.Type(value = classOf[SetModelSnapshotPolicyRequest], name = "set_model_snapshot_config"),
+    new JsonSubTypes.Type(value = classOf[SetCollectionConfigRequest], name = "set_collection_config"),
   ))
   sealed trait Message extends CborSerializable
 
@@ -149,7 +179,6 @@ object ConfigStoreActor {
 
   final case class GetModelSnapshotPolicyResponse(policy: Either[GetModelSnapshotPolicyError, ModelSnapshotConfig]) extends CborSerializable
 
-
   //
   // SetModelSnapshotPolicy
   //
@@ -163,6 +192,33 @@ object ConfigStoreActor {
 
   final case class SetModelSnapshotPolicyResponse(response: Either[SetModelSnapshotPolicyError, Ok]) extends CborSerializable
 
+  //
+  // GetCollectionConfig
+  //
+  final case class GetCollectionConfigRequest(replyTo: ActorRef[GetCollectionConfigResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetCollectionConfigError
+
+  final case class GetCollectionConfigResponse(response: Either[GetCollectionConfigError, CollectionConfig]) extends CborSerializable
+
+
+  //
+  // SetCollectionConfig
+  //
+  final case class SetCollectionConfigRequest(config: CollectionConfig, replyTo: ActorRef[SetCollectionConfigResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetCollectionConfigError
+
+  final case class SetCollectionConfigResponse(response: Either[SetCollectionConfigError, Ok]) extends CborSerializable
+
 
   //
   // Common Errors
@@ -172,5 +228,6 @@ object ConfigStoreActor {
     with SetAnonymousAuthError
     with GetModelSnapshotPolicyError
     with SetModelSnapshotPolicyError
-
+    with GetCollectionConfigError
+    with SetCollectionConfigError
 }

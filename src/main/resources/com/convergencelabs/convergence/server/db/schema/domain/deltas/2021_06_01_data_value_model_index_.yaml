@@ -1,0 +1,15 @@
+description: |-
+  Adds an index for DataVales by model so that deleting all operations
+  for a model is faster.
+
+actions:
+
+  ##
+  ## 1. Add the index.
+  ##
+
+  - action: CreateIndex
+    className: DataValue
+    name: DataValue.model
+    type: HashIndex
+    properties: [model]

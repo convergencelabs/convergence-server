@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.backend.datastore.domain.model.ma
 
 import com.convergencelabs.convergence.server.backend.datastore.ODocumentMapper
 import com.convergencelabs.convergence.server.model.domain
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.model.domain.{CollectionConfig, ModelSnapshotConfig}
 import com.orientechnologies.orient.core.record.impl.ODocument
 
 import java.time.Duration
