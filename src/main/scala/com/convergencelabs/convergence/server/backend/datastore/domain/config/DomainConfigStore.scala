@@ -11,141 +11,207 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.config
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ModelSnapshotConfigMapper.{modelSnapshotConfigToODocument, oDocumentToModelSnapshotConfig}
+import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore.ConfigKeys
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
 import com.convergencelabs.convergence.server.model.domain.{CollectionConfig, ModelSnapshotConfig}
-import com.orientechnologies.orient.core.metadata.schema.OType
-import com.orientechnologies.orient.core.record.impl.ODocument
+import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import grizzled.slf4j.Logging
 
+import java.time.Duration
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
+/**
+ * The DomainConfigStore store domain wide configurations within a domain
+ * database.
+ *
+ * @param dbProvider The DatabaseProvider that provides a connection to
+ *                   the database.
+ */
 class DomainConfigStore(dbProvider: DatabaseProvider)
   extends AbstractDatabasePersistence(dbProvider)
     with Logging {
 
-  import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainConfigClass._
+  import ConfigKeys._
 
   def initializeDomainConfig(tokenKeyPair: JwtKeyPair,
                              collectionConfig: CollectionConfig,
                              modelSnapshotConfig: ModelSnapshotConfig,
-                             anonymousAuthEnabled: Boolean): Try[Unit] = tryWithDb { db =>
-    db.command("DELETE FROM DomainConfig")
-
-    val doc = db.newElement("DomainConfig")
-    doc.setProperty(Fields.ModelSnapshotConfig, modelSnapshotConfigToODocument(modelSnapshotConfig), OType.EMBEDDED)
-    doc.setProperty(Fields.CollectionConfig, DomainConfigStore.collectionConfigToODocument(collectionConfig), OType.EMBEDDED)
-    doc.setProperty(Fields.AdminPublicKey, tokenKeyPair.publicKey)
-    doc.setProperty(Fields.AdminPrivateKey, tokenKeyPair.privateKey)
-    doc.setProperty(Fields.AnonymousAuth, anonymousAuthEnabled)
-    db.save(doc)
-    ()
+                             anonymousAuthEnabled: Boolean,
+                             reconnectTokenValidityMinutes: Long): Try[Unit] = withDb { db =>
+    for {
+      _ <- OrientDBUtil.command(db, "DELETE FROM DomainConfig")
+      _ <- setModelSnapshotConfig(modelSnapshotConfig, Some(db))
+      _ <- setCollectionConfig(collectionConfig, Some(db))
+      _ <- setAdminKeyPair(tokenKeyPair, Some(db))
+      _ <- setAnonymousAuthEnabled(anonymousAuthEnabled, Some(db))
+      _ <- setReconnectTokenTimeoutMinutes(reconnectTokenValidityMinutes, Some(db))
+    } yield ()
   }
 
   def isInitialized(): Try[Boolean] = withDb { db =>
     OrientDBUtil
       .getDocument(db, "SELECT count(*) AS count FROM DomainConfig")
-      .map(_.getProperty("count").asInstanceOf[Long] == 1)
+      .map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
 
-  def isAnonymousAuthEnabled(): Try[Boolean] = withDb { db =>
-    val query = s"SELECT ${Fields.AnonymousAuth} FROM DomainConfig"
-    OrientDBUtil
-      .getDocument(db, query)
-      .flatMap(doc => Try {
-        val anonymouAuth: Boolean = doc.getProperty(Fields.AnonymousAuth)
-        anonymouAuth
-      })
+  def isAnonymousAuthEnabled(): Try[Boolean] = {
+    val keys = List(Authentication.AnonymousAuthEnabled)
+    getConfigs(keys).map { configs =>
+      configs(Authentication.AnonymousAuthEnabled).asInstanceOf[Boolean]
+    }
   }
 
-  def setAnonymousAuthEnabled(enabled: Boolean): Try[Unit] = tryWithDb { db =>
-    val query = s"UPDATE DomainConfig SET ${Fields.AnonymousAuth} = :anonymousAuth"
-    val params = Map("anonymousAuth" -> enabled)
-    OrientDBUtil
-      .mutateOneDocument(db, query, params)
+  def setAnonymousAuthEnabled(enabled: Boolean, db: Option[ODatabaseDocument] = None): Try[Unit] = {
+    setConfigs(Map(Authentication.AnonymousAuthEnabled -> enabled), db)
   }
 
-  def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = withDb { db =>
-    val query = "SELECT modelSnapshotConfig FROM DomainConfig"
-    OrientDBUtil
-      .getDocument(db, query)
-      .map { doc =>
-        val configDoc: ODocument = doc.field("modelSnapshotConfig", OType.EMBEDDED)
-        oDocumentToModelSnapshotConfig(configDoc)
-      }
+  def getReconnectTokenTimeoutMinutes(): Try[Long] = {
+    val keys = List(Authentication.ReconnectTokenValidityMinutes)
+    getConfigs(keys).map { configs =>
+      configs(Authentication.ReconnectTokenValidityMinutes).asInstanceOf[Long]
+    }
   }
 
-  def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig): Try[Unit] = tryWithDb { db =>
-    // FIXME why doesn't this work??
-    //    val updateString = "UPDATE DomainConfig SET modelSnapshotConfig = :modelSnapshotConfig"
-    //    val query = new OCommandSQL(updateString)
-    //    val params = Map("modelSnapshotConfig" -> modelSnapshotConfig.asODocument)
-    //    val updated: Int = db.command(query).execute(params.asJava)
-    //    require(updated == 1)
-    //    Unit
-
-    val query = "SELECT FROM DomainConfig"
-    OrientDBUtil
-      .getDocument(db, query)
-      .flatMap { doc =>
-        Try {
-          val configDoc = modelSnapshotConfigToODocument(modelSnapshotConfig)
-          doc.field(Fields.ModelSnapshotConfig, configDoc)
-          doc.save()
-        }
-      }
+  def setReconnectTokenTimeoutMinutes(minutes: Long, db: Option[ODatabaseDocument] = None): Try[Unit] = {
+    setConfigs(Map(Authentication.ReconnectTokenValidityMinutes -> minutes), db)
   }
 
-  def getCollectionConfig(): Try[CollectionConfig] = withDb { db =>
-    val query = "SELECT collectionConfig FROM DomainConfig"
-    OrientDBUtil
-      .getDocument(db, query)
-      .map { doc =>
-        val configDoc: ODocument = doc.field(Fields.CollectionConfig, OType.EMBEDDED)
-        DomainConfigStore.docToCollectionConfig(configDoc)
-      }
+  def getModelSnapshotConfig(): Try[ModelSnapshotConfig] = {
+    val keys = List(
+      Model.Snapshots.Enabled,
+      Model.Snapshots.TriggerByVersion,
+      Model.Snapshots.LimitedByVersion,
+      Model.Snapshots.MinVersionInterval,
+      Model.Snapshots.MaxVersionInterval,
+      Model.Snapshots.TriggerByTime,
+      Model.Snapshots.LimitedByTime,
+      Model.Snapshots.MinTimeInterval,
+      Model.Snapshots.MaxTimeInterval,
+    )
+    getConfigs(keys).map { configs =>
+      ModelSnapshotConfig(
+        configs(Model.Snapshots.Enabled).asInstanceOf[Boolean],
+        configs(Model.Snapshots.TriggerByVersion).asInstanceOf[Boolean],
+        configs(Model.Snapshots.LimitedByVersion).asInstanceOf[Boolean],
+        configs(Model.Snapshots.MinVersionInterval).asInstanceOf[Long],
+        configs(Model.Snapshots.MaxVersionInterval).asInstanceOf[Long],
+        configs(Model.Snapshots.TriggerByTime).asInstanceOf[Boolean],
+        configs(Model.Snapshots.LimitedByTime).asInstanceOf[Boolean],
+        Duration.ofMillis(configs(Model.Snapshots.MinTimeInterval).asInstanceOf[Long]),
+        Duration.ofMillis(configs(Model.Snapshots.MaxTimeInterval).asInstanceOf[Long]),
+      )
+    }
   }
 
-  def setCollectionConfig(config: CollectionConfig): Try[Unit] = tryWithDb { db =>
-    val command = "UPDATE DomainConfig SET collectionConfig.autoCreate = :autoCreate"
-    OrientDBUtil.command(db, command, Map("autoCreate" -> config.autoCreate))
+  def setModelSnapshotConfig(modelSnapshotConfig: ModelSnapshotConfig, db: Option[ODatabaseDocument] = None): Try[Unit] = {
+    val updates = Map(
+      Model.Snapshots.Enabled -> modelSnapshotConfig.snapshotsEnabled,
+      Model.Snapshots.TriggerByVersion -> modelSnapshotConfig.triggerByVersion,
+      Model.Snapshots.LimitedByVersion -> modelSnapshotConfig.limitedByVersion,
+      Model.Snapshots.MinVersionInterval -> modelSnapshotConfig.minimumVersionInterval,
+      Model.Snapshots.MaxVersionInterval -> modelSnapshotConfig.maximumVersionInterval,
+      Model.Snapshots.TriggerByTime -> modelSnapshotConfig.triggerByTime,
+      Model.Snapshots.LimitedByTime -> modelSnapshotConfig.limitedByTime,
+      Model.Snapshots.MinTimeInterval -> modelSnapshotConfig.minimumTimeInterval.toMillis,
+      Model.Snapshots.MaxTimeInterval -> modelSnapshotConfig.maximumTimeInterval.toMillis,
+    )
+    setConfigs(updates, db)
   }
 
-  def getAdminKeyPair(): Try[JwtKeyPair] = withDb { db =>
-    val query = "SELECT adminPublicKey, adminPrivateKey FROM DomainConfig"
-    OrientDBUtil
-      .getDocument(db, query)
-      .map { doc =>
-        JwtKeyPair(
-          doc.field("adminPublicKey", OType.STRING),
-          doc.field("adminPrivateKey", OType.STRING))
-      }
+  def getCollectionConfig(): Try[CollectionConfig] = {
+    val keys = List(Collection.AutoCreate)
+    getConfigs(keys).map { configs =>
+      CollectionConfig(configs(Collection.AutoCreate).asInstanceOf[Boolean])
+    }
   }
 
-  def setAdminKeyPair(pair: JwtKeyPair): Try[Unit] = withDb { db =>
-    val query =
-      """
-        |UPDATE
-        |  DomainConfig
-        |SET
-        |  adminPublicKey = :publicKey,
-        |  adminPrivateKey = :privateKey""".stripMargin
-    val params = Map("publicKey" -> pair.publicKey, "privateKey" -> pair.privateKey)
-    OrientDBUtil.mutateOneDocument(db, query, params)
+  def setCollectionConfig(config: CollectionConfig, db: Option[ODatabaseDocument] = None): Try[Unit] = {
+    setConfigs(Map(Collection.AutoCreate -> config.autoCreate), db)
+  }
+
+  def getAdminKeyPair(): Try[JwtKeyPair] = {
+    val keys = List(
+      Authentication.AdminJwtPublicKey,
+      Authentication.AdminJwtPrivateKey
+    )
+    getConfigs(keys).map { configs =>
+      JwtKeyPair(
+        configs(Authentication.AdminJwtPublicKey).asInstanceOf[String],
+        configs(Authentication.AdminJwtPrivateKey).asInstanceOf[String]
+      )
+    }
+  }
+
+  def setAdminKeyPair(pair: JwtKeyPair, db: Option[ODatabaseDocument] = None): Try[Unit] = {
+    val updates = Map(
+      Authentication.AdminJwtPublicKey -> pair.publicKey,
+      Authentication.AdminJwtPrivateKey -> pair.privateKey)
+    setConfigs(updates, db)
+  }
+
+  //
+  // Private helper methods
+  //
+
+  private[this] val GetConfigsQuery = "SELECT FROM DomainConfig where key IN :keys"
+
+  private[this] def getConfigs(keys: List[String]): Try[Map[String, Any]] = withDb { db =>
+    val params = Map("keys" -> keys.asJava)
+    OrientDBUtil.query(db, GetConfigsQuery, params).map(_.map { doc =>
+      val key: String = doc.getProperty("key")
+      val value: Any = doc.getProperty("value")
+      (key, value)
+    }.toMap)
+  }
+
+  private[this] def setConfigs(updates: Map[String, Any], db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
+    val (script, params) = createUpdateScript(updates)
+    OrientDBUtil.execute(db, script, params).map(_ => ())
+  }
+
+  private[this] def createUpdateScript(values: Map[String, Any]): (String, Map[String, Any]) = {
+    var params = Map[String, Any]()
+    var updates = List[String]()
+    values.foreach { case (key, value) =>
+      val valParam = s"value${updates.size}"
+      val keyParam = s"key${updates.size}"
+      updates = updates :+ s"UPDATE DomainConfig SET key = :$keyParam, value = :$valParam UPSERT WHERE key = :$keyParam;"
+      params ++= Map(keyParam -> key, valParam -> value)
+    }
+
+    (updates.mkString("\n"), params)
   }
 }
 
 object DomainConfigStore {
-  def collectionConfigToODocument(config: CollectionConfig): ODocument = {
-    val doc = new ODocument("CollectionConfig")
-    doc.setProperty("autoCreate", config.autoCreate)
-    doc
-  }
 
-  def docToCollectionConfig(doc: ODocument): CollectionConfig = {
-    val autoCreate = doc.getProperty("autoCreate").asInstanceOf[Boolean]
-    CollectionConfig(autoCreate)
+  private[DomainConfigStore] object ConfigKeys {
+    object Authentication {
+      val ReconnectTokenValidityMinutes = "authentication.reconnectTokenValidityMinutes"
+      val AnonymousAuthEnabled = "authentication.anonymousAuthEnabled"
+      val AdminJwtPublicKey = "authentication.adminJwtPublicKey"
+      val AdminJwtPrivateKey = "authentication.adminJwtPrivateKey"
+    }
+
+    object Model {
+      object Snapshots {
+        val Enabled = "model.snapshots.enabled"
+        val TriggerByVersion = "model.snapshots.triggerByVersion"
+        val LimitedByVersion = "model.snapshots.limitedByVersion"
+        val MinVersionInterval = "model.snapshots.minVersionInterval"
+        val MaxVersionInterval = "model.snapshots.maxVersionInterval"
+        val TriggerByTime = "model.snapshots.triggerByTime"
+        val LimitedByTime = "model.snapshots.limitedByTime"
+        val MinTimeInterval = "model.snapshots.minTimeInterval"
+        val MaxTimeInterval = "model.snapshots.maxTimeInterval"
+      }
+    }
+
+    object Collection {
+      val AutoCreate = "collection.autoCreate"
+    }
   }
 }

@@ -39,11 +39,14 @@ private final class ConfigStoreActor(context: ActorContext[ConfigStoreActor.Mess
         onGetCollectionConfig(msg)
       case msg: SetCollectionConfigRequest =>
         onSetCollectionConfig(msg)
+      case msg: GetReconnectConfigRequest =>
+        onGetReconnectConfigRequest(msg)
+      case msg: SetReconnectConfigRequest =>
+        onSetReconnectConfigResponse(msg)
     }
 
     Behaviors.same
   }
-
 
   private[this] def onGetAnonymousAuthEnabled(msg: GetAnonymousAuthRequest): Unit = {
     val GetAnonymousAuthRequest(replyTo) = msg
@@ -116,6 +119,30 @@ private final class ConfigStoreActor(context: ActorContext[ConfigStoreActor.Mess
       }
       .foreach(replyTo ! SetCollectionConfigResponse(_))
   }
+
+  private[this] def onGetReconnectConfigRequest(msg: GetReconnectConfigRequest): Unit = {
+    val GetReconnectConfigRequest(replyTo) = msg
+    store
+      .getReconnectTokenTimeoutMinutes()
+      .map(minutes => Right(ReconnectConfig(minutes)))
+      .recover { cause =>
+        context.log.error("Unexpected error getting reconnect token validity", cause)
+        Left(UnknownError())
+      }
+      .foreach(replyTo ! GetReconnectConfigResponse(_))
+  }
+
+  private[this] def onSetReconnectConfigResponse(msg: SetReconnectConfigRequest): Unit = {
+    val SetReconnectConfigRequest(ReconnectConfig(minutes), replyTo) = msg
+    store
+      .setReconnectTokenTimeoutMinutes(minutes)
+      .map(_ => Right(Ok()))
+      .recover { cause =>
+        context.log.error("Unexpected error setting reconnect token validity", cause)
+        Left(UnknownError())
+      }
+      .foreach(replyTo ! SetReconnectConfigResponse(_))
+  }
 }
 
 
@@ -132,9 +159,11 @@ object ConfigStoreActor {
     new JsonSubTypes.Type(value = classOf[GetAnonymousAuthRequest], name = "get_anonymous_auth"),
     new JsonSubTypes.Type(value = classOf[GetModelSnapshotPolicyRequest], name = "get_model_snapshot_config"),
     new JsonSubTypes.Type(value = classOf[GetCollectionConfigRequest], name = "get_collection_config"),
+    new JsonSubTypes.Type(value = classOf[GetReconnectConfigRequest], name = "get_reconnect_config"),
     new JsonSubTypes.Type(value = classOf[SetAnonymousAuthRequest], name = "set_anonymous_auth"),
     new JsonSubTypes.Type(value = classOf[SetModelSnapshotPolicyRequest], name = "set_model_snapshot_config"),
     new JsonSubTypes.Type(value = classOf[SetCollectionConfigRequest], name = "set_collection_config"),
+    new JsonSubTypes.Type(value = classOf[SetReconnectConfigRequest], name = "set_reconnect_config")
   ))
   sealed trait Message extends CborSerializable
 
@@ -219,6 +248,34 @@ object ConfigStoreActor {
 
   final case class SetCollectionConfigResponse(response: Either[SetCollectionConfigError, Ok]) extends CborSerializable
 
+  //
+  // GetCollectionConfig
+  //
+  final case class GetReconnectConfigRequest(replyTo: ActorRef[GetReconnectConfigResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetReconnectConfigError
+  final case class ReconnectConfig(tokenValidity: Long)
+
+  final case class GetReconnectConfigResponse(response: Either[GetReconnectConfigError, ReconnectConfig]) extends CborSerializable
+
+
+  //
+  // SetReconnectConfig
+  //
+  final case class SetReconnectConfigRequest(config: ReconnectConfig, replyTo: ActorRef[SetReconnectConfigResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetReconnectConfigError
+
+  final case class SetReconnectConfigResponse(response: Either[SetReconnectConfigError, Ok]) extends CborSerializable
+
 
   //
   // Common Errors
@@ -230,4 +287,6 @@ object ConfigStoreActor {
     with SetModelSnapshotPolicyError
     with GetCollectionConfigError
     with SetCollectionConfigError
+    with SetReconnectConfigError
+    with GetReconnectConfigError
 }

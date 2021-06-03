@@ -6,39 +6,13 @@ actions:
     command: "ALTER DATABASE DATETIMEFORMAT \"yyyy-MM-dd'T'HH:mm:ss.SSSZ\";"
 
 
-########## ModelSnapshotConfig Class ##########
-
-  - action: CreateClass
-    name: ModelSnapshotConfig
-    properties:
-      - {name: enabled,            type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: triggerByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: limitedByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: minVersionInterval, type: Long,    constraints: {mandatory: true, notNull: true}}
-      - {name: maxVersionInterval, type: Long,    constraints: {mandatory: true, notNull: true}}
-      - {name: triggerByTime,      type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: limitedByTime,      type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: minTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
-      - {name: maxTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
-
-########## CollectionConfig Class ##########
-
-  - action: CreateClass
-    name: CollectionConfig
-    properties:
-      - {name: autoCreate,         type: Boolean, constraints: {mandatory: true, notNull: true}}
-
-
 ########## DomainConfig Class ##########
 
   - action: CreateClass
     name: DomainConfig
     properties:
-      - {name: modelSnapshotConfig, type: Embedded, linkedClass: ModelSnapshotConfig, constraints: {mandatory: true, notNull: true}}
-      - {name: collectionConfig,    type: Embedded, linkedClass: CollectionConfig,    constraints: {mandatory: true, notNull: true}}
-      - {name: adminPublicKey,      type: String,                                     constraints: {mandatory: true, notNull: true}}
-      - {name: adminPrivateKey,     type: String,                                     constraints: {mandatory: true, notNull: true}}
-      - {name: anonymousAuth,       type: Boolean,                                    constraints: {mandatory: true, notNull: true}}
+      - {name: key,   type: String, constraints: {mandatory: true, notNull: true}}
+      - {name: value, type: Any,    constraints: {mandatory: true, notNull: true}}
 
 
 ########## JwtAuthKey Class ##########
@@ -139,6 +113,23 @@ actions:
     name: UserReconnectToken.token
     type: UniqueHashIndex
     properties: [token]
+
+
+########## ModelSnapshotConfig Class ##########
+
+  - action: CreateClass
+    name: ModelSnapshotConfig
+    properties:
+      - {name: enabled,            type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - {name: triggerByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - {name: limitedByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - {name: minVersionInterval, type: Long,    constraints: {mandatory: true, notNull: true}}
+      - {name: maxVersionInterval, type: Long,    constraints: {mandatory: true, notNull: true}}
+      - {name: triggerByTime,      type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - {name: limitedByTime,      type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - {name: minTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
+      - {name: maxTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
+
 
 ########## Collection Class ##########
 

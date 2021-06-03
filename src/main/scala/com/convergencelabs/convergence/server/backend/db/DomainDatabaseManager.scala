@@ -158,7 +158,8 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
           keyPair,
           DefaultCollectionConfig,
           DefaultSnapshotConfig,
-          anonymousAuth)
+          anonymousAuth,
+          DefaultReconnectTokenMinutes)
       } map { _ =>
         logger.debug(s"Domain initialized: $dbBaseUri/$dbName")
         persistenceProvider.shutdown()
@@ -187,6 +188,8 @@ object DomainDatabaseManager {
                                         dbAdminUsername: String,
                                         dbAdminPassword: String,
                                         anonymousAuth: Boolean)
+
+  val DefaultReconnectTokenMinutes: Long = 60L * 24L
 
   val DefaultSnapshotConfig: ModelSnapshotConfig = domain.ModelSnapshotConfig(
     snapshotsEnabled = false,

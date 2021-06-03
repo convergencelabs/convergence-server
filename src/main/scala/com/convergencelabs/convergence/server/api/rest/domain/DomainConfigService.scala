@@ -69,6 +69,16 @@ private[domain] final class DomainConfigService(domainRestActor: ActorRef[Messag
             }
           }
         }
+      } ~ path("reconnect") {
+        get {
+          complete(getReconnectConfig(domain))
+        } ~ put {
+          authorize(canManageDomainSettings(domain, authProfile)) {
+            entity(as[ReconnectConfigData]) { config =>
+              complete(setReconnectConfig(domain, config))
+            }
+          }
+        }
       }
     }
   }
@@ -199,6 +209,26 @@ private[domain] final class DomainConfigService(domainRestActor: ActorRef[Messag
         }
       ))
   }
+
+  private[this] def getReconnectConfig(domain: DomainId): Future[RestResponse] = {
+    domainRestActor
+      .ask[GetReconnectConfigResponse](r => DomainRestMessage(domain, GetReconnectConfigRequest(r)))
+      .map(_.response.fold(
+        { _ => InternalServerError },
+        { config => okResponse(ReconnectConfigData(config.tokenValidity)) }
+      ))
+  }
+
+  private[this] def setReconnectConfig(domain: DomainId, configData: ReconnectConfigData): Future[RestResponse] = {
+    val ReconnectConfigData(minutes) = configData
+    domainRestActor
+      .ask[SetReconnectConfigResponse](r =>
+        DomainRestMessage(domain, SetReconnectConfigRequest(ReconnectConfig(minutes), r)))
+      .map(_.response.fold(
+        { _ => InternalServerError },
+        { _ => OkResponse }
+      ))
+  }
 }
 
 object DomainConfigService {
@@ -218,5 +248,7 @@ object DomainConfigService {
                                      minimumTimeInterval: Long)
 
   case class CollectionConfigData(autoCreate: Boolean)
+
+  case class ReconnectConfigData(tokenValidityMinutes: Long)
 
 }

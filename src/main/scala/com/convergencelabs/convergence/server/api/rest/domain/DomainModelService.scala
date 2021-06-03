@@ -188,6 +188,8 @@ private[domain] final class DomainModelService(domainRestActor: ActorRef[DomainR
             InternalServerError
           case RealtimeModelActor.InvalidCreationDataError(message) =>
             badRequest(message)
+          case RealtimeModelActor.CollectionDoesNotExistError(message) =>
+            badRequest(message)
         },
         { modelId =>
           createdResponse(CreateModelResponse(modelId))

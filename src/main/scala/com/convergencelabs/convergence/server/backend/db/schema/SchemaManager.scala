@@ -11,12 +11,11 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-import java.time.Instant
-
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaMetaDataRepository.ReadError
 import com.convergencelabs.convergence.server.util.{ExceptionUtils, Sha256HashValidator}
 import grizzled.slf4j.Logging
 
+import java.time.Instant
 import scala.util.{Failure, Success}
 
 /**
@@ -78,7 +77,13 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
       version = versions.currentVersion
       manifest <- readSchemaManifest(version)
       schemaDelta <- readSchemaDelta(version)
-      _ <- validateHash(manifest.schemaSha256, schemaDelta.script)
+      _ <- {
+        if (manifest.released) {
+          validateHash(manifest.schemaSha256, schemaDelta.script)
+        } else {
+          Right(())
+        }
+      }
       _ <- installSchema(version, manifest, schemaDelta)
       _ <- recordNewVersion(version, Instant.now())
     } yield ()

@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.model.domain
+import com.convergencelabs.convergence.server.model.domain.CollectionConfig
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
 import org.scalatest.TryValues.convertTryToSuccessOrFailure
 import org.scalatest.matchers.should.Matchers
@@ -22,7 +23,7 @@ import java.time.temporal.ChronoUnit
 
 // scalastyle:off line.size.limit
 class DomainConfigStoreSpec
-    extends DomainPersistenceStoreSpec
+  extends DomainPersistenceStoreSpec
     with AnyWordSpecLike
     with Matchers {
 
@@ -45,7 +46,21 @@ class DomainConfigStoreSpec
 
   "A DomainConfigStore" when {
 
+    "uninitialized" must {
+      "return false for isInitialized" in withPersistenceStore { store =>
+        store.configStore.isInitialized().get shouldBe false
+      }
+    }
+
     "initialized" must {
+      "return true for isInitialized" in withTestData { store =>
+        store.configStore.isInitialized().get shouldBe true
+      }
+
+      "have the correct reconnect token validity" in withTestData { store =>
+        store.configStore.getReconnectTokenTimeoutMinutes().get shouldBe 60L
+      }
+
       "have the correct snapshot config" in withTestData { store =>
         store.configStore.getModelSnapshotConfig().get shouldBe initialSnapshotConfig
       }
@@ -56,6 +71,10 @@ class DomainConfigStoreSpec
 
       "have anonymous auth disabled" in withTestData { store =>
         store.configStore.isAnonymousAuthEnabled().get shouldBe false
+      }
+
+      "have the correct collection config" in withTestData { store =>
+        store.configStore.getCollectionConfig().get shouldBe CollectionConfig(true)
       }
     }
 
@@ -88,8 +107,23 @@ class DomainConfigStoreSpec
     "setting the anonymousAuthEnabled config" must {
       "get and set the correct value" in withTestData { store =>
         store.configStore.isAnonymousAuthEnabled().success.value shouldBe false
-        store.configStore.setAnonymousAuthEnabled(true).success
+        store.configStore.setAnonymousAuthEnabled(enabled = true).success
         store.configStore.isAnonymousAuthEnabled().success.value shouldBe true
+      }
+    }
+
+    "getting and setting the collection config" must {
+      "set and return the correct config" in withTestData { store =>
+        val collectionConfig = CollectionConfig(false)
+        store.configStore.setCollectionConfig(collectionConfig).get
+        store.configStore.getCollectionConfig().get shouldBe collectionConfig
+      }
+    }
+
+    "getting and setting the reconnect token validity " must {
+      "set and return the correct config" in withTestData { store =>
+        store.configStore.setReconnectTokenTimeoutMinutes(40L).get
+        store.configStore.getReconnectTokenTimeoutMinutes().get shouldBe 40L
       }
     }
   }
@@ -100,7 +134,8 @@ class DomainConfigStoreSpec
         initialAdminKeyPair,
         initialCollectionConfig,
         initialSnapshotConfig,
-        anonymousAuthEnabled = false)
+        anonymousAuthEnabled = false,
+        60L)
       testCode(provider)
     }
   }
