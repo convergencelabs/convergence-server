@@ -249,6 +249,6 @@ object DomainConfigService {
 
   case class CollectionConfigData(autoCreate: Boolean)
 
-  case class ReconnectConfigData(tokenValidityMinutes: Long)
+  case class ReconnectConfigData(tokenValidity: Long)
 
 }
