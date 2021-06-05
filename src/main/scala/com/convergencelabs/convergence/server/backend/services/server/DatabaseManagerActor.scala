@@ -15,10 +15,12 @@ import akka.actor.typed.receptionist.{Receptionist, ServiceKey}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.common.Ok
+import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogEntry, ConvergenceSchemaVersionLogEntry, DomainSchemaDeltaLogEntry, DomainSchemaVersionLogEntry}
 import com.convergencelabs.convergence.server.backend.db.schema.{DatabaseManager, DatabaseSchemaStatus}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
 private final class DatabaseManagerActor(context: ActorContext[DatabaseManagerActor.Message],
@@ -33,57 +35,65 @@ private final class DatabaseManagerActor(context: ActorContext[DatabaseManagerAc
     msg match {
       case GetConvergenceSchemaStatusRequest(replyTo) =>
         databaseManager.getConvergenceSchemaStatus()
-          .map(status => GetConvergenceSchemaStatusResponse(Right(status)))
+          .map {
+            case None =>
+              Left(ConvergenceSchemaNotInstalledError())
+            case Some(status) =>
+              Right(status)
+          }
           .recover { e =>
             error("Error getting convergence schema status", e)
-            GetConvergenceSchemaStatusResponse(Left(UnknownError()))
+            Left(UnknownError())
           }
-          .foreach(replyTo ! _)
+          .foreach(replyTo ! GetConvergenceSchemaStatusResponse(_))
 
       case GetConvergenceVersionLogRequest(replyTo) =>
         databaseManager.getConvergenceVersionLog()
-          .map(versions => GetConvergenceVersionLogResponse(Right(versions)))
+          .map(versions => Right(versions))
           .recover { e =>
             error("Error getting convergence version log", e)
-            GetConvergenceVersionLogResponse(Left(UnknownError()))
+            Left(UnknownError())
           }
-          .foreach(replyTo ! _)
+          .foreach(replyTo ! GetConvergenceVersionLogResponse(_))
 
       case GetConvergenceDeltaLogRequest(replyTo) =>
         databaseManager.getConvergenceDeltaLog()
-          .map(deltas => GetConvergenceDeltaLogResponse(Right(deltas)))
+          .map(deltas => Right(deltas))
           .recover { e =>
             error("Error getting convergence delta log", e)
-            GetConvergenceDeltaLogResponse(Left(UnknownError()))
+            Left(UnknownError())
           }
-          .foreach(replyTo ! _)
+          .foreach(replyTo ! GetConvergenceDeltaLogResponse(_))
 
       case GetDomainSchemaStatusRequest(domainId, replyTo) =>
         databaseManager.getDomainSchemaStatus(domainId)
-          .map(status => GetDomainSchemaStatusResponse(Right(status)))
-          .recover { e =>
-            error("Error getting domain schema status: " + domainId, e)
-            GetDomainSchemaStatusResponse(Left(UnknownError()))
+          .map(status => Right(status))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(DomainNotFoundError())
+            case e =>
+              error("Error getting domain schema status: " + domainId, e)
+              Left(UnknownError())
           }
-          .foreach(replyTo ! _)
+          .foreach(replyTo ! GetDomainSchemaStatusResponse(_))
 
       case GetDomainVersionLogRequest(domainId, replyTo) =>
         databaseManager.getDomainVersionLog(domainId)
-          .map(versions => GetDomainVersionLogResponse(Right(versions)))
+          .map(versions => Right(versions))
           .recover { e =>
             error("Error getting domain version log: " + domainId, e)
-            GetDomainVersionLogResponse(Left(UnknownError()))
+            Left(UnknownError())
           }
-          .foreach(replyTo ! _)
+          .foreach(replyTo ! GetDomainVersionLogResponse(_))
 
       case GetDomainDeltaLogRequest(domainId, replyTo) =>
         databaseManager.getDomainDeltaLog(domainId)
-          .map(deltas => GetDomainDeltaLogResponse(Right(deltas)))
+          .map(deltas => Right(deltas))
           .recover { e =>
             error("Error getting domain delta log: " + domainId, e)
-            GetDomainDeltaLogResponse(Left(UnknownError()))
+            Left(UnknownError())
           }
-          .foreach(replyTo ! _)
+          .foreach(replyTo ! GetDomainDeltaLogResponse(_))
 
       case UpgradeConvergenceRequest(replyTo) =>
         replyTo ! UpgradeConvergenceResponse(Right(Ok()))
@@ -120,7 +130,16 @@ object DatabaseManagerActor {
   //
   final case class GetConvergenceSchemaStatusRequest(replyTo: ActorRef[GetConvergenceSchemaStatusResponse]) extends Message
 
-  final case class GetConvergenceSchemaStatusResponse(status: Either[UnknownError, Option[DatabaseSchemaStatus]]) extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ConvergenceSchemaNotInstalledError], name = "not_install"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetConvergenceSchemaStatusError
+
+  final case class ConvergenceSchemaNotInstalledError() extends GetConvergenceSchemaStatusError
+
+  final case class GetConvergenceSchemaStatusResponse(status: Either[GetConvergenceSchemaStatusError, DatabaseSchemaStatus]) extends CborSerializable
 
   //
   // GetConvergenceVersionLog
@@ -142,7 +161,14 @@ object DatabaseManagerActor {
   //
   final case class GetDomainSchemaStatusRequest(domainId: DomainId, replyTo: ActorRef[GetDomainSchemaStatusResponse]) extends Message
 
-  final case class GetDomainSchemaStatusResponse(status: Either[UnknownError, Option[DatabaseSchemaStatus]]) extends CborSerializable
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFoundError], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetDomainSchemaStatusError
+
+  final case class GetDomainSchemaStatusResponse(status: Either[GetDomainSchemaStatusError, DatabaseSchemaStatus]) extends CborSerializable
 
   //
   // GetDomainVersionLog
@@ -180,6 +206,10 @@ object DatabaseManagerActor {
 
   final case class UpgradeDomainsResponse(response: Either[UnknownError, Ok]) extends CborSerializable
 
-  final case class UnknownError()
+  final case class UnknownError() extends AnyRef
+    with GetDomainSchemaStatusError
+    with GetConvergenceSchemaStatusError
 
+  final case class DomainNotFoundError() extends AnyRef
+    with GetDomainSchemaStatusError
 }

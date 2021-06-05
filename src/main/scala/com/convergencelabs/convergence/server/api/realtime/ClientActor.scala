@@ -38,6 +38,7 @@ import com.convergencelabs.convergence.server.model.domain.user.DomainUser
 import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainStatus}
 import com.convergencelabs.convergence.server.util.UnexpectedErrorException
 import com.convergencelabs.convergence.server.util.concurrent.AskHandler
+import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.google.protobuf.struct.Value
 import com.google.protobuf.struct.Value.Kind.StringValue
 import grizzled.slf4j.Logging
@@ -647,7 +648,7 @@ object ClientActor {
   /**
    * The parent trait of all messages sent to the ClientActor.
    */
-  sealed trait Message
+  sealed trait Message extends CborSerializable
 
   /**
    * Indicates that a handshake timeout with the connecting client has occurred.

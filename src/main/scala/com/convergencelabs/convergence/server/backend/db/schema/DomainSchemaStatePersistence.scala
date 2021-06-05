@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.backend.db.schema
 
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 
 import java.time.Instant
 import scala.util.Try
@@ -68,8 +69,10 @@ private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
 
   override def recordNewVersion(version: String, date: Instant): Try[Unit] = {
     val entry = DomainSchemaVersionLogEntry(domainId, version, date)
-    versionStore.createDomainSchemaVersionLogEntry(entry)
-
-    domainStore.setDomainSchemaVersion(domainId, version: String)
+    for {
+      _ <- versionStore.createDomainSchemaVersionLogEntry(entry)
+      _ <- domainStore.setDomainSchemaVersion(domainId, version: String)
+      _ <- domainStore.setDomainStatus(domainId, DomainStatus.Ready, "")
+    } yield ()
   }
 }

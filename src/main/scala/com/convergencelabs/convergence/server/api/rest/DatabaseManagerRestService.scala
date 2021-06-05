@@ -12,8 +12,6 @@
 package com.convergencelabs.convergence.server.api.rest
 
 
-import java.time.Instant
-
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
@@ -21,7 +19,7 @@ import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveA
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import com.convergencelabs.convergence.server.api.rest.DatabaseManagerRestService.{DatabaseDeltaLogResponse, DatabaseStatusResponse, DatabaseVersionLogResponse, DeltaLogEntry, VersionLogEntry}
+import com.convergencelabs.convergence.server.api.rest.DatabaseManagerRestService._
 import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogEntry, DomainSchemaDeltaLogEntry}
 import com.convergencelabs.convergence.server.backend.db.schema.DatabaseSchemaStatus
 import com.convergencelabs.convergence.server.backend.services.server.DatabaseManagerActor
@@ -30,6 +28,7 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import grizzled.slf4j.Logging
 
+import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
 
 private[rest] final class DatabaseManagerRestService(executionContext: ExecutionContext,
@@ -90,8 +89,13 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
   private[this] def onGetConvergenceSchemaStatus(): Future[RestResponse] = {
     databaseManager.ask[GetConvergenceSchemaStatusResponse](GetConvergenceSchemaStatusRequest)
       .map(_.status.fold(
-        _ => InternalServerError,
-        status => okResponse(mapStatus(status))
+        {
+          case ConvergenceSchemaNotInstalledError() =>
+            okResponse(DatabaseStatusResponse(None, Some("not_initialized"), Some("The convergence schema is not initialized")))
+          case UnknownError() =>
+            InternalServerError
+        },
+        status => createStatusResponse(status)
       ))
   }
 
@@ -130,9 +134,19 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
   private[this] def onGetDomainSchemaStatus(namespace: String, domainId: String): Future[RestResponse] = {
     databaseManager.ask[GetDomainSchemaStatusResponse](GetDomainSchemaStatusRequest(DomainId(namespace, domainId), _))
       .map(_.status.fold(
-        _ => InternalServerError,
-        status => okResponse(mapStatus(status))
+        {
+          case DomainNotFoundError() =>
+            notFoundResponse("the requested domain does not exist")
+          case UnknownError() =>
+            InternalServerError
+        },
+        status => createStatusResponse(status)
       ))
+  }
+
+  private def createStatusResponse(status: DatabaseSchemaStatus): RestResponse = {
+      val s = if (status.healthy) "healthy" else "error"
+      okResponse(DatabaseStatusResponse(Some(status.version), Some(s), status.message))
   }
 
   private[this] def onUpgradeDomainSchema(namespace: String, domainId: String): Future[RestResponse] = {
@@ -168,15 +182,6 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
         }
       ))
   }
-
-  private[this] def mapStatus(status: Option[DatabaseSchemaStatus]): DatabaseStatusResponse = {
-    status
-      .map { status =>
-        val s = if (status.healthy) "healthy" else "error"
-        DatabaseStatusResponse(Some(status.version), Some(s), status.message)
-      }
-      .getOrElse(DatabaseStatusResponse(None, Some("not_initialized"), Some("The requested schema is not initialized")))
-  }
 }
 
 private[rest] object DatabaseManagerRestService {
@@ -187,7 +192,7 @@ private[rest] object DatabaseManagerRestService {
 
   final case class DatabaseVersionLogResponse(versions: List[VersionLogEntry])
 
-  final case class VersionLogEntry(version: String, data: Instant)
+  final case class VersionLogEntry(version: String, date: Instant)
 
   final case class DatabaseDeltaLogResponse(deltas: List[DeltaLogEntry])
 

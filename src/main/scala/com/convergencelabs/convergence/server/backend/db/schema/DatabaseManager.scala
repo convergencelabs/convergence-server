@@ -14,10 +14,11 @@ package com.convergencelabs.convergence.server.backend.db.schema
 import com.convergencelabs.convergence.server.backend.datastore.convergence._
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager.SchemaUpgradeError
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseFactory}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.model.DomainId
 import grizzled.slf4j.Logging
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 private[backend] final class DatabaseManager(databaseUrl: String,
                                              convergenceDbProvider: DatabaseProvider,
@@ -58,19 +59,22 @@ private[backend] final class DatabaseManager(databaseUrl: String,
     schemaManager.upgrade()
   }
 
-  def getDomainSchemaStatus(domainId: DomainId): Try[Option[DatabaseSchemaStatus]] = {
+  def getDomainSchemaStatus(domainId: DomainId): Try[DatabaseSchemaStatus] = {
     for {
-      version <- domainStore.findDomainDatabase(domainId)
+      version <- domainStore.findDomainDatabase(domainId).flatMap {
+        case None =>
+          Failure(DomainNotFoundException(domainId))
+        case Some(d) =>
+          Success(d)
+      }
       healthy <- domainDeltaStore.isDomainDBHealthy(domainId)
       error <- domainDeltaStore.getLastDeltaErrorForDomain(domainId)
     } yield {
-      version.map(v =>
-        DatabaseSchemaStatus(
-          v.schemaVersion,
-          SchemaVersionUtil.computeSchemaVersionStatus(domainSchemaVersion, v.schemaVersion),
-          healthy,
-          error)
-      )
+      DatabaseSchemaStatus(
+        version.schemaVersion,
+        SchemaVersionUtil.computeSchemaVersionStatus(domainSchemaVersion, version.schemaVersion),
+        healthy,
+        error)
     }
   }
 

@@ -11,6 +11,15 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(Array(
+  new JsonSubTypes.Type(value = classOf[DatabaseSchemaVersionError], name = "error"),
+  new JsonSubTypes.Type(value = classOf[DatabaseSchemaNeedsUpgrade], name = "needs_upgrade"),
+  new JsonSubTypes.Type(value = classOf[DatabaseSchemaVersionToHigh], name = "version_to_high"),
+  new JsonSubTypes.Type(value = classOf[DatabaseSchemaVersionOk], name = "ok"),
+))
 sealed trait DatabaseSchemaVersionStatus
 
 case class DatabaseSchemaVersionError() extends DatabaseSchemaVersionStatus
