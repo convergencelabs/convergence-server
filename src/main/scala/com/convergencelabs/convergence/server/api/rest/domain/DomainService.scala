@@ -85,7 +85,13 @@ private[rest] final class DomainService(schedule: Scheduler,
           } ~ path("availability") {
             put {
               entity(as[SetDomainAvailabilityRestRequestData]) { request =>
-                complete(setDomainStatus(namespace, domainId, request))
+                complete(setDomainAvailability(namespace, domainId, request))
+              }
+            }
+          } ~ path("id") {
+            put {
+              entity(as[SetDomainIdData]) { request =>
+                complete(setDomainId(namespace, domainId, request))
               }
             }
           } ~
@@ -142,7 +148,7 @@ private[rest] final class DomainService(schedule: Scheduler,
                 domain.availability.toString,
                 domain.status.toString,
                 None
-                )
+              )
             })
           response
         }
@@ -167,7 +173,7 @@ private[rest] final class DomainService(schedule: Scheduler,
             domain.availability.toString,
             domain.status.toString,
             Some(version)
-            ))
+          ))
         }
       ))
   }
@@ -205,7 +211,7 @@ private[rest] final class DomainService(schedule: Scheduler,
       ))
   }
 
-  private[this] def setDomainStatus(namespace: String, domainId: String, request: SetDomainAvailabilityRestRequestData): Future[RestResponse] = {
+  private[this] def setDomainAvailability(namespace: String, domainId: String, request: SetDomainAvailabilityRestRequestData): Future[RestResponse] = {
     val SetDomainAvailabilityRestRequestData(availabilityString) = request
     DomainAvailability.withNameOpt(availabilityString).map { availability =>
       domainStoreActor.ask[SetDomainAvailabilityResponse](
@@ -228,6 +234,24 @@ private[rest] final class DomainService(schedule: Scheduler,
     }
   }
 
+  private[this] def setDomainId(namespace: String, domainId: String, request: SetDomainIdData): Future[RestResponse] = {
+    val SetDomainIdData(id) = request
+    domainStoreActor.ask[SetDomainIdResponse](SetDomainIdRequest(DomainId(namespace, domainId), id, _))
+      .map(_.response.fold(
+        {
+          case DomainNotFound() =>
+            NotFoundResponse
+          case DomainAlreadyExistsError(field) =>
+            duplicateResponse(field)
+          case UnknownError() =>
+            InternalServerError
+        },
+        { _ =>
+          OkResponse
+        }
+      ))
+  }
+
   private[this] def invalidAvailability(status: String): RestResponse = {
     invalidValueResponse(s"Invalid availability value '$status'.", Some("availability"))
   }
@@ -235,10 +259,12 @@ private[rest] final class DomainService(schedule: Scheduler,
 
 object DomainService {
 
-  case class CreateDomainRestRequestData(namespace: String, id: String, displayName: String)
+  final case class CreateDomainRestRequestData(namespace: String, id: String, displayName: String)
 
-  case class UpdateDomainRestRequestData(displayName: String)
+  final case class UpdateDomainRestRequestData(displayName: String)
 
-  case class SetDomainAvailabilityRestRequestData(availability: String)
+  final case class SetDomainAvailabilityRestRequestData(availability: String)
+
+  final case class SetDomainIdData(id: String)
 
 }

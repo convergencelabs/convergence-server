@@ -199,7 +199,7 @@ class DomainStore(dbProvider: DatabaseProvider)
   /**
    * Sets the availability of a specific domain.
    *
-   * @param domainId      The id of the domain to set the status for.
+   * @param domainId      The id of the domain to set the availability for.
    * @param availability  The availability flag for the domain.
    * @return Success if updating the domain availability succeeds, a Failure
    *         otherwise.
@@ -213,6 +213,24 @@ class DomainStore(dbProvider: DatabaseProvider)
   }
 
   private[this] val SetDomainAvailabilityCommand = "UPDATE Domain SET availability = :availability WHERE namespace.id = :namespace AND id = :id"
+
+  /**
+   * Sets the id of a specific domain.
+   *
+   * @param domainId      The id of the domain to set a new id for.
+   * @param newId  The new id of the domain
+   * @return Success if updating the domain id succeeds, a Failure
+   *         otherwise.
+   */
+  def setDomainId(domainId: DomainId, newId: String): Try[Unit] = withDb { db =>
+    val params = Map(
+      Params.Namespace -> domainId.namespace,
+      Params.Id -> domainId.domainId,
+      "newId" -> newId)
+    OrientDBUtil.mutateOneDocument(db, SetDomainIdCommand, params)
+  }
+
+  private[this] val SetDomainIdCommand = "UPDATE Domain SET id = :newId WHERE namespace.id = :namespace AND id = :id"
 
 
   def setDomainSchemaVersion(domainId: DomainId, version: String): Try[Unit] = withDb { db =>

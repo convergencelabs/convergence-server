@@ -99,6 +99,8 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
         onDeleteDomainsForUser(message)
       case message: SetDomainAvailabilityRequest =>
         onSetDomainAvailability(message)
+      case message: SetDomainIdRequest =>
+        onSetDomainId(message)
     }
 
     Behaviors.same
@@ -324,6 +326,21 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
       }
       .foreach(replyTo ! SetDomainAvailabilityResponse(_))
   }
+
+  def onSetDomainId(msg: SetDomainIdRequest): Unit = {
+    val SetDomainIdRequest(domainId, id, replyTo) = msg
+    domainStore.setDomainId(domainId, id)
+      .map(_ => Right(Ok()))
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(DomainNotFound())
+        case e: DuplicateValueException =>
+          Left(DomainAlreadyExistsError(e.field))
+        case _ =>
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! SetDomainIdResponse(_))
+  }
 }
 
 object DomainStoreActor {
@@ -410,7 +427,7 @@ object DomainStoreActor {
   final case class DeleteDomainResponse(response: Either[DeleteDomainError, Ok]) extends CborSerializable
 
   //
-  // SetDomainStatus
+  // SetDomainAvailability
   //
   final case class SetDomainAvailabilityRequest(domainId: DomainId,
                                                 availability: DomainAvailability.Value,
@@ -419,12 +436,29 @@ object DomainStoreActor {
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
-    new JsonSubTypes.Type(value = classOf[InvalidDomainAvailability], name = "invalid_status"),
+    new JsonSubTypes.Type(value = classOf[InvalidDomainAvailability], name = "invalid_availability"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
   sealed trait SetDomainAvailabilityError
 
   final case class SetDomainAvailabilityResponse(response: Either[SetDomainAvailabilityError, Ok]) extends CborSerializable
+
+  //
+  // SetDomainId
+  //
+  final case class SetDomainIdRequest(domainId: DomainId,
+                                      id: String,
+                                      replyTo: ActorRef[SetDomainIdResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
+    new JsonSubTypes.Type(value = classOf[DomainAlreadyExistsError], name = "domain_already_exists"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait SetDomainIdError
+
+  final case class SetDomainIdResponse(response: Either[SetDomainIdError, Ok]) extends CborSerializable
 
 
   //
@@ -498,6 +532,7 @@ object DomainStoreActor {
   final case class DomainAlreadyExistsError(field: String) extends AnyRef
     with CreateDomainError
     with UpdateDomainError
+    with SetDomainIdError
 
   final case class DomainNotFound() extends AnyRef
     with UpdateDomainError
@@ -505,6 +540,7 @@ object DomainStoreActor {
     with GetDomainError
     with GetDomainAndSchemaVersionError
     with SetDomainAvailabilityError
+    with SetDomainIdError
 
   final case class InvalidDomainAvailability() extends AnyRef
     with SetDomainAvailabilityError
@@ -518,4 +554,5 @@ object DomainStoreActor {
     with DeleteDomainsForUserError
     with GetDomainAndSchemaVersionError
     with SetDomainAvailabilityError
+    with SetDomainIdError
 }
