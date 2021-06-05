@@ -69,15 +69,27 @@ class DomainStoreSpec
       }
     }
 
-    "retrieving a domain by fqn" must {
+    "finding a domain by domainId" must {
       "return None if the domain doesn't exist" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", ns1d1Database).get
-        stores.domain.getDomain(DomainId("notReal", "notReal")).get shouldBe None
+        stores.domain.findDomain(DomainId("notReal", "notReal")).get shouldBe None
       }
 
       "return Some if the domain exist" in withTestData { stores =>
         stores.domain.createDomain(ns1d1, "", ns1d1Database).get
-        stores.domain.getDomain(ns1d1).success.get shouldBe defined
+        stores.domain.findDomain(ns1d1).success.get shouldBe defined
+      }
+    }
+
+    "getting a domain by domainId" must {
+      "return an EntityNotFound if the domain doesn't exist" in withTestData { stores =>
+        stores.domain.createDomain(ns1d1, "", ns1d1Database).get
+        stores.domain.getDomain(DomainId("notReal", "notReal")).failed.get shouldBe an[EntityNotFoundException]
+      }
+
+      "return the correct domain if exists" in withTestData { stores =>
+        stores.domain.createDomain(ns1d1, "", ns1d1Database).get
+        stores.domain.getDomain(ns1d1).get shouldBe Domain(ns1d1, "", DomainAvailability.Online, DomainStatus.Initializing, "")
       }
     }
 
@@ -86,7 +98,7 @@ class DomainStoreSpec
         val fqn = DomainId(Namespace1.id, "test4")
         val domain = server.domain.Domain(fqn, "Test Domain 4", DomainAvailability.Online, DomainStatus.Initializing, "")
         stores.domain.createDomain(fqn, "Test Domain 4", DomainDatabase("db", "1.0", "", "", "", "")).get
-        stores.domain.getDomain(fqn).get.value shouldBe domain
+        stores.domain.findDomain(fqn).get.value shouldBe domain
       }
 
       "return a DuplicateValueExcpetion if the domain exists" in withTestData { stores =>
@@ -125,13 +137,40 @@ class DomainStoreSpec
         stores.domain.createDomain(ns1d1, "", ns1d1Database).get
         val toUpdate = Domain(DomainId(namespace1, domain1), "Updated", DomainAvailability.Offline, DomainStatus.Error, "updated")
         stores.domain.updateDomain(toUpdate).get
-        val queried = stores.domain.getDomain(ns1d1).get.value
+        val queried = stores.domain.findDomain(ns1d1).get.value
         queried shouldBe toUpdate
       }
 
       "fail to update an non-existing domain" in withTestData { stores =>
         val toUpdate = domain.Domain(DomainId(namespace1, domain3), "Updated", DomainAvailability.Online, DomainStatus.Ready, "")
         stores.domain.updateDomain(toUpdate).failure.exception shouldBe a[EntityNotFoundException]
+      }
+    }
+
+    "setting a domain's availability" must {
+      "successfully update an existing domain" in withTestData { stores =>
+        stores.domain.createDomain(ns1d1, "", ns1d1Database).get
+        stores.domain.setDomainAvailability(ns1d1, DomainAvailability.Maintenance).get
+        stores.domain.getDomain(ns1d1).get.availability shouldBe DomainAvailability.Maintenance
+      }
+
+      "fail to update an non-existent domain" in withTestData { stores =>
+        stores.domain.setDomainAvailability(DomainId("no", "domain"), DomainAvailability.Maintenance)
+          .failure.exception shouldBe an[EntityNotFoundException]
+      }
+    }
+
+    "setting a domain's id" must {
+      "successfully update an existing domain" in withTestData { stores =>
+        stores.domain.createDomain(ns1d1, "", ns1d1Database).get
+        stores.domain.setDomainId(ns1d1, "newId").get
+        stores.domain.domainExists(ns1d1).get shouldBe false
+        stores.domain.domainExists(DomainId(namespace1, "newId")).get shouldBe true
+      }
+
+      "fail to update an non-existent domain" in withTestData { stores =>
+        stores.domain.setDomainId(DomainId("no", "domain"), "newId")
+          .failure.exception shouldBe an[EntityNotFoundException]
       }
     }
   }

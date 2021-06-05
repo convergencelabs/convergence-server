@@ -9,7 +9,7 @@ import scala.util.Try
 class DomainStateProvider(domainStore: DomainStore, domainId: DomainId) {
 
   def getDomainState(): Try[Option[DomainState]] = {
-    domainStore.getDomain(domainId).map(_.map{ d =>
+    domainStore.findDomain(domainId).map(_.map{ d =>
       DomainState(d.domainId, d.availability, d.status)
     })
   }

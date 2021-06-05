@@ -58,7 +58,13 @@ class DomainStore(dbProvider: DatabaseProvider)
 
   private[this] val GetDomainQuery = "SELECT FROM Domain WHERE namespace.id = :namespace AND id = :id"
 
-  def getDomain(domainId: DomainId): Try[Option[Domain]] = withDb { db =>
+  def getDomain(domainId: DomainId): Try[Domain] = withDb { db =>
+    val DomainId(namespace, id) = domainId
+    val params = Map(Params.Id -> id, Params.Namespace -> namespace)
+    OrientDBUtil.getDocument(db, GetDomainQuery, params).map(docToDomain)
+  }
+
+  def findDomain(domainId: DomainId): Try[Option[Domain]] = withDb { db =>
     val DomainId(namespace, id) = domainId
     val params = Map(Params.Id -> id, Params.Namespace -> namespace)
     OrientDBUtil.findDocumentAndMap(db, GetDomainQuery, params)(docToDomain)

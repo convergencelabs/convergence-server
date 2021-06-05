@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.api.rest.domain
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -243,6 +244,8 @@ private[rest] final class DomainService(schedule: Scheduler,
             NotFoundResponse
           case DomainAlreadyExistsError(field) =>
             duplicateResponse(field)
+          case DomainNotOfflineError() =>
+            (StatusCodes.BadRequest, ErrorResponseEntity("domain_not_offline", Some("Can not set the id of a domain unless it is offline.")))
           case UnknownError() =>
             InternalServerError
         },

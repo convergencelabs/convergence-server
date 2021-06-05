@@ -138,7 +138,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
     val UpdateDomainRequest(namespace, domainId, displayName, replyTo) = request
 
     for {
-      domain <- domainStore.getDomain(DomainId(namespace, domainId))
+      domain <- domainStore.findDomain(DomainId(namespace, domainId))
       response <- domain match {
         case Some(domain) =>
           val updated = domain.copy(displayName = displayName)
@@ -251,7 +251,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
   private[this] def onGetDomain(getRequest: GetDomainRequest): Unit = {
     val GetDomainRequest(namespace, domainId, replyTo) = getRequest
     domainStore
-      .getDomain(DomainId(namespace, domainId))
+      .findDomain(DomainId(namespace, domainId))
       .map {
         case Some(domain) =>
           GetDomainResponse(Right(domain))
@@ -271,7 +271,7 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
     val id = DomainId(namespace, domainId)
 
     (for {
-      domain <- domainStore.getDomain(id)
+      domain <- domainStore.findDomain(id)
       database <- domainStore.getDomainDatabase(id)
     } yield {
       domain match {
@@ -329,8 +329,14 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
 
   def onSetDomainId(msg: SetDomainIdRequest): Unit = {
     val SetDomainIdRequest(domainId, id, replyTo) = msg
-    domainStore.setDomainId(domainId, id)
-      .map(_ => Right(Ok()))
+    (for {
+      domain <- domainStore.getDomain(domainId)
+      response <- if (domain.availability == DomainAvailability.Offline) {
+        domainStore.setDomainId(domainId, id).map(_ => Right(Ok()))
+      } else {
+        Success(Left(DomainNotOfflineError()))
+      }
+    } yield response)
       .recover {
         case _: EntityNotFoundException =>
           Left(DomainNotFound())
@@ -454,9 +460,12 @@ object DomainStoreActor {
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
     new JsonSubTypes.Type(value = classOf[DomainAlreadyExistsError], name = "domain_already_exists"),
+    new JsonSubTypes.Type(value = classOf[DomainNotOfflineError], name = "not_offline"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
   sealed trait SetDomainIdError
+
+  final case class DomainNotOfflineError() extends SetDomainIdError
 
   final case class SetDomainIdResponse(response: Either[SetDomainIdError, Ok]) extends CborSerializable
 
