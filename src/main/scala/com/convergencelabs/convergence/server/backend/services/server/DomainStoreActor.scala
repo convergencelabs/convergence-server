@@ -274,17 +274,19 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
     } yield {
       domain match {
         case Some(domain) =>
-          GetDomainAndSchemaVersionResponse(Right(DomainAndSchemaVersion(domain, database.schemaVersion)))
+          Right(DomainAndSchemaVersion(domain, database.schemaVersion))
         case None =>
-          GetDomainAndSchemaVersionResponse(Left(DomainNotFound()))
+          Left(DomainNotFound())
       }
     })
       .recover {
+        case _: EntityNotFoundException =>
+          Left(DomainNotFound())
         case cause =>
           error(s"An unexpected error occurred while getting a domain: $domainId", cause)
-          GetDomainAndSchemaVersionResponse(Left(UnknownError()))
+          Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! GetDomainAndSchemaVersionResponse(_))
   }
 
   private[this] def onGetDomains(listRequest: GetDomainsRequest): Unit = {
@@ -443,6 +445,7 @@ object DomainStoreActor {
   //
   final case class GetDomainRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -456,6 +459,7 @@ object DomainStoreActor {
   //
   final case class GetDomainAndSchemaVersionRequest(namespace: String, domainId: String, replyTo: ActorRef[GetDomainAndSchemaVersionResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "domain_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -479,6 +483,7 @@ object DomainStoreActor {
                                      limit: QueryLimit,
                                      replyTo: ActorRef[GetDomainsResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
   ))
