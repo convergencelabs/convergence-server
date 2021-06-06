@@ -58,7 +58,7 @@ class ProtocolConnectionSpec
     "sending a normal message" must {
       "send the correct message envelope" in new TestFixture() {
         {
-          val toSend = OperationAcknowledgementMessage("id1", 4, 5, Some(Timestamp(10)))
+          val toSend = OperationAcknowledgementMessage(0, 4, 5, Some(Timestamp(10)))
           connection.send(toSend)
 
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
@@ -114,7 +114,7 @@ class ProtocolConnectionSpec
       "emit a message received event" in new TestFixture() {
         {
           val opSubmission = OperationSubmissionMessage()
-            .withResourceId("r")
+            .withResourceId(0)
             .withSequenceNumber(1)
             .withContextVersion(2)
             .withOperation(OperationData().withCompoundOperation(CompoundOperationData(List())))
@@ -130,7 +130,7 @@ class ProtocolConnectionSpec
       "emit a error event and abort the connection if a normal message has a request Id" in new TestFixture() {
         {
           val opSubmission = OperationSubmissionMessage()
-            .withResourceId("r")
+            .withResourceId(0)
             .withSequenceNumber(1)
             .withContextVersion(2)
             .withOperation(OperationData().withCompoundOperation(CompoundOperationData(List())))

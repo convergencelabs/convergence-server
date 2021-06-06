@@ -42,7 +42,7 @@ import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.google.protobuf.struct.Value
-import com.google.protobuf.struct.Value.Kind.{StringValue => ProtoString}
+import com.google.protobuf.struct.Value.Kind.{NumberValue => ProtoNumber, StringValue => ProtoString}
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.{JInt, JString, JValue}
 import scalapb.GeneratedMessage
@@ -87,8 +87,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] implicit val defaultRequestTimeout: Timeout = requestTimeout
 
   private[this] var nextResourceId = 0
-  private[this] var resourceIdToModelId = Map[String, String]()
-  private[this] var modelIdToResourceId = Map[String, String]()
+  private[this] var resourceIdToModelId = Map[Int, String]()
+  private[this] var modelIdToResourceId = Map[String, Int]()
   private[this] var subscribedModels = Map[String, OfflineModelState]()
   private[this] var openingModelStash = Map[String, ListBuffer[OutgoingMessage]]()
 
@@ -557,7 +557,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onShareReference(message: ShareReferenceMessage): Unit = {
     val ShareReferenceMessage(resourceId, valueId, key, references, version, _) = message
-    val vId = valueId.filter(!_.isEmpty)
+    val vId = valueId.filter(_.nonEmpty)
 
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
@@ -579,7 +579,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   def onUnshareReference(message: UnshareReferenceMessage): Unit = {
     val UnshareReferenceMessage(resourceId, valueId, key, _) = message
-    val vId = valueId.filter(!_.isEmpty)
+    val vId = valueId.filter(_.nonEmpty)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
         val unshareReference = RealtimeModelActor.UnShareReference(domainId, modelId, session, vId, key)
@@ -591,7 +591,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onSetReference(message: SetReferenceMessage): Unit = {
     val SetReferenceMessage(resourceId, valueId, key, references, version, _) = message
-    val vId = valueId.filter(!_.isEmpty)
+    val vId = valueId.filter(_.nonEmpty)
 
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
@@ -613,7 +613,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onClearReference(message: ClearReferenceMessage): Unit = {
     val ClearReferenceMessage(resourceId, valueId, key, _) = message
-    val vId = valueId.filter(!_.isEmpty)
+    val vId = valueId.filter(_.nonEmpty)
     resourceIdToModelId.get(resourceId) match {
       case Some(modelId) =>
         val clearReference = RealtimeModelActor.ClearReference(domainId, modelId, session, vId, key)
@@ -633,7 +633,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     }.toSeq
   }
 
-  private[this] def noResourceIdForReferenceMessage(resourceId: String, message: String): Unit = {
+  private[this] def noResourceIdForReferenceMessage(resourceId: Long, message: String): Unit = {
     warn(s"$domainId: Received a reference message for a resource id that does not exists $message")
     val serverMessage = unknownResourceId(resourceId)
     clientActor ! SendServerMessage(serverMessage)
@@ -835,7 +835,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     flushOpenStash(modelId)
   }
 
-  private[this] def claimResourceId(modelId: String): String = {
+  private[this] def claimResourceId(modelId: String): Int = {
     val resourceId = generateNextResourceId()
     debug(s"Mapping model id '$modelId' to resource id '$resourceId'")
 
@@ -1070,21 +1070,21 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
       }
   }
 
-  private[this] def resourceId(modelId: String): Option[String] = {
+  private[this] def resourceId(modelId: String): Option[Int] = {
     this.modelIdToResourceId.get(modelId) orElse {
       error(s"$domainId: Receive an outgoing message for a modelId that is not open: $modelId")
       None
     }
   }
 
-  private[this] def generateNextResourceId(): String = {
-    val id = nextResourceId.toString
+  private[this] def generateNextResourceId(): Int = {
+    val id = nextResourceId
     nextResourceId += 1
     id
   }
 
   private[this] def getSetOrRandomModelId(optionalModelId: Option[String]): String = {
-    optionalModelId.filter(!_.isEmpty).getOrElse(UUID.randomUUID().toString)
+    optionalModelId.filter(_.nonEmpty).getOrElse(UUID.randomUUID().toString)
   }
 }
 
@@ -1120,10 +1120,10 @@ object ModelClientActor {
       Map("operation" -> Value(ProtoString(opString))))
   }
 
-  private def unknownResourceId(resourceId: String) = ErrorMessage(
+  private def unknownResourceId(resourceId: Long) = ErrorMessage(
     ErrorCodes.ModelUnknownResourceId.toString,
     s"A model with resource id '$resourceId' does not exist.",
-    Map("resourceId" -> Value(ProtoString(resourceId))))
+    Map("resourceId" -> Value(ProtoNumber(resourceId.toDouble))))
 
   private def modelAlreadyOpenError(cb: ReplyCallback, id: String): Unit = {
     val details = Map("id" -> JString(id))
@@ -1258,7 +1258,7 @@ object ModelClientActor {
 
   final case class RemoteReferenceUnshared(modelId: String, session: DomainSessionAndUserId, id: Option[String], key: String) extends RemoteReferenceEvent
 
-  private final case class ModelClosed(modelId: String, resourceId: String, cb: ReplyCallback) extends Message
+  private final case class ModelClosed(modelId: String, resourceId: Int, cb: ReplyCallback) extends Message
 
   private final case class ModelOpenSuccess(modelId: String, message: RealtimeModelActor.OpenModelSuccess, cb: ReplyCallback) extends Message
 
