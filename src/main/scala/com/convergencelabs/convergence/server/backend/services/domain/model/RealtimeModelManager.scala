@@ -391,7 +391,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
           }
 
           workQueue.schedule {
-            handleQueuedClientOpenFailureFailure(session, resp)
+            handleQueuedClientOpenFailure(session, resp)
           }
         },
         { response =>
@@ -407,7 +407,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
           val resp = OpenRealtimeModelResponse(Left(ClientErrorResponse(
             "The client did not respond in time with model auto create data while initializing a new model.")))
           workQueue.schedule {
-            handleQueuedClientOpenFailureFailure(session, resp)
+            handleQueuedClientOpenFailure(session, resp)
           }
       }
   }
@@ -442,7 +442,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
             requestModelDataFromDataStore()
           } recover {
             case cause: Exception =>
-              handleQueuedClientOpenFailureFailure(session, OpenRealtimeModelResponse(Left(ClientDataRequestError(cause.getMessage))))
+              handleQueuedClientOpenFailure(session, OpenRealtimeModelResponse(Left(ClientDataRequestError(cause.getMessage))))
           }
         case None =>
           // Here we could not find the opening record, so we don't know who to respond to.
@@ -957,7 +957,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
   /**
    * Handles the case where a specific client could not open the model..
    */
-  def handleQueuedClientOpenFailureFailure(session: DomainSessionAndUserId, response: OpenRealtimeModelResponse): Unit = {
+  def handleQueuedClientOpenFailure(session: DomainSessionAndUserId, response: OpenRealtimeModelResponse): Unit = {
     queuedOpeningClients.get(session) foreach (openRequest => openRequest.replyTo ! response)
     queuedOpeningClients -= session
     checkForConnectionsAndClose()
