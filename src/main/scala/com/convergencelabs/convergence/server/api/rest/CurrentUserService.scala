@@ -174,6 +174,7 @@ private[rest] final class CurrentUserService(convergenceUserActor: ActorRef[User
             domain.domainId.domainId,
             domain.availability.toString,
             domain.status.toString,
+            domain.statusMessage,
             None)))
         })
       )

@@ -92,6 +92,7 @@ private[rest] final class NamespaceService(namespaceActor: ActorRef[Message],
               d.domainId.domainId,
               d.availability.toString,
               d.status.toString,
+              d.statusMessage,
               None))
             NamespaceAndDomainsRestData(n.id, n.displayName, domainData)
           }

@@ -11,11 +11,10 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
+import com.convergencelabs.convergence.server.backend.datastore.convergence._
+
 import java.time.Instant
-
-import com.convergencelabs.convergence.server.backend.datastore.convergence.{ConvergenceSchemaDeltaLogEntry, ConvergenceSchemaDeltaLogStore, ConvergenceSchemaVersionLogEntry, ConvergenceSchemaVersionLogStore, SchemaDeltaStatus}
-
-import scala.util.Try
+import scala.util.{Success, Try}
 
 private[schema] class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceSchemaDeltaLogStore,
                                                         versionStore: ConvergenceSchemaVersionLogStore)
@@ -119,4 +118,8 @@ private[schema] class ConvergenceSchemaStatePersistence(deltaStore: ConvergenceS
     val entry = ConvergenceSchemaVersionLogEntry(version, date)
     versionStore.createConvergenceSchemaVersionLogEntry(entry)
   }
+
+  override def recordUpgrading(): Try[Unit] = Success(())
+
+  override def recordUpgradeFailure(message: String): Try[Unit] = Success(())
 }

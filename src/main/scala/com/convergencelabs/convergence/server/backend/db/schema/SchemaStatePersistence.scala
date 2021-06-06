@@ -20,6 +20,7 @@ import scala.util.Try
  * update the state of a particular schema.
  */
 private[schema] trait SchemaStatePersistence {
+
   /**
    * Gets the current version of the installed schema.
    *
@@ -46,6 +47,20 @@ private[schema] trait SchemaStatePersistence {
    *         has had applied.
    */
   def appliedDeltas(): Try[List[UpgradeDeltaId]]
+
+  /**
+   * Records that upgrading has started
+   *
+   * @return A Success if recording succeeds or a Failure otherwise.
+   */
+  def recordUpgrading(): Try[Unit]
+
+  /**
+   * Records that upgrading has failed
+   *
+   * @return A Success if recording succeeds or a Failure otherwise.
+   */
+  def recordUpgradeFailure(message: String): Try[Unit]
 
   /**
    * Stores the fact that a set of deltas have effectively been applied as

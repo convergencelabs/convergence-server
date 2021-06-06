@@ -16,4 +16,5 @@ final case class DomainRestData(displayName: String,
                                 domainId: String,
                                 availability: String,
                                 status: String,
+                                statusMessage: String,
                                 schemaVersion: Option[String])

@@ -148,6 +148,7 @@ private[rest] final class DomainService(schedule: Scheduler,
                 domain.domainId.domainId,
                 domain.availability.toString,
                 domain.status.toString,
+                domain.statusMessage,
                 None
               )
             })
@@ -173,6 +174,7 @@ private[rest] final class DomainService(schedule: Scheduler,
             domain.domainId.domainId,
             domain.availability.toString,
             domain.status.toString,
+            domain.statusMessage,
             Some(version)
           ))
         }

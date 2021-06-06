@@ -89,22 +89,46 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
     } yield ()
   }
 
+  def recordUpgradeStarting(): Either[StatePersistenceError, Unit] = {
+    schemaStatePersistence
+      .recordUpgrading().map(_ => Right(())).getOrElse(Left(StatePersistenceError("Could not record upgrade starting")))
+  }
+
+  def recordUpgradeFailure(message: String): Either[StatePersistenceError, Unit] = {
+    schemaStatePersistence
+      .recordUpgradeFailure(message).map(_ => Right(())).getOrElse(Left(StatePersistenceError("Could not record upgrade failure")))
+  }
+
   /**
    * Upgrades an existing schema to the latest version.
    *
    * @return Right if successful, or a Left(error) if unsuccessful.
    */
   def upgrade(): Either[SchemaUpgradeError, Unit] = {
-    for {
+    (for {
       versions <- readVersionIndex
       version = versions.currentVersion
       manifest <- readSchemaManifest(version)
       appliedDeltas <- appliedDeltas()
       neededDeltaIds = computeNeededDeltas(appliedDeltas.map(_.id), manifest.deltas)
       deltas <- readAndValidateDeltas(neededDeltaIds)
+      _ <- recordUpgradeStarting()
       _ <- applyDeltas(deltas, version)
       _ <- recordNewVersion(version, Instant.now())
-    } yield ()
+    } yield ())
+      .left.map{err =>
+      err match {
+        case DeltaApplicationError(cause) =>
+          recordUpgradeFailure(cause.map(_.getMessage).getOrElse("Unknown error applying delta during upgrade"))
+        case _: InvalidHashError =>
+          recordUpgradeFailure("A delta failed hash validation")
+        case RepositoryError(message) =>
+          recordUpgradeFailure(message)
+        case StatePersistenceError(message) =>
+          recordUpgradeFailure(message)
+      }
+      err
+    }
   }
 
   private[this] def installSchema(version: String, manifest: SchemaVersionManifest, schemaDelta: InstallDeltaAndScript): Either[DeltaApplicationError, Unit] = {
@@ -211,9 +235,9 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
       .appliedDeltas()
       .fold(
         { cause =>
-          val message = "Could not retrieve the applied deltas"
+          val message = "Could not retrieve the applied deltas for the database"
           error(message, cause)
-          Left(StatePersistenceError(message))
+          Left(StatePersistenceError(message + "\n\n" + ExceptionUtils.stackTraceToString(cause)))
         },
         deltas => Right(deltas)
       )
@@ -224,9 +248,9 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
       .recordNewVersion(version, date)
       .fold(
         { cause =>
-          val message = "could not store new version record"
+          val message = "Could not store new version record for the database"
           error(message, cause)
-          Left(StatePersistenceError(message))
+          Left(StatePersistenceError(message + "\n\n" + ExceptionUtils.stackTraceToString(cause)))
         },
         _ => Right(())
       )

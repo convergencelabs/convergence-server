@@ -75,4 +75,22 @@ private[schema] class DomainSchemaStatePersistence(domainId: DomainId,
       _ <- domainStore.setDomainStatus(domainId, DomainStatus.Ready, "")
     } yield ()
   }
+
+  /**
+   * Records that upgrading has started
+   *
+   * @return A Success if recording succeeds or a Failure otherwise.
+   */
+  override def recordUpgrading(): Try[Unit] = {
+    this.domainStore.setDomainStatus(this.domainId, DomainStatus.SchemaUpgrading, "")
+  }
+
+  /**
+   * Records that upgrading has failed
+   *
+   * @return A Success if recording succeeds or a Failure otherwise.
+   */
+  override def recordUpgradeFailure(message: String): Try[Unit] = {
+    this.domainStore.setDomainStatus(this.domainId, DomainStatus.Error, message)
+  }
 }

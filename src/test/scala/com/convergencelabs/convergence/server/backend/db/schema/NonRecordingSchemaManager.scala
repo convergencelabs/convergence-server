@@ -54,4 +54,8 @@ private class FakeSchemaStatePersistence extends SchemaStatePersistence {
   override def recordDeltaFailure(delta: UpgradeDeltaAndScript, error: String, appliedForVersion: String): Unit = ()
 
   override def recordNewVersion(version: String, date: Instant): Try[Unit] = Success(())
+
+  override def recordUpgrading(): Try[Unit] = Success(())
+
+  override def recordUpgradeFailure(message: String): Try[Unit] = Success(())
 }
