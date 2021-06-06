@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.proto.core.HandshakeResponseMessage.Error
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
+import com.convergencelabs.convergence.server.api.realtime.protocol.ConvergenceMessageBodyUtils
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.AuthenticationFailed
@@ -192,12 +193,12 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         case Some(icm) =>
           icm ! IdentityCacheManagerActor.OutgoingMessage(convergenceMessage)
         case _ =>
-          this.protocolConnection.serializeAndSend(convergenceMessage)
+          this.serializeAndSend(convergenceMessage)
       }
       Behaviors.same
 
     case SendProcessedMessage(convergenceMessage) =>
-      this.protocolConnection.serializeAndSend(convergenceMessage)
+      this.serializeAndSend(convergenceMessage)
       Behaviors.same
 
     case SendServerMessage(message) =>
@@ -303,7 +304,6 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
                 ("domain_unavailable", s"The domain '${domainId.namespace}/${domainId.domainId}' is unavailable, please try again later.")
             }
             cb.reply(HandshakeResponseMessage(success = false, Some(ErrorData(code, details)), retryOk = false))
-            this.disconnect()
           },
           { handshake =>
             debug(s"$domainId: Handshake success")
@@ -313,7 +313,6 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         .recover { cause =>
           error(s"$domainId: Error handshaking with DomainActor", cause)
           cb.reply(HandshakeResponseMessage(success = false, Some(ErrorData("unknown", "An unknown error occurred handshaking with the domain.")), retryOk = true))
-          this.disconnect()
         }
       Behaviors.receiveMessage(this.receiveWhileHandshaking)
         .receiveSignal { x => onSignal.apply(x._2) }
@@ -495,7 +494,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
             ErrorMessage(errorCode ,errorMessage, errorDetails)
         }
 
-        this.protocolConnection.serializeAndSend(errorToSend)
+        this.serializeAndSend(errorToSend)
     }
 
     Behaviors.same
@@ -595,6 +594,44 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   private[this] def getTimeoutFromConfig(path: String): Timeout = {
     Timeout(system.settings.config.getDuration(path).toNanos, TimeUnit.NANOSECONDS)
+  }
+
+  private[this] def serializeAndSend(message: ServerNormalMessage): Unit = {
+    val body = ConvergenceMessageBodyUtils.toBody(message)
+    val convergenceMessage = ConvergenceMessage().withBody(body)
+    this.serializeAndSend(convergenceMessage)
+  }
+
+  private[this] def serializeAndSend(convergenceMessage: ConvergenceMessage): Unit = {
+    this.protocolConnection.serializeAndSend(convergenceMessage)
+
+    // We check for these two explicit message so we can close the web
+    // socket on other of these. We do this here and not elsewhere
+    // because sending messages is often a multi-step process.  This
+    // is the last step before the message is sent to the web socket
+    // actor.  With akka message ordering, this ensures that our
+    // message will get to the web socket actor and sent before
+    // the close message.
+
+    if (client == null) {
+      // Client is non-null after a successful handshake, so if it
+      // is null we can check if the outgoing message is a handshake
+      // failure
+      convergenceMessage.body.handshakeResponse.foreach { resp =>
+        if (!resp.success) {
+          webSocketActor ! WebSocketService.CloseSocket
+        }
+      }
+    } else if (this.sessionId == null) {
+      // if client was non null, but sessionId is null then we
+      // have not successfully authenticated yet. Check for an
+      // auth failure.
+      convergenceMessage.body.authenticationResponse.foreach { resp =>
+        if (resp.response.isFailure) {
+          webSocketActor ! WebSocketService.CloseSocket
+        }
+      }
+    }
   }
 }
 
