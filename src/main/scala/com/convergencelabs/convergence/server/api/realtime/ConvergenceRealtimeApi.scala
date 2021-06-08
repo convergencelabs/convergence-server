@@ -11,18 +11,14 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.util.concurrent.TimeUnit
-
+import akka.Done
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef, ActorSystem}
-import akka.actor.{ActorSystem => ClassicActorSystem}
+import akka.actor.{CoordinatedShutdown, ActorSystem => ClassicActorSystem}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.RouteResult.route2HandlerFlow
-import akka.stream.scaladsl._
 import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
 /**
@@ -53,6 +49,10 @@ private[server] final class ConvergenceRealtimeApi(system: ActorSystem[_],
    *         is complete.
    */
   def start(): Future[Unit] = {
+    CoordinatedShutdown(system).addTask(CoordinatedShutdown.PhaseServiceUnbind, "Unbind Realtime API") { () =>
+      this.stop().map(_ => Done)
+    }
+
     val service = new WebSocketService(system, clientCreator)
     Http()
       .newServerAt(interface, websocketPort)
@@ -66,19 +66,20 @@ private[server] final class ConvergenceRealtimeApi(system: ActorSystem[_],
         logger.error("Realtime API startup failed", cause)
         Future.failed(cause)
       }
+
+
   }
 
   /**
    * Stops the Realtime API, cleaning up any actors created and stopping
    * the HTTP server that listens for incoming web socket connections.
    */
-  def stop(): Unit = {
+  def stop(): Future[Unit] = {
     logger.info("Convergence Realtime API shutting down...")
 
-    this.binding foreach { b =>
-      val f = b.unbind()
-      Await.result(f, FiniteDuration(10, TimeUnit.SECONDS))
-      logger.info("Convergence Realtime API shut down")
-    }
+    this.binding
+      .map (b =>b.unbind())
+      .getOrElse(Future.successful(()))
+      .map(_ => logger.info("Convergence Realtime API shut down"))
   }
 }

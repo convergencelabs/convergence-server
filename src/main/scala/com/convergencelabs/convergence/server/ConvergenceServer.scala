@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server
 
-import java.io.File
-
 import akka.actor.Address
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorSystem, Scheduler}
@@ -23,6 +21,7 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 import org.apache.logging.log4j.LogManager
 
+import java.io.File
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 import scala.jdk.CollectionConverters._
@@ -102,23 +101,7 @@ private[server] object ConvergenceServer extends Logging {
    * Helper method that will shut down the server, if it was started.
    */
   private[this] def stop(): Unit = {
-    this.system.foreach(system => {
-      implicit val t: Timeout = Timeout(Duration.fromNanos(
-        system.settings.config.getDuration("convergence.server-shutdown-timeout").toNanos))
-
-      implicit val sys: Scheduler = system.scheduler
-      implicit val ec: ExecutionContext = system.executionContext
-      system
-        .ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
-        .map { _ =>
-          terminate(system)
-          System.exit(0)
-        }
-        .recover { _ =>
-          error("The server did not stop up in time. Exiting.")
-          terminateAndExitOnError(system)
-        }
-    })
+    this.system.foreach(_.terminate())
   }
 
   /**
@@ -211,7 +194,7 @@ private[server] object ConvergenceServer extends Logging {
     if (rolesInConfig.isEmpty) {
       logger.info(s"No roles specified in the config file. Looking for the '${Environment.ConvergenceServerRoles}' environment variable.")
       Option(System.getenv().get(Environment.ConvergenceServerRoles)) match {
-        case Some(rolesEnv) if rolesEnv.trim.length > 0 =>
+        case Some(rolesEnv) if rolesEnv.trim.nonEmpty =>
           val roles = rolesEnv.split(",").toList.map(_.trim).filter(_.nonEmpty)
           val updated = baseConfig.withValue(AkkaConfig.AkkaClusterRoles, ConfigValueFactory.fromIterable(roles.asJava))
           updated

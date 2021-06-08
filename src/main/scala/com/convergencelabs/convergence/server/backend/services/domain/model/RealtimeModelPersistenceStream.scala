@@ -81,6 +81,7 @@ private[model] final class RealtimeModelPersistenceStream(handler: PersistenceEv
   }
 
   def close(): Unit = {
+    debug("Closing model persistence stream for model: " + modelId)
     streamActor ! Status.Success(())
   }
 

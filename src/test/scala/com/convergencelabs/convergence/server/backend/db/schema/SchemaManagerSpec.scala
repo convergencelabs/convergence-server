@@ -11,19 +11,19 @@
 
 package com.convergencelabs.convergence.server.backend.db.schema
 
-import java.time.LocalDate
-
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager._
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaMetaDataRepository._
 import com.convergencelabs.convergence.server.backend.db.schema.delta.Delta
 import org.mockito
+import org.mockito.Matchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.{times, verify}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
+import java.time.LocalDate
 import scala.util.{Failure, Success}
 
 final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with MockitoSugar {
@@ -199,145 +199,168 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
         error shouldBe a[DeltaValidationError]
       }
     }
-  }
 
-  "upgrading an existing schema" must {
-    "apply and record the correct deltas" in {
-      val metaDataRepo = mockRepoV3()
 
-      val deltaApplicator = mock[DeltaApplicator]
-      Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
-        .thenReturn(Success(()))
+    "upgrading an existing schema" must {
+      "apply and record the correct deltas" in {
+        val metaDataRepo = mockRepoV3()
 
-      val schemaStatePersistence = mock[SchemaStatePersistence]
-      Mockito.when(schemaStatePersistence.installedVersion())
-        .thenReturn(Success(Some(Version_1_0)))
+        val deltaApplicator = mock[DeltaApplicator]
+        Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
+          .thenReturn(Success(()))
 
-      Mockito.when(schemaStatePersistence.appliedDeltas())
-        .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
+        val schemaStatePersistence = mock[SchemaStatePersistence]
+        Mockito.when(schemaStatePersistence.installedVersion())
+          .thenReturn(Success(Some(Version_1_0)))
+        Mockito.when(schemaStatePersistence.appliedDeltas())
+          .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
+        Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta1, Version_3_0))
+          .thenReturn(Success(()))
+        Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta2, Version_3_0))
+          .thenReturn(Success(()))
+        Mockito.when(schemaStatePersistence
+          .recordNewVersion(mockito.Matchers.any(), mockito.Matchers.any()))
+          .thenReturn(Success(()))
+        Mockito.when(schemaStatePersistence.recordUpgrading())
+          .thenReturn(Success(()))
 
-      Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta1, Version_3_0))
-        .thenReturn(Success(()))
+        val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
-      Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta2, Version_3_0))
-        .thenReturn(Success(()))
+        schemaManager.upgrade() shouldBe Right(())
 
-      Mockito.when(schemaStatePersistence
-        .recordNewVersion(mockito.Matchers.any(), mockito.Matchers.any()))
-        .thenReturn(Success(()))
+        verify(deltaApplicator, times(2))
+          .applyDeltaToSchema(MockDelta)
 
-      val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
+        verify(schemaStatePersistence, times(1))
+          .recordDeltaSuccess(Delta1, Version_3_0)
 
-      schemaManager.upgrade() shouldBe Right(())
+        verify(schemaStatePersistence, times(1))
+          .recordDeltaSuccess(Delta2, Version_3_0)
 
-      verify(deltaApplicator, times(2))
-        .applyDeltaToSchema(MockDelta)
+        verify(schemaStatePersistence, times(1))
+          .recordNewVersion(mockito.Matchers.eq(Version_3_0), mockito.Matchers.any())
+      }
 
-      verify(schemaStatePersistence, times(1))
-        .recordDeltaSuccess(Delta1, Version_3_0)
+      "return a state persistence error if the applied deltas can't be determined" in {
+        val metaDataRepo = mockRepoV3()
 
-      verify(schemaStatePersistence, times(1))
-        .recordDeltaSuccess(Delta2, Version_3_0)
+        val deltaApplicator = mock[DeltaApplicator]
+        Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
+          .thenReturn(Success(()))
 
-      verify(schemaStatePersistence, times(1))
-        .recordNewVersion(mockito.Matchers.eq(Version_3_0), mockito.Matchers.any())
-    }
+        val schemaStatePersistence = mock[SchemaStatePersistence]
+        Mockito.when(schemaStatePersistence.installedVersion())
+          .thenReturn(Success(Some(Version_1_0)))
 
-    "return a state persistence error if the applied deltas can't be determined" in {
-      val metaDataRepo = mockRepoV3()
+        Mockito.when(schemaStatePersistence.recordUpgrading())
+          .thenReturn(Success(()))
 
-      val deltaApplicator = mock[DeltaApplicator]
-      Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
-        .thenReturn(Success(()))
+        Mockito.when(schemaStatePersistence.appliedDeltas())
+          .thenReturn(Failure(InducedTestingException()))
 
-      val schemaStatePersistence = mock[SchemaStatePersistence]
-      Mockito.when(schemaStatePersistence.installedVersion())
-        .thenReturn(Success(Some(Version_1_0)))
+        Mockito.when(schemaStatePersistence.recordUpgradeFailure(any()))
+          .thenReturn(Success(()))
 
-      Mockito.when(schemaStatePersistence.appliedDeltas())
-        .thenReturn(Failure(InducedTestingException()))
+        val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
-      val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
+        val Left(error) = schemaManager.upgrade()
+        error shouldBe a[StatePersistenceError]
+      }
 
-      val Left(error) = schemaManager.upgrade()
-      error shouldBe a[StatePersistenceError]
-    }
+      "return a repository error if reading a delta fails" in {
+        val metaDataRepo = mockRepoV3()
+        Mockito.when(metaDataRepo.readDelta(Delta1Entry.toDeltaId))
+          .thenReturn(Left(InducedParsingError))
 
-    "return a repository error if reading a delta fails" in {
-      val metaDataRepo = mockRepoV3()
-      Mockito.when(metaDataRepo.readDelta(Delta1Entry.toDeltaId))
-        .thenReturn(Left(InducedParsingError))
+        val deltaApplicator = mock[DeltaApplicator]
+        Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
+          .thenReturn(Success(()))
 
-      val deltaApplicator = mock[DeltaApplicator]
-      Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
-        .thenReturn(Success(()))
+        val schemaStatePersistence = mock[SchemaStatePersistence]
+        Mockito.when(schemaStatePersistence.installedVersion())
+          .thenReturn(Success(Some(Version_1_0)))
 
-      val schemaStatePersistence = mock[SchemaStatePersistence]
-      Mockito.when(schemaStatePersistence.installedVersion())
-        .thenReturn(Success(Some(Version_1_0)))
+        Mockito.when(schemaStatePersistence.recordUpgrading())
+          .thenReturn(Success(()))
 
-      Mockito.when(schemaStatePersistence.appliedDeltas())
-        .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
+        Mockito.when(schemaStatePersistence.appliedDeltas())
+          .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
 
-      val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
+        Mockito.when(schemaStatePersistence.recordUpgradeFailure(any()))
+          .thenReturn(Success(()))
 
-      val Left(error) = schemaManager.upgrade()
-      error shouldBe a[RepositoryError]
-    }
+        val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
-    "return a delta application failure and record the failure if applying a delta fails" in {
-      val metaDataRepo = mockRepoV3()
+        val Left(error) = schemaManager.upgrade()
+        error shouldBe a[RepositoryError]
+      }
 
-      val deltaApplicator = mock[DeltaApplicator]
-      Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
-        .thenReturn(Failure(InducedTestingException()))
+      "return a delta application failure and record the failure if applying a delta fails" in {
+        val metaDataRepo = mockRepoV3()
 
-      val schemaStatePersistence = mock[SchemaStatePersistence]
-      Mockito.when(schemaStatePersistence.installedVersion())
-        .thenReturn(Success(Some(Version_1_0)))
+        val deltaApplicator = mock[DeltaApplicator]
+        Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
+          .thenReturn(Failure(InducedTestingException()))
 
-      Mockito.when(schemaStatePersistence.appliedDeltas())
-        .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
+        val schemaStatePersistence = mock[SchemaStatePersistence]
+        Mockito.when(schemaStatePersistence.installedVersion())
+          .thenReturn(Success(Some(Version_1_0)))
 
-      Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta1, Version_1_0))
-        .thenReturn(Success(()))
+        Mockito.when(schemaStatePersistence.appliedDeltas())
+          .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
 
-      Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta2, Version_1_0))
-        .thenReturn(Success(()))
+        Mockito.when(schemaStatePersistence.recordUpgrading())
+          .thenReturn(Success(()))
 
-      val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
+        Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta1, Version_1_0))
+          .thenReturn(Success(()))
 
-      val Left(error) = schemaManager.upgrade()
-      error shouldBe a[DeltaApplicationError]
+        Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta2, Version_1_0))
+          .thenReturn(Success(()))
 
-      verify(deltaApplicator, times(1))
-        .applyDeltaToSchema(MockDelta)
+        Mockito.when(schemaStatePersistence.recordUpgradeFailure(any()))
+          .thenReturn(Success(()))
 
-      verify(schemaStatePersistence, times(1))
-        .recordDeltaFailure(mockito.Matchers.eq(Delta1), mockito.Matchers.any(), mockito.Matchers.eq(Version_3_0))
-    }
+        val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
-    "return a state persistence error if recording a delta fails" in {
-      val metaDataRepo = mockRepoV3()
+        val Left(error) = schemaManager.upgrade()
+        error shouldBe a[DeltaApplicationError]
 
-      val deltaApplicator = mock[DeltaApplicator]
-      Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
-        .thenReturn(Success(()))
+        verify(deltaApplicator, times(1))
+          .applyDeltaToSchema(MockDelta)
 
-      val schemaStatePersistence = mock[SchemaStatePersistence]
-      Mockito.when(schemaStatePersistence.installedVersion())
-        .thenReturn(Success(Some(Version_1_0)))
+        verify(schemaStatePersistence, times(1))
+          .recordDeltaFailure(mockito.Matchers.eq(Delta1), mockito.Matchers.any(), mockito.Matchers.eq(Version_3_0))
+      }
 
-      Mockito.when(schemaStatePersistence.appliedDeltas())
-        .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
+      "return a state persistence error if recording a delta fails" in {
+        val metaDataRepo = mockRepoV3()
 
-      Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta1, Version_3_0))
-        .thenReturn(Failure(InducedTestingException()))
+        val deltaApplicator = mock[DeltaApplicator]
+        Mockito.when(deltaApplicator.applyDeltaToSchema(MockDelta))
+          .thenReturn(Success(()))
 
-      val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
+        val schemaStatePersistence = mock[SchemaStatePersistence]
+        Mockito.when(schemaStatePersistence.installedVersion())
+          .thenReturn(Success(Some(Version_1_0)))
 
-      val Left(error) = schemaManager.upgrade()
-      error shouldBe a[DeltaApplicationError]
+        Mockito.when(schemaStatePersistence.recordUpgrading())
+          .thenReturn(Success(()))
+
+        Mockito.when(schemaStatePersistence.recordUpgradeFailure(any()))
+          .thenReturn(Success(()))
+
+        Mockito.when(schemaStatePersistence.appliedDeltas())
+          .thenReturn(Success(List(InstallImplicitDelta.toDeltaId)))
+
+        Mockito.when(schemaStatePersistence.recordDeltaSuccess(Delta1, Version_3_0))
+          .thenReturn(Failure(InducedTestingException()))
+
+        val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
+
+        val Left(error) = schemaManager.upgrade()
+        error shouldBe a[DeltaApplicationError]
+      }
     }
   }
 }
@@ -410,6 +433,3 @@ object SchemaManagerSpec extends MockitoSugar {
     metaDataRepo
   }
 }
-
-
-

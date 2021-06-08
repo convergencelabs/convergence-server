@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+import akka.Done
+import akka.actor.CoordinatedShutdown
 import akka.actor.typed._
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.AskPattern._
@@ -46,7 +48,7 @@ import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
 import java.util.concurrent.{TimeUnit, TimeoutException}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -137,17 +139,28 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   private[this] var client: String = _
   private[this] var clientVersion: String = _
 
+  private[this] val shutdownTask = {
+    val self = context.self
+    CoordinatedShutdown(context.system).addCancellableTask(CoordinatedShutdown.PhaseServiceRequestsDone, "Shutdown Client Actors") { () =>
+      debug("ClientActor executing coordinated shutdown: " + this.sessionId)
+      if (timers.isTimerActive(HandshakeTimerKey)) {
+        timers.cancel(HandshakeTimerKey)
+      }
+      Option(protocolConnection).foreach(_.dispose())
+      domainRegion ! DomainActor.ClientDisconnected(domainId = this.domainId, self)
+      webSocketActor ! WebSocketService.CloseSocket
+      Future.successful(Done)
+    }
+  }
+
   //
   // Receive methods
   //
 
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
     case PostStop =>
-      debug(s"ClientActor($domainId/${this.sessionId}): Stopped")
-      if (timers.isTimerActive(HandshakeTimerKey)) {
-        timers.cancel(HandshakeTimerKey)
-      }
-      Option(protocolConnection).foreach(_.dispose())
+      debug("ClientActor stopped: " + this.sessionId)
+      shutdownTask.cancel()
       Behaviors.same
   }
 

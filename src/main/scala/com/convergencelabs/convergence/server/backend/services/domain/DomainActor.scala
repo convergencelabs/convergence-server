@@ -11,10 +11,14 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
+import akka.Done
+import akka.actor.CoordinatedShutdown
 import akka.actor.typed.pubsub.Topic
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, _}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
@@ -31,7 +35,9 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
@@ -63,6 +69,16 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   private[this] var status: DomainStatus.Value = _
   private[this] var availability: DomainAvailability.Value = _
 
+  private[this] val shutdownTask = {
+    val self = context.self
+    implicit val scheduler: Scheduler = context.system.scheduler
+    CoordinatedShutdown(context.system).addCancellableTask(CoordinatedShutdown.PhaseBeforeClusterShutdown, "Domain Actor Shutdown") { () =>
+      implicit val t: Timeout = Timeout(5, TimeUnit.SECONDS)
+      self.ask[Done](r => ShutdownRequest(this.domainId, r))
+      Future.successful(Done)
+    }
+  }
+
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = handleSignal orElse super.onSignal
 
   override def receiveInitialized(msg: Message): Behavior[Message] = msg match {
@@ -80,11 +96,23 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       onStatusRequest(msg)
     case _: ReceiveTimeout =>
       onReceiveTimeout()
+    case msg: ShutdownRequest =>
+      this.handleShutdownRequest(msg)
   }
 
   private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
     case Terminated(client) =>
       handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
+    case PostStop =>
+      debug("DomainActor Stopped: " + this.domainId)
+      shutdownTask.cancel()
+      Behaviors.same
+  }
+
+  def handleShutdownRequest(msg: ShutdownRequest): Behavior[DomainActor.Message] = {
+    this.connectedClients.foreach(c => removeClient(c))
+    msg.replyTo ! Done
+    Behaviors.same
   }
 
   private[this] def onHandshakeRequest(message: HandshakeRequest): Behavior[Message] = {
@@ -408,6 +436,10 @@ object DomainActor {
     val domainId: DomainId
   }
 
+  private final case class ShutdownRequest(domainId: DomainId, replyTo: ActorRef[Done]) extends Message
+
+  private final case class ReceiveTimeout(domainId: DomainId) extends Message
+
   final case class HandshakeRequest(domainId: DomainId,
                                     clientActor: ActorRef[ClientActor.Disconnect],
                                     reconnect: Boolean,
@@ -458,8 +490,6 @@ object DomainActor {
   final case class DomainStatusRequest(domainId: DomainId, replyTo: ActorRef[DomainStatusResponse]) extends Message
 
   final case class DomainStatusResponse(connectedClients: Int)
-
-  private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
   final case class InternalDomainStatusChanged(domainId: DomainId,
                                                status: DomainStatus.Value) extends Message

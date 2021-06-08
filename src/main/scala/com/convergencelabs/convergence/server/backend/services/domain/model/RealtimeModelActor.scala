@@ -11,10 +11,11 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
-import java.time.Instant
-
+import akka.Done
+import akka.actor.CoordinatedShutdown
+import akka.actor.typed._
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import com.convergencelabs.convergence.common.Ok
@@ -35,6 +36,8 @@ import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedA
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
+import java.time.Instant
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
@@ -58,11 +61,21 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   import RealtimeModelActor._
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
-  private[this] var _domainFqn: Option[DomainId] = None
+  private[this] var _domainId: Option[DomainId] = None
   private[this] var _modelId: Option[String] = None
   private[this] var _modelManager: Option[RealtimeModelManager] = None
 
   private[this] var _open: Boolean = false
+  private[this] val _shutdownTask = {
+    val self = context.self
+    implicit val scheduler: Scheduler = context.system.scheduler
+    CoordinatedShutdown(context.system)
+      .addCancellableTask(CoordinatedShutdown.PhaseServiceUnbind, "RealtimeModelShutdown") { () =>
+        debug("RealtimeModelActor executing coordinated shutdown: " + this.modelId)
+        implicit val t = Timeout(5, TimeUnit.SECONDS)
+        self.ask[Done](r => ShutdownRequest(this.domainId, this.modelId, r))
+      }
+  }
 
   //
   // Receive methods
@@ -71,6 +84,9 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
     case Terminated(actor) =>
       modelManager.handleTerminated(actor.unsafeUpcast[ModelClientActor.OutgoingMessage])
+      Behaviors.same
+    case PostStop =>
+      this._shutdownTask.cancel()
       Behaviors.same
   }
 
@@ -91,6 +107,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
       case msg@(_: OpenRealtimeModelRequest | _: ModelResyncRequest) =>
         this.becomeOpened()
         this.receiveOpened(msg)
+      case msg: ShutdownRequest =>
+        this.handleShutdownMessage(msg)
       case _ =>
         Behaviors.unhandled
     }
@@ -105,6 +123,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
       case ExecuteTask(_, _, task) =>
         task()
         Behaviors.same
+      case msg: ShutdownRequest =>
+        this.handleShutdownMessage(msg)
       case _ =>
         Behaviors.unhandled
     }
@@ -220,11 +240,17 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
     Behaviors.same
   }
 
+  private def handleShutdownMessage(msg: ShutdownRequest): Behavior[Message] = {
+    this._modelManager.foreach(mm => mm.coordinatedShutdown())
+    msg.replyTo ! Done
+    Behaviors.stopped
+  }
+
   private[this] def modelManager: RealtimeModelManager = this._modelManager.getOrElse {
     throw new IllegalStateException("The model manager can not be access when the model is not open.")
   }
 
-  private[this] def domainFqn = this._domainFqn.getOrElse {
+  private[this] def domainId = this._domainId.getOrElse {
     throw new IllegalStateException("Can not access domainId before the model is initialized.")
   }
 
@@ -237,7 +263,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   }
 
   override protected def setIdentityData(message: Message): Try[String] = {
-    this._domainFqn = Some(message.domainId)
+    this._domainId = Some(message.domainId)
     this._modelId = Some(message.modelId)
     Success(s"${message.domainId.namespace}/${message.domainId.domainId}/${message.modelId}")
   }
@@ -258,7 +284,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   private[this] def becomeOpened(): Unit = {
     debug(s"$identityString: Becoming open.")
     val persistenceFactory = new RealtimeModelPersistenceStreamFactory(
-      domainFqn,
+      domainId,
       modelId,
       context.system,
       persistenceProvider.modelStore,
@@ -268,9 +294,9 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
     val mm = new RealtimeModelManager(
       persistenceFactory,
       new ActorBackedEventLoop(context.messageAdapter[TaskScheduled] {
-        case TaskScheduled(task) => ExecuteTask(domainFqn, modelId, task)
+        case TaskScheduled(task) => ExecuteTask(domainId, modelId, task)
       }),
-      domainFqn,
+      domainId,
       modelId,
       persistenceProvider,
       modelPermissionResolver,
@@ -303,7 +329,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
     debug(s"$identityString: Becoming closed.")
     this._modelManager = None
     this._open = false
-    this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(this.domainFqn, this.modelId))
+    this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(this.domainId, this.modelId))
   }
 
   override def passivate(): Behavior[Message] = {
@@ -404,7 +430,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
             //  to the database.
             val fingerprint: Option[String] = this.persistenceProvider.modelStore.getModelMetaData(modelId)
               .map(_.map(_.createdTime.toEpochMilli.toString)).getOrElse(None)
-              CreateRealtimeModelResponse(Left(ModelAlreadyExistsError(fingerprint)))
+            CreateRealtimeModelResponse(Left(ModelAlreadyExistsError(fingerprint)))
           case e: UnauthorizedException =>
             CreateRealtimeModelResponse(Left(UnauthorizedError(e.getMessage)))
           case e: CollectionAutoCreateDisabledException =>
@@ -449,8 +475,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   }
 
   override def postStop(): Unit = {
-    this._domainFqn foreach { _ =>
-      persistenceManager.releasePersistenceProvider(context.self, context.system, domainFqn)
+    this._domainId foreach { _ =>
+      persistenceManager.releasePersistenceProvider(context.self, context.system, domainId)
     }
 
     super.postStop()
@@ -468,7 +494,7 @@ object RealtimeModelActor {
             modelCreator: ModelCreator,
             persistenceManager: DomainPersistenceManager,
             clientDataResponseTimeout: FiniteDuration,
-            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
+            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup[Message] { context =>
     new RealtimeModelActor(
       context,
       shardRegion,
@@ -478,7 +504,7 @@ object RealtimeModelActor {
       persistenceManager,
       clientDataResponseTimeout,
       receiveTimeout)
-  }
+  }.narrow[Message]
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -488,6 +514,8 @@ object RealtimeModelActor {
     val domainId: DomainId
     val modelId: String
   }
+
+  private case class ShutdownRequest(domainId: DomainId, modelId: String, replyTo: ActorRef[Done]) extends Message
 
   final case class ReceiveTimeout(domainId: DomainId, modelId: String) extends Message
 

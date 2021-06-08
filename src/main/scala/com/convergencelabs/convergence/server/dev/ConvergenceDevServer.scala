@@ -11,9 +11,6 @@
 
 package com.convergencelabs.convergence.server.dev
 
-import java.io.{File, FileInputStream, InputStreamReader}
-import java.util.concurrent.TimeUnit
-
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorSystem, Scheduler}
@@ -24,8 +21,9 @@ import com.convergencelabs.convergence.server.util.LoggingConfigManager
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
-import org.apache.logging.log4j.LogManager
 
+import java.io.{File, FileInputStream, InputStreamReader}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
@@ -159,25 +157,15 @@ private[dev] final class ConvergenceDevServer() extends Logging {
     implicit val sys: Scheduler = backend.scheduler
     implicit val ec: ExecutionContext = ExecutionContext.global
 
-    import FutureUtils._
-
-    val stop1 = backend.ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
-    val stop2 = frontend.ask[ConvergenceServerActor.StopResponse](ConvergenceServerActor.StopRequest)
-
-    List(stop1, stop2) onComplete { _ =>
+    logger.info("Terminating the frontend actor system")
+    frontend.terminate()
+    frontend.whenTerminated.flatMap { _ =>
+      logger.info("Terminating the backend actor system")
       backend.terminate()
-      frontend.terminate()
-
-      val terminate1 = backend.whenTerminated
-      val terminate2 = frontend.whenTerminated
-
-      List(terminate1, terminate2) onComplete { _ =>
-        LogManager.shutdown()
-        System.exit(0)
-      }
+      backend.whenTerminated
+    } onComplete { _ =>
+      orientDb.stop()
     }
-
-    orientDb.stop()
   }
 
   /**

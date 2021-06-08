@@ -868,7 +868,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
       forceCloseAllAfterError(s"The committed version ($version) was not what was expected (${this.committedVersion + 1}).", ForceModelCloseReasonCode.UnexpectedCommittedVersion)
     } else {
       this.committedVersion = version
-      this.checkForConnectionsAndClose()
+      checkForConnectionsAndClose()
     }
   }
 
@@ -887,6 +887,12 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
 
   def modelDeleted(): Unit = {
     this.forceCloseAllAfterError("The model was deleted", ForceModelCloseReasonCode.Deleted)
+  }
+
+  def coordinatedShutdown(): Unit = {
+    forceCloseAllAfterError(
+      "Model closed due to the server node hosting is shutting down.",
+      ForceModelCloseReasonCode.ServerShutdown)
   }
 
   /**

@@ -61,8 +61,6 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     msg match {
       case msg: StartRequest =>
         start(msg)
-      case msg: StopRequest =>
-        stop(msg)
       case msg: StartBackendServices =>
         startBackend(msg)
       case msg: BackendInitializationFailure =>
@@ -135,10 +133,9 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
       _ <- backendStartupFuture
     } yield {
       msg.replyTo ! StartResponse(Right(Ok()))
-    }).recover { cause => {
+    }).recover { cause =>
       error("The was an error starting the ConvergenceServerActor", cause)
       msg.replyTo ! StartResponse(Left(()))
-    }
     }
 
     Behaviors.same
@@ -177,31 +174,6 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     val BackendInitializationFailure(cause, p) = msg
     p.failure(cause)
     Behaviors.same
-  }
-
-  /**
-   * Stops the Convergence Server.
-   */
-  private[this] def stop(msg: StopRequest): Behavior[Message] = {
-    shutdown()
-    msg.replyTo ! StopResponse()
-    Behaviors.stopped
-  }
-
-  /**
-   * Stops the Convergence Server.
-   */
-  private[this] def shutdown(): Unit = {
-    logger.info(s"Stopping the Convergence Server...")
-
-    clusterListener.foreach(context.stop(_))
-
-    this.backend.foreach(backend => backend.stop())
-    this.rest.foreach(rest => rest.stop())
-    this.realtime.foreach(realtime => realtime.stop())
-
-    logger.info(s"Leaving the cluster")
-    cluster.foreach(c => c.manager ! Leave(c.selfMember.address))
   }
 
   /**
@@ -326,21 +298,6 @@ object ConvergenceServerActor {
    *                 startup failed for some reason.
    */
   final case class StartResponse(response: Either[Unit, Ok])
-
-  //
-  // Stop
-  //
-  /**
-   * Requests that the ConvergenceServerActor stop all services and shutdown.
-   *
-   * @param replyTo The actor to reply to.
-   */
-  final case class StopRequest(replyTo: ActorRef[StopResponse]) extends Message
-
-  /**
-   * The response to the StopRequest message.
-   */
-  final case class StopResponse()
 
 
   //////////////////////

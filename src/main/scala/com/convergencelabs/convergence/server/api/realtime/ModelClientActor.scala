@@ -1208,7 +1208,8 @@ object ModelClientActor {
                                              references: Set[ReferenceState]) extends OutgoingMessage
 
   object ForceModelCloseReasonCode extends Enumeration {
-    val Unknown, Unauthorized, Deleted, ErrorApplyingOperation, InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
+    val Unknown, Unauthorized, Deleted, ServerShutdown, ErrorApplyingOperation,
+    InvalidReferenceEvent, PermissionError, UnexpectedCommittedVersion, PermissionsChanged = Value
   }
 
   final case class ModelForceClose(modelId: String, reason: String, reasonCode: ForceModelCloseReasonCode.Value) extends OutgoingMessage
