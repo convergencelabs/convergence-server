@@ -11,9 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.time.Instant
-import java.util.UUID
-import java.util.concurrent.TimeoutException
 import akka.actor.typed._
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors, TimerScheduler}
@@ -31,7 +28,6 @@ import com.convergencelabs.convergence.server.api.realtime.protocol.DataValuePro
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
-import com.convergencelabs.convergence.server.api.rest.badRequest
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.RangeReference
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelStoreActor, RealtimeModelActor}
@@ -47,6 +43,9 @@ import grizzled.slf4j.Logging
 import org.json4s.JsonAST.{JInt, JString, JValue}
 import scalapb.GeneratedMessage
 
+import java.time.Instant
+import java.util.UUID
+import java.util.concurrent.TimeoutException
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.FiniteDuration
@@ -86,9 +85,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] implicit val system: ActorSystem[_] = context.system
   private[this] implicit val defaultRequestTimeout: Timeout = requestTimeout
 
-  private[this] var nextResourceId = 0
-  private[this] var resourceIdToModelId = Map[Int, String]()
-  private[this] var modelIdToResourceId = Map[String, Int]()
+  private[this] val resourceManager = new ResourceManager[String]()
   private[this] var subscribedModels = Map[String, OfflineModelState]()
   private[this] var openingModelStash = Map[String, ListBuffer[OutgoingMessage]]()
 
@@ -193,7 +190,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def syncOfflineModels(models: Map[String, OfflineModelState]): Unit = {
     // FIXME handle the error conditions here better.
-    val notOpen = models.filter { case (modelId, _) => !this.modelIdToResourceId.contains(modelId) }
+    val notOpen = models.filter { case (modelId, _) => !this.resourceManager.hasId(modelId) }
     notOpen.foreach { case (modelId, OfflineModelState(version, permissions)) =>
       modelStoreActor.ask[ModelStoreActor.GetModelUpdateResponse](
         ModelStoreActor.GetModelUpdateRequest(modelId, version, permissions, this.session.userId, _))
@@ -320,9 +317,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     val ModelForceClose(modelId, reason, reasonCode) = forceClose
     resourceId(modelId) foreach { resourceId =>
       logger.warn(s"$domainId: Model forced closed: {modelId: '$modelId', resourceId: $resourceId")
-
-      modelIdToResourceId -= modelId
-      resourceIdToModelId -= resourceId
+      this.resourceManager.releaseResource(resourceId)
       openingModelStash -= modelId
       val serverMessage = ModelForceCloseMessage(resourceId, reason, reasonCode.id)
       clientActor ! SendServerMessage(serverMessage)
@@ -514,7 +509,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onOperationSubmission(message: OperationSubmissionMessage): Unit = {
     val OperationSubmissionMessage(resourceId, seqNo, version, operation, _) = message
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         operation match {
           case Some(op) =>
@@ -540,7 +535,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onModelResyncClientComplete(message: ModelResyncClientCompleteMessage): Unit = {
     val ModelResyncClientCompleteMessage(resourceId, open, _) = message
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         val message = RealtimeModelActor.ModelResyncClientComplete(domainId, modelId, session, open)
         modelClusterRegion ! message
@@ -559,7 +554,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     val ShareReferenceMessage(resourceId, valueId, key, references, version, _) = message
     val vId = valueId.filter(_.nonEmpty)
 
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         references match {
           case Some(refs) =>
@@ -580,7 +575,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   def onUnshareReference(message: UnshareReferenceMessage): Unit = {
     val UnshareReferenceMessage(resourceId, valueId, key, _) = message
     val vId = valueId.filter(_.nonEmpty)
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         val unshareReference = RealtimeModelActor.UnShareReference(domainId, modelId, session, vId, key)
         modelClusterRegion ! unshareReference
@@ -593,7 +588,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     val SetReferenceMessage(resourceId, valueId, key, references, version, _) = message
     val vId = valueId.filter(_.nonEmpty)
 
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         references match {
           case Some(refs) =>
@@ -614,7 +609,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] def onClearReference(message: ClearReferenceMessage): Unit = {
     val ClearReferenceMessage(resourceId, valueId, key, _) = message
     val vId = valueId.filter(_.nonEmpty)
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         val clearReference = RealtimeModelActor.ClearReference(domainId, modelId, session, vId, key)
         modelClusterRegion ! clearReference
@@ -683,7 +678,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onCloseRealtimeModelRequest(request: CloseRealtimeModelRequestMessage, cb: ReplyCallback): Unit = {
     val CloseRealtimeModelRequestMessage(resourceId, _) = request
-    resourceIdToModelId.get(resourceId) match {
+    this.resourceManager.getId(resourceId) match {
       case Some(modelId) =>
         modelClusterRegion
           .ask[RealtimeModelActor.CloseRealtimeModelResponse](
@@ -709,9 +704,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   }
 
   private[this] def onModelClosed(message: ModelClosed): Unit = {
-    val ModelClosed(modelId, resourceId, cb) = message
-    resourceIdToModelId -= resourceId
-    modelIdToResourceId -= modelId
+    val ModelClosed(_, resourceId, cb) = message
+    this.resourceManager.releaseResource(resourceId)
     cb.reply(CloseRealTimeModelResponseMessage())
   }
 
@@ -770,7 +764,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     val ModelOpenSuccess(modelId, success, cb) = message
     val RealtimeModelActor.OpenModelSuccess(valueIdPrefix, metaData, connectedClients, resyncingClients, references, modelData, modelPermissions) = success
 
-    val resourceId = claimResourceId(modelId)
+    val resourceId = this.resourceManager.getOrAssignResource(modelId)
 
     val convertedReferences = convertReferences(references)
     cb.reply(
@@ -828,21 +822,11 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
     val ModelPermissions(read, write, remove, manage) = permissions
     val permissionData = ProtoModelPermissions(read, write, remove, manage)
-    val resourceId = claimResourceId(modelId)
+    val resourceId = this.resourceManager.getOrAssignResource(modelId)
     val responseMessage = ModelResyncResponseMessage(resourceId, currentVersion, Some(permissionData))
     cb.reply(responseMessage)
 
     flushOpenStash(modelId)
-  }
-
-  private[this] def claimResourceId(modelId: String): Int = {
-    val resourceId = generateNextResourceId()
-    debug(s"Mapping model id '$modelId' to resource id '$resourceId'")
-
-    resourceIdToModelId += (resourceId -> modelId)
-    modelIdToResourceId += (modelId -> resourceId)
-
-    resourceId
   }
 
   private[this] def onModelResyncFailure(message: ModelResyncRequestFailure): Unit = {
@@ -1071,16 +1055,10 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   }
 
   private[this] def resourceId(modelId: String): Option[Int] = {
-    this.modelIdToResourceId.get(modelId) orElse {
+    this.resourceManager.getResource(modelId) orElse {
       error(s"$domainId: Receive an outgoing message for a modelId that is not open: $modelId")
       None
     }
-  }
-
-  private[this] def generateNextResourceId(): Int = {
-    val id = nextResourceId
-    nextResourceId += 1
-    id
   }
 
   private[this] def getSetOrRandomModelId(optionalModelId: Option[String]): String = {

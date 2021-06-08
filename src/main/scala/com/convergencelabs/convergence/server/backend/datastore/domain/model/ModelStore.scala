@@ -40,6 +40,15 @@ import java.util.Date
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
+/**
+ * The [[ModelStore]] is responsible for the persistence of RealTimeModels
+ * in the system.
+ *
+ * @param dbProvider     The DatabaseProvider that provides a connection to
+ *                       the database.
+ * @param operationStore The  store that stores model operations.
+ * @param snapshotStore  The store that manages model snapshots.
+ */
 class ModelStore private[domain](dbProvider: DatabaseProvider,
                                  operationStore: ModelOperationStore,
                                  snapshotStore: ModelSnapshotStore)
@@ -50,12 +59,13 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   import com.convergencelabs.convergence.server.backend.datastore.domain.schema.ModelClass._
 
   def modelExists(id: String): Try[Boolean] = withDb { db =>
-    val query = "SELECT count(*) as count FROM Model where id = :id"
     val params = Map("id" -> id)
     OrientDBUtil
-      .getDocument(db, query, params)
+      .getDocument(db, ModelExistsQuery, params)
       .map(_.getProperty("count").asInstanceOf[Long] > 0)
   }
+
+  private[this] val ModelExistsQuery = "SELECT count(*) as count FROM Model WHERE id = :id"
 
   def createModel(modelId: String,
                   collectionId: String,
@@ -125,7 +135,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
       db.commit()
       ()
     }.get
-  } recoverWith handleDuplicateValue()
+  } recoverWith handleDuplicateValue
 
   //FIXME: Add in overridePermissions flag
   def updateModel(id: String, data: ObjectValue, worldPermissions: Option[ModelPermissions]): Try[Unit] = withDb { db =>
@@ -152,10 +162,11 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   }
 
   def updateModelOnOperation(id: String, version: Long, timestamp: Instant, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
-    val command = "UPDATE Model SET version = :version, modifiedTime = :modifiedTime WHERE id = :id"
     val params = Map(Fields.Id -> id, Fields.ModifiedTime -> Date.from(timestamp), Fields.Version -> version)
-    OrientDBUtil.mutateOneDocument(db, command, params)
+    OrientDBUtil.mutateOneDocument(db, UpdateModelOnOperationCommand, params)
   }
+
+  private[this] val UpdateModelOnOperationCommand = "UPDATE Model SET version = :version, modifiedTime = :modifiedTime WHERE id = :id"
 
   def setNextPrefixValue(id: String, value: Long): Try[Unit] = withDb { db =>
     val command = "UPDATE Model SET valuePrefix = :valuePrefix WHERE id = :id"
@@ -163,34 +174,40 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
     OrientDBUtil.mutateOneDocument(db, command, params)
   }
 
+
   def getAndIncrementNextValuePrefix(id: String): Try[Long] = withDb { db =>
-    val command = "UPDATE Model SET valuePrefix = valuePrefix + 1 RETURN AFTER valuePrefix WHERE id = :id"
     val params = Map(Fields.Id -> id)
     OrientDBUtil
-      .singleResultCommand(db, command, params)
+      .singleResultCommand(db, GetAndIncrementValueIdPrefixCommand, params)
       .map(doc => doc.getProperty(Fields.ValuePrefix).asInstanceOf[Long])
   }
 
+  private[this] val GetAndIncrementValueIdPrefixCommand = "UPDATE Model SET valuePrefix = valuePrefix + 1 RETURN AFTER valuePrefix WHERE id = :id"
+
   def deleteModel(id: String): Try[Unit] = withDb { db =>
     for {
-      _ <- operationStore.deleteAllOperationsForModel(id)
-      _ <- snapshotStore.removeAllSnapshotsForModel(id)
-      _ <- deleteDataValuesForModel(id)
-      _ <- deleteModelRecord(id)
+      _ <- operationStore.deleteAllOperationsForModel(id, Some(db))
+      _ <- snapshotStore.removeAllSnapshotsForModel(id, Some(db))
+      _ <- deleteDataValuesForModel(id, Some(db))
+      _ <- deleteModelRecord(id, Some(db))
     } yield ()
   }
 
-  def deleteModelRecord(id: String): Try[Unit] = withDb { db =>
-    val command = "DELETE FROM Model WHERE id = :id"
+
+  def deleteModelRecord(id: String, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val params = Map(Fields.Id -> id)
-    OrientDBUtil.mutateOneDocument(db, command, params)
+    OrientDBUtil.mutateOneDocument(db, DeleteModelByIdCommand, params)
   }
 
+  private[this] val DeleteModelByIdCommand = "DELETE FROM Model WHERE id = :id"
+
+
   def deleteDataValuesForModel(id: String, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
-    val command = "DELETE FROM DataValue WHERE model.id = :id"
     val params = Map(Fields.Id -> id)
-    OrientDBUtil.commandReturningCount(db, command, params).map(_ => ())
+    OrientDBUtil.commandReturningCount(db, DeleteDataValuesForModelCommand, params).map(_ => ())
   }
+
+  private[this] val DeleteDataValuesForModelCommand = "DELETE FROM DataValue WHERE model.id = :id"
 
   def getModel(id: String): Try[Option[Model]] = withDb { db =>
     ModelStore
@@ -213,7 +230,6 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   def getAllModelMetaDataInCollection(collectionId: String,
                                       offset: QueryOffset,
                                       limit: QueryLimit): Try[List[ModelMetaData]] = withDb { db =>
-
     val baseQuery = "SELECT FROM Model WHERE collection.id = :collectionId ORDER BY id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val params = Map(Params.CollectionId -> collectionId)
@@ -224,7 +240,6 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
   // FIXME Paged Data
   def getAllModelMetaData(offset: QueryOffset,
                           limit: QueryLimit): Try[List[ModelMetaData]] = withDb { db =>
-
     val baseQuery = "SELECT FROM Model ORDER BY collection.id ASC, id ASC"
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     OrientDBUtil.queryAndMap(db, query)(docToModelMetaData)
@@ -298,7 +313,7 @@ class ModelStore private[domain](dbProvider: DatabaseProvider,
     OrientDBUtil.getDocument(db, GetModelCountQuery).map(_.getProperty("count").asInstanceOf[Long])
   }
 
-  private[this] def handleDuplicateValue[T](): PartialFunction[Throwable, Try[T]] = {
+  private[this] def handleDuplicateValue[T]: PartialFunction[Throwable, Try[T]] = {
     case e: ORecordDuplicatedException =>
       e.getIndexName match {
         case Indices.Id =>
@@ -323,8 +338,6 @@ object ModelStore {
   object Params {
     val CollectionId = "collectionId"
   }
-
-  private val FindModel = "SELECT * FROM Model WHERE id = :id"
 
   def getModelDocument(id: String, db: ODatabaseDocument): Try[ODocument] = {
     OrientDBUtil.getDocumentFromSingleValueIndex(db, Indices.Id, id)

@@ -17,13 +17,13 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.activity._
-import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
@@ -53,6 +53,8 @@ private final class ActivityClientActor private(context: ActorContext[Message],
   extends AbstractBehavior[Message](context) with Logging with AskUtils {
 
   import ActivityClientActor._
+
+  private[this] val resourceManager = new ResourceManager[String]()
 
   private[this] implicit val timeout: Timeout = defaultTimeout
   private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
@@ -91,10 +93,15 @@ private final class ActivityClientActor private(context: ActorContext[Message],
   }
 
   private[this] def onActivityUpdateState(message: ActivityUpdateStateMessage): Unit = {
-    val ActivityUpdateStateMessage(id, state, complete, removed, _) = message
-    val mappedState = JsonProtoConverters.valueMapToJValueMap(state)
-    val updateMessage = ActivityActor.UpdateState(domain, id, session.sessionId, mappedState, complete, removed.toList)
-    this.activityShardRegion ! updateMessage
+    resourceManager.getId(message.resourceId) match {
+      case Some(activityId) =>
+        val ActivityUpdateStateMessage(id, state, complete, removed, _) = message
+        val mappedState = JsonProtoConverters.valueMapToJValueMap(state)
+        val updateMessage = ActivityActor.UpdateState(domain, activityId, session.sessionId, mappedState, complete, removed.toList)
+        this.activityShardRegion ! updateMessage
+      case None =>
+        warn("Received an activity update message for an unregistered resource id: " + message.resourceId)
+    }
   }
 
   private[this] def onRequestReceived(message: IncomingRequestMessage, replyCallback: ReplyCallback): Unit = {
@@ -123,6 +130,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
   private[this] def onActivityJoin(RequestMessage: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityJoinRequestMessage(activityId, state, _) = RequestMessage
     val jsonState = JsonProtoConverters.valueMapToJValueMap(state)
+    val resource = resourceManager.getOrAssignResource(activityId)
     activityShardRegion
       .ask[ActivityActor.JoinResponse](
         ActivityActor.JoinRequest(domain, activityId, session.sessionId, jsonState, context.self.narrow[OutgoingMessage], _))
@@ -131,42 +139,54 @@ private final class ActivityClientActor private(context: ActorContext[Message],
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity '$activityId'.")
       }, { response =>
         val mappedState = response.state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
-        cb.reply(ActivityJoinResponseMessage(mappedState))
+        cb.reply(ActivityJoinResponseMessage(resource, mappedState))
       }))
       .recoverWith(handleAskFailure(_, cb))
   }
 
   private[this] def onActivityLeave(message: ActivityLeaveRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityLeaveRequestMessage(activityId, _) = message
-    activityShardRegion
-      .ask[ActivityActor.LeaveResponse](
-        ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _))
-      .map(_.response.fold({
-        case ActivityActor.NotJoinedError() =>
-          cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity '$activityId'.")
-      }, { _ =>
-        cb.reply(ActivityLeaveResponseMessage())
-      }))
-      .recoverWith(handleAskFailure(_, cb))
+    val ActivityLeaveRequestMessage(resource, _) = message
+    resourceManager.getId(resource) match {
+      case Some(activityId) =>
+        resourceManager.releaseResource(resource)
+        activityShardRegion
+          .ask[ActivityActor.LeaveResponse](
+            ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _))
+          .map(_.response.fold({
+            case ActivityActor.NotJoinedError() =>
+              cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity '$activityId'.")
+          }, { _ =>
+            cb.reply(ActivityLeaveResponseMessage())
+          }))
+          .recoverWith(handleAskFailure(_, cb))
+      case None =>
+        cb.expectedError(ErrorCodes.ActivityNoSuchResource, s"Received a request for an unknown resource id")
 
+    }
   }
+
 
   //
   // Outgoing Messages
   //
 
   private[this] def onOutgoingMessage(msg: ActivityClientActor.OutgoingMessage): Behavior[Message] = {
-    val serverMessage: GeneratedMessage with ServerMessage with NormalMessage = msg match {
-      case ActivitySessionJoined(activityId, sessionId, state) =>
-        ActivitySessionJoinedMessage(activityId, sessionId, JsonProtoConverters.jValueMapToValueMap(state))
-      case ActivitySessionLeft(activityId, sessionId) =>
-        ActivitySessionLeftMessage(activityId, sessionId)
-      case ActivityStateUpdated(activityId, sessionId, state, complete, removed) =>
-        ActivityStateUpdatedMessage(
-          activityId, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
-    }
+    resourceManager.getResource(msg.activityId) match {
+      case Some(resource) =>
+        val serverMessage: GeneratedMessage with ServerMessage with NormalMessage = msg match {
+          case ActivitySessionJoined(activityId, sessionId, state) =>
+            ActivitySessionJoinedMessage(resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state))
+          case ActivitySessionLeft(activityId, sessionId) =>
+            ActivitySessionLeftMessage(resource, sessionId)
+          case ActivityStateUpdated(activityId, sessionId, state, complete, removed) =>
+            ActivityStateUpdatedMessage(
+              resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
+        }
 
-    clientActor ! ClientActor.SendServerMessage(serverMessage)
+        clientActor ! ClientActor.SendServerMessage(serverMessage)
+      case None =>
+        warn("Received an outgoing message for an activity that is not open: " + msg.activityId)
+    }
 
     Behaviors.same
   }
@@ -204,7 +224,9 @@ object ActivityClientActor {
   //
   // Messages from within the server
   //
-  sealed trait OutgoingMessage extends Message with CborSerializable
+  sealed trait OutgoingMessage extends Message with CborSerializable {
+    val activityId: String
+  }
 
   final case class ActivitySessionJoined(activityId: String, sessionId: String, state: Map[String, JValue]) extends OutgoingMessage
 

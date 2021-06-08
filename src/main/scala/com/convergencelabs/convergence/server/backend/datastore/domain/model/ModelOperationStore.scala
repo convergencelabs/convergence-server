@@ -118,7 +118,7 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
 
   private[this] val DeleteAllOperationsForModelCommand = "DELETE FROM ModelOperation WHERE model.id = :modelId"
 
-  def deleteAllOperationsForModel(modelId: String): Try[Unit] = withDb { db =>
+  def deleteAllOperationsForModel(modelId: String, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val params = Map(Constants.ModelId -> modelId)
     OrientDBUtil.commandReturningCount(db, DeleteAllOperationsForModelCommand, params).map(_ => ())
   }
