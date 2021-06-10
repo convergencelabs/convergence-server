@@ -221,7 +221,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       onOutgoingRequest(message, replyTo)
 
     case WebSocketClosed =>
-      onConnectionClosed()
+      onWebSocketClosed()
 
     case WebSocketError(cause) =>
       onConnectionError(cause)
@@ -342,7 +342,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   private[this] def handleDisconnect(): Behavior[Message] = {
     this.webSocketActor ! WebSocketService.CloseSocket
-    Behaviors.stopped
+    Behaviors.same
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Behavior[Message] = {
@@ -558,17 +558,18 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   // Error handling
   //
 
-  private[this] def onConnectionClosed(): Behavior[Message] = {
-    debug(s"$domainId: Received a ConnectionClosed; sending disconnect to domain and stopping: $sessionId")
-    domainRegion ! DomainActor.ClientDisconnected(domainId, context.self)
-
+  private def onWebSocketClosed(): Behavior[Message] = {
+    debug(s"$domainId: Received a WebSocketClosed message; sending disconnect to domain and stopping: $sessionId")
     // TODO we may want to keep this client alive to smooth over reconnect in the future.
+
+    domainRegion ! DomainActor.ClientDisconnected(domainId, context.self)
+    this.protocolConnection.dispose()
+
     Behaviors.stopped
   }
 
   private[this] def onConnectionError(cause: Throwable): Behavior[Message] = {
     debug(s"$domainId: Connection Error for: $sessionId - ${cause.getMessage}")
-    domainRegion ! DomainActor.ClientDisconnected(domainId, context.self)
     this.disconnect()
   }
 

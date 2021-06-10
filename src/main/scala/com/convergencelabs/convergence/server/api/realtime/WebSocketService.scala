@@ -172,7 +172,12 @@ private[realtime] final class WebSocketService(system: ActorSystem[_],
     // ActorRef to send outgoing messages to.
     val out = Source.actorRef[WebSocketService.OutgoingBinaryMessage](
       {
-        case WebSocketService.CloseSocket => CompletionStrategy.draining
+        case WebSocketService.CloseSocket =>
+          // Receiving this message will signal the stream to close after
+          // all existing messages have been delivered. Messages not
+          // matching this partial function will be delivered to the
+          // output of the flow.
+          CompletionStrategy.draining
       }: PartialFunction[Any, CompletionStrategy], {
         case akka.actor.Status.Failure(cause) => cause
       }: PartialFunction[Any, Throwable],

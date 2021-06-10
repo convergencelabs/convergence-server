@@ -70,9 +70,9 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
     val self = context.self
     implicit val scheduler: Scheduler = context.system.scheduler
     CoordinatedShutdown(context.system)
-      .addCancellableTask(CoordinatedShutdown.PhaseServiceUnbind, "RealtimeModelShutdown") { () =>
+      .addCancellableTask(CoordinatedShutdown.PhaseBeforeClusterShutdown, "RealtimeModelShutdown") { () =>
         debug("RealtimeModelActor executing coordinated shutdown: " + this.modelId)
-        implicit val t = Timeout(5, TimeUnit.SECONDS)
+        implicit val t: Timeout = Timeout(5, TimeUnit.SECONDS)
         self.ask[Done](r => ShutdownRequest(this.domainId, this.modelId, r))
       }
   }
@@ -84,9 +84,6 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
     case Terminated(actor) =>
       modelManager.handleTerminated(actor.unsafeUpcast[ModelClientActor.OutgoingMessage])
-      Behaviors.same
-    case PostStop =>
-      this._shutdownTask.cancel()
       Behaviors.same
   }
 
@@ -475,6 +472,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   }
 
   override def postStop(): Unit = {
+    this._shutdownTask.cancel()
+
     this._domainId foreach { _ =>
       persistenceManager.releasePersistenceProvider(context.self, context.system, domainId)
     }

@@ -72,6 +72,9 @@ private[dev] final class ConvergenceDevServer() extends Logging {
   private[this] val ConfigFile = "src/dev-server/convergence-server.conf"
   private[this] val persistent = java.lang.Boolean.getBoolean("convergence.dev-server.persistent")
   private[this] val odbTarget = new File("target/orientdb/databases")
+
+  private[this] var stopping = false
+
   /**
    * Creates an Akka Actor System that will act as the cluster seed node.
    */
@@ -132,8 +135,10 @@ private[dev] final class ConvergenceDevServer() extends Logging {
     }
 
     scala.sys.addShutdownHook {
-      logger.info("Convergence Development Server JVM Shutdown Hook called")
-      this.stop()
+      if (!this.stopping) {
+        logger.info("Convergence Development Server JVM Shutdown Hook called")
+        this.stop()
+      }
     }
 
     // This is just a convenience to get the system to shut down.
@@ -143,28 +148,32 @@ private[dev] final class ConvergenceDevServer() extends Logging {
       done = Option(line).isEmpty || line.trim() == "exit"
     } while (!done)
 
-    System.exit(0)
+    this.stop()
   }
 
   /**
    * Stops all services in the [[ConvergenceDevServer]]
    */
   def stop(): Unit = {
-    logger.info("Convergence Development Server shutting down...")
-    seed.terminate()
+    if (!this.stopping) {
+      this.stopping = true
+      logger.info("Convergence Development Server shutting down...")
 
-    implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
-    implicit val sys: Scheduler = backend.scheduler
-    implicit val ec: ExecutionContext = ExecutionContext.global
+      seed.terminate()
 
-    logger.info("Terminating the frontend actor system")
-    frontend.terminate()
-    frontend.whenTerminated.flatMap { _ =>
-      logger.info("Terminating the backend actor system")
-      backend.terminate()
-      backend.whenTerminated
-    } onComplete { _ =>
-      orientDb.stop()
+      implicit val t: Timeout = Timeout(15, TimeUnit.SECONDS)
+      implicit val sys: Scheduler = backend.scheduler
+      implicit val ec: ExecutionContext = ExecutionContext.global
+
+      logger.info("Terminating the frontend actor system")
+      frontend.terminate()
+      frontend.whenTerminated.flatMap { _ =>
+        logger.info("Terminating the backend actor system")
+        backend.terminate()
+        backend.whenTerminated
+      } onComplete { _ =>
+        orientDb.stop()
+      }
     }
   }
 
