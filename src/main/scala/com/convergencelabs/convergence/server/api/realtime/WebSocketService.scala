@@ -180,7 +180,7 @@ private[realtime] final class WebSocketService(system: ActorSystem[_],
       OverflowStrategy.fail)
       .mapMaterializedValue(ref => clientActor ! ClientActor.WebSocketOpened(ref))
 
-    Flow.fromSinkAndSource(in, out)
+    Flow.fromSinkAndSourceCoupled(in, out)
   }
 }
 
