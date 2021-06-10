@@ -422,7 +422,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
           userPermissions)
         .map { model =>
           debug(s"$identityString: Model created.")
-          CreateRealtimeModelResponse(Right(model.metaData.id))
+          Right(model.metaData.id)
         }
         .recover {
           case _: DuplicateValueException =>
@@ -430,16 +430,16 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
             //  to the database.
             val fingerprint: Option[String] = this.persistenceProvider.modelStore.getModelMetaData(modelId)
               .map(_.map(_.createdTime.toEpochMilli.toString)).getOrElse(None)
-            CreateRealtimeModelResponse(Left(ModelAlreadyExistsError(fingerprint)))
+            Left(ModelAlreadyExistsError(fingerprint))
           case e: UnauthorizedException =>
-            CreateRealtimeModelResponse(Left(UnauthorizedError(e.getMessage)))
+            Left(UnauthorizedError(e.getMessage))
           case e: CollectionAutoCreateDisabledException =>
-            CreateRealtimeModelResponse(Left(CollectionDoesNotExistError(e.message)))
+            Left(CollectionDoesNotExistError(e.message))
           case e: Exception =>
             error(s"Could not create model: $modelId", e)
-            CreateRealtimeModelResponse(Left(UnknownError()))
+            Left(UnknownError())
         }
-        .foreach(replyTo ! _)
+        .foreach(replyTo ! CreateRealtimeModelResponse(_))
     }
   }
 
