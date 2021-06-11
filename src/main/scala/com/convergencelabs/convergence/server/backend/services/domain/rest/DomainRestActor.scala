@@ -18,12 +18,12 @@ import com.convergencelabs.convergence.common.ConvergenceJwtUtil
 import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserDeletionOrchestrator
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.group.UserGroupStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.jwt.JwtAuthKeyStoreActor
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelPermissionsStoreActor, ModelStoreActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelPermissionsStoreActor, ModelServiceActor}
 import com.convergencelabs.convergence.server.backend.services.domain.session.SessionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.stats.DomainStatsActor
 import com.convergencelabs.convergence.server.backend.services.domain.user.DomainUserStoreActor
@@ -39,6 +39,8 @@ import scala.util.{Failure, Success, Try}
 private final class DomainRestActor(context: ActorContext[DomainRestActor.Message],
                                     shardRegion: ActorRef[DomainRestActor.Message],
                                     shard: ActorRef[ClusterSharding.ShardCommand],
+                                    modelServiceActor: ActorRef[ModelServiceActor.Message],
+                                    chatServiceActor: ActorRef[ChatServiceActor.Message],
                                     domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
   extends ShardedActor[DomainRestActor.Message](context, shardRegion, shard) {
 
@@ -48,13 +50,11 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
   private[this] var userStoreActor: ActorRef[DomainUserStoreActor.Message] = _
   private[this] var statsActor: ActorRef[DomainStatsActor.Message] = _
   private[this] var collectionStoreActor: ActorRef[CollectionStoreActor.Message] = _
-  private[this] var modelStoreActor: ActorRef[ModelStoreActor.Message] = _
   private[this] var modelPermissionsStoreActor: ActorRef[ModelPermissionsStoreActor.Message] = _
   private[this] var keyStoreActor: ActorRef[JwtAuthKeyStoreActor.Message] = _
   private[this] var sessionStoreActor: ActorRef[SessionStoreActor.Message] = _
   private[this] var configStoreActor: ActorRef[ConfigStoreActor.Message] = _
   private[this] var groupStoreActor: ActorRef[UserGroupStoreActor.Message] = _
-  private[this] var chatActor: ActorRef[ChatManagerActor.Message] = _
   private[this] var domainConfigStore: DomainConfigStore = _
 
   override def receiveInitialized(msg: Message): Behavior[Message] = {
@@ -65,7 +65,7 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
           case DomainRestMessageBody.Domain(message) =>
             onDomainMessage(message)
           case DomainRestMessageBody.Model(message) =>
-            modelStoreActor ! message
+            modelServiceActor ! message
           case DomainRestMessageBody.ModelPermission(message) =>
             modelPermissionsStoreActor ! message
           case DomainRestMessageBody.User(message) =>
@@ -83,7 +83,7 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
           case DomainRestMessageBody.Session(message) =>
             sessionStoreActor ! message
           case DomainRestMessageBody.Chat(message) =>
-            chatActor ! message
+            chatServiceActor ! message
           case _ =>
             logger.warn(s"Unexpected DomainRestMessageBody: $body")
         }
@@ -126,12 +126,10 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
       userStoreActor = context.spawn(DomainUserStoreActor(provider.userStore, userDeleter), "UserStore")
       configStoreActor = context.spawn(ConfigStoreActor(provider.configStore), "ConfigStore")
       collectionStoreActor = context.spawn(CollectionStoreActor(provider.collectionStore, provider.collectionPermissionsStore), "CollectionStore")
-      modelStoreActor = context.spawn(ModelStoreActor(provider), "ModelStore")
       modelPermissionsStoreActor = context.spawn(ModelPermissionsStoreActor(provider.modelPermissionsStore), "ModelPermissionsStore")
       keyStoreActor = context.spawn(JwtAuthKeyStoreActor(provider.jwtAuthKeyStore), "JwtAuthKeyStore")
       sessionStoreActor = context.spawn(SessionStoreActor(provider.sessionStore), "SessionStore")
       groupStoreActor = context.spawn(UserGroupStoreActor(provider.userGroupStore), "GroupStore")
-      chatActor = context.spawn(ChatManagerActor(provider.chatStore, provider.permissionsStore), "ChatManager")
 
       StartUpRequired
     } recoverWith {
@@ -157,9 +155,11 @@ private final class DomainRestActor(context: ActorContext[DomainRestActor.Messag
 object DomainRestActor {
   def apply(shardRegion: ActorRef[DomainRestActor.Message],
             shard: ActorRef[ClusterSharding.ShardCommand],
+            modelServiceActor: ActorRef[ModelServiceActor.Message],
+            chatServiceActor: ActorRef[ChatServiceActor.Message],
             domainPersistenceManager: DomainPersistenceManager,
             receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup(context =>
-    new DomainRestActor(context, shardRegion, shard, domainPersistenceManager, receiveTimeout)
+    new DomainRestActor(context, shardRegion, shard, modelServiceActor, chatServiceActor, domainPersistenceManager, receiveTimeout)
   )
 
   /////////////////////////////////////////////////////////////////////////////
@@ -176,7 +176,7 @@ object DomainRestActor {
       DomainRestMessage(domainId, DomainRestMessageBody.Domain(msg))
     }
 
-    def apply(domainId: DomainId, msg: ModelStoreActor.Message): DomainRestMessage = {
+    def apply(domainId: DomainId, msg: ModelServiceActor.Message): DomainRestMessage = {
       DomainRestMessage(domainId, DomainRestMessageBody.Model(msg))
     }
 
@@ -184,7 +184,7 @@ object DomainRestActor {
       DomainRestMessage(domainId, DomainRestMessageBody.ModelPermission(msg))
     }
 
-    def apply(domainId: DomainId, msg: ChatManagerActor.Message): DomainRestMessage = {
+    def apply(domainId: DomainId, msg: ChatServiceActor.Message): DomainRestMessage = {
       DomainRestMessage(domainId, DomainRestMessageBody.Chat(msg))
     }
 

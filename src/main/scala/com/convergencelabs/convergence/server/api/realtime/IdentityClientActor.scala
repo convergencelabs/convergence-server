@@ -17,12 +17,13 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.identity._
-import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.backend.datastore.SortOrder
-import com.convergencelabs.convergence.server.backend.services.domain.IdentityServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.group.UserGroup
+import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import grizzled.slf4j.Logging
@@ -39,6 +40,7 @@ import scala.util.{Failure, Success, Try}
  * @param identityServiceActor The actor to use to resolve user identity requests.
  */
 private final class IdentityClientActor(context: ActorContext[IdentityClientActor.Message],
+                                        domainId: DomainId,
                                         identityServiceActor: ActorRef[IdentityServiceActor.Message],
                                         private[this] implicit val requestTimeout: Timeout)
   extends AbstractBehavior[IdentityClientActor.Message](context) with Logging with AskUtils {
@@ -87,7 +89,14 @@ private final class IdentityClientActor(context: ActorContext[IdentityClientActo
       }
 
       identityServiceActor.ask[IdentityServiceActor.SearchUsersResponse](
-        IdentityServiceActor.SearchUsersRequest(fields.toList, value, QueryOffset(offset.map(_.longValue)), QueryLimit(limit.map(_.longValue)), Some(orderBy), Some(sort), _))
+        IdentityServiceActor.SearchUsersRequest(
+          domainId,
+          fields.toList,
+          value,
+          QueryOffset(offset.map(_.longValue)),
+          QueryLimit(limit.map(_.longValue)),
+          Some(orderBy),
+          Some(sort), _))
         .map(_.users.fold({ _ =>
           cb.unexpectedError("Unexpected error searching users.")
         }, { users =>
@@ -102,7 +111,8 @@ private final class IdentityClientActor(context: ActorContext[IdentityClientActo
   private[this] def onGetUsers(request: GetUsersRequestMessage, cb: ReplyCallback): Unit = {
     val GetUsersRequestMessage(userIdData, _) = request
     val userIds = userIdData.map { userIdData => protoToDomainUserId(userIdData) }
-    identityServiceActor.ask[IdentityServiceActor.GetUsersResponse](IdentityServiceActor.GetUsersRequest(userIds.toList, _))
+    identityServiceActor.ask[IdentityServiceActor.GetUsersResponse](IdentityServiceActor.GetUsersRequest(
+      domainId, userIds.toList, _))
       .map(_.users.fold({
         case IdentityServiceActor.UnknownError() =>
           cb.unexpectedError("Unexpected error getting users.")
@@ -115,7 +125,8 @@ private final class IdentityClientActor(context: ActorContext[IdentityClientActo
 
   private[this] def onUserGroupsRequest(request: UserGroupsRequestMessage, cb: ReplyCallback): Unit = {
     val UserGroupsRequestMessage(ids, _) = request
-    identityServiceActor.ask[IdentityServiceActor.GetUserGroupsResponse](IdentityServiceActor.GetUserGroupsRequest(Some(ids.toList), _))
+    identityServiceActor.ask[IdentityServiceActor.GetUserGroupsResponse](
+      IdentityServiceActor.GetUserGroupsRequest(domainId, Some(ids.toList), _))
       .map(_.groups.fold(
         {
           case IdentityServiceActor.GroupNotFound(notFoundId) =>
@@ -137,7 +148,7 @@ private final class IdentityClientActor(context: ActorContext[IdentityClientActo
   private[this] def onUserGroupsForUsersRequest(request: UserGroupsForUsersRequestMessage, cb: ReplyCallback): Unit = {
     val UserGroupsForUsersRequestMessage(users, _) = request
     identityServiceActor.ask[IdentityServiceActor.GetUserGroupsForUsersResponse](
-      IdentityServiceActor.GetUserGroupsForUsersRequest(users.map(protoToDomainUserId).toList, _))
+      IdentityServiceActor.GetUserGroupsForUsersRequest(domainId, users.map(protoToDomainUserId).toList, _))
       .map(_.groups.fold({
         case IdentityServiceActor.UserNotFound(userId) =>
           cb.expectedError(
@@ -174,9 +185,10 @@ private final class IdentityClientActor(context: ActorContext[IdentityClientActo
 }
 
 object IdentityClientActor {
-  private[realtime] def apply(identityServiceActor: ActorRef[IdentityServiceActor.Message],
+  private[realtime] def apply(domainId: DomainId,
+                              identityServiceActor: ActorRef[IdentityServiceActor.Message],
                               requestTimeout: Timeout): Behavior[Message] =
-    Behaviors.setup(context => new IdentityClientActor(context, identityServiceActor, requestTimeout))
+    Behaviors.setup(context => new IdentityClientActor(context, domainId, identityServiceActor, requestTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

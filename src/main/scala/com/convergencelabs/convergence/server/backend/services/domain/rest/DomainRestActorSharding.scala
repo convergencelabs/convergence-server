@@ -14,31 +14,37 @@ package com.convergencelabs.convergence.server.backend.services.domain.rest
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.util.actor.ActorSharding
-import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.ModelServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainIdBasedActorSharding, DomainPersistenceManager, DomainPersistenceManagerActor}
+import com.convergencelabs.convergence.server.model.DomainId
 import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-object DomainRestActorSharding {
-  private val EntityName = "DomainRestActor"
+final class DomainRestActorSharding private(config: Config,
+                                                    sharding: ClusterSharding,
+                                                    numberOfShards: Int,
+                                                    modelServiceActor: ActorRef[ModelServiceActor.Message],
+                                                    chatServiceActor: ActorRef[ChatServiceActor.Message]
+                                                   )
+  extends DomainIdBasedActorSharding[DomainRestActor.Message, DomainRestActorSharding.Props](DomainRestActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-  def apply(config: Config, sharding: ClusterSharding, numberOfShards: Int): ActorRef[DomainRestActor.Message] = {
-    val restSharding = new DomainRestActorSharding(config, sharding, numberOfShards)
-    restSharding.shardRegion
-  }
-}
+  import DomainRestActorSharding._
 
-private final class DomainRestActorSharding private(config: Config, sharding: ClusterSharding, numberOfShards: Int)
-  extends ActorSharding[DomainRestActor.Message, Props](DomainRestActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
+  override def getDomainId(msg: DomainRestActor.Message): DomainId = msg.domainId
 
-  def extractEntityId(msg: DomainRestActor.Message): String =
-    s"${msg.domainId.namespace}::${msg.domainId.domainId}"
-
-  def createBehavior(props: Props,
-                     shardRegion: ActorRef[DomainRestActor.Message],
-                     entityContext: EntityContext[DomainRestActor.Message]): Behavior[DomainRestActor.Message] = {
-    DomainRestActor(shardRegion, entityContext.shard, props.domainPersistenceManager, props.receiveTimeout)
+  override def createBehavior(domainId: DomainId,
+                              props: Props,
+                              shardRegion: ActorRef[DomainRestActor.Message],
+                              entityContext: EntityContext[DomainRestActor.Message]): Behavior[DomainRestActor.Message] = {
+    DomainRestActor(
+      shardRegion,
+      entityContext.shard,
+      modelServiceActor,
+      chatServiceActor,
+      props.domainPersistenceManager,
+      props.receiveTimeout)
   }
 
   override protected def createProperties(): Props = {
@@ -48,4 +54,17 @@ private final class DomainRestActorSharding private(config: Config, sharding: Cl
   }
 }
 
-private case class Props(receiveTimeout: FiniteDuration, domainPersistenceManager: DomainPersistenceManager)
+object DomainRestActorSharding {
+  private val EntityName = "DomainRestActor"
+
+  def apply(config: Config,
+            sharding: ClusterSharding,
+            numberOfShards: Int,
+            modelServiceActor: ActorRef[ModelServiceActor.Message],
+            chatServiceActor: ActorRef[ChatServiceActor.Message]): ActorRef[DomainRestActor.Message] = {
+    val restSharding = new DomainRestActorSharding(config, sharding, numberOfShards, modelServiceActor, chatServiceActor)
+    restSharding.shardRegion
+  }
+
+  case class Props(receiveTimeout: FiniteDuration, domainPersistenceManager: DomainPersistenceManager)
+}

@@ -97,6 +97,7 @@ class DomainActorSpec
       testKit.createTestProbe[DomainLifecycleTopic.TopicMessage]()
 
     private val behavior: Behavior[DomainActor.Message] = DomainActor(
+      domainId,
       shardRegion.ref,
       shard.ref,
       persistenceManager,

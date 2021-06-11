@@ -18,7 +18,6 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server._
 import com.convergencelabs.convergence.server.util.LoggingConfigManager
-import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import grizzled.slf4j.Logging
 
@@ -27,7 +26,6 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.Duration
 import scala.jdk.CollectionConverters._
-import scala.util.Success
 
 /**
  * Provides the main method to start up an instance of the [[ConvergenceDevServer]].
@@ -121,14 +119,12 @@ private[dev] final class ConvergenceDevServer() extends Logging {
     implicit val sys: Scheduler = backend.scheduler
     implicit val ec: ExecutionContext = ExecutionContext.global
 
-    import FutureUtils._
-
-    val f1 = backend.ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
-    val f2 = frontend.ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
-
-    List(f1, f2) onComplete {
-      case Success(_) :: Success(_) :: Nil =>
-        logger.info("Convergence Development Server started")
+    (for {
+      _ <- backend.ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
+      _ <- frontend.ask[ConvergenceServerActor.StartResponse](ConvergenceServerActor.StartRequest)
+    } yield {
+      logger.info("Convergence Development Server started")
+    }).recover {
       case _ =>
         logger.info("Convergence Development Server startup failed due to a startup time out.")
         System.exit(1)

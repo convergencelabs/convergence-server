@@ -22,7 +22,7 @@ import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.Re
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelOperationConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
@@ -33,7 +33,7 @@ import scala.language.postfixOps
 
 private final class HistoricModelClientActor(context: ActorContext[HistoricModelClientActor.Message],
                                              domain: DomainId,
-                                             operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                                             operationStoreActor: ActorRef[ModelOperationServiceActor.Message],
                                              modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                              defaultTimeout: Timeout)
   extends AbstractBehavior[HistoricModelClientActor.Message](context) with Logging with AskUtils {
@@ -87,12 +87,13 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
 
   private[this] def onOperationRequest(request: HistoricalOperationRequestMessage, cb: ReplyCallback): Unit = {
     val HistoricalOperationRequestMessage(modelId, first, last, _) = request
-    operationStoreActor.ask[ModelOperationStoreActor.GetOperationsResponse](ModelOperationStoreActor.GetOperationsRequest(request.modelId, first, last, _))
+    operationStoreActor.ask[ModelOperationServiceActor.GetOperationsResponse](
+      ModelOperationServiceActor.GetOperationsRequest(domain, request.modelId, first, last, _))
       .map(_.operations.fold(
         {
-          case ModelOperationStoreActor.ModelNotFoundError() =>
+          case ModelOperationServiceActor.ModelNotFoundError() =>
             cb.expectedError(ErrorCodes.ModelNotFound, s"A model with id '$modelId' does not exist.")
-          case ModelOperationStoreActor.UnknownError() =>
+          case ModelOperationServiceActor.UnknownError() =>
             cb.unexpectedError("Unexpected error getting historical model operations.")
         },
         { operations =>
@@ -105,7 +106,7 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
 
 object HistoricModelClientActor {
   private[realtime] def apply(domain: DomainId,
-                              operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
+                              operationStoreActor: ActorRef[ModelOperationServiceActor.Message],
                               modelShardRegion: ActorRef[RealtimeModelActor.Message],
                               defaultTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new HistoricModelClientActor(

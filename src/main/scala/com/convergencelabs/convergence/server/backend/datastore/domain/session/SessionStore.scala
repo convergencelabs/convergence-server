@@ -11,10 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.session
 
-import java.lang.{Long => JavaLong}
-import java.time.Instant
-import java.util.Date
-
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
@@ -22,7 +18,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.user.Doma
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, DuplicateValueException, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.model.domain.session
-import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
+import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -32,6 +28,9 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
+import java.lang.{Long => JavaLong}
+import java.time.Instant
+import java.util.Date
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Try}
 
@@ -146,12 +145,22 @@ class SessionStore(dbProvider: DatabaseProvider)
       .map(_.field("count").asInstanceOf[Long])
   }
 
-  def setSessionDisconnected(sessionId: String, disconnectedTime: Instant): Try[Unit] = withDb { db =>
-    val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id = :sessionId"
-    val params = Map("disconnected" -> Date.from(disconnectedTime), "sessionId" -> sessionId)
-    OrientDBUtil.mutateOneDocument(db, query, params)
+  private val GetConnectedSessionQuery = s"SELECT id FROM DomainSession WHERE disconnected IS NOT DEFINED"
+
+  def getConnectedSessions(): Try[List[String]] = withDb { db =>
+    OrientDBUtil
+      .queryAndMap(db, GetConnectedSessionQuery)(_.getProperty("id").asInstanceOf[String])
   }
 
+  def setSessionDisconnected(sessionId: String, disconnectedTime: Instant): Try[Unit] =  {
+    this.setSessionsDisconnected(Set(sessionId), disconnectedTime)
+  }
+
+  def setSessionsDisconnected(sessionIds: Set[String], disconnectedTime: Instant): Try[Unit] = withDb { db =>
+    val query = "UPDATE DomainSession SET disconnected = :disconnected WHERE id IN :sessionIds"
+    val params = Map("disconnected" -> Date.from(disconnectedTime), "sessionIds" -> sessionIds.asJava)
+    OrientDBUtil.command(db, query, params).map(_ => ())
+  }
   private[this] def getSessionTypeClause(sessionType: SessionQueryType.Value): Option[String] = {
     sessionType match {
       case SessionQueryType.All =>

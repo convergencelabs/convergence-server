@@ -21,7 +21,8 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.identity._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.IdentityResolutionError
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermissionConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.IdentityServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
@@ -36,11 +37,13 @@ import scala.util.{Failure, Success}
  * about that user is sent over the wire.
  *
  * @param context              The ActorContext for this actor.
+ * @param domainId             The domain this cache manages users for.
  * @param clientActor          The client actor for the client this objects is supporting.
  * @param identityServiceActor The actor that is used to resolve identity.
  * @param timeout              The timeout to user for identity resolution requests.
  */
 private final class IdentityCacheManagerActor(context: ActorContext[IdentityCacheManagerActor.Message],
+                                              domainId: DomainId,
                                               clientActor: ActorRef[ClientActor.FromIdentityResolver],
                                               identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
                                               private[this] implicit val timeout: Timeout)
@@ -197,7 +200,7 @@ private final class IdentityCacheManagerActor(context: ActorContext[IdentityCach
       this.messages.enqueue(record)
 
       context.ask(identityServiceActor, (r: ActorRef[IdentityServiceActor.IdentityResolutionResponse]) =>
-        IdentityServiceActor.IdentityResolutionRequest(requiredSessions, requiredUsers, r)) {
+        IdentityServiceActor.IdentityResolutionRequest(domainId, requiredSessions, requiredUsers, r)) {
         case Success(response) =>
           IdentityResolved(record, response)
         case Failure(cause) =>
@@ -244,10 +247,11 @@ private final class IdentityCacheManagerActor(context: ActorContext[IdentityCach
 
 private[realtime] object IdentityCacheManagerActor {
 
-  private[realtime] def apply(clientActor: ActorRef[ClientActor.FromIdentityResolver],
+  private[realtime] def apply(domainId: DomainId,
+                               clientActor: ActorRef[ClientActor.FromIdentityResolver],
                               identityServiceActor: ActorRef[IdentityServiceActor.IdentityResolutionRequest],
                               timeout: Timeout): Behavior[Message] =
-    Behaviors.setup(context => new IdentityCacheManagerActor(context, clientActor, identityServiceActor, timeout))
+    Behaviors.setup(context => new IdentityCacheManagerActor(context, domainId, clientActor, identityServiceActor, timeout))
 
   private final case class MessageRecord(message: ConvergenceMessage, var ready: Boolean)
 

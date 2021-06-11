@@ -11,9 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.net.InetAddress
-import java.util.concurrent.TimeUnit
-
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.http.scaladsl.model.RemoteAddress.IP
@@ -21,8 +18,9 @@ import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.P
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatServiceActor}
+import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelServiceActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
@@ -33,6 +31,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
+import java.net.InetAddress
+import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
@@ -73,6 +73,13 @@ class ClientActorSpec
     val modelShardRegion: TestProbe[RealtimeModelActor.Message] = testKit.createTestProbe[RealtimeModelActor.Message]()
     val chatShardRegion: TestProbe[ChatActor.Message] = testKit.createTestProbe[ChatActor.Message]()
     val chatDeliveryShardRegion: TestProbe[ChatDeliveryActor.Message] = testKit.createTestProbe[ChatDeliveryActor.Message]()
+
+    val modelService: TestProbe[ModelServiceActor.Message] = testKit.createTestProbe[ModelServiceActor.Message]()
+    val modelOperationService: TestProbe[ModelOperationServiceActor.Message] = testKit.createTestProbe[ModelOperationServiceActor.Message]()
+    val identityService: TestProbe[IdentityServiceActor.Message] = testKit.createTestProbe[IdentityServiceActor.Message]()
+    val chatService: TestProbe[ChatServiceActor.Message] = testKit.createTestProbe[ChatServiceActor.Message]()
+    val presenceService: TestProbe[PresenceServiceActor.Message] = testKit.createTestProbe[PresenceServiceActor.Message]()
+
     val domainLifecycleTopic: TestProbe[DomainLifecycleTopic.TopicMessage] = testKit.createTestProbe[DomainLifecycleTopic.TopicMessage]()
     val modelSyncInterval: FiniteDuration = FiniteDuration(10, TimeUnit.SECONDS)
 
@@ -82,6 +89,11 @@ class ClientActorSpec
       IP(ip = InetAddress.getLocalHost),
       "test ua",
       domainRegion.ref,
+      modelService.ref,
+      modelOperationService.ref,
+      chatService.ref,
+      identityService.ref,
+      presenceService.ref,
       activityShardRegion.ref,
       modelShardRegion.ref,
       chatShardRegion.ref,
@@ -95,11 +107,11 @@ class ClientActorSpec
   class HandshookClient() extends TestFixture() {
     val domainActor: TestProbe[DomainActor.Message] = testKit.createTestProbe[DomainActor.Message]()
 
-    val modelStoreActor: TestProbe[ModelStoreActor.Message] = testKit.createTestProbe[ModelStoreActor.Message]()
-    val operationStoreActor: TestProbe[ModelOperationStoreActor.Message] = testKit.createTestProbe[ModelOperationStoreActor.Message]()
+    val modelStoreActor: TestProbe[ModelServiceActor.Message] = testKit.createTestProbe[ModelServiceActor.Message]()
+    val operationStoreActor: TestProbe[ModelOperationServiceActor.Message] = testKit.createTestProbe[ModelOperationServiceActor.Message]()
     val userServiceActor: TestProbe[IdentityServiceActor.Message] = testKit.createTestProbe[IdentityServiceActor.Message]()
     val presenceServiceActor: TestProbe[PresenceServiceActor.Message] = testKit.createTestProbe[PresenceServiceActor.Message]()
-    val chatManagerActor: TestProbe[ChatManagerActor.Message] = testKit.createTestProbe[ChatManagerActor.Message]()
+    val chatManagerActor: TestProbe[ChatServiceActor.Message] = testKit.createTestProbe[ChatServiceActor.Message]()
 
     {
       val handshakeRequestMessage = HandshakeRequestMessage(reconnect = false, None)
@@ -110,7 +122,7 @@ class ClientActorSpec
 
       val message = domainActor.expectMessageType[DomainActor.HandshakeRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-      val success = DomainActor.HandshakeSuccess(modelStoreActor.ref, operationStoreActor.ref, userServiceActor.ref, presenceServiceActor.ref, chatManagerActor.ref)
+      val success = DomainActor.HandshakeSuccess()
       message.replyTo ! DomainActor.HandshakeResponse(Right(success))
       Await.result(handshakeCallback.result, 250 millis)
     }

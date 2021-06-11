@@ -9,39 +9,40 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain
+package com.convergencelabs.convergence.server.backend.services.domain.identity
 
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserField
 import com.convergencelabs.convergence.server.backend.datastore.{EntityNotFoundException, SortOrder}
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, BaseDomainShardedActor}
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.group.UserGroup
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import grizzled.slf4j.Logging
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
 /**
  * The IdentityServiceActor provides information on users and groups in the system.
- *
- * @param context             The ActorContext for this actor.
- * @param persistenceProvider The persistence provider to use.
  */
-private class IdentityServiceActor(context: ActorContext[IdentityServiceActor.Message],
-                                   persistenceProvider: DomainPersistenceProvider)
-
-  extends AbstractBehavior[IdentityServiceActor.Message](context)
-    with Logging {
+class IdentityServiceActor(domainId: DomainId,
+                                   context: ActorContext[IdentityServiceActor.Message],
+                                   shardRegion: ActorRef[IdentityServiceActor.Message],
+                                   shard: ActorRef[ClusterSharding.ShardCommand],
+                                   domainPersistenceManager: DomainPersistenceManager,
+                                   receiveTimeout: FiniteDuration)
+  extends BaseDomainShardedActor[IdentityServiceActor.Message](domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout) {
 
   import IdentityServiceActor._
 
-  override def onMessage(msg: Message): Behavior[Message] = {
+  override def receiveInitialized(msg: Message): Behavior[Message] = {
     msg match {
       case s: SearchUsersRequest =>
         onSearchUsersRequest(s)
@@ -55,102 +56,108 @@ private class IdentityServiceActor(context: ActorContext[IdentityServiceActor.Me
         onGetUserGroupsForUser(message)
       case message: IdentityResolutionRequest =>
         resolveIdentities(message)
+      case ReceiveTimeout(_) =>
+        this.passivate()
     }
+  }
+
+  private[this] def onGetUsersRequest(msg: GetUsersRequest): Behavior[Message] = {
+    val GetUsersRequest(_, userIds, replyTo) = msg
+    persistenceProvider.userStore.getDomainUsers(userIds)
+      .map(users => Right(users))
+      .recover { cause =>
+        logRequestError(msg, cause)
+        Left(UnknownError())
+      }
+      .foreach(replyTo ! GetUsersResponse(_))
 
     Behaviors.same
   }
 
-  override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
-    case PostStop =>
-      debug(s"IdentityServiceActor(${persistenceProvider.domainId}) stopped.")
-      Behaviors.same
-  }
-
-  private[this] def onGetUsersRequest(msg: GetUsersRequest): Unit = {
-    val GetUsersRequest(userIds, replyTo) = msg
-    persistenceProvider.userStore.getDomainUsers(userIds)
-      .map(users => GetUsersResponse(Right(users)))
-      .recover { cause =>
-        logRequestError(msg, cause)
-        GetUsersResponse(Left(UnknownError()))
-      }
-      .foreach(replyTo ! _)
-  }
-
-  private[this] def onGetUserRequest(msg: GetUserRequest): Unit = {
-    val GetUserRequest(userId, replyTo) = msg
+  private[this] def onGetUserRequest(msg: GetUserRequest): Behavior[Message] = {
+    val GetUserRequest(_, userId, replyTo) = msg
     persistenceProvider.userStore.getDomainUser(userId)
       .map {
         case Some(user) =>
-          GetUserResponse(Right(user))
+          Right(user)
         case None =>
-          GetUserResponse(Left(UserNotFound(userId)))
+          Left(UserNotFound(userId))
       }
       .recover { cause =>
         logRequestError(msg, cause)
-        GetUserResponse(Left(UnknownError()))
+        Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! GetUserResponse(_))
+
+    Behaviors.same
   }
 
-  private[this] def resolveIdentities(msg: IdentityResolutionRequest): Unit = {
+  private[this] def resolveIdentities(msg: IdentityResolutionRequest): Behavior[Message] = {
     debug(s"Processing identity resolution: $msg")
-    val IdentityResolutionRequest(sessionIds, userIds, replyTo) = msg
+    val IdentityResolutionRequest(_, sessionIds, userIds, replyTo) = msg
     (for {
       sessions <- persistenceProvider.sessionStore.getSessions(sessionIds)
       sessionMap <- Success(sessions.map(session => (session.id, session.userId)).toMap)
       users <- persistenceProvider.userStore.getDomainUsers(
         (userIds ++ sessions.map(_.userId)).toList)
     } yield IdentityResolution(sessionMap, users.toSet))
-      .map(r => IdentityResolutionResponse(Right(r)))
+      .map(r => Right(r))
       .recover { cause =>
         logRequestError(msg, cause)
-        IdentityResolutionResponse(Left(UnknownError()))
+        Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! IdentityResolutionResponse(_))
+
+    Behaviors.same
   }
 
-  private[this] def onSearchUsersRequest(msg: SearchUsersRequest): Unit = {
-    val SearchUsersRequest(fields, searchValue, offset, limit, order, sort, replyTo) = msg
+  private[this] def onSearchUsersRequest(msg: SearchUsersRequest): Behavior[Message] = {
+    val SearchUsersRequest(_, fields, searchValue, offset, limit, order, sort, replyTo) = msg
     val f = fields.map(convertField)
     val o = order.map(convertField)
     persistenceProvider.userStore.searchUsersByFields(f, searchValue, o, sort, offset, limit)
-      .map(users => SearchUsersResponse(Right(users)))
+      .map(users => Right(users))
       .recover { cause =>
         logRequestError(msg, cause)
-        SearchUsersResponse(Left(UnknownError()))
+        Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! SearchUsersResponse(_))
+
+    Behaviors.same
   }
 
-  private[this] def onGetUserGroups(msg: GetUserGroupsRequest): Unit = {
-    val GetUserGroupsRequest(ids, replyTo) = msg
+  private[this] def onGetUserGroups(msg: GetUserGroupsRequest): Behavior[Message] = {
+    val GetUserGroupsRequest(_, ids, replyTo) = msg
     (ids match {
       case Some(idList) =>
         persistenceProvider.userGroupStore.getUserGroupsById(idList)
       case None =>
         persistenceProvider.userGroupStore.getUserGroups(None, QueryOffset(), QueryLimit())
     })
-      .map(groups => GetUserGroupsResponse(Right(groups)))
+      .map(groups => Right(groups))
       .recover {
         case EntityNotFoundException(_, Some(entityId)) =>
-          GetUserGroupsResponse(Left(GroupNotFound(entityId.toString)))
+          Left(GroupNotFound(entityId.toString))
         case cause =>
           logRequestError(msg, cause)
-          GetUserGroupsResponse(Left(UnknownError()))
+          Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! GetUserGroupsResponse(_))
+
+    Behaviors.same
   }
 
-  private[this] def onGetUserGroupsForUser(msg: GetUserGroupsForUsersRequest): Unit = {
-    val GetUserGroupsForUsersRequest(userIds, replyTo) = msg
+  private[this] def onGetUserGroupsForUser(msg: GetUserGroupsForUsersRequest): Behavior[Message] = {
+    val GetUserGroupsForUsersRequest(_, userIds, replyTo) = msg
     persistenceProvider.userGroupStore.getUserGroupIdsForUsers(userIds)
-      .map(groups => GetUserGroupsForUsersResponse(Right(groups)))
+      .map(groups => Right(groups))
       .recover { cause =>
         logRequestError(msg, cause)
-        GetUserGroupsForUsersResponse(Left(UnknownError()))
+        Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! GetUserGroupsForUsersResponse(_))
+
+    Behaviors.same
   }
 
   private[this] def logRequestError(request: Any, cause: Throwable): Unit = {
@@ -166,11 +173,25 @@ private class IdentityServiceActor(context: ActorContext[IdentityServiceActor.Me
       case UserLookUpField.Email => DomainUserField.Email
     }
   }
+
+  override protected def getDomainId(msg: Message): DomainId = msg.domainId
+
+  override protected def getReceiveTimeoutMessage(): Message = ReceiveTimeout(this.domainId)
 }
 
 object IdentityServiceActor {
-  def apply(provider: DomainPersistenceProvider): Behavior[Message] = Behaviors.setup { context =>
-    new IdentityServiceActor(context, provider)
+  def apply(domainId: DomainId,
+            shardRegion: ActorRef[Message],
+            shard: ActorRef[ClusterSharding.ShardCommand],
+            domainPersistenceManager: DomainPersistenceManager,
+            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
+    new IdentityServiceActor(
+      domainId,
+      context,
+      shardRegion,
+      shard,
+      domainPersistenceManager,
+      receiveTimeout)
   }
 
   object UserLookUpField extends Enumeration {
@@ -180,12 +201,17 @@ object IdentityServiceActor {
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
-  sealed trait Message extends CborSerializable
+  sealed trait Message extends CborSerializable {
+    val domainId: DomainId
+  }
+
+  private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
   //
   // SearchUsers
   //
-  final case class SearchUsersRequest(fields: List[UserLookUpField.Value],
+  final case class SearchUsersRequest(domainId: DomainId,
+                                      fields: List[UserLookUpField.Value],
                                       searchValue: String,
                                       @JsonDeserialize(contentAs = classOf[Long])
                                       offset: QueryOffset,
@@ -206,7 +232,9 @@ object IdentityServiceActor {
   //
   // GetUsersRequest
   //
-  final case class GetUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUsersResponse]) extends Message
+  final case class GetUsersRequest(domainId: DomainId,
+                                   userIds: List[DomainUserId],
+                                   replyTo: ActorRef[GetUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -220,7 +248,9 @@ object IdentityServiceActor {
   //
   // GetUserRequest
   //
-  final case class GetUserRequest(userId: DomainUserId, replyTo: ActorRef[GetUserResponse]) extends Message
+  final case class GetUserRequest(domainId: DomainId,
+                                  userId: DomainUserId,
+                                  replyTo: ActorRef[GetUserResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -235,7 +265,9 @@ object IdentityServiceActor {
   //
   // GetUserGroups
   //
-  final case class GetUserGroupsRequest(ids: Option[List[String]], replyTo: ActorRef[GetUserGroupsResponse]) extends Message
+  final case class GetUserGroupsRequest(domainId: DomainId,
+                                        ids: Option[List[String]],
+                                        replyTo: ActorRef[GetUserGroupsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -251,7 +283,8 @@ object IdentityServiceActor {
   //
   // IdentityResolution
   //
-  final case class IdentityResolutionRequest(sessionIds: Set[String],
+  final case class IdentityResolutionRequest(domainId: DomainId,
+                                             sessionIds: Set[String],
                                              userIds: Set[DomainUserId],
                                              replyTo: ActorRef[IdentityResolutionResponse]) extends Message
 
@@ -269,7 +302,9 @@ object IdentityServiceActor {
   //
   // GetUserGroupsForUsers
   //
-  final case class GetUserGroupsForUsersRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetUserGroupsForUsersResponse]) extends Message
+  final case class GetUserGroupsForUsersRequest(domainId: DomainId,
+                                                userIds: List[DomainUserId],
+                                                replyTo: ActorRef[GetUserGroupsForUsersResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(

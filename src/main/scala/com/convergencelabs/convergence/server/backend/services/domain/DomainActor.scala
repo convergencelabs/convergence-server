@@ -15,26 +15,21 @@ import akka.Done
 import akka.actor.CoordinatedShutdown
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, _}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
-import com.convergencelabs.convergence.server.backend.datastore.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor}
-import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.{DomainSession, DomainSessionAndUserId}
 import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainStatus}
-import com.convergencelabs.convergence.server.util.actor._
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import grizzled.slf4j.Logging
 
-import java.time.Instant
+import java.time.{Duration, Instant}
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -48,24 +43,25 @@ import scala.util.{Failure, Success, Try}
  * authenticating users into the domain and handling client connections
  * and disconnections.
  */
-private class DomainActor(context: ActorContext[DomainActor.Message],
+private class DomainActor(domainId: DomainId,
+                          context: ActorContext[DomainActor.Message],
+                          timers: TimerScheduler[DomainActor.Message],
                           shardRegion: ActorRef[DomainActor.Message],
                           shard: ActorRef[ClusterSharding.ShardCommand],
                           domainPersistenceManager: DomainPersistenceManager,
                           receiveTimeout: FiniteDuration,
                           domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
-  extends ShardedActor[DomainActor.Message](context, shardRegion, shard) with Logging {
+  extends BaseDomainShardedActor[DomainActor.Message](domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout: FiniteDuration,
+  ) with Logging {
 
   import DomainActor._
 
   private[this] val connectedClients = mutable.Set[ActorRef[ClientActor.Disconnect]]()
   private[this] val authenticatedClients = mutable.Map[ActorRef[ClientActor.Disconnect], String]()
+  private[this] val lastClientHeartbeat = scala.collection.mutable.Map[String, Instant]()
 
   // This is the state that will be set during the initialize method
-  private[this] var domainId: DomainId = _
-  private[this] var persistenceProvider: DomainPersistenceProvider = _
   private[this] var authenticator: AuthenticationHandler = _
-  private[this] var children: DomainActorChildren = _
   private[this] var status: DomainStatus.Value = _
   private[this] var availability: DomainAvailability.Value = _
 
@@ -88,6 +84,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       onAuthenticationRequest(message)
     case message: ClientDisconnected =>
       onClientDisconnect(message)
+    case msg: ClientHeartbeat =>
+      onClientHeartbeat(msg)
     case InternalDomainStatusChanged(id, status) =>
       domainStatusChanged(id, status)
     case InternalDomainAvailabilityChanged(id, availability) =>
@@ -96,6 +94,8 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
       onStatusRequest(msg)
     case _: ReceiveTimeout =>
       onReceiveTimeout()
+    case _: CheckSessions =>
+      onCheckSessions()
     case msg: ShutdownRequest =>
       this.handleShutdownRequest(msg)
   }
@@ -103,10 +103,11 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
     case Terminated(client) =>
       handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
-    case PostStop =>
-      debug("DomainActor Stopped: " + this.domainId)
-      shutdownTask.cancel()
-      Behaviors.same
+  }
+
+  override def postStop(): Unit = {
+    super.postStop()
+    shutdownTask.cancel()
   }
 
   def handleShutdownRequest(msg: ShutdownRequest): Behavior[DomainActor.Message] = {
@@ -154,17 +155,10 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   private[this] def completeHandshake(clientActor: ActorRef[ClientActor.Disconnect]): Try[Either[HandshakeError, HandshakeSuccess]] = {
     persistenceProvider.validateConnection()
       .map { _ =>
-        context.cancelReceiveTimeout()
+        this.disableReceiveTimeout()
         context.watch(clientActor)
-
         connectedClients.add(clientActor)
-
-        val success = HandshakeSuccess(
-          this.children.modelStoreActor,
-          this.children.operationStoreActor,
-          this.children.identityServiceActor,
-          this.children.presenceServiceActor,
-          this.children.chatManagerActor)
+        val success = HandshakeSuccess()
         Right(success)
       }
   }
@@ -242,11 +236,17 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
     removeClient(message.clientActor)
   }
 
+  private[this] def onClientHeartbeat(message: ClientHeartbeat): Behavior[Message] = {
+    this.lastClientHeartbeat.addOne(message.sessionId -> Instant.now())
+    Behaviors.same
+  }
+
   private[this] def removeClient(client: ActorRef[ClientActor.Disconnect]): Behavior[Message] = {
     authenticatedClients.remove(client) match {
       case Some(sessionId) =>
         debug(s"$identityString: Disconnecting authenticated client : $sessionId")
         persistenceProvider.sessionStore.setSessionDisconnected(sessionId, Instant.now())
+        lastClientHeartbeat.remove(sessionId)
       case None =>
         debug(s"$identityString: Disconnecting unauthenticated client.")
     }
@@ -255,7 +255,25 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
 
     if (connectedClients.isEmpty) {
       debug(s"$identityString: Last client disconnected from domain, setting receive timeout for passivation.")
-      this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(this.domainId))
+      this.enableReceiveTimeout()
+    }
+
+    Behaviors.same
+  }
+
+  private[this] def onCheckSessions(): Behavior[Message] = {
+    val now = Instant.now()
+    val max = Duration.ofSeconds(60)
+    val expiredSessions = lastClientHeartbeat.filter { case (_, lastSeen) =>
+      val d = Duration.between(lastSeen, now)
+      d.compareTo(max) > 1
+    }.keySet.toSet
+
+    this.persistenceProvider.sessionStore.setSessionsDisconnected(expiredSessions, now).recover {
+      case t: Throwable =>
+        error("Error marking dead sessions as disconnected", t)
+    }.foreach { _ =>
+      expiredSessions.foreach(lastClientHeartbeat.remove)
     }
 
     Behaviors.same
@@ -267,7 +285,7 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
 
   private[this] def onReceiveTimeout(): Behavior[Message] = {
     debug(s"$identityString: Receive timeout triggered, passivating")
-    this.context.cancelReceiveTimeout()
+    this.disableReceiveTimeout()
     passivate()
   }
 
@@ -332,101 +350,81 @@ private class DomainActor(context: ActorContext[DomainActor.Message],
   // Initialization
   //
 
-  override protected def setIdentityData(message: Message): Try[String] = {
-    this.domainId = message.domainId
-    Success(s"${message.domainId.namespace}/${message.domainId.domainId}")
-  }
+  override def initializeState(msg: Message): Try[Unit] = {
+    this.persistenceProvider.domainStateProvider
+      .getDomainState()
+      .map {
+        case Some(state) =>
+          this.status = state.status
+          this.availability = state.availability
 
-  override def initialize(msg: Message): Try[ShardedActorStatUpPlan] = {
-    (for {
-      provider <- domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, msg.domainId)
-      domainState <- provider.domainStateProvider.getDomainState() flatMap {
-        case Some(state) => Success(state)
-        case None => Failure(DomainNotFoundException(domainId))
+          domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
+            case DomainLifecycleTopic.DomainStatusChanged(id, status) =>
+              InternalDomainStatusChanged(id, status)
+            case DomainLifecycleTopic.DomainAvailabilityChanged(id, availability) =>
+              InternalDomainAvailabilityChanged(id, availability)
+          })
+
+          this.authenticator = new AuthenticationHandler(
+            msg.domainId,
+            persistenceProvider.configStore,
+            persistenceProvider.jwtAuthKeyStore,
+            persistenceProvider.userStore,
+            persistenceProvider.userGroupStore,
+            persistenceProvider.sessionStore,
+            context.executionContext)
+
+        case None =>
+          Failure(DomainNotFoundException(domainId))
       }
-    } yield {
-      this.status = domainState.status
-      this.availability = domainState.availability
-
-      domainLifecycleTopic ! Topic.Subscribe(context.messageAdapter[DomainLifecycleTopic.Message] {
-        case DomainLifecycleTopic.DomainStatusChanged(id, status) =>
-          InternalDomainStatusChanged(id, status)
-        case DomainLifecycleTopic.DomainAvailabilityChanged(id, availability) =>
-          InternalDomainAvailabilityChanged(id, availability)
+      .map(_ => {
+        this.persistenceProvider.sessionStore.getConnectedSessions().map { sessions =>
+          val now = Instant.now()
+          sessions.foreach(id => {
+            this.lastClientHeartbeat += (id -> now)
+          })
+          val msg = CheckSessions(this.domainId)
+          timers.startTimerAtFixedRate(msg, FiniteDuration(20, TimeUnit.SECONDS))
+        }
       })
-
-      this.persistenceProvider = provider
-      this.authenticator = new AuthenticationHandler(
-        msg.domainId,
-        provider.configStore,
-        provider.jwtAuthKeyStore,
-        provider.userStore,
-        provider.userGroupStore,
-        provider.sessionStore,
-        context.executionContext)
-
-      val identityServiceActor = context.spawn(supervise(IdentityServiceActor(persistenceProvider)), "IdentityService")
-      val presenceServiceActor = context.spawn(supervise(PresenceServiceActor()), "PresenceService")
-      val chatManagerActor = context.spawn(supervise(ChatManagerActor(provider.chatStore, provider.permissionsStore)), "ChatManager")
-      val modelStoreActor = context.spawn(supervise(ModelStoreActor(persistenceProvider)), "ModelStore")
-      val operationStoreActor = context.spawn(supervise(ModelOperationStoreActor(persistenceProvider.modelOperationStore)), "ModelOperationStore")
-
-      this.children = DomainActorChildren(
-        modelStoreActor,
-        operationStoreActor,
-        identityServiceActor,
-        presenceServiceActor,
-        chatManagerActor)
-
-      // The idea here is to set the receive timeout in case we don't
-      // get a valid handshake. Realistically, the handshake should
-      // be the very first message (the one we are initializing with, so
-      // this should not happen often.
-      this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(domainId))
-
-      StartUpRequired
-    })
-      .recoverWith {
-        // This is a special case, we know the domain was not found. In theory this
-        // should have been a handshake message, and we want to respond.
-        case _: DomainNotFoundException =>
-          msg match {
-            case msg: HandshakeRequest =>
-              msg.replyTo ! HandshakeResponse(Left(DomainNotFound(msg.domainId)))
-            case _ =>
-              warn(s"$identityString: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
-          }
-          Success(StartUpNotRequired)
-        case cause: Throwable =>
-          Failure(cause)
-      }
   }
+
+  override protected def handleDomainNotFound(msg: Message): Unit = {
+    msg match {
+      case msg: HandshakeRequest =>
+        msg.replyTo ! HandshakeResponse(Left(DomainNotFound(msg.domainId)))
+      case _ =>
+        warn(s"$identityString: The domain was not found, but also the first message to the domain was not a handshake, so son't know how to respond.")
+    }
+  }
+
+  override protected def getDomainId(msg: Message): DomainId = msg.domainId
+
+  override protected def getReceiveTimeoutMessage(): Message = ReceiveTimeout(this.domainId)
 }
 
 
 object DomainActor {
 
-  def apply(shardRegion: ActorRef[Message],
+  def apply(domainId: DomainId,
+            shardRegion: ActorRef[Message],
             shard: ActorRef[ClusterSharding.ShardCommand],
             domainPersistenceManager: DomainPersistenceManager,
             receiveTimeout: FiniteDuration,
-            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] = Behaviors.setup { context =>
-    new DomainActor(
-      context,
-      shardRegion,
-      shard,
-      domainPersistenceManager,
-      receiveTimeout,
-      domainLifecycleTopic)
-  }
-
-  private[this] val ChildSupervisionStrategy = SupervisorStrategy.resume
-
-  private def supervise[T](child: Behavior[T]): Behavior[T] = {
-    Behaviors
-      .supervise(child)
-      .onFailure[Throwable](ChildSupervisionStrategy)
-  }
+            domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
+    Behaviors.setup { context =>
+      Behaviors.withTimers { timers =>
+        new DomainActor(
+          domainId,
+          context,
+          timers,
+          shardRegion,
+          shard,
+          domainPersistenceManager,
+          receiveTimeout,
+          domainLifecycleTopic)
+      }
+    }
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
@@ -440,11 +438,15 @@ object DomainActor {
 
   private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
+  private final case class CheckSessions(domainId: DomainId) extends Message
+
   final case class HandshakeRequest(domainId: DomainId,
                                     clientActor: ActorRef[ClientActor.Disconnect],
                                     reconnect: Boolean,
                                     reconnectToken: Option[String],
                                     replyTo: ActorRef[HandshakeResponse]) extends Message
+
+  final case class ClientHeartbeat(domainId: DomainId, sessionId: String) extends Message
 
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -463,11 +465,7 @@ object DomainActor {
 
   final case class HandshakeResponse(handshake: Either[HandshakeError, HandshakeSuccess]) extends CborSerializable
 
-  final case class HandshakeSuccess(modelStoreActor: ActorRef[ModelStoreActor.Message],
-                                    operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
-                                    identityServiceActor: ActorRef[IdentityServiceActor.Message],
-                                    presenceService: ActorRef[PresenceServiceActor.Message],
-                                    chatManagerActor: ActorRef[ChatManagerActor.Message])
+  final case class HandshakeSuccess()
 
 
   final case class AuthenticationRequest(domainId: DomainId,
@@ -495,15 +493,4 @@ object DomainActor {
                                                status: DomainStatus.Value) extends Message
 
   final case class InternalDomainAvailabilityChanged(domainId: DomainId, availability: DomainAvailability.Value) extends Message
-
-  //
-  // Supporting Classes
-  //
-
-  final case class DomainActorChildren(modelStoreActor: ActorRef[ModelStoreActor.Message],
-                                       operationStoreActor: ActorRef[ModelOperationStoreActor.Message],
-                                       identityServiceActor: ActorRef[IdentityServiceActor.Message],
-                                       presenceServiceActor: ActorRef[PresenceServiceActor.Message],
-                                       chatManagerActor: ActorRef[ChatManagerActor.Message])
-
 }

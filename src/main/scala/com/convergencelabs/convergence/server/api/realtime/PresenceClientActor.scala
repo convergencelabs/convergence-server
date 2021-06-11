@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProt
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters
 import com.convergencelabs.convergence.server.api.realtime.protocol.PresenceProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.presence._
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
@@ -35,6 +36,7 @@ import scala.language.postfixOps
 
 //  TODO: Add connect / disconnect logic
 private final class PresenceClientActor(context: ActorContext[PresenceClientActor.Message],
+                                        domainId: DomainId,
                                         session: DomainSessionAndUserId,
                                         clientActor: ActorRef[ClientActor.SendServerMessage],
                                         presenceServiceActor: ActorRef[PresenceServiceActor.Message],
@@ -46,7 +48,7 @@ private final class PresenceClientActor(context: ActorContext[PresenceClientActo
   private[this] implicit val ec: ExecutionContextExecutor = context.executionContext
   private[this] implicit val system: ActorSystem[_] = context.system
 
-  presenceServiceActor ! PresenceServiceActor.UserConnected(session.userId, context.self)
+  presenceServiceActor ! PresenceServiceActor.UserConnected(domainId, session.userId, context.self)
 
   override def onMessage(msg: PresenceClientActor.Message): Behavior[PresenceClientActor.Message] = {
     msg match {
@@ -83,22 +85,26 @@ private final class PresenceClientActor(context: ActorContext[PresenceClientActo
 
   private[this] def onPresenceStateSet(message: PresenceSetStateMessage): Unit = {
     val PresenceSetStateMessage(state, _) = message
-    this.presenceServiceActor ! PresenceServiceActor.SetUserPresenceState(session.userId, JsonProtoConverters.valueMapToJValueMap(state))
+    this.presenceServiceActor ! PresenceServiceActor.SetUserPresenceState(
+      domainId, session.userId, JsonProtoConverters.valueMapToJValueMap(state))
   }
 
   private[this] def onPresenceStateRemoved(message: PresenceRemoveStateMessage): Unit = {
     val PresenceRemoveStateMessage(keys, _) = message
-    this.presenceServiceActor ! PresenceServiceActor.RemoveUserPresenceState(session.userId, keys.toList)
+    this.presenceServiceActor ! PresenceServiceActor.RemoveUserPresenceState(
+      domainId, session.userId, keys.toList)
   }
 
   private[this] def onPresenceStateCleared(): Unit = {
-    this.presenceServiceActor ! PresenceServiceActor.ClearUserPresenceState(session.userId)
+    this.presenceServiceActor ! PresenceServiceActor.ClearUserPresenceState(
+      domainId, session.userId)
   }
 
   private[this] def onUnsubscribePresence(message: UnsubscribePresenceMessage): Unit = {
     val UnsubscribePresenceMessage(userIdData, _) = message
     val userIds = userIdData.map(protoToDomainUserId)
-    this.presenceServiceActor ! PresenceServiceActor.UnsubscribePresence(userIds.toList, context.self)
+    this.presenceServiceActor ! PresenceServiceActor.UnsubscribePresence(
+      domainId, userIds.toList, context.self)
   }
 
   private[this] def onRequestReceived(message: RequestMessage with PresenceMessage, replyCallback: ReplyCallback): Unit = {
@@ -111,9 +117,10 @@ private final class PresenceClientActor(context: ActorContext[PresenceClientActo
   private[this] def onPresenceRequest(request: PresenceRequestMessage, cb: ReplyCallback): Unit = {
     val PresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(protoToDomainUserId)
-    presenceServiceActor.ask[PresenceServiceActor.GetPresencesResponse](PresenceServiceActor.GetPresencesRequest(userIds.toList, _))
+    presenceServiceActor.ask[PresenceServiceActor.GetPresencesResponse](
+      PresenceServiceActor.GetPresencesRequest(domainId, userIds.toList, _))
       .map(_.presence.fold({
-        case PresenceServiceActor.UserNotFoundError(userId) =>
+        case PresenceServiceActor.UserNotFoundError(_, userId) =>
           userNotFound(userId, cb)
         case _ =>
           cb.unexpectedError("An unexpected error occurred getting presence.")
@@ -126,9 +133,10 @@ private final class PresenceClientActor(context: ActorContext[PresenceClientActo
   private[this] def onSubscribeRequest(request: SubscribePresenceRequestMessage, cb: ReplyCallback): Unit = {
     val SubscribePresenceRequestMessage(userIdData, _) = request
     val userIds = userIdData.map(protoToDomainUserId)
-    presenceServiceActor.ask[PresenceServiceActor.SubscribePresenceResponse](PresenceServiceActor.SubscribePresenceRequest(userIds.toList, context.self.narrow[OutgoingMessage], _))
+    presenceServiceActor.ask[PresenceServiceActor.SubscribePresenceResponse](
+      PresenceServiceActor.SubscribePresenceRequest(domainId, userIds.toList, context.self.narrow[OutgoingMessage], _))
       .map(_.presences.fold({
-        case PresenceServiceActor.UserNotFoundError(userId) =>
+        case PresenceServiceActor.UserNotFoundError(_, userId) =>
           userNotFound(userId, cb)
         case _ =>
           cb.unexpectedError("An unexpected error occurred subscribing to presence.")
@@ -164,12 +172,13 @@ private final class PresenceClientActor(context: ActorContext[PresenceClientActo
 }
 
 object PresenceClientActor {
-  private[realtime] def apply(session: DomainSessionAndUserId,
+  private[realtime] def apply(domainId: DomainId,
+                               session: DomainSessionAndUserId,
                               clientActor: ActorRef[ClientActor.SendServerMessage],
                               presenceServiceActor: ActorRef[PresenceServiceActor.Message],
                               defaultTimeout: Timeout
                              ): Behavior[Message] =
-    Behaviors.setup(context => new PresenceClientActor(context, session, clientActor, presenceServiceActor, defaultTimeout))
+    Behaviors.setup(context => new PresenceClientActor(context, domainId, session, clientActor, presenceServiceActor, defaultTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

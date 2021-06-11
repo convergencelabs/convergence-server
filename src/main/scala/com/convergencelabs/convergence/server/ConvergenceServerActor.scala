@@ -23,8 +23,10 @@ import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, 
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.backend.BackendServices
 import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityActorSharding}
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding}
-import com.convergencelabs.convergence.server.backend.services.domain.model.{RealtimeModelActor, RealtimeModelSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding, ChatServiceActor, ChatServiceActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.identity.{IdentityServiceActor, IdentityServiceActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelOperationServiceActorSharding, ModelServiceActor, ModelServiceActorSharding, RealtimeModelActor, RealtimeModelSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.presence.{PresenceServiceActor, PresenceServiceActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.rest.{DomainRestActor, DomainRestActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainActor, DomainActorSharding}
 import com.convergencelabs.convergence.server.backend.services.server.{ConvergenceDatabaseInitializerActor, DomainLifecycleTopic}
@@ -92,33 +94,21 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
 
     val sharding = ClusterSharding(context.system)
 
-    val modelShardRegion = RealtimeModelSharding(context.system.settings.config, sharding, shardCount)
+    val realtimeModelShardRegion = RealtimeModelSharding(context.system.settings.config, sharding, shardCount)
     val activityShardRegion = ActivityActorSharding(context.system, sharding, shardCount)
     val chatDeliveryShardRegion = ChatDeliveryActorSharding(sharding, shardCount)
     val chatShardRegion = ChatActorSharding(sharding, shardCount, chatDeliveryShardRegion.narrow[ChatDeliveryActor.Send])
-    val domainShardRegion = DomainActorSharding(context.system.settings.config, sharding, shardCount, () => {
+    val domainShardRegion = DomainActorSharding(config, sharding, shardCount, () => {
       domainLifeCycleTopic
     })
 
-    val domainRestShardRegion = DomainRestActorSharding(context.system.settings.config, sharding, shardCount)
+    val modelServiceShardRegion = ModelServiceActorSharding(config, sharding, shardCount)
+    val modelOperationServiceShardRegion = ModelOperationServiceActorSharding(config, sharding, shardCount)
+    val identityServiceShardRegion = IdentityServiceActorSharding(config, sharding, shardCount)
+    val presenceServiceShardRegion = PresenceServiceActorSharding(config, sharding, shardCount)
+    val chatServiceShardRegion = ChatServiceActorSharding(config, sharding, shardCount)
 
-    val restStartupFuture = if (roles.contains(ServerClusterRoles.RestApi)) {
-      this.processRestApiRole(domainRestShardRegion, modelShardRegion, chatShardRegion)
-    } else {
-      Future.successful(())
-    }
-
-    val realtimeStartupFuture = if (roles.contains(ServerClusterRoles.RealtimeApi)) {
-      this.processRealtimeApiRole(
-        domainShardRegion,
-        activityShardRegion,
-        modelShardRegion,
-        chatShardRegion,
-        chatDeliveryShardRegion,
-        domainLifeCycleTopic)
-    } else {
-      Future.successful(())
-    }
+    val domainRestShardRegion = DomainRestActorSharding(config, sharding, shardCount, modelServiceShardRegion, chatServiceShardRegion)
 
     val backendStartupFuture = if (roles.contains(ServerClusterRoles.Backend)) {
       this.processBackendRole(domainLifeCycleTopic)
@@ -126,11 +116,34 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
       Future.successful(())
     }
 
+    val restStartupFuture = if (roles.contains(ServerClusterRoles.RestApi)) {
+      this.processRestApiRole(domainRestShardRegion, realtimeModelShardRegion, chatShardRegion)
+    } else {
+      Future.successful(())
+    }
+
+    val realtimeStartupFuture = if (roles.contains(ServerClusterRoles.RealtimeApi)) {
+      this.processRealtimeApiRole(
+        domainShardRegion,
+        modelServiceShardRegion,
+        modelOperationServiceShardRegion,
+        chatServiceShardRegion,
+        identityServiceShardRegion,
+        presenceServiceShardRegion,
+        activityShardRegion,
+        realtimeModelShardRegion,
+        chatShardRegion,
+        chatDeliveryShardRegion,
+        domainLifeCycleTopic)
+    } else {
+      Future.successful(())
+    }
+
     implicit val ec: ExecutionContext = ExecutionContext.global
     (for {
+      _ <- backendStartupFuture
       _ <- restStartupFuture
       _ <- realtimeStartupFuture
-      _ <- backendStartupFuture
     } yield {
       msg.replyTo ! StartResponse(Right(Ok()))
     }).recover { cause =>
@@ -233,6 +246,11 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
    * A helper method that will bootstrap the Realtime Api.
    */
   private[this] def processRealtimeApiRole(domainRegion: ActorRef[DomainActor.Message],
+                                           modelService: ActorRef[ModelServiceActor.Message],
+                                           modelOperationService: ActorRef[ModelOperationServiceActor.Message],
+                                           chatService: ActorRef[ChatServiceActor.Message],
+                                           identityService: ActorRef[IdentityServiceActor.Message],
+                                           presenceService: ActorRef[PresenceServiceActor.Message],
                                            activityShardRegion: ActorRef[ActivityActor.Message],
                                            modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                            chatShardRegion: ActorRef[ChatActor.Message],
@@ -244,6 +262,11 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     val clientCreator = context.spawn(ClientActorCreator(
       protoConfig,
       domainRegion,
+      modelService,
+      modelOperationService,
+      chatService,
+      identityService,
+      presenceService,
       activityShardRegion,
       modelShardRegion,
       chatShardRegion,

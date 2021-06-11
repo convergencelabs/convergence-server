@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
-import java.time.Instant
-
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
@@ -25,7 +23,7 @@ import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.Re
 import com.convergencelabs.convergence.server.api.realtime.protocol.ChatProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor.PagedChatEvents
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor._
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor._
 import com.convergencelabs.convergence.server.backend.services.domain.chat._
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat.ChatMembership.InvalidChatMembershipValue
@@ -39,6 +37,7 @@ import com.google.protobuf.timestamp.Timestamp
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
+import java.time.Instant
 import scala.concurrent.ExecutionContextExecutor
 import scala.language.postfixOps
 import scala.util.{Success, Try}
@@ -47,7 +46,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
                                     domainId: DomainId,
                                     chatShardRegion: ActorRef[ChatActor.Message],
                                     chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-                                    chatManagerActor: ActorRef[ChatManagerActor.Message],
+                                    chatManagerActor: ActorRef[ChatServiceActor.Message],
                                     clientActor: ActorRef[ClientActor.SendServerMessage],
                                     session: DomainSessionAndUserId,
                                     requestTimeout: Timeout)
@@ -191,7 +190,8 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
       m <- ChatMembership.parse(membership)
     } yield {
       chatManagerActor
-        .ask[CreateChatResponse](CreateChatRequest(chatId, session.userId, ct, m, Some(name), Some(topic), members, _))
+        .ask[CreateChatResponse](CreateChatRequest(
+          domainId, chatId, session.userId, ct, m, Some(name), Some(topic), members, _))
         .map(_.chatId.fold(
           {
             case ChatAlreadyExists() =>
@@ -539,7 +539,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
   private[this] def onChatsExist(message: ChatsExistRequestMessage, cb: ReplyCallback): Unit = {
     val ChatsExistRequestMessage(chatIds, _) = message
     chatManagerActor
-      .ask[ChatManagerActor.ChatsExistsResponse](ChatsExistsRequest(session.userId, chatIds.toList, _))
+      .ask[ChatServiceActor.ChatsExistsResponse](ChatsExistsRequest(domainId, session.userId, chatIds.toList, _))
       .map(_.exists.fold(
         {
           case UnknownError() =>
@@ -554,7 +554,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
   private[this] def onGetChat(message: GetChatsRequestMessage, cb: ReplyCallback): Unit = {
     val GetChatsRequestMessage(ids, _) = message
     chatManagerActor
-      .ask[ChatManagerActor.GetChatsResponse](GetChatsRequest(session.userId, ids.toSet, _))
+      .ask[ChatServiceActor.GetChatsResponse](GetChatsRequest(domainId, session.userId, ids.toSet, _))
       .map(_.chatInfo.fold(
         {
           case UnknownError() =>
@@ -571,7 +571,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
     val GetDirectChatsRequestMessage(usernameLists, _) = message
     val usernames = usernameLists.map(_.values.map(protoToDomainUserId).toSet).toSet
     chatManagerActor
-      .ask[ChatManagerActor.GetDirectChatsResponse](GetDirectChatsRequest(session.userId, usernames, _))
+      .ask[ChatServiceActor.GetDirectChatsResponse](GetDirectChatsRequest(domainId, session.userId, usernames, _))
       .map(_.chatInfo.fold(
         {
           case UnknownError() =>
@@ -586,7 +586,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
 
   private[this] def onGetJoinedChats(cb: ReplyCallback): Unit = {
     chatManagerActor
-      .ask[ChatManagerActor.GetJoinedChatsResponse](GetJoinedChatsRequest(session.userId, _))
+      .ask[ChatServiceActor.GetJoinedChatsResponse](GetJoinedChatsRequest(domainId, session.userId, _))
       .map(_.chatInfo.fold(
         {
           case UnknownError() =>
@@ -637,8 +637,13 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
       val chatTypes = if (types.isEmpty) None else Some(types.toSet)
 
       chatManagerActor
-        .ask[ChatManagerActor.ChatsSearchResponse](
-          ChatsSearchRequest(searchTerm, searchFields, chatTypes, membership,
+        .ask[ChatServiceActor.ChatsSearchResponse](
+          ChatsSearchRequest(
+            domainId,
+            searchTerm,
+            searchFields,
+            chatTypes,
+            membership,
             QueryOffset(offset),
             QueryLimit(limit), _))
         .map(_.chats.fold(
@@ -689,7 +694,7 @@ object ChatClientActor {
                               clientActor: ActorRef[ClientActor.SendServerMessage],
                               chatShardRegion: ActorRef[ChatActor.Message],
                               chatDeliveryShardRegion: ActorRef[ChatDeliveryActor.Message],
-                              chatManagerActor: ActorRef[ChatManagerActor.Message],
+                              chatManagerActor: ActorRef[ChatServiceActor.Message],
                               requestTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(new ChatClientActor(_, domain, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, clientActor, session, requestTimeout))
 

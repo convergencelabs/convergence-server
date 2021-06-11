@@ -25,25 +25,27 @@ import scala.reflect.ClassTag
  *                       regions.
  * @param numberOfShards The number of shards to create across the cluster.
  *
+ * @tparam M The type of message this actor receives.
+ * @tparam P The props this actor takes.
  */
-abstract class ActorSharding[T, P](name: String, systemRole: String, sharding: ClusterSharding, numberOfShards: Int)(implicit t:ClassTag[T]) {
+abstract class ActorSharding[M, P](name: String, systemRole: String, sharding: ClusterSharding, numberOfShards: Int)(implicit t:ClassTag[M]) {
 
   private[this] var createProperties: Option[P] = None
 
-  val shardRegion: ActorRef[T] =
+  val shardRegion: ActorRef[M] =
     sharding.init(
-      Entity(EntityTypeKey[T](name))(createBehavior = (entityContext: EntityContext[T]) => createBehaviorWrapper(entityContext))
+      Entity(EntityTypeKey[M](name))(createBehavior = (entityContext: EntityContext[M]) => createBehaviorWrapper(entityContext))
         .withRole(systemRole)
         .withMessageExtractor(NonWrappedMessageExtractor.create(numberOfShards)(extractEntityId))
     )
 
-  protected def extractEntityId(msg: T): String
+  protected def extractEntityId(msg: M): String
 
   protected def createProperties(): P
 
-  protected def createBehavior(createProps: P, shardRegion: ActorRef[T], entityContext: EntityContext[T]): Behavior[T]
+  protected def createBehavior(createProps: P, shardRegion: ActorRef[M], entityContext: EntityContext[M]): Behavior[M]
 
-  private[this] def createBehaviorWrapper(entityContext: EntityContext[T]): Behavior[T] = {
+  private[this] def createBehaviorWrapper(entityContext: EntityContext[M]): Behavior[M] = {
     val props = createProperties match {
       case Some(props) =>
         props

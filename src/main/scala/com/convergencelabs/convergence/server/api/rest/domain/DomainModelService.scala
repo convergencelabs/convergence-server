@@ -126,8 +126,8 @@ private[domain] final class DomainModelService(domainRestActor: ActorRef[DomainR
 
   private[this] def getModels(domain: DomainId, offset: Option[Int], limit: Option[Int]): Future[RestResponse] = {
     domainRestActor
-      .ask[ModelStoreActor.GetModelsResponse](r => DomainRestMessage(domain,
-        ModelStoreActor.GetModelsRequest(QueryOffset(offset.getOrElse(0)), QueryLimit(limit.getOrElse(10)), r)))
+      .ask[ModelServiceActor.GetModelsResponse](r => DomainRestMessage(domain,
+        ModelServiceActor.GetModelsRequest(domain, QueryOffset(offset.getOrElse(0)), QueryLimit(limit.getOrElse(10)), r)))
       .map(_.models.fold(
         _ => InternalServerError,
         models => okResponse(models.map(mapMetaData))
@@ -222,11 +222,11 @@ private[domain] final class DomainModelService(domainRestActor: ActorRef[DomainR
   private[this] def queryModels(authProfile: AuthorizationProfile, domain: DomainId, queryPost: ModelQueryPost): Future[RestResponse] = {
     val ModelQueryPost(query) = queryPost
     val userId = DomainUserId.convergence(authProfile.username)
-    domainRestActor.ask[ModelStoreActor.QueryModelsResponse](r =>
-      DomainRestMessage(domain, ModelStoreActor.QueryModelsRequest(userId, query, r)))
+    domainRestActor.ask[ModelServiceActor.QueryModelsResponse](r =>
+      DomainRestMessage(domain, ModelServiceActor.QueryModelsRequest(domain, userId, query, r)))
       .map(_.result.fold(
         {
-          case ModelStoreActor.InvalidQueryError(message, query, index) =>
+          case ModelServiceActor.InvalidQueryError(message, query, index) =>
             val details = if (index.isDefined) {
               Map("query" -> query, "index" -> index.get)
             } else {
@@ -234,7 +234,7 @@ private[domain] final class DomainModelService(domainRestActor: ActorRef[DomainR
             }
             badRequest(message, Some(details))
 
-          case ModelStoreActor.UnknownError() =>
+          case ModelServiceActor.UnknownError() =>
             InternalServerError
         },
         { results =>

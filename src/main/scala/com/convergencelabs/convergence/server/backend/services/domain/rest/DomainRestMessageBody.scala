@@ -11,12 +11,12 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.rest
 
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.group.UserGroupStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.jwt.JwtAuthKeyStoreActor
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelPermissionsStoreActor, ModelStoreActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelPermissionsStoreActor, ModelServiceActor}
 import com.convergencelabs.convergence.server.backend.services.domain.session.SessionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.stats.DomainStatsActor
 import com.convergencelabs.convergence.server.backend.services.domain.user.DomainUserStoreActor
@@ -24,10 +24,10 @@ import com.convergencelabs.convergence.server.backend.services.domain.user.Domai
 object DomainRestMessageBody {
 
   object Model {
-    def apply(msg: ModelStoreActor.Message): DomainRestMessageBody =
+    def apply(msg: ModelServiceActor.Message): DomainRestMessageBody =
       DomainRestMessageBody(model = Some(msg))
 
-    def unapply(arg: DomainRestMessageBody): Option[ModelStoreActor.Message] = {
+    def unapply(arg: DomainRestMessageBody): Option[ModelServiceActor.Message] = {
       arg.model
     }
   }
@@ -51,10 +51,10 @@ object DomainRestMessageBody {
   }
 
   object Chat {
-    def apply(msg: ChatManagerActor.Message): DomainRestMessageBody =
+    def apply(msg: ChatServiceActor.Message): DomainRestMessageBody =
       DomainRestMessageBody(chat = Some(msg))
 
-    def unapply(arg: DomainRestMessageBody): Option[ChatManagerActor.Message] = {
+    def unapply(arg: DomainRestMessageBody): Option[ChatServiceActor.Message] = {
       arg.chat
     }
   }
@@ -124,10 +124,10 @@ object DomainRestMessageBody {
 
 }
 
-case class DomainRestMessageBody private(model: Option[ModelStoreActor.Message] = None,
+case class DomainRestMessageBody private(model: Option[ModelServiceActor.Message] = None,
                                          modelPermission: Option[ModelPermissionsStoreActor.Message] = None,
                                          collection: Option[CollectionStoreActor.Message] = None,
-                                         chat: Option[ChatManagerActor.Message] = None,
+                                         chat: Option[ChatServiceActor.Message] = None,
                                          user: Option[DomainUserStoreActor.Message] = None,
                                          group: Option[UserGroupStoreActor.Message] = None,
                                          jwtKey: Option[JwtAuthKeyStoreActor.Message] = None,

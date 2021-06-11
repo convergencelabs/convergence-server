@@ -11,28 +11,34 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model
 
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.PagedData
-import com.convergencelabs.convergence.server.backend.datastore.domain.DomainPersistenceProvider
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.QueryParsingException
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, BaseDomainShardedActor}
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import grizzled.slf4j.Logging
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
-private final class ModelStoreActor(context: ActorContext[ModelStoreActor.Message],
-                                    persistenceProvider: DomainPersistenceProvider)
-  extends AbstractBehavior[ModelStoreActor.Message](context) with Logging {
+private final class ModelServiceActor(domainId: DomainId,
+                                      context: ActorContext[ModelServiceActor.Message],
+                                      shardRegion: ActorRef[ModelServiceActor.Message],
+                                      shard: ActorRef[ClusterSharding.ShardCommand],
+                                      domainPersistenceManager: DomainPersistenceManager,
+                                      receiveTimeout: FiniteDuration)
+  extends BaseDomainShardedActor[ModelServiceActor.Message](domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout) {
 
-  import ModelStoreActor._
+  import ModelServiceActor._
 
-  override def onMessage(msg: Message): Behavior[Message] = {
+  override protected def receiveInitialized(msg: Message): Behavior[Message] = {
     msg match {
       case msg: GetModelsRequest =>
         onGetModels(msg)
@@ -42,35 +48,39 @@ private final class ModelStoreActor(context: ActorContext[ModelStoreActor.Messag
         onQueryModelsRequest(message)
       case message: GetModelUpdateRequest =>
         onGetModelUpdate(message)
+      case ReceiveTimeout(_) =>
+        this.passivate()
     }
+  }
+
+  private[this] def onGetModels(msg: GetModelsRequest): Behavior[Message] = {
+    val GetModelsRequest(_, offset, limit, replyTo) = msg
+    persistenceProvider.modelStore.getAllModelMetaData(offset, limit)
+      .map(models => Right(models))
+      .recover { cause =>
+        error("Unexpected error getting models", cause)
+        Left(UnknownError())
+      }
+      .foreach(replyTo ! GetModelsResponse(_))
 
     Behaviors.same
   }
 
-  private[this] def onGetModels(msg: GetModelsRequest): Unit = {
-    val GetModelsRequest(offset, limit, replyTo) = msg
-    persistenceProvider.modelStore.getAllModelMetaData(offset, limit)
-      .map(models => GetModelsResponse(Right(models)))
-      .recover { cause =>
-        error("Unexpected error getting models", cause)
-        GetModelsResponse(Left(UnknownError()))
-      }
-      .foreach(replyTo ! _)
-  }
-
-  private[this] def onGetModelsInCollection(msg: GetModelsInCollectionRequest): Unit = {
-    val GetModelsInCollectionRequest(collectionId, offset, limit, replyTo) = msg
+  private[this] def onGetModelsInCollection(msg: GetModelsInCollectionRequest): Behavior[Message] = {
+    val GetModelsInCollectionRequest(_, collectionId, offset, limit, replyTo) = msg
     persistenceProvider.modelStore.getAllModelMetaDataInCollection(collectionId, offset, limit)
-      .map(models => GetModelsInCollectionResponse(Right(models)))
+      .map(models => Right(models))
       .recover { cause =>
         error("Unexpected error getting models in collection", cause)
-        GetModelsInCollectionResponse(Left(UnknownError()))
+        Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! GetModelsInCollectionResponse(_))
+
+    Behaviors.same
   }
 
-  private[this] def onQueryModelsRequest(request: QueryModelsRequest): Unit = {
-    val QueryModelsRequest(userId, query, replyTo) = request
+  private[this] def onQueryModelsRequest(request: QueryModelsRequest): Behavior[Message] = {
+    val QueryModelsRequest(_, userId, query, replyTo) = request
     val uid: Option[DomainUserId] = if (userId.userType == DomainUserType.Convergence) {
       None
     } else {
@@ -78,19 +88,21 @@ private final class ModelStoreActor(context: ActorContext[ModelStoreActor.Messag
     }
 
     persistenceProvider.modelStore.queryModels(query, uid)
-      .map(results => QueryModelsResponse(Right(results)))
+      .map(results => Right(results))
       .recover {
         case QueryParsingException(message, query, index) =>
-          QueryModelsResponse(Left(InvalidQueryError(message, query, index)))
+          Left(InvalidQueryError(message, query, index))
         case cause =>
           error("Unexpected error getting models in collection", cause)
-          QueryModelsResponse(Left(UnknownError()))
+          Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! QueryModelsResponse(_))
+
+    Behaviors.same
   }
 
-  private[this] def onGetModelUpdate(request: GetModelUpdateRequest): Unit = {
-    val GetModelUpdateRequest(modelId, currentVersion, currentPermissions, userId, replyTo) = request
+  private[this] def onGetModelUpdate(request: GetModelUpdateRequest): Behavior[Message] = {
+    val GetModelUpdateRequest(_, modelId, currentVersion, currentPermissions, userId, replyTo) = request
     persistenceProvider.modelPermissionCalculator.getUsersCurrentModelPermissions(modelId, userId).flatMap {
       case Some(permissions) =>
         if (permissions.read) {
@@ -135,19 +147,35 @@ private final class ModelStoreActor(context: ActorContext[ModelStoreActor.Messag
         // Model doesn't exist anymore
         Success(OfflineModelDeleted())
     }
-      .map(action => GetModelUpdateResponse(Right(action)))
+      .map(action => Right(action))
       .recover {
         case cause: Throwable =>
           error("Unexpected error processing model update request", cause)
-          GetModelUpdateResponse(Left(UnknownError()))
+          Left(UnknownError())
       }
-      .foreach(replyTo ! _)
+      .foreach(replyTo ! GetModelUpdateResponse(_))
+
+    Behaviors.same
   }
+
+  override protected def getDomainId(msg: Message): DomainId = msg.domainId
+
+  override protected def getReceiveTimeoutMessage(): Message = ReceiveTimeout(this.domainId)
 }
 
-object ModelStoreActor {
-  def apply(persistenceProvider: DomainPersistenceProvider): Behavior[Message] = Behaviors.setup { context =>
-    new ModelStoreActor(context, persistenceProvider)
+object ModelServiceActor {
+  def apply(domainId: DomainId,
+            shardRegion: ActorRef[Message],
+            shard: ActorRef[ClusterSharding.ShardCommand],
+            domainPersistenceManager: DomainPersistenceManager,
+            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
+    new ModelServiceActor(
+      domainId,
+      context,
+      shardRegion,
+      shard,
+      domainPersistenceManager,
+      receiveTimeout)
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -161,12 +189,17 @@ object ModelStoreActor {
     new JsonSubTypes.Type(value = classOf[GetModelsInCollectionRequest], name = "get_models_in_collection"),
     new JsonSubTypes.Type(value = classOf[QueryModelsRequest], name = "query_models"),
   ))
-  sealed trait Message extends CborSerializable
+  sealed trait Message extends CborSerializable {
+    def domainId: DomainId
+  }
+
+  private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
   //
   // GetModels
   //
-  final case class GetModelsRequest(@JsonDeserialize(contentAs = classOf[Long])
+  final case class GetModelsRequest(domainId: DomainId,
+                                    @JsonDeserialize(contentAs = classOf[Long])
                                     offset: QueryOffset,
                                     @JsonDeserialize(contentAs = classOf[Long])
                                     limit: QueryLimit,
@@ -183,7 +216,8 @@ object ModelStoreActor {
   //
   // GetModelsInCollection
   //
-  final case class GetModelsInCollectionRequest(collectionId: String,
+  final case class GetModelsInCollectionRequest(domainId: DomainId,
+                                                collectionId: String,
                                                 @JsonDeserialize(contentAs = classOf[Long])
                                                 offset: QueryOffset,
                                                 @JsonDeserialize(contentAs = classOf[Long])
@@ -201,7 +235,10 @@ object ModelStoreActor {
   //
   // Query Models
   //
-  final case class QueryModelsRequest(userId: DomainUserId, query: String, replyTo: ActorRef[QueryModelsResponse]) extends Message
+  final case class QueryModelsRequest(domainId: DomainId,
+                                      userId: DomainUserId,
+                                      query: String,
+                                      replyTo: ActorRef[QueryModelsResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -217,7 +254,8 @@ object ModelStoreActor {
   //
   // GetModelUpdate
   //
-  final case class GetModelUpdateRequest(modelId: String,
+  final case class GetModelUpdateRequest(domainId: DomainId,
+                                         modelId: String,
                                          currentVersion: Long,
                                          currentPermissions: ModelPermissions,
                                          userId: DomainUserId,
@@ -251,8 +289,8 @@ object ModelStoreActor {
 
   final case class OfflineModelInitial(model: Model, permissions: ModelPermissions, valueIdPrefix: Long) extends ModelUpdateResult
 
-
   final case class GetModelUpdateResponse(result: Either[GetModelUpdateError, ModelUpdateResult]) extends CborSerializable
+
 
   //
   // Common Errors
@@ -266,5 +304,4 @@ object ModelStoreActor {
     with GetModelsInCollectionError
     with GetModelsError
     with GetModelUpdateError
-
 }

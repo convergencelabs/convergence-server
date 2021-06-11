@@ -15,7 +15,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
-import com.convergencelabs.convergence.server.util.actor.ActorSharding
+import com.convergencelabs.convergence.server.model.DomainId
 import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -24,14 +24,20 @@ private final class DomainActorSharding(config: Config,
                                         sharding: ClusterSharding,
                                         numberOfShards: Int,
                                         domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage])
-  extends ActorSharding[DomainActor.Message, Props](DomainActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
-  override def extractEntityId(msg: DomainActor.Message): String = s"${msg.domainId.namespace}::${msg.domainId.domainId}"
+  extends DomainIdBasedActorSharding[DomainActor.Message, DomainActorSharding.Props](
+    DomainActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-  override def createBehavior(props: Props,
+  import DomainActorSharding._
+
+  override def createBehavior(domainId: DomainId,
+                              props: Props,
                               shardRegion: ActorRef[DomainActor.Message],
                               entityContext: EntityContext[DomainActor.Message]): Behavior[DomainActor.Message] = {
     val Props(domainPersistenceManager, domainPassivationTimeout, domainLifecycleTopic) = props
-    DomainActor(shardRegion,
+
+    DomainActor(
+      domainId,
+      shardRegion,
       entityContext.shard,
       domainPersistenceManager,
       domainPassivationTimeout,
@@ -46,13 +52,9 @@ private final class DomainActorSharding(config: Config,
       domainPassivationTimeout,
       domainLifecycleTopic())
   }
+
+  override protected def getDomainId(m: DomainActor.Message): DomainId = m.domainId
 }
-
-
-final case class Props(domainPersistenceManager: DomainPersistenceManager,
-                       domainPassivationTimeout: FiniteDuration,
-                       domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
-
 
 object DomainActorSharding {
   private val EntityName = "DomainActor"
@@ -64,4 +66,10 @@ object DomainActorSharding {
     val domainSharding = new DomainActorSharding(config, sharding, numberOfShards, domainLifecycleTopic)
     domainSharding.shardRegion
   }
+
+
+  final case class Props(domainPersistenceManager: DomainPersistenceManager,
+                         domainPassivationTimeout: FiniteDuration,
+                         domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+
 }

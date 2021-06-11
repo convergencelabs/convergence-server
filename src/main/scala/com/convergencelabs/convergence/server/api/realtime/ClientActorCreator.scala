@@ -16,8 +16,10 @@ import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.http.scaladsl.model.RemoteAddress
 import com.convergencelabs.convergence.server.backend.services.domain.DomainActor
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor}
-import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatServiceActor}
+import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelServiceActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.presence.PresenceServiceActor
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 
@@ -46,6 +48,11 @@ private[server] object ClientActorCreator {
    */
   def apply(protocolConfig: ProtocolConfiguration,
             domainRegion: ActorRef[DomainActor.Message],
+            modelService: ActorRef[ModelServiceActor.Message],
+            modelOperationService: ActorRef[ModelOperationServiceActor.Message],
+            chatService: ActorRef[ChatServiceActor.Message],
+            identityService: ActorRef[IdentityServiceActor.Message],
+            presenceService: ActorRef[PresenceServiceActor.Message],
             activityShardRegion: ActorRef[ActivityActor.Message],
             modelShardRegion: ActorRef[RealtimeModelActor.Message],
             chatShardRegion: ActorRef[ChatActor.Message],
@@ -62,6 +69,11 @@ private[server] object ClientActorCreator {
           remoteAddress,
           userAgent,
           domainRegion,
+          modelService,
+          modelOperationService,
+          chatService,
+          identityService,
+          presenceService,
           activityShardRegion,
           modelShardRegion,
           chatShardRegion,
@@ -75,7 +87,6 @@ private[server] object ClientActorCreator {
         replyTo ! response
 
         Behaviors.same
-
     }
 
     Behaviors.supervise(receive).onFailure(SupervisorStrategy.restart)
@@ -92,9 +103,9 @@ private[server] object ClientActorCreator {
    * @param replyTo    The actor to reply to.
    */
   private[realtime] final case class CreateClientRequest(domain: DomainId,
-                                       remoteHost: RemoteAddress,
-                                       userAgent: String,
-                                       replyTo: ActorRef[CreateClientResponse])
+                                                         remoteHost: RemoteAddress,
+                                                         userAgent: String,
+                                                         replyTo: ActorRef[CreateClientResponse])
 
   /**
    * Returns the ActorRef of the created client to the requester.

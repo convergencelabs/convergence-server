@@ -28,11 +28,12 @@ import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ConvergenceMessageBodyUtils
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.AuthenticationFailed
+import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.{AuthenticationFailed, ClientHeartbeat}
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatManagerActor}
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationStoreActor, ModelStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatServiceActor}
+import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelServiceActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.{PresenceServiceActor, UserPresence}
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
@@ -48,8 +49,8 @@ import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
 import java.util.concurrent.{TimeUnit, TimeoutException}
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -82,6 +83,11 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
                                 remoteHost: RemoteAddress,
                                 userAgent: String,
                                 domainRegion: ActorRef[DomainActor.Message],
+                                modelService: ActorRef[ModelServiceActor.Message],
+                                modelOperationService: ActorRef[ModelOperationServiceActor.Message],
+                                chatService: ActorRef[ChatServiceActor.Message],
+                                identityService: ActorRef[IdentityServiceActor.Message],
+                                presenceService: ActorRef[PresenceServiceActor.Message],
                                 activityShardRegion: ActorRef[ActivityActor.Message],
                                 modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                 chatShardRegion: ActorRef[ChatActor.Message],
@@ -125,12 +131,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   private[this] var chatClient: ActorRef[ChatClientActor.IncomingMessage] = _
   private[this] var historyClient: ActorRef[HistoricModelClientActor.IncomingMessage] = _
 
-  private[this] var modelStoreActor: ActorRef[ModelStoreActor.Message] = _
-  private[this] var operationStoreActor: ActorRef[ModelOperationStoreActor.Message] = _
-  private[this] var identityServiceActor: ActorRef[IdentityServiceActor.Message] = _
-  private[this] var presenceServiceActor: ActorRef[PresenceServiceActor.Message] = _
   private[this] var identityCacheManager: ActorRef[IdentityCacheManagerActor.Message] = _
-  private[this] var chatManagerActor: ActorRef[ChatManagerActor.Message] = _
+
   private[this] var sessionId: String = _
   private[this] var reconnectToken: Option[String] = None
 
@@ -262,8 +264,13 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     receiveAuthenticationSuccess orElse
       receiveCommon
 
-  private[this] val receiveWhileAuthenticated =
-    receiveCommon
+  private[this] val receiveWhileAuthenticated: PartialFunction[Message, Behavior[Message]] = {
+    case Heartbeat =>
+      this.domainRegion ! ClientHeartbeat(this.domainId, this.sessionId)
+      Behaviors.same
+    case msg =>
+      receiveCommon(msg)
+  }
 
   private[this] var messageHandler: MessageHandler = handleHandshakeMessage
 
@@ -318,9 +325,9 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
             }
             cb.reply(HandshakeResponseMessage(success = false, Some(ErrorData(code, details)), retryOk = false))
           },
-          { handshake =>
+          { _ =>
             debug(s"$domainId: Handshake success")
-            context.self ! InternalHandshakeSuccess(request.client, request.clientVersion, handshake, cb)
+            context.self ! InternalHandshakeSuccess(request.client, request.clientVersion, cb)
           })
         )
         .recover { cause =>
@@ -346,24 +353,17 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   }
 
   private[this] def handleHandshakeSuccess(success: InternalHandshakeSuccess): Behavior[Message] = {
-    val InternalHandshakeSuccess(
-    client,
-    clientVersion,
-    DomainActor.HandshakeSuccess(modelStoreActor, operationStoreActor, identityActor, presenceActor, chatLookupActor),
-    cb) = success
+    val InternalHandshakeSuccess(client, clientVersion, cb) = success
 
     this.client = client
     this.clientVersion = clientVersion
-    this.modelStoreActor = modelStoreActor
-    this.operationStoreActor = operationStoreActor
-    this.identityServiceActor = identityActor
-    this.presenceServiceActor = presenceActor
-    this.chatManagerActor = chatLookupActor
+
     debug(s"$domainId: Sending handshake response to client")
 
     this.identityCacheManager = context.spawn(IdentityCacheManagerActor(
+      domainId,
       context.self.narrow[FromIdentityResolver],
-      identityActor,
+      this.identityService,
       identityResolutionTimeout),
       "IdentityCacheManager"
     )
@@ -425,13 +425,13 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
     implicit val t: Timeout = presenceAfterAuthTimeout
 
-    val presenceFuture = presenceServiceActor
-      .ask[PresenceServiceActor.GetPresenceResponse](PresenceServiceActor.GetPresenceRequest(session.userId, _))
+    val presenceFuture = this.presenceService
+      .ask[PresenceServiceActor.GetPresenceResponse](PresenceServiceActor.GetPresenceRequest(this.domainId, session.userId, _))
       .map(_.presence)
       .handleError(_ => UnexpectedErrorException())
 
-    val userFuture = identityServiceActor
-      .ask[IdentityServiceActor.GetUserResponse](IdentityServiceActor.GetUserRequest(session.userId, _))
+    val userFuture = this.identityService
+      .ask[IdentityServiceActor.GetUserResponse](IdentityServiceActor.GetUserRequest(this.domainId, session.userId, _))
       .map(_.user)
       .handleError(_ => UnexpectedErrorException())
 
@@ -455,12 +455,12 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
     this.sessionId = session.sessionId
     this.reconnectToken = reconnectToken
-    this.modelClient = context.spawn(ModelClientActor(domainId, session, narrowedSelf, modelStoreActor, modelShardRegion, requestTimeout, modelSyncInterval), "ModelClient")
-    this.identityClient = context.spawn(IdentityClientActor(identityServiceActor, requestTimeout), "IdentityClient")
-    this.chatClient = context.spawn(ChatClientActor(domainId, session, narrowedSelf, chatShardRegion, chatDeliveryShardRegion, chatManagerActor, requestTimeout), "ChatClient")
+    this.modelClient = context.spawn(ModelClientActor(domainId, session, narrowedSelf, modelService, modelShardRegion, requestTimeout, modelSyncInterval), "ModelClient")
+    this.identityClient = context.spawn(IdentityClientActor(domainId, identityService, requestTimeout), "IdentityClient")
+    this.chatClient = context.spawn(ChatClientActor(domainId, session, narrowedSelf, chatShardRegion, chatDeliveryShardRegion, chatService, requestTimeout), "ChatClient")
     this.activityClient = context.spawn(ActivityClientActor(domainId, session, narrowedSelf, activityShardRegion, requestTimeout), "ActivityClient")
-    this.presenceClient = context.spawn(PresenceClientActor(session, narrowedSelf, presenceServiceActor, requestTimeout), "PresenceClient")
-    this.historyClient = context.spawn(HistoricModelClientActor(domainId, operationStoreActor, modelShardRegion, requestTimeout), "ModelHistoryClient")
+    this.presenceClient = context.spawn(PresenceClientActor(domainId, session, narrowedSelf, presenceService, requestTimeout), "PresenceClient")
+    this.historyClient = context.spawn(HistoricModelClientActor(domainId, modelOperationService, modelShardRegion, requestTimeout), "ModelHistoryClient")
     this.messageHandler = handleMessagesWhenAuthenticated
 
     val response = AuthenticationResponseMessage().withSuccess(AuthSuccessData(
@@ -469,6 +469,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       this.reconnectToken.getOrElse(""),
       jValueMapToValueMap(presence.state)))
     cb.reply(response)
+
+    timers.startTimerAtFixedRate(HeartbeatTimerKey, Heartbeat, FiniteDuration(10, TimeUnit.SECONDS))
 
     Behaviors.receiveMessage(receiveWhileAuthenticated)
       .receiveSignal { x => onSignal.apply(x._2) }
@@ -655,6 +657,11 @@ object ClientActor {
                               remoteHost: RemoteAddress,
                               userAgent: String,
                               domainRegion: ActorRef[DomainActor.Message],
+                              modelService: ActorRef[ModelServiceActor.Message],
+                              modelOperationService: ActorRef[ModelOperationServiceActor.Message],
+                              chatService: ActorRef[ChatServiceActor.Message],
+                              identityService: ActorRef[IdentityServiceActor.Message],
+                              presenceService: ActorRef[PresenceServiceActor.Message],
                               activityShardRegion: ActorRef[ActivityActor.Message],
                               modelShardRegion: ActorRef[RealtimeModelActor.Message],
                               chatShardRegion: ActorRef[ChatActor.Message],
@@ -670,6 +677,11 @@ object ClientActor {
         remoteHost,
         userAgent,
         domainRegion,
+        modelService: ActorRef[ModelServiceActor.Message],
+        modelOperationService: ActorRef[ModelOperationServiceActor.Message],
+        chatService: ActorRef[ChatServiceActor.Message],
+        identityService: ActorRef[IdentityServiceActor.Message],
+        presenceService: ActorRef[PresenceServiceActor.Message],
         activityShardRegion,
         modelShardRegion,
         chatShardRegion,
@@ -692,6 +704,8 @@ object ClientActor {
 
   private final case object HandshakeTimerKey
 
+  private final case object HeartbeatTimerKey
+
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
   /////////////////////////////////////////////////////////////////////////////
@@ -705,6 +719,11 @@ object ClientActor {
    * Indicates that a handshake timeout with the connecting client has occurred.
    */
   private final case object HandshakeTimeout extends Message
+
+  /**
+   * Indicates that the actor should sent a heartbeat to the domain.
+   */
+  private final case object Heartbeat extends Message
 
   /**
    * Defines the messages that will come in from the WebSocketService
@@ -773,7 +792,6 @@ object ClientActor {
 
   private final case class InternalHandshakeSuccess(client: String,
                                                     clientVersion: String,
-                                                    handshakeSuccess: DomainActor.HandshakeSuccess,
                                                     cb: ReplyCallback) extends Message
 
   final case class Disconnect() extends Message

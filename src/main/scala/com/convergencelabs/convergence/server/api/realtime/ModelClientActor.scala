@@ -30,7 +30,7 @@ import com.convergencelabs.convergence.server.api.realtime.protocol.ModelPermiss
 import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, OperationConverters}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.Operation
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference.RangeReference
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelStoreActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelServiceActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
@@ -73,7 +73,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
                                      domainId: DomainId,
                                      session: DomainSessionAndUserId,
                                      clientActor: ActorRef[ClientActor.SendToClient],
-                                     modelStoreActor: ActorRef[ModelStoreActor.Message],
+                                     modelStoreActor: ActorRef[ModelServiceActor.Message],
                                      modelClusterRegion: ActorRef[RealtimeModelActor.Message],
                                      requestTimeout: Timeout,
                                      offlineModelSyncInterval: FiniteDuration)
@@ -127,7 +127,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] def handleOfflineModelSynced(message: UpdateOfflineModel): Unit = {
     val UpdateOfflineModel(modelId, action) = message
     action match {
-      case ModelStoreActor.OfflineModelInitial(model, permissions, valueIdPrefix) =>
+      case ModelServiceActor.OfflineModelInitial(model, permissions, valueIdPrefix) =>
         this.subscribedModels.get(modelId).foreach { _ =>
           val modelDataUpdate = ModelUpdateData(
             model.metaData.version,
@@ -147,7 +147,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
           val version = model.metaData.version
           this.subscribedModels += modelId -> OfflineModelState(version, permissions)
         }
-      case ModelStoreActor.OfflineModelUpdated(model, permissions) =>
+      case ModelServiceActor.OfflineModelUpdated(model, permissions) =>
         this.subscribedModels.get(modelId).foreach { currentState =>
           val modelUpdate = model.map { m =>
             ModelUpdateData(
@@ -172,18 +172,18 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
           this.subscribedModels += modelId -> OfflineModelState(version, perms)
         }
 
-      case ModelStoreActor.OfflineModelDeleted() =>
+      case ModelServiceActor.OfflineModelDeleted() =>
         val message = OfflineModelUpdatedMessage(modelId, OfflineModelUpdatedMessage.Action.Deleted(true))
         clientActor ! SendServerMessage(message)
 
         this.subscribedModels -= modelId
 
-      case ModelStoreActor.OfflineModelPermissionRevoked() =>
+      case ModelServiceActor.OfflineModelPermissionRevoked() =>
         val message = OfflineModelUpdatedMessage(modelId, OfflineModelUpdatedMessage.Action.PermissionRevoked(true))
         clientActor ! SendServerMessage(message)
 
         this.subscribedModels -= modelId
-      case ModelStoreActor.OfflineModelNotUpdate() =>
+      case ModelServiceActor.OfflineModelNotUpdate() =>
       // No update required
     }
   }
@@ -192,11 +192,11 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
     // FIXME handle the error conditions here better.
     val notOpen = models.filter { case (modelId, _) => !this.resourceManager.hasId(modelId) }
     notOpen.foreach { case (modelId, OfflineModelState(version, permissions)) =>
-      modelStoreActor.ask[ModelStoreActor.GetModelUpdateResponse](
-        ModelStoreActor.GetModelUpdateRequest(modelId, version, permissions, this.session.userId, _))
+      modelStoreActor.ask[ModelServiceActor.GetModelUpdateResponse](
+        ModelServiceActor.GetModelUpdateRequest(domainId, modelId, version, permissions, this.session.userId, _))
         .map(_.result.fold(
           {
-            case ModelStoreActor.UnknownError() =>
+            case ModelServiceActor.UnknownError() =>
               error("Error updating offline model")
           },
           {
@@ -961,14 +961,14 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
 
   private[this] def onModelQueryRequest(request: ModelsQueryRequestMessage, cb: ReplyCallback): Unit = {
     val ModelsQueryRequestMessage(query, _) = request
-    modelStoreActor.ask[ModelStoreActor.QueryModelsResponse](
-      ModelStoreActor.QueryModelsRequest(session.userId, query, _))
+    modelStoreActor.ask[ModelServiceActor.QueryModelsResponse](
+      ModelServiceActor.QueryModelsRequest(domainId, session.userId, query, _))
       .map(_.result.fold(
         {
-          case ModelStoreActor.InvalidQueryError(message, _, index) =>
+          case ModelServiceActor.InvalidQueryError(message, _, index) =>
             val details = index.map(i => Map("index" -> JInt(i))).getOrElse(Map())
             cb.expectedError(ErrorCodes.ModelInvalidQuery, message, details)
-          case ModelStoreActor.UnknownError() =>
+          case ModelServiceActor.UnknownError() =>
             cb.unexpectedError("Unexpected error querying models.")
         },
         { result =>
@@ -1070,7 +1070,7 @@ object ModelClientActor {
   private[realtime] def apply(domain: DomainId,
                               session: DomainSessionAndUserId,
                               clientActor: ActorRef[ClientActor.SendToClient],
-                              modelStoreActor: ActorRef[ModelStoreActor.Message],
+                              modelStoreActor: ActorRef[ModelServiceActor.Message],
                               modelShardRegion: ActorRef[RealtimeModelActor.Message],
                               requestTimeout: Timeout,
                               offlineModelSyncInterval: FiniteDuration): Behavior[Message] =
@@ -1131,7 +1131,7 @@ object ModelClientActor {
 
   private final case class OfflineModelState(currentVersion: Long, currentPermissions: ModelPermissions)
 
-  private final case class UpdateOfflineModel(modelId: String, action: ModelStoreActor.ModelUpdateResult) extends Message
+  private final case class UpdateOfflineModel(modelId: String, action: ModelServiceActor.ModelUpdateResult) extends Message
 
 
   /////////////////////////////////////////////////////////////////////////////

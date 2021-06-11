@@ -11,22 +11,32 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.presence
 
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
+import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.PresenceClientActor
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, BaseDomainShardedActor}
+import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.SubscriptionMap
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
-import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
+
+import scala.concurrent.duration.FiniteDuration
 
 // FIXME This entire actor needs to be re-designed. This does not scale at all
 //  we probably need to store presence state / data in the database so that
 //  this can become stateless. Then we can use distributed pub-sub as mechanism
 //  for persistence subscriptions.
-private final class PresenceServiceActor(context: ActorContext[PresenceServiceActor.Message])
-  extends AbstractBehavior[PresenceServiceActor.Message](context) with Logging {
+final class PresenceServiceActor private(domainId: DomainId,
+                                         context: ActorContext[PresenceServiceActor.Message],
+                                         shardRegion: ActorRef[PresenceServiceActor.Message],
+                                         shard: ActorRef[ClusterSharding.ShardCommand],
+                                         domainPersistenceManager: DomainPersistenceManager,
+                                         receiveTimeout: FiniteDuration)
+  extends BaseDomainShardedActor[PresenceServiceActor.Message](domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout) {
+
 
   private var presences = Map[DomainUserId, UserPresence]()
 
@@ -37,7 +47,7 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
 
   import PresenceServiceActor._
 
-  override def onMessage(msg: PresenceServiceActor.Message): Behavior[Message] = {
+  override def receiveInitialized(msg: PresenceServiceActor.Message): Behavior[Message] = {
     msg match {
       case msg: GetPresenceRequest =>
         onGetPresence(msg)
@@ -53,10 +63,11 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
         onClearState(msg)
       case msg: SubscribePresenceRequest =>
         onSubscribe(msg)
-      case UnsubscribePresence(userIds, client) =>
+      case UnsubscribePresence(_, userIds, client) =>
         onUnsubscribe(userIds, client)
+      case ReceiveTimeout(_) =>
+        this.passivate()
     }
-
   }
 
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
@@ -65,21 +76,21 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
   }
 
   private[this] def onGetPresences(msg: GetPresencesRequest): Behavior[Message] = {
-    val GetPresencesRequest(userIds, replyTo) = msg
+    val GetPresencesRequest(_, userIds, replyTo) = msg
     val presence = lookupPresences(userIds)
     replyTo ! GetPresencesResponse(Right(presence))
     Behaviors.same
   }
 
   private[this] def onGetPresence(msg: GetPresenceRequest): Behavior[Message] = {
-    val GetPresenceRequest(userId, replyTo) = msg
+    val GetPresenceRequest(_, userId, replyTo) = msg
     val presence = lookupPresence(userId)
     replyTo ! GetPresenceResponse(Right(presence))
     Behaviors.same
   }
 
   private[this] def onUserConnected(msg: UserConnected): Behavior[Message] = {
-    val UserConnected(userId, client) = msg
+    val UserConnected(_, userId, client) = msg
 
     this.subscriptions.subscribe(client, userId)
 
@@ -119,7 +130,7 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
   }
 
   private[this] def onSetState(msg: SetUserPresenceState): Behavior[Message] = {
-    val SetUserPresenceState(userId, state) = msg
+    val SetUserPresenceState(_, userId, state) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
         state foreach { case (k, v) =>
@@ -133,7 +144,7 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
   }
 
   private[this] def onClearState(msg: ClearUserPresenceState): Behavior[Message] = {
-    val ClearUserPresenceState(userId) = msg
+    val ClearUserPresenceState(_, userId) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
         this.presences += (userId -> presence.copy(state = Map()))
@@ -145,7 +156,7 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
   }
 
   private[this] def onRemoveState(msg: RemoveUserPresenceState): Behavior[Message] = {
-    val RemoveUserPresenceState(userId, keys) = msg
+    val RemoveUserPresenceState(_, userId, keys) = msg
     this.presences.get(userId) match {
       case Some(presence) =>
         keys foreach { key =>
@@ -159,7 +170,7 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
   }
 
   private[this] def onSubscribe(msg: SubscribePresenceRequest): Behavior[Message] = {
-    val SubscribePresenceRequest(userIds, client, replyTo) = msg
+    val SubscribePresenceRequest(_, userIds, client, replyTo) = msg
     userIds.foreach { userId =>
       this.subscriptions.subscribe(client, userId)
     }
@@ -182,27 +193,45 @@ private final class PresenceServiceActor(context: ActorContext[PresenceServiceAc
     this.presences.getOrElse(userId, default = defaultPresence)
   }
 
-
   private[this] def broadcastToSubscribed(userId: DomainUserId, message: PresenceClientActor.OutgoingMessage): Unit = {
     val subscribers = this.subscriptions.subscribers(userId)
     subscribers foreach { client =>
       client ! message
     }
   }
+
+  override protected def getDomainId(msg: Message): DomainId = msg.domainId
+
+  override protected def getReceiveTimeoutMessage(): Message = ReceiveTimeout(this.domainId)
 }
 
 object PresenceServiceActor {
-
-  def apply(): Behavior[Message] = Behaviors.setup { context =>
-    new PresenceServiceActor(context)
+  def apply(domainId: DomainId,
+            shardRegion: ActorRef[Message],
+            shard: ActorRef[ClusterSharding.ShardCommand],
+            domainPersistenceManager: DomainPersistenceManager,
+            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup { context =>
+    new PresenceServiceActor(
+      domainId,
+      context,
+      shardRegion,
+      shard,
+      domainPersistenceManager,
+      receiveTimeout)
   }
 
-  sealed trait Message extends CborSerializable
+  sealed trait Message extends CborSerializable {
+    val domainId: DomainId
+  }
+
+  private final case class ReceiveTimeout(domainId: DomainId) extends Message
 
   //
   // GetPresences
   //
-  final case class GetPresencesRequest(userIds: List[DomainUserId], replyTo: ActorRef[GetPresencesResponse]) extends Message
+  final case class GetPresencesRequest(domainId: DomainId,
+                                       userIds: List[DomainUserId],
+                                       replyTo: ActorRef[GetPresencesResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -216,7 +245,9 @@ object PresenceServiceActor {
   //
   // GetPresence
   //
-  final case class GetPresenceRequest(userId: DomainUserId, replyTo: ActorRef[GetPresenceResponse]) extends Message
+  final case class GetPresenceRequest(domainId: DomainId,
+                                      userId: DomainUserId,
+                                      replyTo: ActorRef[GetPresenceResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
@@ -230,7 +261,8 @@ object PresenceServiceActor {
   //
   // SubscribePresence
   //
-  final case class SubscribePresenceRequest(userIds: List[DomainUserId],
+  final case class SubscribePresenceRequest(domainId: DomainId,
+                                            userIds: List[DomainUserId],
                                             client: ActorRef[PresenceClientActor.OutgoingMessage],
                                             replyTo: ActorRef[SubscribePresenceResponse]) extends Message
 
@@ -246,35 +278,45 @@ object PresenceServiceActor {
   //
   // Unsubscribe
   //
-  final case class UnsubscribePresence(userIds: List[DomainUserId], client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
+  final case class UnsubscribePresence(domainId: DomainId,
+                                       userIds: List[DomainUserId],
+                                       client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
 
 
   //
   // UserConnected
   //
-  final case class UserConnected(userId: DomainUserId, client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
+  final case class UserConnected(domainId: DomainId,
+                                 userId: DomainUserId,
+                                 client: ActorRef[PresenceClientActor.OutgoingMessage]) extends Message
 
   //
   // SetUserPresenceState
   //
-  final case class SetUserPresenceState(userId: DomainUserId, state: Map[String, JValue]) extends Message
+  final case class SetUserPresenceState(domainId: DomainId,
+                                        userId: DomainUserId,
+                                        state: Map[String, JValue]) extends Message
 
   //
   // RemoveUserPresenceState
   //
-  final case class RemoveUserPresenceState(userId: DomainUserId, keys: List[String]) extends Message
+  final case class RemoveUserPresenceState(domainId: DomainId,
+                                           userId: DomainUserId,
+                                           keys: List[String]) extends Message
 
   //
   // ClearUserPresenceState
   //
-  final case class ClearUserPresenceState(userId: DomainUserId) extends Message
+  final case class ClearUserPresenceState(domainId: DomainId,
+                                          userId: DomainUserId) extends Message
 
 
   //
   // Common Errors
   //
   @JsonTypeName("user_not_found")
-  final case class UserNotFoundError(userId: DomainUserId) extends GetPresenceError
+  final case class UserNotFoundError(domainId: DomainId,
+                                     userId: DomainUserId) extends GetPresenceError
     with GetPresencesError
     with SubscribePresenceError
 

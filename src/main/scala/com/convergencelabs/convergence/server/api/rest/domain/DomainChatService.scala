@@ -23,7 +23,7 @@ import akka.util.Timeout
 import com.convergencelabs.convergence.common.PagedData
 import com.convergencelabs.convergence.server.api.rest.{okResponse, _}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatManagerActor._
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor._
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.model.DomainId
@@ -90,7 +90,7 @@ private[domain] final class DomainChatService(domainRestActor: ActorRef[DomainRe
   private[this] def getChats(domain: DomainId, searchTerm: Option[String], offset: Option[Long], limit: Option[Long]): Future[RestResponse] = {
     domainRestActor
       .ask[ChatsSearchResponse](r =>
-        DomainRestMessage(domain, ChatsSearchRequest(searchTerm, None, None, None, QueryOffset(offset), QueryLimit(limit), r)))
+        DomainRestMessage(domain, ChatsSearchRequest(domain, searchTerm, None, None, None, QueryOffset(offset), QueryLimit(limit), r)))
       .map(_.chats.fold(
         {
           case UnknownError() =>
@@ -105,7 +105,7 @@ private[domain] final class DomainChatService(domainRestActor: ActorRef[DomainRe
 
   private[this] def getChat(domain: DomainId, chatId: String): Future[RestResponse] = {
     domainRestActor
-      .ask[GetChatInfoResponse](r => DomainRestMessage(domain, GetChatInfoRequest(chatId, r)))
+      .ask[GetChatInfoResponse](r => DomainRestMessage(domain, GetChatInfoRequest(domain, chatId, r)))
       .map(_.chat.fold(
         {
           case ChatNotFound() =>
@@ -123,7 +123,7 @@ private[domain] final class DomainChatService(domainRestActor: ActorRef[DomainRe
 
     domainRestActor
       .ask[CreateChatResponse] { r =>
-        val request = CreateChatRequest(
+        val request = CreateChatRequest(domain,
           Some(chatId),
           DomainUserId.convergence(authProfile.username),
           ChatType.parse(chatType).get,
