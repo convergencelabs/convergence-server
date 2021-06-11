@@ -60,6 +60,9 @@ private class DomainActor(domainId: DomainId,
   private[this] val authenticatedClients = mutable.Map[ActorRef[ClientActor.Disconnect], String]()
   private[this] val lastClientHeartbeat = scala.collection.mutable.Map[String, Instant]()
 
+  private[this] val IdleSessionTimeout = context.system.settings.config.getDuration(
+    "convergence.realtime.domain.idle-session-timeout")
+
   // This is the state that will be set during the initialize method
   private[this] var authenticator: AuthenticationHandler = _
   private[this] var status: DomainStatus.Value = _
@@ -263,10 +266,9 @@ private class DomainActor(domainId: DomainId,
 
   private[this] def onCheckSessions(): Behavior[Message] = {
     val now = Instant.now()
-    val max = Duration.ofSeconds(60)
     val expiredSessions = lastClientHeartbeat.filter { case (_, lastSeen) =>
       val d = Duration.between(lastSeen, now)
-      d.compareTo(max) > 1
+      d.compareTo(IdleSessionTimeout) > 1
     }.keySet.toSet
 
     this.persistenceProvider.sessionStore.setSessionsDisconnected(expiredSessions, now).recover {
@@ -384,7 +386,9 @@ private class DomainActor(domainId: DomainId,
             this.lastClientHeartbeat += (id -> now)
           })
           val msg = CheckSessions(this.domainId)
-          timers.startTimerAtFixedRate(msg, FiniteDuration(20, TimeUnit.SECONDS))
+          val interval = context.system.settings.config.getDuration(
+          "convergence.realtime.domain.session-prune-interval")
+          timers.startTimerAtFixedRate(msg, scala.concurrent.duration.Duration.fromNanos(interval.toNanos))
         }
       })
   }

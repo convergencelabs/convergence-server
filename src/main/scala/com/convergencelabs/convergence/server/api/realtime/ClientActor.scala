@@ -470,7 +470,9 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       jValueMapToValueMap(presence.state)))
     cb.reply(response)
 
-    timers.startTimerAtFixedRate(HeartbeatTimerKey, Heartbeat, FiniteDuration(10, TimeUnit.SECONDS))
+    val interval = context.system.settings.config.getDuration(
+      "convergence.realtime.client.heartbeat-interval")
+    timers.startTimerAtFixedRate(HeartbeatTimerKey, Heartbeat, Duration.fromNanos(interval.toNanos))
 
     Behaviors.receiveMessage(receiveWhileAuthenticated)
       .receiveSignal { x => onSignal.apply(x._2) }
