@@ -28,7 +28,7 @@ import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ConvergenceMessageBodyUtils
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.AuthenticationFailed
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.AuthenticationFailed
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatServiceActor}
@@ -82,7 +82,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
                                 protocolConfig: ProtocolConfiguration,
                                 remoteHost: RemoteAddress,
                                 userAgent: String,
-                                domainRegion: ActorRef[DomainActor.Message],
+                                domainRegion: ActorRef[DomainSessionActor.Message],
                                 modelService: ActorRef[ModelServiceActor.Message],
                                 modelOperationService: ActorRef[ModelOperationServiceActor.Message],
                                 chatService: ActorRef[ChatServiceActor.Message],
@@ -150,7 +150,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         timers.cancel(ConnectionTimerKey)
       }
       Option(protocolConnection).foreach(_.dispose())
-      domainRegion ! DomainActor.ClientDisconnected(domainId = this.domainId, self)
+      domainRegion ! DomainSessionActor.ClientDisconnected(domainId = this.domainId, self)
       webSocketActor ! WebSocketService.CloseSocket
       Future.successful(Done)
     }
@@ -261,7 +261,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   private[this] val receiveWhileConnected: PartialFunction[Message, Behavior[Message]] = {
     case Heartbeat =>
-      this.domainRegion ! DomainActor.ClientHeartbeat(this.domainId, this.sessionId, context.self)
+      this.domainRegion ! DomainSessionActor.ClientHeartbeat(this.domainId, this.sessionId, context.self)
       Behaviors.same
     case msg =>
       receiveCommon(msg)
@@ -325,26 +325,26 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         case Some(authCredentials) =>
           implicit val t: Timeout = domainAuthTimeout
           domainRegion
-            .ask[DomainActor.ConnectionResponse](DomainActor.ConnectionRequest(
+            .ask[DomainSessionActor.ConnectionResponse](DomainSessionActor.ConnectionRequest(
               domainId, context.self.narrow[Disconnect], remoteHost.toString, this.client, this.clientVersion, userAgent, authCredentials, _))
             .map(_.response.fold(
               { failure =>
                 val failureData = failure match {
-                  case DomainActor.DomainNotFound(_) =>
+                  case DomainSessionActor.DomainNotFound(_) =>
                     debug(s"$domainId: Handshake failure: The domain does not exist.")
                     ConnectionFailureData(
                       "domain_not_found",
                       s"The domain '${domainId.namespace}/${domainId.domainId}' does not exist",
                       retryOk = false
                     )
-                  case DomainActor.DomainDatabaseError(_) =>
+                  case DomainSessionActor.DomainDatabaseError(_) =>
                     debug(s"$domainId: Handshake failure: The domain database could not be connected to.")
                     ConnectionFailureData(
                       "domain_database_error",
                       s"The domain '${domainId.namespace}/${domainId.domainId}' could not connect to its database.",
                       retryOk = true
                     )
-                  case DomainActor.DomainUnavailable(_) =>
+                  case DomainSessionActor.DomainUnavailable(_) =>
                     debug(s"$domainId: Handshake failure: The domain is unavailable.")
                     ConnectionFailureData(
                       "domain_unavailable",
@@ -356,7 +356,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
                 }
                 cb.reply(ConnectionResponseMessage().withFailure(failureData))
               },
-              { case DomainActor.ConnectionSuccess(session, reconnectToken) =>
+              { case DomainSessionActor.ConnectionSuccess(session, reconnectToken) =>
                 obtainPresenceAfterConnection(session, reconnectToken, cb)
               }
             ))
@@ -540,7 +540,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     debug(s"$domainId: Received a WebSocketClosed message; sending disconnect to domain and stopping: $sessionId")
     // TODO we may want to keep this client alive to smooth over reconnect in the future.
 
-    domainRegion ! DomainActor.ClientDisconnected(domainId, context.self)
+    domainRegion ! DomainSessionActor.ClientDisconnected(domainId, context.self)
     this.protocolConnection.dispose()
 
     Behaviors.stopped
@@ -624,7 +624,7 @@ object ClientActor {
                               protocolConfig: ProtocolConfiguration,
                               remoteHost: RemoteAddress,
                               userAgent: String,
-                              domainRegion: ActorRef[DomainActor.Message],
+                              domainRegion: ActorRef[DomainSessionActor.Message],
                               modelService: ActorRef[ModelServiceActor.Message],
                               modelOperationService: ActorRef[ModelOperationServiceActor.Message],
                               chatService: ActorRef[ChatServiceActor.Message],

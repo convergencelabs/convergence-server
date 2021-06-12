@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
-import akka.Done
 import akka.actor.typed.pubsub.Topic
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, _}
@@ -32,23 +31,22 @@ import scala.util.{Failure, Success, Try}
 
 
 /**
- * The [[DomainActor]] is the supervisor for all actor that comprise the
- * services provided by a particular domain. It is responsible for
- * authenticating users into the domain and handling client connections
- * and disconnections.
+ * The [[DomainSessionActor]] is the manages the session corresponding
+ * to connected clients. It ensures that sessions for clients that
+ * disconnect uncleanly are eventually cleaned up.
  */
-private class DomainActor(domainId: DomainId,
-                          context: ActorContext[DomainActor.Message],
-                          timers: TimerScheduler[DomainActor.Message],
-                          shardRegion: ActorRef[DomainActor.Message],
-                          shard: ActorRef[ClusterSharding.ShardCommand],
-                          domainPersistenceManager: DomainPersistenceManager,
-                          receiveTimeout: FiniteDuration,
-                          domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
-  extends BaseDomainShardedActor[DomainActor.Message](domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout: FiniteDuration,
+private class DomainSessionActor(domainId: DomainId,
+                                 context: ActorContext[DomainSessionActor.Message],
+                                 timers: TimerScheduler[DomainSessionActor.Message],
+                                 shardRegion: ActorRef[DomainSessionActor.Message],
+                                 shard: ActorRef[ClusterSharding.ShardCommand],
+                                 domainPersistenceManager: DomainPersistenceManager,
+                                 receiveTimeout: FiniteDuration,
+                                 domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage])
+  extends BaseDomainShardedActor[DomainSessionActor.Message](domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout: FiniteDuration,
   ) with Logging {
 
-  import DomainActor._
+  import DomainSessionActor._
 
   private[this] val activeSessions = scala.collection.mutable.Map[String, Instant]()
   private[this] val connectedClients = scala.collection.mutable.Map[ActorRef[ClientActor.Disconnect], String]()
@@ -84,9 +82,6 @@ private class DomainActor(domainId: DomainId,
     case Terminated(client) =>
       handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
   }
-
-
-
 
   private[this] def onAuthenticationRequest(message: ConnectionRequest): Behavior[Message] = {
     this.persistenceProvider.domainStateProvider.getDomainState()
@@ -172,7 +167,6 @@ private class DomainActor(domainId: DomainId,
 
     debug(s"$identityString: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
     response
-
   }
 
   //
@@ -195,6 +189,11 @@ private class DomainActor(domainId: DomainId,
 
   private[this] def onClientHeartbeat(message: ClientHeartbeat): Behavior[Message] = {
     this.activeSessions.addOne(message.sessionId -> Instant.now())
+    if (!this.connectedClients.contains(message.clientActor)) {
+      this.connectedClients.put(message.clientActor, message.sessionId)
+      context.watch(message.clientActor)
+    }
+
     Behaviors.same
   }
 
@@ -345,8 +344,7 @@ private class DomainActor(domainId: DomainId,
   override protected def getReceiveTimeoutMessage(): Message = ReceiveTimeout(this.domainId)
 }
 
-
-object DomainActor {
+object DomainSessionActor {
 
   def apply(domainId: DomainId,
             shardRegion: ActorRef[Message],
@@ -356,7 +354,7 @@ object DomainActor {
             domainLifecycleTopic: ActorRef[DomainLifecycleTopic.TopicMessage]): Behavior[Message] =
     Behaviors.setup { context =>
       Behaviors.withTimers { timers =>
-        new DomainActor(
+        new DomainSessionActor(
           domainId,
           context,
           timers,
@@ -411,7 +409,6 @@ object DomainActor {
   final case class ConnectionSuccess(session: DomainSessionAndUserId, reconnectToken: Option[String])
 
   final case class ConnectionResponse(response: Either[AuthenticationError, ConnectionSuccess]) extends CborSerializable
-
 
 
   final case class ClientDisconnected(domainId: DomainId, clientActor: ActorRef[ClientActor.Disconnect]) extends Message

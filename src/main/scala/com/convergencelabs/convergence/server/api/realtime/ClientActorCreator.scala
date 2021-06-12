@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, SupervisorStrategy}
 import akka.http.scaladsl.model.RemoteAddress
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatServiceActor}
 import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor
@@ -47,7 +47,7 @@ private[server] object ClientActorCreator {
    * @return An ActorRef for the created behavior.
    */
   def apply(protocolConfig: ProtocolConfiguration,
-            domainRegion: ActorRef[DomainActor.Message],
+            domainRegion: ActorRef[DomainSessionActor.Message],
             modelService: ActorRef[ModelServiceActor.Message],
             modelOperationService: ActorRef[ModelOperationServiceActor.Message],
             chatService: ActorRef[ChatServiceActor.Message],

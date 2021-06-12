@@ -15,7 +15,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.{ConnectionRequest, DomainNotFound, DomainUnavailable, Message}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{ConnectionRequest, DomainNotFound, DomainUnavailable, Message}
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainState, DomainStatus}
@@ -78,9 +78,9 @@ class DomainActorSpec
     }
   }
 
-  private[this] def connect(domainId: DomainId, domainActor: ActorRef[DomainActor.Message]): DomainActor.ConnectionResponse = {
+  private[this] def connect(domainId: DomainId, domainActor: ActorRef[DomainSessionActor.Message]): DomainSessionActor.ConnectionResponse = {
     val client: TestProbe[ClientActor.Disconnect] = testKit.createTestProbe[ClientActor.Disconnect]()
-    val replyTo: TestProbe[DomainActor.ConnectionResponse] = testKit.createTestProbe[DomainActor.ConnectionResponse]()
+    val replyTo: TestProbe[DomainSessionActor.ConnectionResponse] = testKit.createTestProbe[DomainSessionActor.ConnectionResponse]()
     val request = ConnectionRequest(
       domainId,
       client.ref,
@@ -92,7 +92,7 @@ class DomainActorSpec
       replyTo.ref)
 
     domainActor ! request
-    replyTo.expectMessageType[DomainActor.ConnectionResponse](FiniteDuration(1, TimeUnit.SECONDS))
+    replyTo.expectMessageType[DomainSessionActor.ConnectionResponse](FiniteDuration(1, TimeUnit.SECONDS))
   }
 
   trait TestFixture {
@@ -106,7 +106,7 @@ class DomainActorSpec
     val domainLifecycleTopic: TestProbe[DomainLifecycleTopic.TopicMessage] =
       testKit.createTestProbe[DomainLifecycleTopic.TopicMessage]()
 
-    private val behavior: Behavior[DomainActor.Message] = DomainActor(
+    private val behavior: Behavior[DomainSessionActor.Message] = DomainSessionActor(
       domainId,
       shardRegion.ref,
       shard.ref,

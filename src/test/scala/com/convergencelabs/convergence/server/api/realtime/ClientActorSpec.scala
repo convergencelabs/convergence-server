@@ -68,7 +68,7 @@ class ClientActorSpec
         0 seconds,
         0 seconds))
 
-    val domainRegion: TestProbe[DomainActor.Message] = testKit.createTestProbe[DomainActor.Message]()
+    val domainRegion: TestProbe[DomainSessionActor.Message] = testKit.createTestProbe[DomainSessionActor.Message]()
     val activityShardRegion: TestProbe[ActivityActor.Message] = testKit.createTestProbe[ActivityActor.Message]()
     val modelShardRegion: TestProbe[RealtimeModelActor.Message] = testKit.createTestProbe[RealtimeModelActor.Message]()
     val chatShardRegion: TestProbe[ChatActor.Message] = testKit.createTestProbe[ChatActor.Message]()
@@ -114,10 +114,10 @@ class ClientActorSpec
 
       clientActor ! authEvent
 
-      val authRequest = domainRegion.expectMessageType[DomainActor.ConnectionRequest](FiniteDuration(1, TimeUnit.SECONDS))
+      val authRequest = domainRegion.expectMessageType[DomainSessionActor.ConnectionRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-      val success = DomainActor.ConnectionSuccess(DomainSessionAndUserId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123"))
-      authRequest.replyTo ! DomainActor.ConnectionResponse(Right(success))
+      val success = DomainSessionActor.ConnectionSuccess(DomainSessionAndUserId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123"))
+      authRequest.replyTo ! DomainSessionActor.ConnectionResponse(Right(success))
 
       val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[ConnectionResponseMessage]
       authResponse.response.isSuccess shouldBe true

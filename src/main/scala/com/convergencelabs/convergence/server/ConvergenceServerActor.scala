@@ -28,7 +28,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.identity.{
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelOperationServiceActorSharding, ModelServiceActor, ModelServiceActorSharding, RealtimeModelActor, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.{PresenceServiceActor, PresenceServiceActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.rest.{DomainRestActor, DomainRestActorSharding}
-import com.convergencelabs.convergence.server.backend.services.domain.{DomainActor, DomainActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainSessionActor, DomainSessionActorSharding}
 import com.convergencelabs.convergence.server.backend.services.server.{ConvergenceDatabaseInitializerActor, DomainLifecycleTopic}
 import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
@@ -98,7 +98,7 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     val activityShardRegion = ActivityActorSharding(context.system, sharding, shardCount)
     val chatDeliveryShardRegion = ChatDeliveryActorSharding(sharding, shardCount)
     val chatShardRegion = ChatActorSharding(sharding, shardCount, chatDeliveryShardRegion.narrow[ChatDeliveryActor.Send])
-    val domainShardRegion = DomainActorSharding(config, sharding, shardCount, () => {
+    val domainShardRegion = DomainSessionActorSharding(config, sharding, shardCount, () => {
       domainLifeCycleTopic
     })
 
@@ -245,7 +245,7 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
   /**
    * A helper method that will bootstrap the Realtime Api.
    */
-  private[this] def processRealtimeApiRole(domainRegion: ActorRef[DomainActor.Message],
+  private[this] def processRealtimeApiRole(domainRegion: ActorRef[DomainSessionActor.Message],
                                            modelService: ActorRef[ModelServiceActor.Message],
                                            modelOperationService: ActorRef[ModelOperationServiceActor.Message],
                                            chatService: ActorRef[ChatServiceActor.Message],

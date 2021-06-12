@@ -20,22 +20,22 @@ import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-private final class DomainActorSharding(config: Config,
-                                        sharding: ClusterSharding,
-                                        numberOfShards: Int,
-                                        domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage])
-  extends DomainIdBasedActorSharding[DomainActor.Message, DomainActorSharding.Props](
-    DomainActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
+private final class DomainSessionActorSharding(config: Config,
+                                               sharding: ClusterSharding,
+                                               numberOfShards: Int,
+                                               domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage])
+  extends DomainIdBasedActorSharding[DomainSessionActor.Message, DomainSessionActorSharding.Props](
+    DomainSessionActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-  import DomainActorSharding._
+  import DomainSessionActorSharding._
 
   override def createBehavior(domainId: DomainId,
                               props: Props,
-                              shardRegion: ActorRef[DomainActor.Message],
-                              entityContext: EntityContext[DomainActor.Message]): Behavior[DomainActor.Message] = {
+                              shardRegion: ActorRef[DomainSessionActor.Message],
+                              entityContext: EntityContext[DomainSessionActor.Message]): Behavior[DomainSessionActor.Message] = {
     val Props(domainPersistenceManager, domainPassivationTimeout, domainLifecycleTopic) = props
 
-    DomainActor(
+    DomainSessionActor(
       domainId,
       shardRegion,
       entityContext.shard,
@@ -53,17 +53,17 @@ private final class DomainActorSharding(config: Config,
       domainLifecycleTopic())
   }
 
-  override protected def getDomainId(m: DomainActor.Message): DomainId = m.domainId
+  override protected def getDomainId(m: DomainSessionActor.Message): DomainId = m.domainId
 }
 
-object DomainActorSharding {
+object DomainSessionActorSharding {
   private val EntityName = "DomainActor"
 
   def apply(config: Config,
             sharding: ClusterSharding,
             numberOfShards: Int,
-            domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage]): ActorRef[DomainActor.Message] = {
-    val domainSharding = new DomainActorSharding(config, sharding, numberOfShards, domainLifecycleTopic)
+            domainLifecycleTopic: () => ActorRef[DomainLifecycleTopic.TopicMessage]): ActorRef[DomainSessionActor.Message] = {
+    val domainSharding = new DomainSessionActorSharding(config, sharding, numberOfShards, domainLifecycleTopic)
     domainSharding.shardRegion
   }
 
