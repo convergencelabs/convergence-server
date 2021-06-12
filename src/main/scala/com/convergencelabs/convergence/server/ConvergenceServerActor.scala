@@ -95,9 +95,9 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     val sharding = ClusterSharding(context.system)
 
     val realtimeModelShardRegion = RealtimeModelSharding(context.system.settings.config, sharding, shardCount)
-    val activityShardRegion = ActivityActorSharding(context.system, sharding, shardCount)
+    val activityShardRegion = ActivityActorSharding(sharding, shardCount)
     val chatDeliveryShardRegion = ChatDeliveryActorSharding(sharding, shardCount)
-    val chatShardRegion = ChatActorSharding(sharding, shardCount, chatDeliveryShardRegion.narrow[ChatDeliveryActor.Send])
+    val chatShardRegion = ChatActorSharding(config, sharding, shardCount, chatDeliveryShardRegion.narrow[ChatDeliveryActor.Send])
     val domainShardRegion = DomainSessionActorSharding(config, sharding, shardCount, () => {
       domainLifeCycleTopic
     })

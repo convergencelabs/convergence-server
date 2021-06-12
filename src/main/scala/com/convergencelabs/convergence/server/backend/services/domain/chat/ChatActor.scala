@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat
 
-import java.time.Instant
-
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
@@ -27,16 +25,16 @@ import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatEvent, ChatMembership, ChatState, ChatType}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.util.actor.{ShardedActorStatUpPlan, ShardedActor, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import grizzled.slf4j.Logging
 
-import scala.concurrent.duration.Duration
+import java.time.Instant
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Try}
 
 
 /**
@@ -52,28 +50,24 @@ import scala.util.{Failure, Success, Try}
  *                           actors host shard.
  * @param chatDeliveryRegion The shard region for message delivery to users.
  */
-class ChatActor private(context: ActorContext[ChatActor.Message],
+class ChatActor private(domainId: DomainId,
+                        chatId: String,
+                        context: ActorContext[ChatActor.Message],
                         shardRegion: ActorRef[ChatActor.Message],
                         shard: ActorRef[ClusterSharding.ShardCommand],
-                        chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send])
-  extends ShardedActor[ChatActor.Message](context, shardRegion, shard) with Logging {
+                        chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send],
+                        receiveTimeout: FiniteDuration)
+  extends ShardedActor[ChatActor.Message](
+    context,
+    shardRegion,
+    shard,
+    entityDescription = s"${domainId.namespace}/${domainId.domainId}/$chatId") {
 
   import ChatActor._
-
-  private[this] var domainId: DomainId = _
-  private[this] var chatId: String = _
 
   // Here None signifies that the chat is not initialized, or it doesn't exist
   private[this] var messageProcessor: Option[ChatMessageProcessor] = None
 
-  private[this] val receiveTimeout = Duration.fromNanos(
-    context.system.settings.config.getDuration("convergence.realtime.chat.passivation-timeout").toNanos)
-
-  protected def setIdentityData(message: Message): Try[String] = {
-    this.domainId = message.domainId
-    this.chatId = message.chatId
-    Success(s"${domainId.namespace}/${domainId.domainId}/${this.chatId}")
-  }
 
   protected def initialize(message: Message): Try[ShardedActorStatUpPlan] = {
     (for {
@@ -178,18 +172,28 @@ class ChatActor private(context: ActorContext[ChatActor.Message],
     chatStore
       .getChatState(chatId)
       .recoverWith {
-      case cause: EntityNotFoundException =>
-        logger.error(cause)
-        Failure(ChatNotFoundException(chatId))
-    }
+        case cause: EntityNotFoundException =>
+          logger.error(cause)
+          Failure(ChatNotFoundException(chatId))
+      }
   }
 }
 
 object ChatActor {
-  def apply(shardRegion: ActorRef[Message],
+  def apply(domainId: DomainId,
+            chatId: String,
+            shardRegion: ActorRef[Message],
             shard: ActorRef[ClusterSharding.ShardCommand],
-            chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send]): Behavior[Message] =
-    Behaviors.setup(context => new ChatActor(context, shardRegion, shard, chatDeliveryRegion))
+            chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send],
+            receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup(context =>
+      new ChatActor(
+        domainId,
+        chatId,
+        context,
+        shardRegion,
+        shard,
+        chatDeliveryRegion,
+        receiveTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

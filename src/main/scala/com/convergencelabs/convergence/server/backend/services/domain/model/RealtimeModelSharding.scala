@@ -15,29 +15,30 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
+import com.convergencelabs.convergence.server.util.DomainAndStringEntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.ActorSharding
 import com.typesafe.config.Config
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-object RealtimeModelSharding {
-  private val EntityName = "RealtimeModel"
-
-  def apply(config: Config, sharding: ClusterSharding, numberOfShards: Int): ActorRef[RealtimeModelActor.Message] = {
-    val modelSharding = new RealtimeModelSharding(config, sharding, numberOfShards)
-    modelSharding.shardRegion
-  }
-}
-
 private final class RealtimeModelSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int)
-  extends ActorSharding[RealtimeModelActor.Message, Props](RealtimeModelSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
+  extends ActorSharding[RealtimeModelActor.Message, RealtimeModelSharding.Props](RealtimeModelSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
+
+  import RealtimeModelSharding._
+
+  private val entityIdSerializer = new DomainAndStringEntityIdSerializer()
 
   override def extractEntityId(message: RealtimeModelActor.Message): String =
-    s"${message.domainId.namespace}::${message.domainId.domainId}::${message.modelId}"
+    entityIdSerializer.serialize(message.domainId, message.modelId)
 
-  override def createBehavior(props: Props, shardRegion: ActorRef[RealtimeModelActor.Message], entityContext: EntityContext[RealtimeModelActor.Message]): Behavior[RealtimeModelActor.Message] = {
+  override def createBehavior(props: Props,
+                              shardRegion: ActorRef[RealtimeModelActor.Message],
+                              entityContext: EntityContext[RealtimeModelActor.Message]): Behavior[RealtimeModelActor.Message] = {
+    val (domainId, modelId) = entityIdSerializer.deserialize(entityContext.entityId)
     val Props(modelPermissionResolver, modelCreator, persistenceManager, clientDataResponseTimeout, receiveTimeout) = props
     RealtimeModelActor(
+      domainId,
+      modelId,
       shardRegion,
       entityContext.shard,
       modelPermissionResolver,
@@ -61,9 +62,20 @@ private final class RealtimeModelSharding(config: Config, sharding: ClusterShard
   }
 }
 
-private case class Props(modelPermissionResolver: ModelPermissionResolver,
-                         modelCreator: ModelCreator,
-                         persistenceManager: DomainPersistenceManager,
-                         clientDataResponseTimeout: FiniteDuration,
-                         receiveTimeout: FiniteDuration)
+object RealtimeModelSharding {
+  private val EntityName = "RealtimeModel"
+
+  def apply(config: Config, sharding: ClusterSharding, numberOfShards: Int): ActorRef[RealtimeModelActor.Message] = {
+    val modelSharding = new RealtimeModelSharding(config, sharding, numberOfShards)
+    modelSharding.shardRegion
+  }
+
+  case class Props(modelPermissionResolver: ModelPermissionResolver,
+                   modelCreator: ModelCreator,
+                   persistenceManager: DomainPersistenceManager,
+                   clientDataResponseTimeout: FiniteDuration,
+                   receiveTimeout: FiniteDuration)
+}
+
+
 

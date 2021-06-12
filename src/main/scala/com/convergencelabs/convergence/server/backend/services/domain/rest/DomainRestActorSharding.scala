@@ -38,19 +38,22 @@ final class DomainRestActorSharding private(config: Config,
                               props: Props,
                               shardRegion: ActorRef[DomainRestActor.Message],
                               entityContext: EntityContext[DomainRestActor.Message]): Behavior[DomainRestActor.Message] = {
+    val Props(domainPersistenceManager, domainPassivationTimeout) = props
+
     DomainRestActor(
+      domainId,
       shardRegion,
       entityContext.shard,
+      domainPersistenceManager,
+      domainPassivationTimeout,
       modelServiceActor,
-      chatServiceActor,
-      props.domainPersistenceManager,
-      props.receiveTimeout)
+      chatServiceActor)
   }
 
   override protected def createProperties(): Props = {
     val receiveTimeout = Duration.fromNanos(
       config.getDuration("convergence.realtime.model.passivation-timeout").toNanos)
-    Props(receiveTimeout, DomainPersistenceManagerActor)
+    Props(DomainPersistenceManagerActor, receiveTimeout)
   }
 }
 
@@ -66,5 +69,5 @@ object DomainRestActorSharding {
     restSharding.shardRegion
   }
 
-  case class Props(receiveTimeout: FiniteDuration, domainPersistenceManager: DomainPersistenceManager)
+  case class Props(domainPersistenceManager: DomainPersistenceManager, receiveTimeout: FiniteDuration)
 }

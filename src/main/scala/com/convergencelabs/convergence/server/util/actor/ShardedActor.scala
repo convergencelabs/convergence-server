@@ -19,9 +19,6 @@ import grizzled.slf4j.Logging
 
 import scala.util.Try
 
-object ShardedActor {
-  val Uninitialized = "<uninitialized>"
-}
 
 /**
  * A helper class that standardizes how Sharded Actors behave within Convergence.
@@ -29,13 +26,12 @@ object ShardedActor {
  * @param context The ActorContext this actor is created in.
  * @tparam T The parameterized type of the message trait.
  */
-abstract class ShardedActor[T](context: ActorContext[T],
-                               shardRegion: ActorRef[T],
-                               shard: ActorRef[ClusterSharding.ShardCommand])
+abstract class SimpleShardedActor[T](context: ActorContext[T],
+                                     shardRegion: ActorRef[T],
+                                     shard: ActorRef[ClusterSharding.ShardCommand],
+                                     entityDescription: String)
   extends AbstractBehavior[T](context)
     with Logging {
-
-  import ShardedActor._
 
   private[this] var initialized = false
   private[this] var passivating = false
@@ -43,7 +39,7 @@ abstract class ShardedActor[T](context: ActorContext[T],
   /**
    * A string that represents the identity of this actor. Used in logging.
    */
-  protected var identityString: String = this.calculateIdentityString(Uninitialized)
+  protected var identityString: String = s"${this.getClass.getSimpleName}($entityDescription)"
 
   override def onMessage(msg: T): Behavior[T] = {
     if (!initialized) {
@@ -82,18 +78,14 @@ abstract class ShardedActor[T](context: ActorContext[T],
    */
   private[this] def receiveInitialMessage(msg: T): Behavior[T] = {
     initialized = true
-    this.setIdentityData(msg)
-      .flatMap { identity =>
-        this.identityString = calculateIdentityString(identity)
-        debug(s"$identityString: Initializing.")
-        this.initialize(msg)
-      }
+    debug(s"$identityString: Initializing.")
+    this.initialize(msg)
       .map {
         case StartUpRequired =>
           debug(s"$identityString: Initialized, starting up.")
           this.receiveInitialized(msg)
         case StartUpNotRequired =>
-          debug(s"$identityString: Initialized, but no start up required, passivating.")
+          debug(s"$identityString: Initialized, start up not required, passivating.")
           this.passivate()
       }
       .recover {
@@ -104,20 +96,10 @@ abstract class ShardedActor[T](context: ActorContext[T],
   }
 
   /**
-   * A helper method to calculate this actor's identity string.
-   *
-   * @param identifier The unique portion of this actors identity.
-   * @return A formatted identity string.
-   */
-  private[this] def calculateIdentityString(identifier: String): String = {
-    s"${this.getClass.getSimpleName}($identifier)"
-  }
-
-  /**
    * A helper method to handle a request for this Sharded Actor to stop.
    */
   protected def stop(): Behavior[T] = {
-    debug(s"$identityString: Received ShardedActorStop message, stopping.")
+    debug(s"$identityString: Stopping")
     Behaviors.stopped
   }
 
@@ -130,18 +112,6 @@ abstract class ShardedActor[T](context: ActorContext[T],
   protected def postStop(): Unit = {
     debug(s"$identityString: Stopped")
   }
-
-  /**
-   * Allows the actor to set its internal state relative to it identifying
-   * information contained with in a message and to return a unique string
-   * identifier. The message passed to this method will be the first
-   * message sent to this actor which caused it to spawn.
-   *
-   * @param message The message containing identity data.
-   * @return Success with the unique identity string if the operation was
-   *         successful, Failure otherwise.
-   */
-  protected def setIdentityData(message: T): Try[String]
 
   /**
    * Asks the actor to initialize based on the first message that

@@ -15,12 +15,13 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
-import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{ConnectionRequest, DomainNotFound, DomainUnavailable, Message}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{AnonymousAuthenticationDisabled, ConnectionRequest, DomainNotFound, DomainUnavailable, Message}
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainState, DomainStatus}
 import com.convergencelabs.convergence.server.util.{MockDomainPersistenceManager, MockDomainPersistenceProvider}
 import com.typesafe.config.ConfigFactory
+import org.mockito.Matchers.any
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -31,7 +32,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.postfixOps
 import scala.util.Success
 
-class DomainActorSpec
+class DomainSessionActorSpec
   extends ScalaTestWithActorTestKit(ConfigFactory.parseResources("cluster-application.conf"))
     with AnyWordSpecLike
     with BeforeAndAfterAll
@@ -39,38 +40,45 @@ class DomainActorSpec
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  "A DomainActor" when {
+  "A DomainSessionActor" when {
     "receiving an initial connection request" must {
-      "respond with a handshake success if the domain is online" in new TestFixture {
+      "respond with a connection success if the domain is online" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Ready))))
-        assert(connect(domainId, domainActor).response.isRight)
+        connect(domainId, domainActor).response.isRight shouldBe true
       }
 
-      "respond with a handshake error if the domain is offline" in new TestFixture {
+      "respond with a connection error if anonymous auth is disabled" in new TestFixture {
+        Mockito.when(provider.configStore.isAnonymousAuthEnabled()).thenReturn(Success(false))
+        Mockito.when(provider.domainStateProvider.getDomainState())
+          .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Ready))))
+        connect(domainId, domainActor).response shouldBe Left(AnonymousAuthenticationDisabled())
+      }
+
+      "respond with a connection error if the domain is offline" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Offline, DomainStatus.Ready))))
         connect(domainId, domainActor).response shouldBe Left(DomainNotFound(domainId))
       }
 
-      "respond with a handshake error if the domain status can't be found" in new TestFixture {
+      "respond with DomainNotFound if the domain status can't be found" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState()).thenReturn(Success(None))
         connect(domainId, domainActor).response shouldBe Left(DomainNotFound(domainId))
       }
 
-      "respond with a handshake success if the domain is in maintenance mode" in new TestFixture {
+      "respond with DomainUnavailable if the domain is in maintenance mode" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Maintenance, DomainStatus.Ready))))
-        connect(domainId, domainActor).response.isRight shouldBe true
+        connect(domainId, domainActor).response shouldBe Left(DomainUnavailable(domainId))
       }
 
-      "respond with a handshake error if the domain is in error status" in new TestFixture {
+      "respond with a connection error if the domain is in error status" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Error))))
         connect(domainId, domainActor).response shouldBe Left(DomainUnavailable(domainId))
       }
 
-      "respond with a handshake error if the domain is in initializing" in new TestFixture {
+      "respond with a connection error if the domain is in initializing" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Initializing))))
         connect(domainId, domainActor).response shouldBe Left(DomainUnavailable(domainId))
@@ -99,6 +107,18 @@ class DomainActorSpec
     val domainId: DomainId = DomainId("convergence", "default")
 
     val provider = new MockDomainPersistenceProvider(domainId)
+
+    // Always called on start up.
+    Mockito.when(provider.sessionStore.getConnectedSessions()).thenReturn(Success(List()))
+
+    // These are the things that happen when the domain successfully auths.
+    val sessionId = "sessionId"
+    Mockito.when(provider.sessionStore.nextSessionId).thenReturn(Success(sessionId))
+    Mockito.when(provider.sessionStore.createSession(any())).thenReturn(Success(()))
+    Mockito.when(provider.configStore.isAnonymousAuthEnabled()).thenReturn(Success(true))
+    Mockito.when(provider.userStore.createAnonymousDomainUser(any())).thenReturn(Success("anonymous user"))
+    Mockito.when(provider.userStore.createReconnectToken(any(), any())).thenReturn(Success("token"))
+
     val persistenceManager = new MockDomainPersistenceManager(Map(domainId -> provider))
 
     val shardRegion: TestProbe[Message] = testKit.createTestProbe[Message]()

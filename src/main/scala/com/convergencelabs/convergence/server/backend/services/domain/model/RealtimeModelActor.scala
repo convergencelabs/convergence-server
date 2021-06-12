@@ -32,7 +32,7 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop
 import com.convergencelabs.convergence.server.util.ActorBackedEventLoop.TaskScheduled
-import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
+import com.convergencelabs.convergence.server.util.actor.{ShardedActorStatUpPlan, ShardedActor, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
@@ -48,7 +48,9 @@ import scala.util.{Failure, Success, Try}
  * An instance of the RealtimeModelActor manages the lifecycle of a single
  * realtime model.
  */
-private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.Message],
+private final class RealtimeModelActor(domainId: DomainId,
+                                       modelId: String,
+                                       context: ActorContext[RealtimeModelActor.Message],
                                        shardRegion: ActorRef[RealtimeModelActor.Message],
                                        shard: ActorRef[ClusterSharding.ShardCommand],
                                        modelPermissionResolver: ModelPermissionResolver,
@@ -56,17 +58,19 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
                                        persistenceManager: DomainPersistenceManager,
                                        clientDataResponseTimeout: FiniteDuration,
                                        receiveTimeout: FiniteDuration)
-  extends ShardedActor(context, shardRegion, shard) {
+  extends ShardedActor[RealtimeModelActor.Message](
+    context,
+    shardRegion,
+    shard,
+    entityDescription = s"${domainId.namespace}/${domainId.domainId}/$modelId") {
 
   import RealtimeModelActor._
 
   private[this] var _persistenceProvider: Option[DomainPersistenceProvider] = None
-  private[this] var _domainId: Option[DomainId] = None
-  private[this] var _modelId: Option[String] = None
   private[this] var _modelManager: Option[RealtimeModelManager] = None
 
-  private[this] var _open: Boolean = false
-  private[this] val _shutdownTask = {
+  private[this] var open: Boolean = false
+  private[this] val shutdownTask = {
     val self = context.self
     implicit val scheduler: Scheduler = context.system.scheduler
     CoordinatedShutdown(context.system)
@@ -88,7 +92,7 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   }
 
   protected override def receiveInitialized(msg: Message): Behavior[Message] = {
-    if (_open) {
+    if (open) {
       receiveOpened(msg)
     } else {
       receiveClosed(msg)
@@ -247,22 +251,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
     throw new IllegalStateException("The model manager can not be access when the model is not open.")
   }
 
-  private[this] def domainId = this._domainId.getOrElse {
-    throw new IllegalStateException("Can not access domainId before the model is initialized.")
-  }
-
-  private[this] def modelId = this._modelId.getOrElse {
-    throw new IllegalStateException("Can not access modelId before the model is initialized.")
-  }
-
   private[this] def persistenceProvider = this._persistenceProvider.getOrElse {
     throw new IllegalStateException("Can not access persistenceProvider before the model is initialized.")
-  }
-
-  override protected def setIdentityData(message: Message): Try[String] = {
-    this._domainId = Some(message.domainId)
-    this._modelId = Some(message.modelId)
-    Success(s"${message.domainId.namespace}/${message.domainId.domainId}/${message.modelId}")
   }
 
   override protected def initialize(msg: Message): Try[ShardedActorStatUpPlan] = {
@@ -319,13 +309,13 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
       })
     this._modelManager = Some(mm)
     this.context.cancelReceiveTimeout()
-    this._open = true
+    this.open = true
   }
 
   private[this] def becomeClosed(): Unit = {
     debug(s"$identityString: Becoming closed.")
     this._modelManager = None
-    this._open = false
+    this.open = false
     this.context.setReceiveTimeout(this.receiveTimeout, ReceiveTimeout(this.domainId, this.modelId))
   }
 
@@ -472,11 +462,8 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
   }
 
   override def postStop(): Unit = {
-    this._shutdownTask.cancel()
-
-    this._domainId foreach { _ =>
-      persistenceManager.releasePersistenceProvider(context.self, context.system, domainId)
-    }
+    this.shutdownTask.cancel()
+    persistenceManager.releasePersistenceProvider(context.self, context.system, domainId)
 
     super.postStop()
   }
@@ -487,7 +474,9 @@ private final class RealtimeModelActor(context: ActorContext[RealtimeModelActor.
  * Provides a factory method for creating the RealtimeModelActor
  */
 object RealtimeModelActor {
-  def apply(shardRegion: ActorRef[Message],
+  def apply(domainId: DomainId,
+            modelId: String,
+            shardRegion: ActorRef[Message],
             shard: ActorRef[ClusterSharding.ShardCommand],
             modelPermissionResolver: ModelPermissionResolver,
             modelCreator: ModelCreator,
@@ -495,6 +484,8 @@ object RealtimeModelActor {
             clientDataResponseTimeout: FiniteDuration,
             receiveTimeout: FiniteDuration): Behavior[Message] = Behaviors.setup[Message] { context =>
     new RealtimeModelActor(
+      domainId,
+      modelId,
       context,
       shardRegion,
       shard,

@@ -11,28 +11,32 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.activity
 
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
+import com.convergencelabs.convergence.server.util.DomainAndStringEntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
+
+private class ActivityActorSharding(sharding: ClusterSharding, numberOfShards: Int)
+  extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
+
+   val entityIdSerializer = new DomainAndStringEntityIdSerializer()
+
+  override def extractEntityId(msg: ActivityActor.Message): String =
+    entityIdSerializer.serialize((msg.domain, msg.activityId))
+
+  override def createBehavior(shardRegion: ActorRef[ActivityActor.Message],
+                              entityContext: EntityContext[ActivityActor.Message]): Behavior[ActivityActor.Message] = {
+    val (domainId, activity) = entityIdSerializer.deserialize(entityContext.entityId)
+    ActivityActor(domainId, activity, shardRegion, entityContext.shard)
+  }
+}
 
 object ActivityActorSharding  {
   private val EntityName = "Activities"
 
-  def apply(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int): ActorRef[ActivityActor.Message] = {
-    val activitySharding = new ActivityActorSharding(system, sharding, numberOfShards)
+  def apply(sharding: ClusterSharding, numberOfShards: Int): ActorRef[ActivityActor.Message] = {
+    val activitySharding = new ActivityActorSharding(sharding, numberOfShards)
     activitySharding.shardRegion
-  }
-}
-
-private class ActivityActorSharding(system: ActorSystem[_], sharding: ClusterSharding, numberOfShards: Int)
-  extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
-
-  override def extractEntityId(msg: ActivityActor.Message): String =
-    s"${msg.domain.namespace}::${msg.domain.namespace}::${msg.activityId}"
-
-  override def createBehavior(shardRegion: ActorRef[ActivityActor.Message],
-                              entityContext: EntityContext[ActivityActor.Message]): Behavior[ActivityActor.Message] = {
-    ActivityActor(shardRegion, entityContext.shard)
   }
 }

@@ -14,7 +14,30 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatDeliveryActorSharding.UserEntityIdSerializer
+import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
+import com.convergencelabs.convergence.server.util.EntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
+
+/**
+ * Configures the sharding of the [[ChatDeliveryActor]].
+ */
+private final class ChatDeliveryActorSharding(sharding: ClusterSharding, numberOfShards: Int)
+  extends NoPropsActorSharding[ChatDeliveryActor.Message](ChatDeliveryActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
+
+  private val entityIdSerializer = new UserEntityIdSerializer()
+
+  def extractEntityId(msg: ChatDeliveryActor.Message): String =
+    entityIdSerializer.serialize((msg.domainId, msg.userId))
+
+  def createBehavior(shardRegion: ActorRef[ChatDeliveryActor.Message],
+                     entityContext: EntityContext[ChatDeliveryActor.Message]): Behavior[ChatDeliveryActor.Message] = {
+
+    val (domainId, userId) = entityIdSerializer.deserialize(entityContext.entityId)
+    ChatDeliveryActor(domainId, userId, shardRegion, entityContext.shard)
+  }
+}
 
 object ChatDeliveryActorSharding  {
   private val EntityName = "ChatDelivery"
@@ -23,18 +46,12 @@ object ChatDeliveryActorSharding  {
     val chatSharding = new ChatDeliveryActorSharding(sharding, numberOfShards)
     chatSharding.shardRegion
   }
-}
-/**
- * Configures the sharding of the [[ChatDeliveryActor]].
- */
-private final class ChatDeliveryActorSharding(sharding: ClusterSharding, numberOfShards: Int)
-  extends NoPropsActorSharding[ChatDeliveryActor.Message](ChatDeliveryActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-  def extractEntityId(msg: ChatDeliveryActor.Message): String =
-    s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.userId}"
+  class UserEntityIdSerializer extends EntityIdSerializer[(DomainId, DomainUserId)] {
+    override protected def entityIdToParts(entityId: (DomainId, DomainUserId)): List[String] =
+      List(entityId._1.domainId, entityId._1.domainId, entityId._2.userType.toString, entityId._2.username)
 
-  def createBehavior(shardRegion: ActorRef[ChatDeliveryActor.Message],
-                     entityContext: EntityContext[ChatDeliveryActor.Message]): Behavior[ChatDeliveryActor.Message] = {
-    ChatDeliveryActor(shardRegion, entityContext.shard)
+    override protected def partsToEntityId(parts: List[String]): (DomainId, DomainUserId) =
+      (DomainId(parts.head, parts(1)), DomainUserId(DomainUserType.withName(parts(2)), parts(3)))
   }
 }

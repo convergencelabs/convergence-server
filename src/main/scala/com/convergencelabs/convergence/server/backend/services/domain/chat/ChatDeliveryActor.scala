@@ -11,18 +11,16 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.chat
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+import com.convergencelabs.convergence.server.util.actor.{ShardedActorStatUpPlan, ShardedActor, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
-import grizzled.slf4j.Logging
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Success, Try}
 
@@ -35,26 +33,22 @@ import scala.util.{Success, Try}
  * @param shardRegion The ActorRef to send messages to the chat share region.
  * @param shard       The ActorRef to send messages to this sharded actors host shard.
  */
-private final class ChatDeliveryActor(context: ActorContext[ChatDeliveryActor.Message],
+private final class ChatDeliveryActor(domainId: DomainId,
+                                      userId: DomainUserId,
+                                      context: ActorContext[ChatDeliveryActor.Message],
                                       shardRegion: ActorRef[ChatDeliveryActor.Message],
                                       shard: ActorRef[ClusterSharding.ShardCommand])
-  extends ShardedActor[ChatDeliveryActor.Message](context, shardRegion, shard) with Logging {
+  extends ShardedActor[ChatDeliveryActor.Message](
+    context,
+    shardRegion,
+    shard,
+    entityDescription = s"${domainId.namespace}/${domainId.domainId}/$userId") {
 
   import ChatDeliveryActor._
 
-  private[this] var domainId: DomainId = _
-  private[this] var userId: DomainUserId = _
   private[this] var clients: Set[ActorRef[ChatClientActor.OutgoingMessage]] = Set()
 
-  protected def setIdentityData(message: Message): Try[String] = {
-    this.domainId = message.domainId
-    this.userId = message.userId
-    Success(s"${domainId.namespace}/${domainId.domainId}/${this.userId}")
-  }
-
   protected def initialize(message: Message): Try[ShardedActorStatUpPlan] = {
-    this.domainId = message.domainId
-    this.userId = message.userId
     Success(StartUpRequired)
   }
 
@@ -100,9 +94,11 @@ private final class ChatDeliveryActor(context: ActorContext[ChatDeliveryActor.Me
 
 object ChatDeliveryActor {
 
-  def apply(shardRegion: ActorRef[Message],
+  def apply(domainId: DomainId,
+            userId: DomainUserId,
+            shardRegion: ActorRef[Message],
             shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] =
-    Behaviors.setup(context => new ChatDeliveryActor(context, shardRegion, shard))
+    Behaviors.setup(context => new ChatDeliveryActor(domainId, userId, context, shardRegion, shard))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

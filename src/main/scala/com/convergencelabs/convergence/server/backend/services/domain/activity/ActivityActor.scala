@@ -15,10 +15,10 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.util.actor.{ShardedActorStatUpPlan, ShardedActor, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import org.json4s.JsonAST.JValue
@@ -34,28 +34,23 @@ import scala.util.{Success, Try}
  * @param shardRegion The shard region ActivityActors are created in.
  * @param shard       The specific shard this actor resides in.
  */
-private final class ActivityActor(context: ActorContext[Message],
+private final class ActivityActor(domainId: DomainId,
+                                  activityId: String,
+                                  context: ActorContext[Message],
                                   shardRegion: ActorRef[Message],
                                   shard: ActorRef[ClusterSharding.ShardCommand])
-  extends ShardedActor[Message](context, shardRegion, shard) {
+  extends ShardedActor[Message](
+    context,
+    shardRegion,
+    shard,
+    entityDescription = s"${domainId.namespace}/${domainId.domainId}/$activityId") {
 
   import ActivityActor._
-
-  /**
-   * Will be initialized on the first message inside the initialize method.
-   */
-  private[this] var activityId: String = _
-  private[this] var domain: DomainId = _
 
   private[this] var joinedClients = Map[ActorRef[OutgoingMessage], String]()
   private[this] var joinedSessions = Map[String, ActorRef[OutgoingMessage]]()
   private[this] val stateMap = new ActivityStateMap()
 
-  override protected def setIdentityData(message: Message): Try[String] = {
-    this.activityId = message.activityId
-    this.domain = message.domain
-    Success(s"${domain.namespace}/${domain.domainId}/${this.activityId}")
-  }
 
   override def initialize(message: Message): Try[ShardedActorStatUpPlan] = {
     Success(StartUpRequired)
@@ -183,9 +178,16 @@ private final class ActivityActor(context: ActorContext[Message],
 }
 
 object ActivityActor {
-  def apply(shardRegion: ActorRef[Message],
-            shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] =
-    Behaviors.setup(context => new ActivityActor(context, shardRegion, shard))
+  def apply(domainId: DomainId,
+            activityId: String,
+            shardRegion: ActorRef[Message],
+            shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] = Behaviors.setup(context =>
+    new ActivityActor(
+      domainId,
+      activityId,
+      context,
+      shardRegion,
+      shard))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

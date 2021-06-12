@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAu
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.{CreateNormalDomainUser, DomainUserStore}
-import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.ConnectionSuccess
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{AuthenticationFailed, ConnectionSuccess}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.jwt.{JwtAuthKey, JwtConstants, JwtKeyPair}
 import com.convergencelabs.convergence.server.model.domain.session
@@ -75,19 +75,19 @@ class AuthenticationHandlerSpec()
       "Fail authentication for an incorrect username and password" in new TestFixture {
         private val result = authHandler.authenticate(
           PasswordAuthRequest(existingUserName, existingIncorrectPassword), DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "fail authentication for a user that does not exist" in new TestFixture {
         private val result = authHandler.authenticate(
           PasswordAuthRequest(nonExistingUser, ""), DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "return an authentication error when validating the credentials fails" in new TestFixture {
         private val result = authHandler.authenticate(
           PasswordAuthRequest(authFailureUser, authFailurePassword), DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
     }
 
@@ -103,21 +103,21 @@ class AuthenticationHandlerSpec()
         private val result = authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(existingUserName, missingKey)),
           DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "return an authentication failure for a disabled key" in new TestFixture {
         private val result = authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(existingUserName, disabledKey.id)),
           DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "return an authentication failure for an invalid key" in new TestFixture {
         private val result = authHandler.authenticate(JwtAuthRequest(
           JwtGenerator.generate(existingUserName, invalidKey.id)),
           DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "return an authentication success for the admin key" in new TestFixture {
@@ -138,14 +138,14 @@ class AuthenticationHandlerSpec()
         private val result = authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(brokenUserName, enabledKey.id)),
           DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "return an authentication failure when the user can't be created" in new TestFixture {
         private val authRequest = JwtAuthRequest(
           JwtGenerator.generate(brokenLazyUsername, enabledKey.id))
         private val result = authHandler.authenticate(authRequest, DomainAvailability.Online)
-        result shouldBe Left(None)
+        result shouldBe Left(AuthenticationFailed())
       }
 
       "Not authenticate if Domain is offline" in new TestFixture {

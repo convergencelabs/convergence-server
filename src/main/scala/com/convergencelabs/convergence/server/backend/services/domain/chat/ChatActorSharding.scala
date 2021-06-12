@@ -14,15 +14,20 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
+import com.convergencelabs.convergence.server.util.DomainAndStringEntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
+import com.typesafe.config.Config
+
+import scala.concurrent.duration.Duration
 
 object ChatActorSharding  {
   private val EntityName = "Chat"
 
-  def apply(sharding: ClusterSharding,
+  def apply(config: Config,
+            sharding: ClusterSharding,
             numberOfShards: Int,
             chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send]): ActorRef[ChatActor.Message] = {
-    val chatSharding = new ChatActorSharding(sharding, numberOfShards, chatDeliveryRegion)
+    val chatSharding = new ChatActorSharding(config, sharding, numberOfShards, chatDeliveryRegion)
     chatSharding.shardRegion
   }
 }
@@ -30,14 +35,30 @@ object ChatActorSharding  {
 /**
  * Configures the sharding of the [[ChatActor]].
  */
-private class ChatActorSharding(sharding: ClusterSharding, numberOfShards: Int, chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send])
+private class ChatActorSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int, chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send])
   extends NoPropsActorSharding[ChatActor.Message](ChatActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
+  private val entityIdSerializer = new DomainAndStringEntityIdSerializer()
+
   def extractEntityId(msg: ChatActor.Message): String =
-    s"${msg.domainId.namespace}::${msg.domainId.domainId}::${msg.chatId}"
+    entityIdSerializer.serialize(msg.domainId, msg.chatId)
+
 
   def createBehavior(shardRegion: ActorRef[ChatActor.Message],
                      entityContext: EntityContext[ChatActor.Message]): Behavior[ChatActor.Message] = {
-    ChatActor(shardRegion, entityContext.shard, chatDeliveryRegion)
+
+    val receiveTimeout = Duration.fromNanos(
+      config.getDuration("convergence.realtime.chat.passivation-timeout").toNanos)
+
+    val (domainId, chatId) = entityIdSerializer.deserialize(entityContext.entityId)
+
+    ChatActor(
+      domainId,
+      chatId,
+      shardRegion,
+      entityContext.shard,
+      chatDeliveryRegion,
+      receiveTimeout)
   }
 }
+

@@ -29,7 +29,7 @@ abstract class BaseDomainShardedActor[M](domainId: DomainId,
                                          shard: ActorRef[ClusterSharding.ShardCommand],
                                          domainPersistenceManager: DomainPersistenceManager,
                                          receiveTimeout: FiniteDuration)
-  extends SimpleShardedActor[M](context, shardRegion, shard, s"${domainId.namespace}/${domainId.domainId}") with Logging {
+  extends ShardedActor[M](context, shardRegion, shard, s"${domainId.namespace}/${domainId.domainId}") with Logging {
 
   // This is the state that will be set during the initialize method
   protected var persistenceProvider: DomainPersistenceProvider = _
@@ -49,7 +49,7 @@ abstract class BaseDomainShardedActor[M](domainId: DomainId,
   // Initialization
   //
 
-  override def initialize(msg: M): Try[ShardedActorStatUpPlan] = {
+  override protected def initialize(msg: M): Try[ShardedActorStatUpPlan] = {
     val domainId = getDomainId(msg)
 
     domainPersistenceManager.acquirePersistenceProvider(context.self, context.system, domainId)
@@ -81,8 +81,6 @@ abstract class BaseDomainShardedActor[M](domainId: DomainId,
   protected def getDomainId(msg: M): DomainId
 
   protected def getReceiveTimeoutMessage(): M
-
-
 }
 
 

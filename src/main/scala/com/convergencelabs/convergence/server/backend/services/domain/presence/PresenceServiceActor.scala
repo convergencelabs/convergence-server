@@ -73,6 +73,8 @@ final class PresenceServiceActor private(domainId: DomainId,
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
     case Terminated(client) =>
       onUserDisconnected(client.asInstanceOf[ActorRef[PresenceClientActor.OutgoingMessage]])
+    case signal =>
+      super.onSignal(signal)
   }
 
   private[this] def onGetPresences(msg: GetPresencesRequest): Behavior[Message] = {
