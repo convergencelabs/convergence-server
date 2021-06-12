@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.testkit.typed.scaladsl
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import com.convergencelabs.convergence.proto._
+import com.convergencelabs.convergence.proto.core.ConnectionResponseMessage.ConnectionSuccessData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.model._
 import com.convergencelabs.convergence.server.api.realtime.ClientActor.{PongTimeout, SendUnprocessedMessage}
@@ -94,14 +95,14 @@ class ProtocolConnectionSpec
     "receiving a request" must {
       "emit a request received event" in new TestFixture() {
         {
-          val handshake = HandshakeRequestMessage(reconnect = false, None)
+          val connectionRequest = ConnectionRequestMessage()
           val message = ConvergenceMessage()
             .withRequestId(1)
-            .withHandshakeRequest(handshake)
+            .withConnectionRequest(connectionRequest)
           val bytes = message.toByteArray
 
           val RequestReceived(request, _) = connection.onIncomingMessage(bytes).get.value.asInstanceOf[RequestReceived]
-          request shouldBe handshake
+          request shouldBe connectionRequest
         }
       }
     }
@@ -165,20 +166,20 @@ class ProtocolConnectionSpec
     "responding to a request" must {
       "send a correct reply envelope for a success" in new TestFixture() {
         {
-          val handshake = HandshakeRequestMessage(reconnect = false, None)
+          val connectionRequest = ConnectionRequestMessage()
           val message = ConvergenceMessage()
             .withRequestId(1)
-            .withHandshakeRequest(handshake)
+            .withConnectionRequest(connectionRequest)
 
           val bytes = message.toByteArray
           val RequestReceived(_, cb) = connection.onIncomingMessage(bytes).success.value.value.asInstanceOf[RequestReceived]
 
-          val response = HandshakeResponseMessage().withSuccess(true)
+          val response = ConnectionResponseMessage().withSuccess(ConnectionSuccessData())
           cb.reply(response)
 
           val expectedResponseEnvelope = ConvergenceMessage()
             .withResponseId(1)
-            .withHandshakeResponse(response)
+            .withConnectionResponse(response)
 
           val SendUnprocessedMessage(convergenceMessage) = this.clientActor.expectMessageType[SendUnprocessedMessage](10 millis)
           connection.serializeAndSend(convergenceMessage)
@@ -191,12 +192,12 @@ class ProtocolConnectionSpec
 
       "send a correct reply envelope for an unexpected error" in new TestFixture() {
         {
-          val message = HandshakeRequestMessage(reconnect = false, None)
-          val envelope = ConvergenceMessage()
+          val connectionRequest = ConnectionRequestMessage()
+          val message = ConvergenceMessage()
             .withRequestId(1)
-            .withHandshakeRequest(message)
+            .withConnectionRequest(connectionRequest)
 
-          val bytes = envelope.toByteArray
+          val bytes = message.toByteArray
           val RequestReceived(_, cb) = connection.onIncomingMessage(bytes).success.value.value.asInstanceOf[RequestReceived]
 
           cb.unexpectedError(errorMessage)
@@ -215,12 +216,12 @@ class ProtocolConnectionSpec
 
       "send a correct reply envelope for an expected error" in new TestFixture() {
         {
-          val handshakeRequest = HandshakeRequestMessage(reconnect = false, None)
-          val sentMessage = ConvergenceMessage()
+          val connectionRequest = ConnectionRequestMessage()
+          val message = ConvergenceMessage()
             .withRequestId(1)
-            .withHandshakeRequest(handshakeRequest)
+            .withConnectionRequest(connectionRequest)
 
-          val bytes = sentMessage.toByteArray
+          val bytes = message.toByteArray
           val RequestReceived(_, cb) = connection.onIncomingMessage(bytes).success.value.value.asInstanceOf[RequestReceived]
 
           cb.expectedError(code, errorMessage)

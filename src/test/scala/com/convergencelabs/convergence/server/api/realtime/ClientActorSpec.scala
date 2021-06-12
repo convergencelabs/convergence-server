@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.api.realtime
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.http.scaladsl.model.RemoteAddress.IP
-import com.convergencelabs.convergence.proto.core.AuthenticationRequestMessage.PasswordAuthRequestData
+import com.convergencelabs.convergence.proto.core.ConnectionRequestMessage.PasswordAuthRequestData
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
@@ -101,36 +101,12 @@ class ClientActorSpec
       domainLifecycleTopic.ref,
       modelSyncInterval))
 
-    clientActor ! ClientActor.WebSocketOpened(connectionActor.ref)
-  }
-
-  class HandshookClient() extends TestFixture() {
-    val domainActor: TestProbe[DomainActor.Message] = testKit.createTestProbe[DomainActor.Message]()
-
-    val modelStoreActor: TestProbe[ModelServiceActor.Message] = testKit.createTestProbe[ModelServiceActor.Message]()
-    val operationStoreActor: TestProbe[ModelOperationServiceActor.Message] = testKit.createTestProbe[ModelOperationServiceActor.Message]()
-    val userServiceActor: TestProbe[IdentityServiceActor.Message] = testKit.createTestProbe[IdentityServiceActor.Message]()
-    val presenceServiceActor: TestProbe[PresenceServiceActor.Message] = testKit.createTestProbe[PresenceServiceActor.Message]()
-    val chatManagerActor: TestProbe[ChatServiceActor.Message] = testKit.createTestProbe[ChatServiceActor.Message]()
-
-    {
-      val handshakeRequestMessage = HandshakeRequestMessage(reconnect = false, None)
-      val handshakeCallback = new TestReplyCallback()
-      val handshakeEvent = ClientActor.IncomingProtocolRequest(handshakeRequestMessage, handshakeCallback)
-
-      clientActor ! handshakeEvent
-
-      val message = domainActor.expectMessageType[DomainActor.HandshakeRequest](FiniteDuration(1, TimeUnit.SECONDS))
-
-      val success = DomainActor.HandshakeSuccess()
-      message.replyTo ! DomainActor.HandshakeResponse(Right(success))
-      Await.result(handshakeCallback.result, 250 millis)
+    def open(): Unit = {
+      clientActor ! ClientActor.WebSocketOpened(connectionActor.ref)
     }
-  }
 
-  class AuthenticatedClient() extends HandshookClient() {
-    {
-      val authRequestMessage = AuthenticationRequestMessage()
+    def connect(): Unit = {
+      val authRequestMessage = ConnectionRequestMessage()
         .withPassword(PasswordAuthRequestData("testuser", "testpass"))
 
       val authCallback = new TestReplyCallback()
@@ -138,12 +114,12 @@ class ClientActorSpec
 
       clientActor ! authEvent
 
-      val authRequest = domainActor.expectMessageType[DomainActor.AuthenticationRequest](FiniteDuration(1, TimeUnit.SECONDS))
+      val authRequest = domainRegion.expectMessageType[DomainActor.ConnectionRequest](FiniteDuration(1, TimeUnit.SECONDS))
 
-      val success = DomainActor.AuthenticationSuccess(DomainSessionAndUserId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123"))
-      authRequest.replyTo ! DomainActor.AuthenticationResponse(Right(success))
+      val success = DomainActor.ConnectionSuccess(DomainSessionAndUserId("0", DomainUserId(DomainUserType.Normal, "test")), Some("123"))
+      authRequest.replyTo ! DomainActor.ConnectionResponse(Right(success))
 
-      val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[AuthenticationResponseMessage]
+      val authResponse = Await.result(authCallback.result, 250 millis).asInstanceOf[ConnectionResponseMessage]
       authResponse.response.isSuccess shouldBe true
     }
   }

@@ -11,11 +11,10 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain
 
-import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.backend.datastore.domain._
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.ReceiveTimeout
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.actor._
@@ -66,6 +65,13 @@ abstract class BaseDomainShardedActor[M](domainId: DomainId,
           handleDomainNotFound(msg)
           Success(StartUpNotRequired)
       }
+  }
+
+  override def passivate(): Behavior[M] = {
+    Option(this.persistenceProvider).foreach(_ =>
+      domainPersistenceManager.releasePersistenceProvider(context.self, context.system, this.domainId)
+    )
+    super.passivate()
   }
 
   protected def handleDomainNotFound(msg: M): Unit = ()

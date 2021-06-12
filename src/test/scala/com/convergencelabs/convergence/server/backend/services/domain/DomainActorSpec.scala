@@ -15,7 +15,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.ClientActor
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.{DomainNotFound, DomainUnavailable, HandshakeResponse, Message}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.{ConnectionRequest, DomainNotFound, DomainUnavailable, Message}
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainState, DomainStatus}
@@ -40,49 +40,59 @@ class DomainActorSpec
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
   "A DomainActor" when {
-    "receiving an initial handshake request" must {
+    "receiving an initial connection request" must {
       "respond with a handshake success if the domain is online" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Ready))))
-        assert(handshake(domainId, domainActor).handshake.isRight)
+        assert(connect(domainId, domainActor).response.isRight)
       }
 
       "respond with a handshake error if the domain is offline" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Offline, DomainStatus.Ready))))
-        handshake(domainId, domainActor).handshake shouldBe Left(DomainNotFound(domainId))
+        connect(domainId, domainActor).response shouldBe Left(DomainNotFound(domainId))
       }
 
       "respond with a handshake error if the domain status can't be found" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState()).thenReturn(Success(None))
-        handshake(domainId, domainActor).handshake shouldBe Left(DomainNotFound(domainId))
+        connect(domainId, domainActor).response shouldBe Left(DomainNotFound(domainId))
       }
 
       "respond with a handshake success if the domain is in maintenance mode" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Maintenance, DomainStatus.Ready))))
-        handshake(domainId, domainActor).handshake.isRight shouldBe true
+        connect(domainId, domainActor).response.isRight shouldBe true
       }
 
       "respond with a handshake error if the domain is in error status" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Error))))
-        handshake(domainId, domainActor).handshake shouldBe Left(DomainUnavailable(domainId))
+        connect(domainId, domainActor).response shouldBe Left(DomainUnavailable(domainId))
       }
 
       "respond with a handshake error if the domain is in initializing" in new TestFixture {
         Mockito.when(provider.domainStateProvider.getDomainState())
           .thenReturn(Success(Some(DomainState(domainId, DomainAvailability.Online, DomainStatus.Initializing))))
-        handshake(domainId, domainActor).handshake shouldBe Left(DomainUnavailable(domainId))
+        connect(domainId, domainActor).response shouldBe Left(DomainUnavailable(domainId))
       }
     }
   }
 
-  private[this] def handshake(domainId: DomainId, domainActor: ActorRef[DomainActor.Message]): HandshakeResponse = {
+  private[this] def connect(domainId: DomainId, domainActor: ActorRef[DomainActor.Message]): DomainActor.ConnectionResponse = {
     val client: TestProbe[ClientActor.Disconnect] = testKit.createTestProbe[ClientActor.Disconnect]()
-    val replyTo: TestProbe[DomainActor.HandshakeResponse] = testKit.createTestProbe[DomainActor.HandshakeResponse]()
-    domainActor ! DomainActor.HandshakeRequest(domainId, client.ref, reconnect = false, None, replyTo.ref)
-    replyTo.expectMessageType[DomainActor.HandshakeResponse](FiniteDuration(1, TimeUnit.SECONDS))
+    val replyTo: TestProbe[DomainActor.ConnectionResponse] = testKit.createTestProbe[DomainActor.ConnectionResponse]()
+    val request = ConnectionRequest(
+      domainId,
+      client.ref,
+      "127.0.0.1",
+      "javascript",
+      "1.0",
+      "some ua",
+      AnonymousAuthRequest(None),
+      replyTo.ref)
+
+    domainActor ! request
+    replyTo.expectMessageType[DomainActor.ConnectionResponse](FiniteDuration(1, TimeUnit.SECONDS))
   }
 
   trait TestFixture {

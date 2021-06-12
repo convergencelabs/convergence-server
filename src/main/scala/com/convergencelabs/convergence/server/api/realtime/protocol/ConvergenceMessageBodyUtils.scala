@@ -38,10 +38,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.Ok(message) => message
       case Body.Ping(message) => message
       case Body.Pong(message) => message
-      case Body.HandshakeRequest(message) => message
-      case Body.HandshakeResponse(message) => message
-      case Body.AuthenticationRequest(message) => message
-      case Body.AuthenticationResponse(message) => message
+      case Body.ConnectionRequest(message) => message
+      case Body.ConnectionResponse(message) => message
       case Body.IdentityCacheUpdate(message) => message
 
       // Model
@@ -203,10 +201,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ErrorMessage => Body.Error(message)
       case message: PingMessage => Body.Ping(message)
       case message: PongMessage => Body.Pong(message)
-      case message: HandshakeRequestMessage => Body.HandshakeRequest(message)
-      case message: HandshakeResponseMessage => Body.HandshakeResponse(message)
-      case message: AuthenticationRequestMessage => Body.AuthenticationRequest(message)
-      case message: AuthenticationResponseMessage => Body.AuthenticationResponse(message)
+      case message: ConnectionRequestMessage => Body.ConnectionRequest(message)
+      case message: ConnectionResponseMessage => Body.ConnectionResponse(message)
       case message: IdentityCacheUpdateMessage => Body.IdentityCacheUpdate(message)
       case message: OkResponse => Body.Ok(message)
 

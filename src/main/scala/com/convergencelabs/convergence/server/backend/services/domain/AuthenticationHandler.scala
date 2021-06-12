@@ -74,7 +74,7 @@ final class AuthenticationHandler(domainId: DomainId,
    *         authentication failed or a right containing information on the
    *         successful authentication.
    */
-  def authenticate(request: AuthenticationCredentials, availability: DomainAvailability.Value): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+  def authenticate(request: AuthenticationCredentials, availability: DomainAvailability.Value): Either[Option[String], DomainActor.ConnectionSuccess] = {
     availability match {
       case DomainAvailability.Online =>
         request match {
@@ -103,7 +103,7 @@ final class AuthenticationHandler(domainId: DomainId,
   // Reconnect Auth
   //
 
-  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Either[Option[String], DomainActor.ConnectionSuccess] = {
     userStore
       .validateAndRefreshReconnectToken(reconnectRequest.token, Duration.ofHours(24L))
       .flatMap {
@@ -124,7 +124,7 @@ final class AuthenticationHandler(domainId: DomainId,
   // Anonymous Auth
   //
 
-  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Either[Option[String], DomainActor.ConnectionSuccess] = {
     val AnonymousAuthRequest(displayName) = authRequest
     debug(s"$domainId: Processing anonymous authentication request with display name: $displayName")
     domainConfigStore
@@ -155,7 +155,7 @@ final class AuthenticationHandler(domainId: DomainId,
   //
   // Password Auth
   //
-  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Either[Option[String], DomainActor.ConnectionSuccess] = {
     logger.debug(s"$domainId: Authenticating by username and password")
     userStore
       .validateNormalUserCredentials(authRequest.username, authRequest.password)
@@ -180,7 +180,7 @@ final class AuthenticationHandler(domainId: DomainId,
   //
   // JWT Auth
   //
-  private[this] def authenticateJwt(authRequest: JwtAuthRequest, maintenanceMode: Boolean = false): Either[Option[String], DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest, maintenanceMode: Boolean = false): Either[Option[String], DomainActor.ConnectionSuccess] = {
     // This implements a two pass approach to be able to get the key id.
     val firstPassJwtConsumer = new JwtConsumerBuilder()
       .setSkipAllValidators()
@@ -241,7 +241,7 @@ final class AuthenticationHandler(domainId: DomainId,
     }
   }
 
-  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): Try[DomainActor.AuthenticationSuccess] = {
+  private[this] def authenticateJwtWithPublicKey(authRequest: JwtAuthRequest, publicKey: PublicKey, admin: Boolean): Try[DomainActor.ConnectionSuccess] = {
     val jwtConsumer = new JwtConsumerBuilder()
       .setRequireExpirationTime()
       .setAllowedClockSkewInSeconds(AuthenticationHandler.AllowedClockSkew)
@@ -321,21 +321,21 @@ final class AuthenticationHandler(domainId: DomainId,
   // Common Auth Success handling
   //
 
-  private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[DomainActor.AuthenticationSuccess] = {
+  private[this] def authSuccess(userId: DomainUserId, reconnectToken: Option[String]): Try[DomainActor.ConnectionSuccess] = {
     logger.debug(s"$domainId: Creating session after authentication success.")
     sessionStore.nextSessionId flatMap { sessionId =>
       reconnectToken match {
         case Some(reconnectToken) =>
-          Success(DomainActor.AuthenticationSuccess(DomainSessionAndUserId(sessionId, userId), Some(reconnectToken)))
+          Success(DomainActor.ConnectionSuccess(DomainSessionAndUserId(sessionId, userId), Some(reconnectToken)))
         case None =>
           logger.debug(s"$domainId: Creating reconnect token.")
           userStore.createReconnectToken(userId, Duration.ofHours(24L)) map { token =>
             logger.debug(s"$domainId: Returning auth success.")
-            DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId(sessionId, userId), Some(token))
+            DomainActor.ConnectionSuccess(session.DomainSessionAndUserId(sessionId, userId), Some(token))
           } recover {
             case error: Throwable =>
               logger.error(s"$domainId: Unable to create reconnect token", error)
-              DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId(sessionId, userId), None)
+              DomainActor.ConnectionSuccess(session.DomainSessionAndUserId(sessionId, userId), None)
           }
       }
     }

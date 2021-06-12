@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAu
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.{CreateNormalDomainUser, DomainUserStore}
-import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.AuthenticationSuccess
+import com.convergencelabs.convergence.server.backend.services.domain.DomainActor.ConnectionSuccess
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.jwt.{JwtAuthKey, JwtConstants, JwtKeyPair}
 import com.convergencelabs.convergence.server.model.domain.session
@@ -69,7 +69,7 @@ class AuthenticationHandlerSpec()
       "authenticate successfully for a correct username and password" in new TestFixture {
         private val result = authHandler.authenticate(
           PasswordAuthRequest(existingUserName, existingCorrectPassword), DomainAvailability.Online)
-        result shouldBe Right(AuthenticationSuccess(DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)))
+        result shouldBe Right(ConnectionSuccess(DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)))
       }
 
       "Fail authentication for an incorrect username and password" in new TestFixture {
@@ -96,7 +96,7 @@ class AuthenticationHandlerSpec()
         private val result = authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(existingUserName, enabledKey.id)),
           DomainAvailability.Online)
-        result shouldBe Right(AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)))
+        result shouldBe Right(ConnectionSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, existingUserName)), Some(reconnectToken)))
       }
 
       "return an authentication failure for a non-existent key" in new TestFixture {
@@ -124,14 +124,14 @@ class AuthenticationHandlerSpec()
         private val result = authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)),
           DomainAvailability.Online)
-        result shouldBe Right(DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Convergence, existingUserName)), Some(reconnectToken)))
+        result shouldBe Right(DomainActor.ConnectionSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Convergence, existingUserName)), Some(reconnectToken)))
       }
 
       "return an authentication success lazily created user" in new TestFixture {
         private val result = authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(lazyUserName, enabledKey.id)),
           DomainAvailability.Online)
-        result shouldBe Right(DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, lazyUserName)), Some(reconnectToken)))
+        result shouldBe Right(DomainActor.ConnectionSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Normal, lazyUserName)), Some(reconnectToken)))
       }
 
       "return an authentication failure when the user can't be looked up" in new TestFixture {
@@ -166,7 +166,7 @@ class AuthenticationHandlerSpec()
         authHandler.authenticate(
           JwtAuthRequest(JwtGenerator.generate(existingUserName, AuthenticationHandler.AdminKeyId)),
           DomainAvailability.Online) shouldBe
-          Right(DomainActor.AuthenticationSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Convergence, existingUserName)), Some(reconnectToken)))
+          Right(DomainActor.ConnectionSuccess(session.DomainSessionAndUserId("1", DomainUserId(DomainUserType.Convergence, existingUserName)), Some(reconnectToken)))
       }
     }
   }
