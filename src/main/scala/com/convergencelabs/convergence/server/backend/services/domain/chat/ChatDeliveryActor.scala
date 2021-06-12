@@ -70,9 +70,7 @@ private final class ChatDeliveryActor(domainId: DomainId,
     }
   }
 
-  override def onSignal: PartialFunction[Signal, Behavior[Message]] = handleSignal orElse super.onSignal
-
-  private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
+  override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
     case Terminated(clientActor) =>
       onUnsubscribe(clientActor.unsafeUpcast[ChatClientActor.OutgoingMessage])
       Behaviors.same
