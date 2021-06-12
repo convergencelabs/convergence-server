@@ -17,6 +17,7 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.jwt.JwtAu
 import com.convergencelabs.convergence.server.backend.datastore.domain.session.SessionStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.{CreateNormalDomainUser, DomainUserStore, UpdateDomainUser}
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, InvalidValueException}
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{AnonymousAuthenticationDisabled, AuthenticationFailed, ConnectionError, DomainUnavailable}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtConstants
 import com.convergencelabs.convergence.server.model.domain.session
@@ -64,9 +65,6 @@ final class AuthenticationHandler(domainId: DomainId,
                                   private[this] implicit val ec: ExecutionContext)
   extends Logging {
 
-  private[this] val MaintenanceModeMessage =
-    "Can not authenticate to a domain in maintenance mode."
-
   /**
    * Processes an authentication request for the associated domain.
    * @param request The auth request to process.
@@ -74,7 +72,7 @@ final class AuthenticationHandler(domainId: DomainId,
    *         authentication failed or a right containing information on the
    *         successful authentication.
    */
-  def authenticate(request: AuthenticationCredentials, availability: DomainAvailability.Value): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
+  def authenticate(request: AuthenticationCredentials, availability: DomainAvailability.Value): Either[ConnectionError, DomainSessionActor.ConnectionSuccess] = {
     availability match {
       case DomainAvailability.Online =>
         request match {
@@ -88,15 +86,15 @@ final class AuthenticationHandler(domainId: DomainId,
             authenticateAnonymous(message)
         }
       case DomainAvailability.Offline =>
-        Left(Some("Can not authenticate to an offline domain."))
+        Left(DomainSessionActor.DomainNotFound(domainId))
       case DomainAvailability.Maintenance =>
         request match {
           case message: JwtAuthRequest =>
-            authenticateJwt(message, true)
+            authenticateJwt(message, maintenanceMode = true)
           case message: ReconnectTokenAuthRequest =>
-            authenticateReconnectToken(message, true)
+            authenticateReconnectToken(message, maintenance = true)
           case _ =>
-            Left(Some(MaintenanceModeMessage))
+            Left(DomainUnavailable(domainId))
         }
     }
   }
@@ -105,7 +103,7 @@ final class AuthenticationHandler(domainId: DomainId,
   // Reconnect Auth
   //
 
-  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest, maintenance: Boolean = false): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest, maintenance: Boolean = false): Either[ConnectionError, DomainSessionActor.ConnectionSuccess] = {
     userStore
       .validateAndRefreshReconnectToken(reconnectRequest.token, Duration.ofHours(24L))
       .flatMap {
@@ -113,24 +111,24 @@ final class AuthenticationHandler(domainId: DomainId,
           if (userId.isConvergence) {
             authSuccess(userId, Some(reconnectRequest.token)).map(Right(_))
           } else {
-            Success(Left(Some(MaintenanceModeMessage)))
+            Success(Left(DomainUnavailable(domainId)))
           }
         case None =>
-          Success(Left(None))
+          Success(Left(AuthenticationFailed()))
       }
       .recover {
         case cause =>
           error(s"$domainId: Unable to authenticate a user via reconnect token.", cause)
-          Left(None)
+          Left(AuthenticationFailed())
       }
-      .getOrElse(Left(None))
+      .getOrElse(Left(AuthenticationFailed()))
   }
 
   //
   // Anonymous Auth
   //
 
-  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
+  private[this] def authenticateAnonymous(authRequest: AnonymousAuthRequest): Either[ConnectionError, DomainSessionActor.ConnectionSuccess] = {
     val AnonymousAuthRequest(displayName) = authRequest
     debug(s"$domainId: Processing anonymous authentication request with display name: $displayName")
     domainConfigStore
@@ -138,7 +136,7 @@ final class AuthenticationHandler(domainId: DomainId,
       .flatMap {
         case false =>
           debug(s"$domainId: Anonymous auth is disabled; returning AuthenticationFailure.")
-          Success(Left(Some("anonymous authentication is disabled")))
+          Success(Left(AnonymousAuthenticationDisabled()))
         case true =>
           debug(s"$domainId: Anonymous auth is enabled; creating anonymous user.")
           userStore
@@ -153,15 +151,15 @@ final class AuthenticationHandler(domainId: DomainId,
       .recover {
         case cause: Throwable =>
           error(s"$domainId: Anonymous authentication error", cause)
-          Left(None)
+          Left(AuthenticationFailed())
       }
-      .getOrElse(Left(None))
+      .getOrElse(Left(AuthenticationFailed()))
   }
 
   //
   // Password Auth
   //
-  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
+  private[this] def authenticatePassword(authRequest: PasswordAuthRequest): Either[ConnectionError, DomainSessionActor.ConnectionSuccess] = {
     logger.debug(s"$domainId: Authenticating by username and password")
     userStore
       .validateNormalUserCredentials(authRequest.username, authRequest.password)
@@ -173,20 +171,20 @@ final class AuthenticationHandler(domainId: DomainId,
             Right(response)
           }
         case false =>
-          Success(Left(None))
+          Success(Left(AuthenticationFailed()))
       }
       .recover {
         case cause: Throwable =>
           error(s"$domainId: Unable to authenticate a user", cause)
-          Left(None)
+          Left(AuthenticationFailed())
       }
-      .getOrElse(Left(None))
+      .getOrElse(Left(AuthenticationFailed()))
   }
 
   //
   // JWT Auth
   //
-  private[this] def authenticateJwt(authRequest: JwtAuthRequest, maintenanceMode: Boolean = false): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
+  private[this] def authenticateJwt(authRequest: JwtAuthRequest, maintenanceMode: Boolean = false): Either[ConnectionError, DomainSessionActor.ConnectionSuccess] = {
     // This implements a two pass approach to be able to get the key id.
     val firstPassJwtConsumer = new JwtConsumerBuilder()
       .setSkipAllValidators()
@@ -206,17 +204,17 @@ final class AuthenticationHandler(domainId: DomainId,
             .recover {
               case cause: InvalidJwtException =>
                 logger.debug(s"Invalid JWT: ${cause.getMessage}")
-                Left(None)
+                Left(AuthenticationFailed())
               case cause: Exception =>
                 error(s"$domainId: Unable to authenticate a user via jwt.", cause)
-                Left(None)
+                Left(AuthenticationFailed())
             }
-            .getOrElse(Left(None))
+            .getOrElse(Left(AuthenticationFailed()))
         } else {
-          Left(Some(MaintenanceModeMessage))
+          Left(DomainUnavailable(domainId))
         }
       }
-      .getOrElse(Left(None))
+      .getOrElse(Left(AuthenticationFailed()))
   }
 
   private[this] def getJwtPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {

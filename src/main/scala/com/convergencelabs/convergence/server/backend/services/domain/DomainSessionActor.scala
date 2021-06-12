@@ -101,7 +101,7 @@ private class DomainSessionActor(domainId: DomainId,
     Behaviors.same
   }
 
-  private[this] def processAuthenticationForExistingDomain(message: ConnectionRequest): Either[AuthenticationError, ConnectionSuccess] = {
+  private[this] def processAuthenticationForExistingDomain(message: ConnectionRequest): Either[ConnectionError, ConnectionSuccess] = {
     this.status match {
       case DomainStatus.Ready =>
         this.availability match {
@@ -119,7 +119,7 @@ private class DomainSessionActor(domainId: DomainId,
     }
   }
 
-  private[this] def completeAuthentication(message: ConnectionRequest): Either[AuthenticationError, ConnectionSuccess] = {
+  private[this] def completeAuthentication(message: ConnectionRequest): Either[ConnectionError, ConnectionSuccess] = {
     debug(s"$identityString: Processing authentication request: ${message.credentials.getClass.getSimpleName}")
 
     val ConnectionRequest(
@@ -136,34 +136,29 @@ private class DomainSessionActor(domainId: DomainId,
 
     val response = authenticator
       .authenticate(credentials, this.availability)
-      .fold(
-        { msg =>
-          debug(s"$identityString: Authentication failed")
-          Left(AuthenticationFailed(msg))
-        },
-        {
-          case authSuccess@ConnectionSuccess(DomainSessionAndUserId(sessionId, userId), _) =>
-            debug(s"$identityString: Authenticated user successfully, creating session")
-            val session = DomainSession(
-              sessionId, userId, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
+      .flatMap {
+        case authSuccess@ConnectionSuccess(DomainSessionAndUserId(sessionId, userId), _) =>
+          debug(s"$identityString: Authenticated user successfully, creating session")
+          val session = DomainSession(
+            sessionId, userId, connected, None, method, client, clientVersion, clientMetaData, remoteAddress)
 
-            persistenceProvider
-              .sessionStore
-              .createSession(session)
-              .map { _ =>
-                debug(s"$identityString: Session created, replying to ClientActor")
-                this.disableReceiveTimeout()
-                context.watch(clientActor)
-                connectedClients.put(clientActor, sessionId)
-                Right(authSuccess)
-              }
-              .recoverWith { cause =>
-                error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
-                Failure(cause)
-              }
-              .getOrElse(Left(AuthenticationFailed(None)))
-        }
-      )
+          persistenceProvider
+            .sessionStore
+            .createSession(session)
+            .map { _ =>
+              debug(s"$identityString: Session created, replying to ClientActor")
+              this.disableReceiveTimeout()
+              context.watch(clientActor)
+              connectedClients.put(clientActor, sessionId)
+              Right(authSuccess)
+            }
+            .recoverWith { cause =>
+              error(s"$identityString Unable to authenticate user because a session could not be created.", cause)
+              Failure(cause)
+            }
+            .getOrElse(Left(AuthenticationError("Unable to create user session")))
+      }
+
 
     debug(s"$identityString: Done processing authentication request: ${message.credentials.getClass.getSimpleName}")
     response
@@ -394,21 +389,27 @@ object DomainSessionActor {
     new JsonSubTypes.Type(value = classOf[DomainNotFound], name = "not_found"),
     new JsonSubTypes.Type(value = classOf[DomainDatabaseError], name = "database_error"),
     new JsonSubTypes.Type(value = classOf[DomainUnavailable], name = "unavailable"),
-    new JsonSubTypes.Type(value = classOf[DomainUnavailable], name = "auth_failed")
+    new JsonSubTypes.Type(value = classOf[AuthenticationFailed], name = "auth_failed"),
+    new JsonSubTypes.Type(value = classOf[AuthenticationError], name = "auth_error"),
+    new JsonSubTypes.Type(value = classOf[AnonymousAuthenticationDisabled], name = "anonymous_auth_disabled")
   ))
-  sealed trait AuthenticationError
+  sealed trait ConnectionError
 
-  final case class DomainNotFound(domainId: DomainId) extends AuthenticationError
+  final case class DomainNotFound(domainId: DomainId) extends ConnectionError
 
-  final case class DomainDatabaseError(domainId: DomainId) extends AuthenticationError
+  final case class DomainDatabaseError(domainId: DomainId) extends ConnectionError
 
-  final case class DomainUnavailable(domainId: DomainId) extends AuthenticationError
+  final case class DomainUnavailable(domainId: DomainId) extends ConnectionError
 
-  final case class AuthenticationFailed(msg: Option[String]) extends AuthenticationError
+  final case class AuthenticationFailed() extends ConnectionError
+
+  final case class AuthenticationError(message: String) extends ConnectionError
+
+  final case class AnonymousAuthenticationDisabled() extends ConnectionError
 
   final case class ConnectionSuccess(session: DomainSessionAndUserId, reconnectToken: Option[String])
 
-  final case class ConnectionResponse(response: Either[AuthenticationError, ConnectionSuccess]) extends CborSerializable
+  final case class ConnectionResponse(response: Either[ConnectionError, ConnectionSuccess]) extends CborSerializable
 
 
   final case class ClientDisconnected(domainId: DomainId, clientActor: ActorRef[ClientActor.Disconnect]) extends Message

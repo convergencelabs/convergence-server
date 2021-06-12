@@ -28,7 +28,7 @@ import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ConvergenceMessageBodyUtils
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.AuthenticationFailed
+import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{AnonymousAuthenticationDisabled, AuthenticationError, AuthenticationFailed}
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatDeliveryActor, ChatServiceActor}
@@ -331,28 +331,38 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
               { failure =>
                 val failureData = failure match {
                   case DomainSessionActor.DomainNotFound(_) =>
-                    debug(s"$domainId: Handshake failure: The domain does not exist.")
+                    debug(s"$domainId: Connection failure: The domain does not exist.")
                     ConnectionFailureData(
                       "domain_not_found",
                       s"The domain '${domainId.namespace}/${domainId.domainId}' does not exist",
                       retryOk = false
                     )
+
                   case DomainSessionActor.DomainDatabaseError(_) =>
-                    debug(s"$domainId: Handshake failure: The domain database could not be connected to.")
+                    debug(s"$domainId: Connection failure: The domain database could not be connected to.")
                     ConnectionFailureData(
-                      "domain_database_error",
+                      "domain_error",
                       s"The domain '${domainId.namespace}/${domainId.domainId}' could not connect to its database.",
                       retryOk = true
                     )
+
                   case DomainSessionActor.DomainUnavailable(_) =>
-                    debug(s"$domainId: Handshake failure: The domain is unavailable.")
+                    debug(s"$domainId: Connection failure: The domain is unavailable.")
                     ConnectionFailureData(
                       "domain_unavailable",
                       s"The domain '${domainId.namespace}/${domainId.domainId}' is unavailable, please try again later.",
                       retryOk = true
                     )
-                  case AuthenticationFailed(msg) =>
-                    ConnectionFailureData("authentication_failed", msg.getOrElse(""), retryOk = false)
+
+                  case AuthenticationFailed() =>
+                    ConnectionFailureData("authentication_failed", "", retryOk = false)
+
+                  case AnonymousAuthenticationDisabled() =>
+                    ConnectionFailureData("anonymous_auth_disabled", "Anonymous authentication is disabled for the requested domain.", retryOk = false)
+
+                  case AuthenticationError(msg) =>
+                    debug(s"$domainId: Connection failure: " + msg)
+                    ConnectionFailureData("authentication_error", msg, retryOk = false)
                 }
                 cb.reply(ConnectionResponseMessage().withFailure(failureData))
               },
