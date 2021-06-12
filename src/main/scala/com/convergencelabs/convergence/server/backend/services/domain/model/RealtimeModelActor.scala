@@ -85,10 +85,9 @@ private final class RealtimeModelActor(domainId: DomainId,
   // Receive methods
   //
 
-  override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
-    case Terminated(actor) =>
-      modelManager.handleTerminated(actor.unsafeUpcast[ModelClientActor.OutgoingMessage])
-      Behaviors.same
+  override protected def onTerminated(actor: ActorRef[Nothing]): Behavior[Message] = {
+    modelManager.handleTerminated(actor.unsafeUpcast[ModelClientActor.OutgoingMessage])
+    Behaviors.same
   }
 
   protected override def receiveInitialized(msg: Message): Behavior[Message] = {

@@ -59,8 +59,6 @@ private class DomainSessionActor(domainId: DomainId,
   private[this] var status: DomainStatus.Value = _
   private[this] var availability: DomainAvailability.Value = _
 
-  override def onSignal: PartialFunction[Signal, Behavior[Message]] = handleSignal orElse super.onSignal
-
   override def receiveInitialized(msg: Message): Behavior[Message] = msg match {
     case message: ConnectionRequest =>
       onAuthenticationRequest(message)
@@ -78,9 +76,8 @@ private class DomainSessionActor(domainId: DomainId,
       onCheckSessions()
   }
 
-  private[this] def handleSignal: PartialFunction[Signal, Behavior[Message]] = {
-    case Terminated(client) =>
-      handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
+  override protected def onTerminated(client: ActorRef[Nothing]): Behavior[Message] = {
+    handleActorTermination(client.asInstanceOf[ActorRef[ClientActor.Disconnect]])
   }
 
   private[this] def onAuthenticationRequest(message: ConnectionRequest): Behavior[Message] = {

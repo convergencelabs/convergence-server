@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.util.actor
 
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
+import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal, Terminated}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding.Passivate
 import grizzled.slf4j.Logging
@@ -107,10 +107,16 @@ abstract class ShardedActor[T](context: ActorContext[T],
     case PostStop =>
       postStop()
       Behaviors.same
+    case Terminated(actor) =>
+      onTerminated(actor)
   }
 
   protected def postStop(): Unit = {
     debug(s"$identityString: Stopped")
+  }
+
+  protected def onTerminated(actorRef: ActorRef[Nothing]): Behavior[T] = {
+    Behaviors.same
   }
 
   /**

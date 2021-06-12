@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.util
 
 object SubscriptionMap {
-  def apply[S,T](): SubscriptionMap[S, T] = {
+  def apply[S, T](): SubscriptionMap[S, T] = {
     new SubscriptionMap()
   }
 }
@@ -20,7 +20,7 @@ object SubscriptionMap {
 final class SubscriptionMap[S, T] {
 
   private[this] var subscribersToTargets = Map[S, Set[T]]()
-  private[this]var targetsToSubscribers = Map[T, Set[S]]()
+  private[this] var targetsToSubscribers = Map[T, Set[S]]()
 
   def subscribe(subscriber: S, target: T): Unit = {
     val targets = subscribersToTargets.getOrElse(subscriber, Set())
@@ -74,5 +74,9 @@ final class SubscriptionMap[S, T] {
     subscribers(target).foreach { subscriber =>
       unsubscribe(subscriber, target)
     }
+  }
+
+  def isEmpty(): Boolean = {
+    this.subscribersToTargets.isEmpty
   }
 }

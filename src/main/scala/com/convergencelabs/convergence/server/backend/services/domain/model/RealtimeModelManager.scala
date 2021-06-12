@@ -677,6 +677,7 @@ private[model] final class RealtimeModelManager(persistenceFactory: RealtimeMode
     clientToSessionId.get(actor) match {
       case Some(session) =>
         closeModel(session, notifyOthers = true)
+        checkForConnectionsAndClose()
       case None =>
         warn(s"$domainId/$modelId: An unexpected actor terminated: " + actor.path)
     }

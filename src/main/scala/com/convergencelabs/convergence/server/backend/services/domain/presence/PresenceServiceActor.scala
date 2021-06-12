@@ -12,10 +12,10 @@
 package com.convergencelabs.convergence.server.backend.services.domain.presence
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior, Signal, Terminated}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.api.realtime.PresenceClientActor
-import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, BaseDomainShardedActor}
+import com.convergencelabs.convergence.server.backend.services.domain.{BaseDomainShardedActor, DomainPersistenceManager}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.SubscriptionMap
@@ -70,9 +70,9 @@ final class PresenceServiceActor private(domainId: DomainId,
     }
   }
 
-  override def onSignal: PartialFunction[Signal, Behavior[Message]] = super.onSignal orElse {
-    case Terminated(client) =>
-      onUserDisconnected(client.asInstanceOf[ActorRef[PresenceClientActor.OutgoingMessage]])
+  override protected def onTerminated(client: ActorRef[Nothing]): Behavior[Message] = {
+    onUserDisconnected(client.asInstanceOf[ActorRef[PresenceClientActor.OutgoingMessage]])
+    Behaviors.same
   }
 
   private[this] def onGetPresences(msg: GetPresencesRequest): Behavior[Message] = {
@@ -126,6 +126,9 @@ final class PresenceServiceActor private(domainId: DomainId,
         }
       case None =>
     }
+    if (this.subscriptions.isEmpty()) {
+      this.enableReceiveTimeout()
+    }
     Behaviors.same
   }
 
@@ -174,12 +177,16 @@ final class PresenceServiceActor private(domainId: DomainId,
     userIds.foreach { userId =>
       this.subscriptions.subscribe(client, userId)
     }
+    disableReceiveTimeout()
     replyTo ! SubscribePresenceResponse(Right(lookupPresences(userIds)))
     Behaviors.same
   }
 
   private[this] def onUnsubscribe(userIds: List[DomainUserId], client: ActorRef[PresenceClientActor.OutgoingMessage]): Behavior[Message] = {
     userIds.foreach(userId => this.subscriptions.unsubscribe(client, userId))
+    if (this.subscriptions.isEmpty()) {
+      this.enableReceiveTimeout()
+    }
     Behaviors.same
   }
 
