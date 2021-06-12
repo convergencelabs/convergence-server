@@ -92,7 +92,9 @@ final class AuthenticationHandler(domainId: DomainId,
       case DomainAvailability.Maintenance =>
         request match {
           case message: JwtAuthRequest =>
-            authenticateJwt(message, availability == DomainAvailability.Maintenance)
+            authenticateJwt(message, true)
+          case message: ReconnectTokenAuthRequest =>
+            authenticateReconnectToken(message, true)
           case _ =>
             Left(Some(MaintenanceModeMessage))
         }
@@ -103,12 +105,16 @@ final class AuthenticationHandler(domainId: DomainId,
   // Reconnect Auth
   //
 
-  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
+  private[this] def authenticateReconnectToken(reconnectRequest: ReconnectTokenAuthRequest, maintenance: Boolean = false): Either[Option[String], DomainSessionActor.ConnectionSuccess] = {
     userStore
       .validateAndRefreshReconnectToken(reconnectRequest.token, Duration.ofHours(24L))
       .flatMap {
         case Some(userId) =>
-          authSuccess(userId, Some(reconnectRequest.token)).map(Right(_))
+          if (userId.isConvergence) {
+            authSuccess(userId, Some(reconnectRequest.token)).map(Right(_))
+          } else {
+            Success(Left(Some(MaintenanceModeMessage)))
+          }
         case None =>
           Success(Left(None))
       }
@@ -192,7 +198,7 @@ final class AuthenticationHandler(domainId: DomainId,
     val objects = jwtContext.getJoseObjects
     val keyId = objects.get(0).getKeyIdHeaderValue
 
-    getJWTPublicKey(keyId)
+    getJwtPublicKey(keyId)
       .map { case (publicKey, admin) =>
         if (!maintenanceMode || admin ) {
           authenticateJwtWithPublicKey(authRequest, publicKey, admin)
@@ -213,7 +219,7 @@ final class AuthenticationHandler(domainId: DomainId,
       .getOrElse(Left(None))
   }
 
-  private[this] def getJWTPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {
+  private[this] def getJwtPublicKey(keyId: String): Option[(PublicKey, Boolean)] = {
     val (keyPem, admin) = if (AuthenticationHandler.AdminKeyId.equals(keyId)) {
       domainConfigStore.getAdminKeyPair() match {
         case Success(keyPair) => (Some(keyPair.publicKey), true)

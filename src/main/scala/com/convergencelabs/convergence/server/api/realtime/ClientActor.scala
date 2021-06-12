@@ -399,8 +399,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       case cause =>
         error("Error getting user data after successful authentication", cause)
         val failureData = ConnectionFailureData()
-        .withCode("server_error")
-        .withDetails("The server could not obtain the users presence data")
+          .withCode("server_error")
+          .withDetails("The server could not obtain the users presence data")
         cb.reply(ConnectionResponseMessage().withFailure(failureData))
     }
   }
@@ -561,8 +561,9 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       availability match {
         case DomainAvailability.Online =>
           Behaviors.same
-        case availability =>
-
+        case x if x == DomainAvailability.Maintenance && this.userId.isConvergence =>
+          Behaviors.same
+        case _ =>
           debug(s"$domainId: Disconnecting client because domain availability changed to: " + availability)
           this.disconnect()
       }
