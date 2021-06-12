@@ -26,10 +26,10 @@ import scala.util.Try
  * @param context The ActorContext this actor is created in.
  * @tparam T The parameterized type of the message trait.
  */
-abstract class SimpleShardedActor[T](context: ActorContext[T],
-                                     shardRegion: ActorRef[T],
-                                     shard: ActorRef[ClusterSharding.ShardCommand],
-                                     entityDescription: String)
+abstract class ShardedActor[T](context: ActorContext[T],
+                               shardRegion: ActorRef[T],
+                               shard: ActorRef[ClusterSharding.ShardCommand],
+                               entityDescription: String)
   extends AbstractBehavior[T](context)
     with Logging {
 

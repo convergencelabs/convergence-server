@@ -15,7 +15,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, DomainPersistenceManagerActor}
-import com.convergencelabs.convergence.server.util.DomainAndStringEntityIdSerializer
+import com.convergencelabs.convergence.server.util.DomainIdAndStringEntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.ActorSharding
 import com.typesafe.config.Config
 
@@ -26,7 +26,7 @@ private final class RealtimeModelSharding(config: Config, sharding: ClusterShard
 
   import RealtimeModelSharding._
 
-  private val entityIdSerializer = new DomainAndStringEntityIdSerializer()
+  private val entityIdSerializer = new DomainIdAndStringEntityIdSerializer()
 
   override def extractEntityId(message: RealtimeModelActor.Message): String =
     entityIdSerializer.serialize(message.domainId, message.modelId)

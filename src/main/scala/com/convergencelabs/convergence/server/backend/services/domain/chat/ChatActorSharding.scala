@@ -14,7 +14,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.chat
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.util.DomainAndStringEntityIdSerializer
+import com.convergencelabs.convergence.server.util.DomainIdAndStringEntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
 import com.typesafe.config.Config
 
@@ -38,7 +38,7 @@ object ChatActorSharding  {
 private class ChatActorSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int, chatDeliveryRegion: ActorRef[ChatDeliveryActor.Send])
   extends NoPropsActorSharding[ChatActor.Message](ChatActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-  private val entityIdSerializer = new DomainAndStringEntityIdSerializer()
+  private val entityIdSerializer = new DomainIdAndStringEntityIdSerializer()
 
   def extractEntityId(msg: ChatActor.Message): String =
     entityIdSerializer.serialize(msg.domainId, msg.chatId)
