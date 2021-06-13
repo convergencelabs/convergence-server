@@ -11,17 +11,18 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.schema
 
-object PermissionClass extends OrientDbClass {
-  val ClassName = "Permission"
+object ActivityClass extends OrientDbClass {
+  val ClassName = "Activity"
 
   object Fields {
-    val Grantee = "grantee"
-    val Target = "target"
-    val Permission = "permission"
+    val Id = "id"
+    val Type = "type"
+    val Created = "created"
+    val Private = "private"
     val Permissions = "permissions"
   }
-  
+
   object Indices {
-    val Grantee_Target_Permission = "Permission.grantee_target_permission"
+    val Type_Id = "Activity.type_id"
   }
 }

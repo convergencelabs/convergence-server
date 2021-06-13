@@ -21,6 +21,7 @@ object DomainSchema {
     val UserCredential: UserCredentialClass.type = UserCredentialClass
     val UserGroup: UserGroupClass.type = UserGroupClass
     val UserReconnectToken: UserReconnectTokenClass.type = UserReconnectTokenClass
+    val Activity: ActivityClass.type = ActivityClass
     val Model: ModelClass.type = ModelClass
     val ModelSnapshot: ModelSnapshotClass.type = ModelSnapshotClass
     val Collection: CollectionClass.type = CollectionClass
@@ -45,6 +46,6 @@ object DomainSchema {
   object Sequences {
     val AnonymousUsername = "anonymousUsernameSeq"
     val ChatId = "chatIdSeq"
-    val SessionSeq = "SESSIONSEQ"
+    val SessionSeq = "sessionSeq"
   }
 }

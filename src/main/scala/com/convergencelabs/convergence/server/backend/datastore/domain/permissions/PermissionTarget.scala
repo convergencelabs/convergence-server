@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.permissions
 
+import com.convergencelabs.convergence.server.model.domain.activity.ActivityId
+
 /**
  * Defines the target that a permission applies to.
  */
@@ -33,3 +35,10 @@ sealed trait NonGlobalPermissionTarget extends PermissionTarget
  * @param chatId The id of the chat that is the target of the permission
  */
 final case class ChatPermissionTarget(chatId: String) extends NonGlobalPermissionTarget
+
+/**
+ * Specifies an Activity as the target of a permission.
+ *
+ * @param id The id of the activity that is the target of the permission
+ */
+final case class ActivityPermissionTarget(activityId: ActivityId) extends NonGlobalPermissionTarget

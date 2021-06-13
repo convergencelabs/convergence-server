@@ -12,6 +12,7 @@
 package com.convergencelabs.convergence.server.backend.datastore.domain
 
 import com.convergencelabs.convergence.server.backend.datastore.AbstractPersistenceProvider
+import com.convergencelabs.convergence.server.backend.datastore.domain.activity.ActivityStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.{CollectionPermissionsStore, CollectionStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
@@ -40,6 +41,8 @@ trait DomainPersistenceProvider {
   val sessionStore: SessionStore
 
   val jwtAuthKeyStore: JwtAuthKeyStore
+
+  val activityStore: ActivityStore
 
   val modelOperationStore: ModelOperationStore
 
@@ -83,6 +86,8 @@ class DomainPersistenceProviderImpl(val domainId: DomainId,
   val sessionStore = new SessionStore(dbProvider)
 
   val jwtAuthKeyStore = new JwtAuthKeyStore(dbProvider)
+
+  val activityStore = new ActivityStore(dbProvider)
 
   val modelOperationStore = new ModelOperationStore(dbProvider)
 

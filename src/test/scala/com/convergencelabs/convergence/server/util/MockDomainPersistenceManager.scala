@@ -13,6 +13,7 @@ package com.convergencelabs.convergence.server.util
 
 import akka.actor.typed.{ActorRef, ActorSystem}
 import com.convergencelabs.convergence.server.backend.datastore.domain._
+import com.convergencelabs.convergence.server.backend.datastore.domain.activity.ActivityStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.collection.{CollectionPermissionsStore, CollectionStore}
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
@@ -57,6 +58,8 @@ class MockDomainPersistenceProvider(override val domainId: DomainId)
   val sessionStore: SessionStore = mock[SessionStore]
 
   val jwtAuthKeyStore: JwtAuthKeyStore = mock[JwtAuthKeyStore]
+
+  val activityStore: ActivityStore = mock[ActivityStore]
 
   val modelOperationStore: ModelOperationStore = mock[ModelOperationStore]
 

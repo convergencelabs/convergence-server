@@ -56,7 +56,7 @@ class CollectionStoreSpec
   private val companyCollection = collection.Collection(companyCollectionId, "Some Company", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
   private val teamCollection = collection.Collection(teamCollectionId, "Team", overrideSnapshotConfig = false, snapshotConfig, collectionPermissions)
 
-  "An CollectionStore" when {
+  "A CollectionStore" when {
 
     "asked whether a collection exists" must {
       "return false if it doesn't exist" in withPersistenceStore { store =>

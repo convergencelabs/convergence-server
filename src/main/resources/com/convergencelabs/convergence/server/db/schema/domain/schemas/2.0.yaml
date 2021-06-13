@@ -638,10 +638,38 @@ actions:
     type: NotUniqueHashIndex
     properties: [model]
 
+
+########## PermissionTarget Class ##########
+
+  - action: CreateClass
+    name: PermissionTarget
+    abstract: true
+    properties:
+      - {name: permissions, type: LinkSet, linkedClass: Permission,        constraints: {mandatory: false, notNull: true}}
+
+
+########## Activity Class ##########
+
+  - action: CreateClass
+    name: Activity
+    superclass: PermissionTarget
+    properties:
+      - {name: id,          type: String,         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: type,        type: String,         constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: private,     type: Boolean,        constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - {name: created,     type: DateTime,       constraints: {mandatory: true, notNull: true, readOnly: true}}
+
+  - action: CreateIndex
+    className: Activity
+    name: Activity.type_id
+    type: UniqueHashIndex
+    properties: [type, id]
+
 ########## Chat Class ##########
 
   - action: CreateClass
     name: Chat
+    superclass: PermissionTarget
     properties:
       - {name: id,          type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: type,        type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
@@ -650,7 +678,6 @@ actions:
       - {name: name,        type: String,                                  constraints: {mandatory: true, notNull: true}}
       - {name: topic,       type: String,                                  constraints: {mandatory: true, notNull: true}}
       - {name: members,     type: LinkSet, linkedClass: ChatMember,        constraints: {mandatory: true, notNull: true}}
-      - {name: permissions, type: LinkSet, linkedClass: Permission,        constraints: {mandatory: false, notNull: true}}
 
   - action: CreateIndex
     className: Chat
@@ -787,15 +814,15 @@ actions:
   - action: CreateClass
     name: Permission
     properties:
-      - {name: assignedTo, type: Link,   constraints: {notNull: true, readOnly: true}}
-      - {name: forRecord,  type: Link,   constraints: {notNull: true, readOnly: true}}
+      - {name: grantee,    type: Link,   constraints: {notNull: true, readOnly: true}}
+      - {name: target,     type: Link,   constraints: {notNull: true, readOnly: true}}
       - {name: permission, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex
     className: Permission
-    name: Permission.assignedTo_forRecord_permission
+    name: Permission.grantee_target_permission
     type: UniqueHashIndex
-    properties: [assignedTo, forRecord, permission]
+    properties: [grantee, target, permission]
 
 ########## Sequences ##########
 
