@@ -210,15 +210,23 @@ private class DomainSessionActor(domainId: DomainId,
   private[this] def onCheckSessions(): Behavior[Message] = {
     val now = Instant.now()
     val expiredSessions = activeSessions.filter { case (_, lastSeen) =>
-      val d = Duration.between(lastSeen, now)
-      d.compareTo(IdleSessionTimeout) > 1
+      val timeSinceLastHeartbeat = Duration.between(lastSeen, now)
+      timeSinceLastHeartbeat.compareTo(IdleSessionTimeout) > 0
     }.keySet.toSet
 
-    this.persistenceProvider.sessionStore.setSessionsDisconnected(expiredSessions, now).recover {
-      case t: Throwable =>
-        error("Error marking dead sessions as disconnected", t)
-    }.foreach { _ =>
-      expiredSessions.foreach(activeSessions.remove)
+    this.persistenceProvider.sessionStore
+      .setSessionsDisconnected(expiredSessions, now)
+      .map { _ =>
+        expiredSessions.foreach(activeSessions.remove)
+      }
+      .recover {
+        case t: Throwable =>
+          error("Error marking dead sessions as disconnected", t)
+      }
+
+    if (connectedClients.isEmpty && activeSessions.isEmpty) {
+      debug(s"$identityString: All idle sessions have been disconnected.")
+      this.enableReceiveTimeout()
     }
 
     Behaviors.same
