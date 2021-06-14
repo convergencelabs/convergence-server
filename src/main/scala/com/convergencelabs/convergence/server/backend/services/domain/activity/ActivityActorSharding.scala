@@ -14,21 +14,20 @@ package com.convergencelabs.convergence.server.backend.services.domain.activity
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.util.DomainIdAndStringEntityIdSerializer
 import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
 
 private class ActivityActorSharding(sharding: ClusterSharding, numberOfShards: Int)
   extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-   val entityIdSerializer = new DomainIdAndStringEntityIdSerializer()
+   val entityIdSerializer = new ActivityEntityIdSerializer()
 
   override def extractEntityId(msg: ActivityActor.Message): String =
     entityIdSerializer.serialize((msg.domain, msg.activityId))
 
   override def createBehavior(shardRegion: ActorRef[ActivityActor.Message],
                               entityContext: EntityContext[ActivityActor.Message]): Behavior[ActivityActor.Message] = {
-    val (domainId, activity) = entityIdSerializer.deserialize(entityContext.entityId)
-    ActivityActor(domainId, activity, shardRegion, entityContext.shard)
+    val (domainId, activityId) = entityIdSerializer.deserialize(entityContext.entityId)
+    ActivityActor(domainId, activityId, shardRegion, entityContext.shard)
   }
 }
 

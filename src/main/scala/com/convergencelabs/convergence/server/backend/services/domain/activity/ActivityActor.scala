@@ -16,8 +16,11 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions, WorldPermission}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.activity.ActivityId
+import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
@@ -35,7 +38,7 @@ import scala.util.{Success, Try}
  * @param shard       The specific shard this actor resides in.
  */
 private final class ActivityActor(domainId: DomainId,
-                                  activityId: String,
+                                  activityId: ActivityId,
                                   context: ActorContext[Message],
                                   shardRegion: ActorRef[Message],
                                   shard: ActorRef[ClusterSharding.ShardCommand])
@@ -60,6 +63,10 @@ private final class ActivityActor(domainId: DomainId,
     msg match {
       case msg: GetParticipantsRequest =>
         onGetParticipantsRequest(msg)
+      case msg: CreateRequest =>
+        onCreateRequest(msg)
+      case msg: DeleteRequest =>
+        onDeleteRequest(msg)
       case msg: JoinRequest =>
         onJoinRequest(msg)
       case msg: LeaveRequest =>
@@ -73,8 +80,23 @@ private final class ActivityActor(domainId: DomainId,
     handleClientDeath(actor.asInstanceOf[ActorRef[OutgoingMessage]])
   }
 
+  private[this] def onCreateRequest(msg: CreateRequest): Behavior[Message] = {
+    val CreateRequest(_, _, sessionId, world, user, group, replyTo) = msg
+
+
+    Behaviors.same
+  }
+
+
+  private[this] def onDeleteRequest(msg: DeleteRequest): Behavior[Message] = {
+    val DeleteRequest(_, _, sessionId,  replyTo) = msg
+
+    Behaviors.same
+  }
+
   private[this] def onJoinRequest(msg: JoinRequest): Behavior[Message] = {
-    val JoinRequest(_, _, sessionId, state, client, replyTo) = msg
+    val JoinRequest(_, _, sessionId, state, autoCreateData, client, replyTo) = msg
+
     this.joinedSessions.get(sessionId) match {
       case Some(_) =>
         replyTo ! JoinResponse(Left(AlreadyJoined()))
@@ -178,7 +200,7 @@ private final class ActivityActor(domainId: DomainId,
 
 object ActivityActor {
   def apply(domainId: DomainId,
-            activityId: String,
+            activityId: ActivityId,
             shardRegion: ActorRef[Message],
             shard: ActorRef[ClusterSharding.ShardCommand]): Behavior[Message] = Behaviors.setup(context =>
     new ActivityActor(
@@ -194,22 +216,69 @@ object ActivityActor {
 
   sealed trait Message extends CborSerializable {
     val domain: DomainId
-    val activityId: String
+    val activityId: ActivityId
   }
+
+  //
+  // Create
+  //
+
+  final case class CreateRequest(domain: DomainId,
+                                 activityId: ActivityId,
+                                 session: Option[DomainSessionAndUserId],
+                                 worldPermissions: Set[WorldPermission],
+                                 userPermission: Set[UserPermissions],
+                                 groupPermissions: Set[GroupPermissions],
+                                 replyTo: ActorRef[CreateResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[AlreadyExists], name = "already_exists"),
+    new JsonSubTypes.Type(value = classOf[Unauthorized], name = "unauthorized")
+  ))
+  sealed trait CreateError
+
+  final case class AlreadyExists() extends CreateError
+
+  final case class CreateResponse(response: Either[CreateError, Unit]) extends CborSerializable
+
+  //
+  // Delete
+  //
+
+  final case class DeleteRequest(domain: DomainId,
+                                 activityId: ActivityId,
+                                 session: Option[DomainSessionAndUserId],
+                                 replyTo: ActorRef[DeleteResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[NotFound], name = "not_found"),
+    new JsonSubTypes.Type(value = classOf[NotFound], name = "unauthorized")
+  ))
+  sealed trait DeleteError
+
+  final case class NotFound() extends DeleteError
+
+  final case class DeleteResponse(response: Either[DeleteError, Unit]) extends CborSerializable
+
 
   //
   // Join
   //
+
   final case class JoinRequest(domain: DomainId,
-                               activityId: String,
+                               activityId: ActivityId,
                                sessionId: String,
                                state: Map[String, JValue],
+                               autoCreateData: Option[ActivityAutoCreationOptions],
                                client: ActorRef[OutgoingMessage],
                                replyTo: ActorRef[JoinResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
-    new JsonSubTypes.Type(value = classOf[AlreadyJoined], name = "already_joined")
+    new JsonSubTypes.Type(value = classOf[AlreadyJoined], name = "already_joined"),
+    new JsonSubTypes.Type(value = classOf[Unauthorized], name = "unauthorized")
   ))
   sealed trait JoinError
 
@@ -224,7 +293,7 @@ object ActivityActor {
   // Leave
   //
   final case class LeaveRequest(domain: DomainId,
-                                activityId: String,
+                                activityId: ActivityId,
                                 sessionId: String,
                                 replyTo: ActorRef[LeaveResponse]) extends Message
 
@@ -243,7 +312,7 @@ object ActivityActor {
   // Update State
   //
   final case class UpdateState(domain: DomainId,
-                               activityId: String,
+                               activityId: ActivityId,
                                sessionId: String,
                                state: Map[String, JValue],
                                complete: Boolean,
@@ -253,9 +322,18 @@ object ActivityActor {
   // GetParticipants
   //
   final case class GetParticipantsRequest(domain: DomainId,
-                                          activityId: String,
+                                          activityId: ActivityId,
                                           replyTo: ActorRef[GetParticipantsResponse]) extends Message
 
   final case class GetParticipantsResponse(state: Map[String, Map[String, JValue]]) extends CborSerializable
+
+
+  //
+  // Common Errors
+  //
+  final case class Unauthorized() extends AnyRef
+    with CreateError
+    with DeleteError
+    with JoinError
 
 }

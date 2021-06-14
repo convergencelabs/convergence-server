@@ -46,6 +46,8 @@ object ErrorCodes extends Enumeration {
 
   val ActivityNotJoined: ErrorCode = Value("activity_not_joined")
 
+  val ActivityAlreadyExists: ErrorCode = Value("activity_already_exists")
+
   val ActivityNoSuchResource: ErrorCode = Value("no_such_resource_id")
 
   //

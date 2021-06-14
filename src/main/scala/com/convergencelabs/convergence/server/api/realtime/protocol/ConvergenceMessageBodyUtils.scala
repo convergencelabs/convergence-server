@@ -100,10 +100,11 @@ private[realtime] object ConvergenceMessageBodyUtils {
       // Activity
       case Body.ActivityParticipantsRequest(message) => message
       case Body.ActivityParticipantsResponse(message) => message
+      case Body.ActivityCreateRequest(message) => message
+      case Body.ActivityDeleteRequest(message) => message
       case Body.ActivityJoinRequest(message) => message
       case Body.ActivityJoinResponse(message) => message
       case Body.ActivityLeaveRequest(message) => message
-      case Body.ActivityLeaveResponse(message) => message
       case Body.ActivitySessionJoined(message) => message
       case Body.ActivitySessionLeft(message) => message
       case Body.ActivityUpdateState(message) => message
@@ -167,14 +168,11 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.ChatsSearchResponse(message) => message
 
       // Permissions
-      case Body.GetClientPermissionsRequest(message) => message
-      case Body.GetClientPermissionsResponse(message) => message
+      case Body.GetConnectedUserPermissionsRequestMessage(message) => message
+      case Body.GetConnectedUserPermissionsResponseMessage(message) => message
       case Body.AddPermissionsRequest(message) => message
-      case Body.AddPermissionsResponse(message) => message
       case Body.RemovePermissionsRequest(message) => message
-      case Body.RemovePermissionsResponse(message) => message
       case Body.SetPermissionsRequest(message) => message
-      case Body.SetPermissionsResponse(message) => message
       case Body.GetWorldPermissionsRequest(message) => message
       case Body.GetWorldPermissionsResponse(message) => message
       case Body.GetAllUserPermissionsRequest(message) => message
@@ -263,10 +261,11 @@ private[realtime] object ConvergenceMessageBodyUtils {
       // Activity
       case message: ActivityParticipantsRequestMessage => Body.ActivityParticipantsRequest(message)
       case message: ActivityParticipantsResponseMessage => Body.ActivityParticipantsResponse(message)
+      case message: ActivityCreateRequestMessage => Body.ActivityCreateRequest(message)
+      case message: ActivityDeleteRequestMessage => Body.ActivityDeleteRequest(message)
       case message: ActivityJoinRequestMessage => Body.ActivityJoinRequest(message)
       case message: ActivityJoinResponseMessage => Body.ActivityJoinResponse(message)
       case message: ActivityLeaveRequestMessage => Body.ActivityLeaveRequest(message)
-      case message: ActivityLeaveResponseMessage => Body.ActivityLeaveResponse(message)
       case message: ActivitySessionJoinedMessage => Body.ActivitySessionJoined(message)
       case message: ActivitySessionLeftMessage => Body.ActivitySessionLeft(message)
       case message: ActivityUpdateStateMessage => Body.ActivityUpdateState(message)
@@ -330,14 +329,11 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ChatsSearchResponseMessage => Body.ChatsSearchResponse(message)
 
       // Permissions
-      case message: GetClientPermissionsRequestMessage => Body.GetClientPermissionsRequest(message)
-      case message: GetClientPermissionsResponseMessage => Body.GetClientPermissionsResponse(message)
+      case message: GetConnectedUserPermissionsRequestMessage=> Body.GetConnectedUserPermissionsRequestMessage(message)
+      case message: GetConnectedUserPermissionsResponseMessage => Body.GetConnectedUserPermissionsResponseMessage(message)
       case message: AddPermissionsRequestMessage => Body.AddPermissionsRequest(message)
-      case message: AddPermissionsResponseMessage => Body.AddPermissionsResponse(message)
       case message: RemovePermissionsRequestMessage => Body.RemovePermissionsRequest(message)
-      case message: RemovePermissionsResponseMessage => Body.RemovePermissionsResponse(message)
       case message: SetPermissionsRequestMessage => Body.SetPermissionsRequest(message)
-      case message: SetPermissionsResponseMessage => Body.SetPermissionsResponse(message)
       case message: GetWorldPermissionsRequestMessage => Body.GetWorldPermissionsRequest(message)
       case message: GetWorldPermissionsResponseMessage => Body.GetWorldPermissionsResponse(message)
       case message: GetAllUserPermissionsRequestMessage => Body.GetAllUserPermissionsRequest(message)
