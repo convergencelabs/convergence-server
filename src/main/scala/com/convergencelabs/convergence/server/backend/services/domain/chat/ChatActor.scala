@@ -404,9 +404,9 @@ object ChatActor {
   final case class PublishChatMessageResponse(response: Either[PublishChatMessageError, PublishChatMessageAck]) extends CborSerializable
 
 
-  /*
-   *  Chat Permissions Messages
-   */
+  /////////////////////////////////////////////////////////////////////////////
+  // Chat Permissions Messages
+  /////////////////////////////////////////////////////////////////////////////
 
   sealed trait ChatPermissionsRequest[R] extends ChatRequestMessage {
     val replyTo: ActorRef[R]
@@ -598,6 +598,7 @@ object ChatActor {
   /*
    * General Messages
    */
+
   //
   // GetChatHistory
   //

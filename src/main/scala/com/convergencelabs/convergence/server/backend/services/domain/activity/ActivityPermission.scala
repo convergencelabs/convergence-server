@@ -11,8 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.activity
 
-import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityPermissions.{Constants, Permissions}
-
 
 object ActivityPermission {
   object Constants {
@@ -21,6 +19,7 @@ object ActivityPermission {
     val SetState: String = "set_state"
     val ViewState: String = "view_state"
 
+    val AllActivityPermissions = Set(Join, Manage, SetState, ViewState)
   }
 
   object Permissions {

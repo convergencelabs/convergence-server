@@ -17,12 +17,13 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.activity._
-import com.convergencelabs.convergence.proto.core.OkResponse
+import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
+import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters.{domainUserIdToProto, protoToDomainUserId}
 import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, PermissionProtoConverters}
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.WorldPermission
 import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityAutoCreationOptions}
+import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.activity.ActivityId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
@@ -44,13 +45,13 @@ import scala.language.postfixOps
  * @param context             The ActorContext for this actor.
  * @param activityShardRegion The shard region that contains ActivityActor entities.
  * @param clientActor         The ClientActor that this ActivityClientActor is a child of.
- * @param domain              The id of the domain that the user connected to.
+ * @param domainId              The id of the domain that the user connected to.
  * @param session             The session id of the connected client.
  */
 private final class ActivityClientActor private(context: ActorContext[Message],
                                                 activityShardRegion: ActorRef[ActivityActor.Message],
                                                 clientActor: ActorRef[ClientActor.SendServerMessage],
-                                                domain: DomainId,
+                                                domainId: DomainId,
                                                 session: DomainSessionAndUserId,
                                                 defaultTimeout: Timeout)
   extends AbstractBehavior[Message](context) with Logging with AskUtils {
@@ -102,7 +103,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
       case Some(activityId) =>
         val ActivityUpdateStateMessage(_, state, complete, removed, _) = message
         val mappedState = JsonProtoConverters.valueMapToJValueMap(state)
-        val updateMessage = ActivityActor.UpdateState(domain, activityId, session.sessionId, mappedState, complete, removed.toList)
+        val updateMessage = ActivityActor.UpdateState(domainId, activityId, session.sessionId, mappedState, complete, removed.toList)
         this.activityShardRegion ! updateMessage
       case None =>
         warn("Received an activity update message for an unregistered resource id: " + message.resourceId)
@@ -128,7 +129,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     val ActivityParticipantsRequestMessage(activityType, activityId, _) = RequestMessage
     val id = ActivityId(activityType, activityId)
     activityShardRegion.ask[ActivityActor.GetParticipantsResponse](
-      ActivityActor.GetParticipantsRequest(domain, id, _))
+      ActivityActor.GetParticipantsRequest(domainId, id, _))
       .map { response =>
         cb.reply(ActivityParticipantsResponseMessage(response.state.map {
           case (k, v) => k -> ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))
@@ -140,16 +141,23 @@ private final class ActivityClientActor private(context: ActorContext[Message],
   private[this] def onActivityCreateRequest(RequestMessage: ActivityCreateRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityCreateRequestMessage(activityType, activityId, world, user, group, _) = RequestMessage
     val id = ActivityId(activityType, activityId)
-    val worldPermission = world.toSet.map(WorldPermission)
+
+    val worldPermission = PermissionProtoConverters.protoToWorldPermissions(world)
     val userPermissions = PermissionProtoConverters.protoToUserPermissions(user)
     val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(group)
 
+    val allPermissions = AllPermissions(worldPermission, userPermissions, groupPermissions)
+
     activityShardRegion
       .ask[ActivityActor.CreateResponse](
-        ActivityActor.CreateRequest(domain, id, Some(session), worldPermission, userPermissions, groupPermissions, _))
+        ActivityActor.CreateRequest(domainId, id, Some(session), allPermissions, _))
       .map(_.response.fold({
         case ActivityActor.AlreadyExists() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyExists, s"The activity with the specified type and id already exists: {type: '$activityType', id: $activityId}.")
+        case ActivityActor.UnauthorizedError(msg) =>
+          cb.expectedError(ErrorCodes.Unauthorized, msg.getOrElse(""))
+        case ActivityActor.UnknownError() =>
+          cb.unknownError()
       }, { _ =>
         cb.reply(OkResponse())
       }))
@@ -162,13 +170,10 @@ private final class ActivityClientActor private(context: ActorContext[Message],
 
     activityShardRegion
       .ask[ActivityActor.DeleteResponse](
-        ActivityActor.DeleteRequest(domain, id, Some(session), _))
+        ActivityActor.DeleteRequest(domainId, id, Some(session), _))
       .map(_.response.fold({
-        case ActivityActor.NotFound() =>
-          cb.expectedError(ErrorCodes.ActivityAlreadyExists, s"The activity with the specified type and id doest not exist: {type: '$activityType', id: $activityId}.")
-        case ActivityActor.Unauthorized() =>
-          cb.expectedError(ErrorCodes.Unauthorized, "The user does not have permissions to delete the activity");
-
+        case err: ActivityActor.CommonErrors =>
+          handleCommonErrors(err, cb)
       }, { _ =>
         cb.reply(OkResponse())
       }))
@@ -180,20 +185,26 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     val id = ActivityId(activityType, activityId)
     val jsonState = JsonProtoConverters.valueMapToJValueMap(state)
     val autoCreateOptions = autoCreateMessage.map { data =>
-      val worldPermission = data.worldPermissions.toSet.map(WorldPermission)
+
+      val worldPermission = PermissionProtoConverters.protoToWorldPermissions(data.worldPermissions)
       val userPermissions = PermissionProtoConverters.protoToUserPermissions(data.userPermissions)
       val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(data.groupPermissions)
+
       ActivityAutoCreationOptions(data.ephemeral, worldPermission, userPermissions, groupPermissions)
     }
     val resource = resourceManager.getOrAssignResource(id)
     activityShardRegion
       .ask[ActivityActor.JoinResponse](
-        ActivityActor.JoinRequest(domain, id, session.sessionId, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], _))
+        ActivityActor.JoinRequest(domainId, id, session.sessionId, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], _))
       .map(_.response.fold({
         case ActivityActor.AlreadyJoined() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity: {type: '$activityType', id: $activityId}.")
-        case ActivityActor.Unauthorized() =>
-          cb.expectedError(ErrorCodes.Unauthorized, "The user does not have permissions to join the activity");
+        case ActivityActor.NotFoundError() =>
+          cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The activity does not exist: {type: '$activityType', id: $activityId}.")
+        case ActivityActor.UnauthorizedError(msg) =>
+          cb.expectedError(ErrorCodes.Unauthorized, msg.getOrElse(""));
+        case ActivityActor.UnknownError() =>
+          cb.unknownError()
       }, { response =>
         val mappedState = response.state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
         cb.reply(ActivityJoinResponseMessage(resource, mappedState))
@@ -208,7 +219,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
         resourceManager.releaseResource(resource)
         activityShardRegion
           .ask[ActivityActor.LeaveResponse](
-            ActivityActor.LeaveRequest(domain, activityId, session.sessionId, _))
+            ActivityActor.LeaveRequest(domainId, activityId, session.sessionId, _))
           .map(_.response.fold({
             case ActivityActor.NotJoinedError() =>
               cb.expectedError(ErrorCodes.ActivityNotJoined, s"The session is not joined to activity: {type: '${activityId.activityType}', id: ${activityId.id}}.")
@@ -222,6 +233,230 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     }
   }
 
+  def onPermissionRequestReceived(message: GeneratedMessage with RequestMessage with PermissionsMessage with ClientMessage, replyCallback: ReplyCallback): Behavior[Message] = {
+    message match {
+      case message: AddPermissionsRequestMessage =>
+        onAddPermissions(message, replyCallback)
+      case message: RemovePermissionsRequestMessage =>
+        onRemovePermissions(message, replyCallback)
+      case message: SetPermissionsRequestMessage =>
+        onSetActivityPermissions(message, replyCallback)
+      case message: GetConnectedUserPermissionsRequestMessage =>
+        onGetConnectedUserPermissionsRequestMessage(message, replyCallback)
+      case message: GetWorldPermissionsRequestMessage =>
+        onGetWorldPermissions(message, replyCallback)
+      case message: GetAllUserPermissionsRequestMessage =>
+        onGetAllUserPermissions(message, replyCallback)
+      case message: GetUserPermissionsRequestMessage =>
+        onGetUserPermissions(message, replyCallback)
+      case message: GetAllGroupPermissionsRequestMessage =>
+        onGetAllGroupPermissions(message, replyCallback)
+      case message: GetGroupPermissionsRequestMessage =>
+        onGetGroupPermissions(message, replyCallback)
+    }
+
+    Behaviors.same
+  }
+
+  private[this] def onAddPermissions(message: AddPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    getActivityIdFromPermissionTarget(message.target, cb).map { activityId =>
+      val addPermissions = PermissionProtoConverters.protoToAddPermissions(message)
+      activityShardRegion
+        .ask[ActivityActor.AddPermissionsResponse](
+          ActivityActor.AddPermissionsRequest(domainId, activityId, Some(session), addPermissions, _))
+        .map(_.response.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          _ => OkResponse())
+        )
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onRemovePermissions(message: RemovePermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    getActivityIdFromPermissionTarget(message.target, cb).map { activityId =>
+      val removePermissions = PermissionProtoConverters.protoToRemovePermissions(message)
+      activityShardRegion
+        .ask[ActivityActor.RemovePermissionsResponse](
+          ActivityActor.RemovePermissionsRequest(domainId, activityId, Some(session), removePermissions, _))
+        .map(_.response.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          _ => OkResponse())
+        )
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onSetActivityPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    getActivityIdFromPermissionTarget(message.target, cb).map { activityId =>
+      val setPermissions = PermissionProtoConverters.protoToSetPermissions(message)
+      activityShardRegion
+        .ask[ActivityActor.SetPermissionsResponse](
+          ActivityActor.SetPermissionsRequest(domainId, activityId, Some(session), setPermissions, _))
+        .map(_.response.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          _ => OkResponse())
+        )
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onGetConnectedUserPermissionsRequestMessage(message: GetConnectedUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetConnectedUserPermissionsRequestMessage(target, _) = message
+    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
+      activityShardRegion
+        .ask[ActivityActor.ResolvePermissionsResponse](ActivityActor.ResolvePermissionsRequest(domainId, activityId, Some(session), session, _))
+        .map(_.permissions.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          permissions => cb.reply(GetConnectedUserPermissionsResponseMessage(permissions.toSeq))
+        ))
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onGetWorldPermissions(message: GetWorldPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetWorldPermissionsRequestMessage(target, _) = message
+    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
+      activityShardRegion
+        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
+        .map(_.permissions.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          permissions => cb.reply(GetWorldPermissionsResponseMessage(permissions.world.map(_.permission).toSeq))
+        ))
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onGetAllUserPermissions(message: GetAllUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetAllUserPermissionsRequestMessage(target, _) = message
+    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
+      activityShardRegion
+        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
+        .map(_.permissions.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          { permissions =>
+            val userPermissionEntries = permissions.user.map { entry =>
+              UserPermissionsEntry(Some(domainUserIdToProto(entry.user)), entry.permissions.toSeq)
+            }.toSeq
+            cb.reply(GetAllUserPermissionsResponseMessage(userPermissionEntries))
+          }))
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onGetAllGroupPermissions(message: GetAllGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetAllGroupPermissionsRequestMessage(target, _) = message
+    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
+      activityShardRegion
+        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
+        .map(_.permissions.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          { permissions =>
+            cb.reply(GetAllGroupPermissionsResponseMessage(
+              permissions.group.map(entry => (entry.groupId, PermissionsList(entry.permissions.toSeq))).toMap
+            ))
+          }))
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def onGetUserPermissions(message: GetUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetUserPermissionsRequestMessage(target, userIdData, _) = message
+    userIdData.map(protoToDomainUserId) match {
+      case Some(userId) =>
+        getActivityIdFromPermissionTarget(target, cb).map { activityId =>
+          activityShardRegion
+            .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
+            .map(_.permissions.fold(
+              {
+                case error: ActivityActor.CommonErrors =>
+                  handleCommonErrors(error, cb)
+              },
+              { permissions =>
+                val usersPermissions = permissions.user.iterator.find(p => p.user == userId).map { entry =>
+                  entry.permissions.toSeq
+                }.getOrElse(Seq())
+                cb.reply(GetUserPermissionsResponseMessage(usersPermissions))
+              }))
+        }
+      case None =>
+        cb.reply(GetUserPermissionsResponseMessage(Seq()))
+    }
+  }
+
+  private[this] def onGetGroupPermissions(message: GetGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetGroupPermissionsRequestMessage(target, groupId, _) = message
+    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
+      activityShardRegion
+        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
+        .map(_.permissions.fold(
+          {
+            case error: ActivityActor.CommonErrors =>
+              handleCommonErrors(error, cb)
+          },
+          { permissions =>
+            val groupsPermissions = permissions.group.iterator.find(p => p.groupId == groupId).map { entry =>
+              entry.permissions.toSeq
+            }.getOrElse(Seq())
+            cb.reply(GetGroupPermissionsResponseMessage(groupsPermissions))
+          }))
+        .recover(_ => cb.timeoutError())
+    }
+  }
+
+  private[this] def getActivityIdFromPermissionTarget(target: Option[PermissionTarget], cb: ReplyCallback): Option[ActivityId] = {
+    target match {
+      case Some(t) =>
+        t.targetType match {
+          case PermissionTarget.TargetType.Activity(target) =>
+            Some(ActivityId(target.`type`, target.id))
+          case _ =>
+            cb.expectedError(ErrorCodes.InvalidMessage,  "The permission target was not set")
+            None
+        }
+      case None =>
+        cb.expectedError(ErrorCodes.InvalidMessage,  "The permission target was not set")
+        None
+    }
+  }
+
+  private[this] def handleCommonErrors(error: ActivityActor.CommonErrors, cb: ReplyCallback): Unit = {
+    error match {
+      case ActivityActor.NotFoundError() =>
+        cb.expectedError(ErrorCodes.ActivityNotFound, "The specified activity does not exist.")
+      case ActivityActor.UnauthorizedError(msg) =>
+        cb.expectedError(ErrorCodes.Unauthorized, msg.getOrElse(""))
+      case ActivityActor.UnknownError() =>
+        cb.unknownError()
+      case ActivityActor.NotJoinedError() =>
+        cb.expectedError(ErrorCodes.ActivityNotJoined, "The session must be joined to the activity.")
+
+    }
+  }
+
+  private[this] def notJoined(activityId: ActivityId, cb: ReplyCallback): Unit = {
+    cb.expectedError(ErrorCodes.ChatNotJoined, s"The activity must be joined to perform the requested operation: {type: ${activityId.activityType}, id: ${activityId.id}")
+  }
 
   //
   // Outgoing Messages
@@ -231,11 +466,11 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     resourceManager.getResource(msg.activityId) match {
       case Some(resource) =>
         val serverMessage: GeneratedMessage with ServerMessage with NormalMessage = msg match {
-          case ActivitySessionJoined(activityId, sessionId, state) =>
+          case ActivitySessionJoined(_, sessionId, state) =>
             ActivitySessionJoinedMessage(resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state))
-          case ActivitySessionLeft(activityId, sessionId) =>
+          case ActivitySessionLeft(_, sessionId) =>
             ActivitySessionLeftMessage(resource, sessionId)
-          case ActivityStateUpdated(activityId, sessionId, state, complete, removed) =>
+          case ActivityStateUpdated(_, sessionId, state, complete, removed) =>
             ActivityStateUpdatedMessage(
               resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
         }
@@ -247,8 +482,6 @@ private final class ActivityClientActor private(context: ActorContext[Message],
 
     Behaviors.same
   }
-
-  def onPermissionRequestReceived(message: GeneratedMessage with RequestMessage with PermissionsMessage with ClientMessage, replyCallback: ReplyCallback): Behavior[Message] = ???
 }
 
 object ActivityClientActor {
@@ -259,6 +492,7 @@ object ActivityClientActor {
                               defaultTimeout: Timeout
                              ): Behavior[ActivityClientActor.Message] =
     Behaviors.setup(context => new ActivityClientActor(context, activityServiceActor, clientActor, domain, session, defaultTimeout))
+
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol

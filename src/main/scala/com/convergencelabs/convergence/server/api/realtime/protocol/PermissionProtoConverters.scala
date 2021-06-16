@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 - Convergence Labs, Inc.
+ * Copyright (c) 2021 - Convergence Labs, Inc.
  *
  * This file is part of the Convergence Server, which is released under
  * the terms of the GNU General Public License version 3 (GPLv3). A copy
@@ -11,10 +11,11 @@
 
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
-import com.convergencelabs.convergence.proto.core.{PermissionsList, UserPermissionsEntry}
+import com.convergencelabs.convergence.proto.core.{AddPermissionsRequestMessage, PermissionsList, RemovePermissionsRequestMessage, SetPermissionsRequestMessage, UserPermissionsEntry}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions, WorldPermission}
+import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AddPermissions, RemovePermissions, SetPermissions}
 
 /**
  * A collection of helper methods to translate domain objects to and from
@@ -45,5 +46,46 @@ object PermissionProtoConverters {
   def protoToUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
     userPermissionData
       .map(p => permissions.UserPermissions(protoToDomainUserId(p.user.get), p.permissions.toSet)).toSet
+  }
+
+  /**
+   * Converts a Seq of world permissions in a Protocol Buffer representation
+   * into a Set of domain WorldPermissions.
+   *
+   * @param worldPermissions The Protocol Buffer string sequence.
+   * @return A Set of domain WorldPermissions.
+   */
+  def protoToWorldPermissions(worldPermissions: Seq[String]): Set[WorldPermission] = {
+    worldPermissions
+      .map(p => WorldPermission(p)).toSet
+  }
+
+  def userPermissionsToProto(userPermission: Set[UserPermissions]): Seq[UserPermissionsEntry] = {
+    userPermission
+      .map(p => UserPermissionsEntry(Some(domainUserIdToProto(p.user)), p.permissions.toSeq)).toSeq
+  }
+
+  def protoToAddPermissions(message: AddPermissionsRequestMessage): AddPermissions = {
+    val AddPermissionsRequestMessage(_, worldPermissionData, userPermissionData, groupPermissionData, _) = message
+    val worldPermissions = protoToWorldPermissions(worldPermissionData)
+    val userPermissions = protoToUserPermissions(userPermissionData)
+    val groupPermissions = protoToGroupPermissions(groupPermissionData)
+    AddPermissions(worldPermissions, userPermissions, groupPermissions)
+  }
+
+  def protoToRemovePermissions(message: RemovePermissionsRequestMessage): RemovePermissions = {
+    val RemovePermissionsRequestMessage(_, worldPermissionData, userPermissionData, groupPermissionData, _) = message
+    val worldPermissions = protoToWorldPermissions(worldPermissionData)
+    val userPermissions = protoToUserPermissions(userPermissionData)
+    val groupPermissions = protoToGroupPermissions(groupPermissionData)
+    RemovePermissions(worldPermissions, userPermissions, groupPermissions)
+  }
+
+  def protoToSetPermissions(message: SetPermissionsRequestMessage): SetPermissions = {
+    val SetPermissionsRequestMessage(_, setWorld, setUser, setGroup, _) = message
+    val worldPermissions = setWorld.map(v => protoToWorldPermissions(v.permissions))
+    val groupPermissions = setGroup.map(v => PermissionProtoConverters.protoToGroupPermissions(v.permissions))
+    val userPermissions = setUser.map(v => PermissionProtoConverters.protoToUserPermissions(v.permissions))
+    SetPermissions(worldPermissions, userPermissions, groupPermissions)
   }
 }

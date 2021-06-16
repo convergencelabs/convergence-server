@@ -12,5 +12,7 @@ package com.convergencelabs.convergence.server.model.domain.activity
 
 import java.time.Instant
 
-case class Activity(id: ActivityId, privateAccess: Boolean, created: Instant)
+case class Activity(id: ActivityId,
+                    ephemeral: Boolean,
+                    created: Instant)
 

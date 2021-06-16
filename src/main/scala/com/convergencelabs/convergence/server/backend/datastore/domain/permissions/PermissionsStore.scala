@@ -616,15 +616,15 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                                                            mapper: ODocument => T): Try[Set[T]] = {
     val sb = new StringBuilder
     sb.append("SELECT FROM Permission WHERE ")
-    val paramsWithtarget = addtargetParam(sb, Map(), target)
-    val paramsWithGrantee = addGranteeParam(sb, paramsWithtarget, grantee)
+    val paramsWithTarget = addTargetParam(sb, Map(), target)
+    val paramsWithGrantee = addGranteeParam(sb, paramsWithTarget, grantee)
     val query = sb.toString()
     OrientDBUtil
       .queryAndMap(db, query, paramsWithGrantee)(mapper)
       .map(_.toSet)
   }
 
-  private[this] def addtargetParam(sb: StringBuilder, params: Map[String, Any], target: Option[ORID]): Map[String, Any] = {
+  private[this] def addTargetParam(sb: StringBuilder, params: Map[String, Any], target: Option[ORID]): Map[String, Any] = {
     target match {
       case Some(rid) =>
         sb.append(Classes.Permission.Fields.Target)

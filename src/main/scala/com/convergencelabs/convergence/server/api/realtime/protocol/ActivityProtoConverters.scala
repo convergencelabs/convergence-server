@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 - Convergence Labs, Inc.
+ * Copyright (c) 2021 - Convergence Labs, Inc.
  *
  * This file is part of the Convergence Server, which is released under
  * the terms of the GNU General Public License version 3 (GPLv3). A copy
@@ -11,10 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
-import com.convergencelabs.convergence.proto.core.{PermissionsList, UserPermissionsEntry}
-import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
+import com.convergencelabs.convergence.proto.activity.ActivityJoinRequestMessage.AutoCreateData
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityAutoCreationOptions
 
 /**
  * A collection of helper methods to translate domain objects to and from
@@ -23,27 +21,20 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.permissio
 object ActivityProtoConverters {
   
   /**
-   * Converts a map of group permissions in a Protocol Buffer representation
-   * into a Set of domain GroupPermissions.
+   * Converts the protocol buffer AutoCreateData into the
+   * ActivityAutoCreationOptions object.
    *
-   * @param groupPermissionData The Protocol Buffer group permissions map.
-   * @return A Set of domain GroupPermission.
+   * @param autoCreateData The Protocol Buffer representation of AutoCreateData.
+   * @return The converted ActivityAutoCreationOptions
    */
-  def protoToAutoCreateOptions(groupPermissionData: Map[String, PermissionsList]): Activity = {
-    groupPermissionData.map {
-      case (groupId, permissions) => (groupId, GroupPermissions(groupId, permissions.values.toSet))
-    }.values.toSet
+  def protoToAutoCreateOptions(autoCreateData: AutoCreateData): ActivityAutoCreationOptions = {
+    val AutoCreateData(ephemeral, world, user, group, _)= autoCreateData
+
+    val worldPermissions = PermissionProtoConverters.protoToWorldPermissions(world)
+    val userPermissions = PermissionProtoConverters.protoToUserPermissions(user)
+    val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(group)
+
+    ActivityAutoCreationOptions(ephemeral, worldPermissions, userPermissions, groupPermissions)
   }
 
-  /**
-   * Converts a Seq of user permissions in a Protocol Buffer representation
-   * into a Set of domain UserPermissions.
-   *
-   * @param userPermissionData The Protocol Buffer group permissions map.
-   * @return A Set of domain UserPermissions.
-   */
-  def protoToUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
-    userPermissionData
-      .map(p => permissions.UserPermissions(protoToDomainUserId(p.user.get), p.permissions.toSet)).toSet
-  }
 }

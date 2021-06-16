@@ -25,6 +25,7 @@ import com.orientechnologies.orient.core.storage.ORecordDuplicatedException
 import grizzled.slf4j.Logging
 
 import java.time.Instant
+import java.util
 import java.util.Date
 import scala.util.{Failure, Try}
 
@@ -48,7 +49,7 @@ class ActivityStore(dbProvider: DatabaseProvider)
    *
    * @return A page of activities matching the offset and limit.
    */
-  def getActivities(offset: QueryOffset, limit: QueryLimit): Try[PagedData[Activity]] = withDb { db =>
+  def getActivities(limit: QueryLimit, offset: QueryOffset): Try[PagedData[Activity]] = withDb { db =>
     val query = OrientDBUtil.buildPagedQuery(GetActivitiesQuery, limit, offset)
     for {
      activities <- OrientDBUtil.queryAndMap(db, query) (docToActivity)
@@ -61,6 +62,47 @@ class ActivityStore(dbProvider: DatabaseProvider)
 
   private[this] val GetActivitiesQuery = "SELECT * FROM Activity ORDER BY type, id ASC"
   private[this] val GetActivityCountQuery = "SELECT count(*) as count FROM Activity"
+
+  /**
+   * Finds all activities in the system matching optional filters.
+   *
+   * @param typeFilter A string filter that matches the activity type.
+   * @param idFilter A string filter that matches the activity id.
+   * @param offset The index of the first result in the total ordering.
+   * @param limit  The maximum number of results to return.
+   *
+   * @return A page of activities matching the offset and limit.
+   */
+  def searchActivities(typeFilter: Option[String], idFilter: Option[String], limit: QueryLimit, offset: QueryOffset): Try[PagedData[Activity]] = withDb { db =>
+
+    val (where, params) = (typeFilter, idFilter) match {
+      case (Some(tf), Some(idf)) =>
+        ("WHERE type LIKE :type AND id LIKE :id", Map("type" -> s"%$tf%", "id" -> s"%$idf%"))
+      case (Some(tf), None) =>
+        ("WHERE type LIKE :type", Map("type" -> s"%$tf%"))
+      case (None, Some(idf)) =>
+        ("WHERE id LIKE :id", Map("id" -> s"%$idf%"))
+      case (None, None) =>
+        ("", Map[String, Any]())
+    }
+
+    val baseQuery = s"SELECT FROM Activity $where ORDER BY type, id ASC"
+    val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
+    val countQuery = s"SELECT count(*) as count FROM Activity $where"
+
+    println(countQuery)
+
+    for {
+      activities <- OrientDBUtil.queryAndMap(db, query, params) (docToActivity)
+      totalResults <-  OrientDBUtil.getDocument(db, countQuery, params)
+        .map(_.getProperty("count").asInstanceOf[Long])
+    } yield {
+      PagedData(activities, offset.getOrZero, totalResults)
+    }
+  }
+
+  private[this] val SearchActivitiesQuery = "SELECT * FROM Activity ORDER BY type, id ASC"
+  private[this] val SearchActivityCountQuery = "SELECT count(*) as count FROM Activity"
 
   /**
    * Determines if an Activity with the specified id exists.
@@ -161,8 +203,9 @@ object ActivityStore {
     val doc = new ODocument(ClassName)
     doc.setProperty(Fields.Type, activity.id.activityType)
     doc.setProperty(Fields.Id, activity.id.id)
-    doc.setProperty(Fields.Private, activity.privateAccess)
+    doc.setProperty(Fields.Ephemeral, activity.ephemeral)
     doc.setProperty(Fields.Created, new Date(activity.created.toEpochMilli))
+    doc.setProperty(Fields.Permissions, new util.ArrayList[Any]())
     doc
   }
 
@@ -173,7 +216,7 @@ object ActivityStore {
         doc.getProperty(Fields.Type),
         doc.getProperty(Fields.Id),
       ),
-      doc.getProperty(Fields.Private),
+      doc.getProperty(Fields.Ephemeral),
       Instant.ofEpochMilli(createdDate.getTime)
     )
   }

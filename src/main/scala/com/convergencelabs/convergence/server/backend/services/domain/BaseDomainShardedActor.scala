@@ -28,8 +28,14 @@ abstract class BaseDomainShardedActor[M](domainId: DomainId,
                                          shardRegion: ActorRef[M],
                                          shard: ActorRef[ClusterSharding.ShardCommand],
                                          domainPersistenceManager: DomainPersistenceManager,
-                                         receiveTimeout: FiniteDuration)
-  extends ShardedActor[M](context, shardRegion, shard, s"${domainId.namespace}/${domainId.domainId}") with Logging {
+                                         receiveTimeout: FiniteDuration,
+                                         entityDescription: Option[String] = None)
+  extends ShardedActor[M](
+    context,
+    shardRegion,
+    shard,
+    s"${domainId.namespace}/${domainId.domainId}" +
+      entityDescription.map(v => s"/$v").getOrElse("")) with Logging {
 
   // This is the state that will be set during the initialize method
   protected var persistenceProvider: DomainPersistenceProvider = _

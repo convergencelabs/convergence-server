@@ -400,15 +400,17 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
     }
   }
 
-
   private[this] def onSetChatPermissions(message: SetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val SetPermissionsRequestMessage(target, worldPermissionData, userPermissionData, groupPermissionData, _) = message
-    val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(groupPermissionData)
-    val userPermissions = PermissionProtoConverters.protoToUserPermissions(userPermissionData)
+    val SetPermissionsRequestMessage(target, setWorld, setUser, setGroup, _) = message
+
+    val worldPermissions = setWorld.map(_.permissions.toSet)
+    val groupPermissions = setGroup.map(v => PermissionProtoConverters.protoToGroupPermissions(v.permissions))
+    val userPermissions = setUser.map(v => PermissionProtoConverters.protoToUserPermissions(v.permissions))
+
     getChatIdFromPermissionTarget(target, cb).map { chatId =>
       chatShardRegion
         .ask[ChatActor.SetChatPermissionsResponse](
-          ChatActor.SetChatPermissionsRequest(domainId, chatId, session, Some(worldPermissionData.toSet), Some(userPermissions), Some(groupPermissions), _))
+          ChatActor.SetChatPermissionsRequest(domainId, chatId, session, worldPermissions, userPermissions, groupPermissions, _))
         .map(_.response.fold(
           {
             case error: ChatActor.CommonErrors =>

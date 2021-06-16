@@ -12,7 +12,6 @@
 package com.convergencelabs.convergence.server.api.rest
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.{ActorContext, Routers}
 import akka.actor.typed.{ActorRef, ActorSystem}
@@ -26,6 +25,7 @@ import akka.util.Timeout
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.server.DatabaseManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
@@ -57,7 +57,8 @@ private[server] final class ConvergenceRestApi(interface: String,
                                                context: ActorContext[_],
                                                domainRestRegion: ActorRef[DomainRestActor.Message],
                                                modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                                               chatClusterRegion: ActorRef[ChatActor.Message])
+                                               chatClusterRegion: ActorRef[ChatActor.Message],
+                                               activityClusterRegion: ActorRef[ActivityActor.Message])
   extends Logging with JsonSupport {
 
   private[this] implicit val system: ActorSystem[_] = context.system
@@ -125,6 +126,7 @@ private[server] final class ConvergenceRestApi(interface: String,
       roleActor,
       modelClusterRegion,
       chatClusterRegion,
+      activityClusterRegion,
       defaultRequestTimeout)
 
     // The authenticator that will be used to authenticate HTTP requests.
