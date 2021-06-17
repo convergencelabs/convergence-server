@@ -15,10 +15,12 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.activity.
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.group.UserGroupStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.schema
+import com.convergencelabs.convergence.server.backend.datastore.domain.schema.DomainSchema
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions.SetChatPermissionsProcessor.{toTry, unsafeToTry}
+import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
 import com.orientechnologies.orient.core.id.ORID
@@ -238,6 +240,45 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       _ <- removePermissions(db, world, None, target)
     } yield {
       ()
+    }
+  }
+
+  /**
+   * Gets all permissions for a given target.
+   *
+   * @param target The target to get permissions for.
+   * @return Success(AllPermissions) if the operation was successful, a Failure otherwise.
+   */
+  def getPermissionsForTarget(target: PermissionTarget): Try[AllPermissions] = withDbTransaction { db =>
+    for {
+      target <- resolveTarget(db, target)
+      permissionDocs <- getPermissionsByGranteeAndTargetRid(db, AnyGrantee, target, doc => doc)
+    } yield {
+      val grouped = permissionDocs.groupBy(doc =>
+        Option(doc.eval("target.@class").asInstanceOf[String]).getOrElse("world"))
+
+      val groupPermissions = grouped
+        .getOrElse(DomainSchema.Classes.UserGroup.ClassName, Set())
+        .map(docToGroupPermission)
+        .groupBy(_.groupId)
+        .map { case (groupId, permissions) =>
+          GroupPermissions(groupId, permissions.map(_.permission))
+        }.toSet
+
+      val userPermissions = grouped
+        .getOrElse(DomainSchema.Classes.User.ClassName, Set())
+        .map(docToUserPermission)
+        .groupBy(_.userId)
+        .map { case (userId, permissions) =>
+          UserPermissions(userId, permissions.map(_.permission))
+        }.toSet
+
+      val worldPermissions = grouped
+        .getOrElse("world", Set())
+        .map(docToWorldPermission)
+
+
+      AllPermissions(worldPermissions, userPermissions, groupPermissions)
     }
   }
 
@@ -545,7 +586,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    *
    * @param db             The database instance to use.
    * @param permissionRids The permissions instances to remove.
-   * @param target      The target to remove the permission from, or None
+   * @param target         The target to remove the permission from, or None
    *                       for the global targets.
    * @return A try indicating success or failure.
    */
@@ -598,17 +639,6 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       List(granteeRid, targetRid, permission))
   }
 
-  private[this] def getAllPermissionsForGrantee[T](db: ODatabaseDocument,
-                                                   grantee: PermissionGrantee,
-                                                   mapper: ODocument => T): Try[Set[T]] = {
-    val sb = new StringBuilder
-    sb.append("SELECT FROM Permission WHERE ")
-    val params = addGranteeParam(sb, Map(), grantee)
-    val query = sb.toString()
-    OrientDBUtil
-      .queryAndMap(db, query, params)(mapper)
-      .map(_.toSet)
-  }
 
   private[this] def getPermissionsByGranteeAndTargetRid[T](db: ODatabaseDocument,
                                                            grantee: PermissionGrantee,

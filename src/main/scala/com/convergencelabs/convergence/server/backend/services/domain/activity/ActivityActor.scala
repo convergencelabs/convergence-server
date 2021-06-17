@@ -232,21 +232,88 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def onAddPermissions(msg: AddPermissionsRequest): Behavior[Message] = {
+    val AddPermissionsRequest(_, _, _, permissions, replyTo) = msg
+    val AddPermissions(world, user, group) = permissions
+
+    val target = ActivityPermissionTarget(activityId)
+    this.persistenceProvider.permissionsStore.addPermissionsForTarget(
+      target,
+      user,
+      group,
+      world.map(_.permission)
+    )
+      .map(_ => Right(Ok()))
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(NotFoundError())
+        case t: Throwable =>
+          error("Unexpected error adding activity permissions", t)
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! AddPermissionsResponse(_))
 
     Behaviors.same
   }
 
   private[this] def onRemovePermissions(msg: RemovePermissionsRequest): Behavior[Message] = {
+    val RemovePermissionsRequest(_, _, _, permissions, replyTo) = msg
+    val RemovePermissions(world, user, group) = permissions
+    val target = ActivityPermissionTarget(activityId)
+    this.persistenceProvider.permissionsStore.removePermissionsForTarget(
+      target,
+      user,
+      group,
+      world.map(_.permission)
+    )
+      .map(_ => Right(Ok()))
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(NotFoundError())
+        case t: Throwable =>
+          error("Unexpected error removing activity permissions", t)
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! RemovePermissionsResponse(_))
 
     Behaviors.same
   }
 
   private[this] def onSetPermissions(msg: SetPermissionsRequest): Behavior[Message] = {
+    val SetPermissionsRequest(_, _, _, permissions, replyTo) = msg
+    val SetPermissions(world, user, group) = permissions
+    val target = ActivityPermissionTarget(activityId)
+    this.persistenceProvider.permissionsStore.setPermissionsForTarget(
+      target,
+      user,
+      group,
+      world.map(_.map(_.permission))
+    )
+      .map(_ => Right(Ok()))
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(NotFoundError())
+        case t: Throwable =>
+          error("Unexpected error setting activity permissions", t)
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! SetPermissionsResponse(_))
 
     Behaviors.same
   }
 
   private[this] def onGetPermissions(msg: GetPermissionsRequest): Behavior[Message] = {
+    val GetPermissionsRequest(_, _, _, replyTo) = msg
+    val target = ActivityPermissionTarget(activityId)
+    this.persistenceProvider.permissionsStore.getPermissionsForTarget(target)
+      .map(permissions => Right(permissions))
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(NotFoundError())
+        case t: Throwable =>
+          error("Unexpected error getting activity permissions", t)
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! GetPermissionsResponse(_))
 
     Behaviors.same
   }
@@ -597,6 +664,10 @@ object ActivityActor {
     with DeleteError
     with JoinError
     with ResolvePermissionsError
+    with AddPermissionsError
+    with RemovePermissionsError
+    with SetPermissionsError
+    with GetPermissionsError
 
   final case class UnknownError() extends AnyRef
     with CommonErrors
@@ -604,4 +675,8 @@ object ActivityActor {
     with DeleteError
     with JoinError
     with ResolvePermissionsError
+    with AddPermissionsError
+    with RemovePermissionsError
+    with SetPermissionsError
+    with GetPermissionsError
 }
