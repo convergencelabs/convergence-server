@@ -11,10 +11,10 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.activity
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions, WorldPermission}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 case class ActivityAutoCreationOptions(ephemeral: Boolean,
-                                       worldPermissions: Set[WorldPermission],
-                                       userPermissions: Set[UserPermissions],
-                                       groupPermission: Set[GroupPermissions])
+                                       worldPermissions: Set[String],
+                                       userPermissions: Map[DomainUserId, Set[String]],
+                                       groupPermission: Map[String, Set[String]])
 

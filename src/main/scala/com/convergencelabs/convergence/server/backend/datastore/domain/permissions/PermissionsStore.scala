@@ -158,18 +158,18 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    * @return Success(()) if the operation was successful, a Failure otherwise.
    */
   def setPermissionsForTarget(target: PermissionTarget,
-                              user: Option[Set[UserPermissions]],
-                              group: Option[Set[GroupPermissions]],
+                              user: Option[Map[DomainUserId, Set[String]]],
+                              group: Option[Map[String, Set[String]]],
                               world: Option[Set[String]]): Try[Unit] = withDbTransaction { db =>
     for {
       target <- resolveTarget(db, target)
       _ <- unsafeToTry(user) {
-        _.foreach { case UserPermissions(userId, permissions) =>
+        _.foreach { case (userId, permissions) =>
           setPermissionsForUser(db, permissions, userId, target).get
         }
       }
       _ <- unsafeToTry(group) {
-        _.foreach { case GroupPermissions(group, permissions) =>
+        _.foreach { case (group, permissions) =>
           setPermissionsForGroup(db, permissions, group, target).get
         }
       }
@@ -191,18 +191,18 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    * @return Success(()) if the operation was successful, a Failure otherwise.
    */
   def addPermissionsForTarget(target: PermissionTarget,
-                              user: Set[UserPermissions],
-                              group: Set[GroupPermissions],
+                              user: Map[DomainUserId, Set[String]],
+                              group: Map[String, Set[String]],
                               world: Set[String]): Try[Unit] = withDbTransaction { db =>
     for {
       target <- resolveTarget(db, target)
       _ <- Try {
-        user.foreach { case UserPermissions(userId, permissions) =>
+        user.foreach { case (userId, permissions) =>
           addPermissionsForUser(db, permissions, userId, target).get
         }
       }
       _ <- Try {
-        group.foreach { case GroupPermissions(group, permissions) =>
+        group.foreach { case (group, permissions) =>
           addPermissionsForGroup(db, permissions, group, target).get
         }
       }
@@ -222,18 +222,18 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    * @return Success(()) if the operation was successful, a Failure otherwise.
    */
   def removePermissionsForTarget(target: PermissionTarget,
-                                 user: Set[UserPermissions],
-                                 group: Set[GroupPermissions],
+                                 user: Map[DomainUserId, Set[String]],
+                                 group: Map[String, Set[String]],
                                  world: Set[String]): Try[Unit] = withDbTransaction { db =>
     for {
       target <- resolveTarget(db, target)
       _ <- Try {
-        user.foreach { case UserPermissions(userId, permissions) =>
+        user.foreach { case (userId, permissions) =>
           removePermissionsForUser(db, permissions, userId, target).get
         }
       }
       _ <- Try {
-        group.foreach { case GroupPermissions(group, permissions) =>
+        group.foreach { case (group, permissions) =>
           removePermissionsForGroup(db, permissions, group, target).get
         }
       }
@@ -262,16 +262,16 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         .map(docToGroupPermission)
         .groupBy(_.groupId)
         .map { case (groupId, permissions) =>
-          GroupPermissions(groupId, permissions.map(_.permission))
-        }.toSet
+          groupId -> permissions.map(_.permission)
+        }
 
       val userPermissions = grouped
         .getOrElse(DomainSchema.Classes.User.ClassName, Set())
         .map(docToUserPermission)
         .groupBy(_.userId)
         .map { case (userId, permissions) =>
-          UserPermissions(userId, permissions.map(_.permission))
-        }.toSet
+          userId -> permissions.map(_.permission)
+        }
 
       val worldPermissions = grouped
         .getOrElse("world", Set())
@@ -286,7 +286,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
   // World Permissions
   /////////////////////////////////////////////////////////////////////////////
 
-  def getPermissionsForWorld(target: PermissionTarget): Try[Set[WorldPermission]] = withDbTransaction { db =>
+  def getPermissionsForWorld(target: PermissionTarget): Try[Set[String]] = withDbTransaction { db =>
     for {
       target <- resolveTarget(db, target)
       permissions <- getPermissionsByGranteeAndTargetRid(db, GrantedToWorld, target, docToWorldPermission)
@@ -709,9 +709,8 @@ object PermissionsStore {
 
   import schema.DomainSchema._
 
-  private def docToWorldPermission(doc: ODocument): WorldPermission = {
-    val permission: String = doc.field(Classes.Permission.Fields.Permission)
-    WorldPermission(permission)
+  private def docToWorldPermission(doc: ODocument): String = {
+    doc.field(Classes.Permission.Fields.Permission).asInstanceOf[String]
   }
 
   private val GroupIdExpression = s"${Classes.Permission.Fields.Grantee}.${Classes.UserGroup.Fields.Id}"

@@ -1,7 +1,7 @@
 package com.convergencelabs.convergence.server.backend.services.domain.permissions
 
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions, WorldPermission}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-case class SetPermissions(world: Option[Set[WorldPermission]],
-                          user: Option[Set[UserPermissions]],
-                          group: Option[Set[GroupPermissions]])
+case class SetPermissions(world: Option[Set[String]],
+                          user: Option[Map[DomainUserId, Set[String]]],
+                          group: Option[Map[String, Set[String]]])

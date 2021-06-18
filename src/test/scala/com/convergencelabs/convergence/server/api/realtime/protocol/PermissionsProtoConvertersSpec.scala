@@ -12,8 +12,6 @@
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.core.{DomainUserIdData, DomainUserTypeData, PermissionsList, UserPermissionsEntry}
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -40,8 +38,8 @@ class PermissionsProtoConvertersSpec extends AnyWordSpec with Matchers {
 
         val groupPermissionData: Map[String, PermissionsList] = Map(g1 -> list1, g2 -> list2)
         protoToGroupPermissions(groupPermissionData) shouldBe Set(
-          GroupPermissions(g1, list1.values.toSet),
-          GroupPermissions(g2, list2.values.toSet),
+          g1 -> list1.values.toSet,
+          g2 -> list2.values.toSet,
         )
       }
     }
@@ -52,9 +50,9 @@ class PermissionsProtoConvertersSpec extends AnyWordSpec with Matchers {
         val up2 = UserPermissionsEntry(Some(protoUserId2), Seq("2", "3"))
 
         val userPermissionData: Seq[UserPermissionsEntry] = Seq(up1, up2)
-        protoToUserPermissions(userPermissionData) shouldBe Set(
-          UserPermissions(userId1, up1.permissions.toSet),
-          permissions.UserPermissions(userId2, up2.permissions.toSet)
+        protoToUserPermissions(userPermissionData) shouldBe Map(
+          userId1 -> up1.permissions.toSet,
+          userId2 -> up2.permissions.toSet
         )
       }
     }

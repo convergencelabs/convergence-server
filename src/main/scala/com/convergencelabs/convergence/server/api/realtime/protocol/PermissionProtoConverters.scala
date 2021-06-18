@@ -11,11 +11,10 @@
 
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
-import com.convergencelabs.convergence.proto.core.{AddPermissionsRequestMessage, PermissionsList, RemovePermissionsRequestMessage, SetPermissionsRequestMessage, UserPermissionsEntry}
+import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions, WorldPermission}
 import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AddPermissions, RemovePermissions, SetPermissions}
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 /**
  * A collection of helper methods to translate domain objects to and from
@@ -30,10 +29,11 @@ object PermissionProtoConverters {
    * @param groupPermissionData The Protocol Buffer group permissions map.
    * @return A Set of domain GroupPermission.
    */
-  def protoToGroupPermissions(groupPermissionData: Map[String, PermissionsList]): Set[GroupPermissions] = {
+  def protoToGroupPermissions(groupPermissionData: Map[String, PermissionsList]): Map[String, Set[String]] = {
     groupPermissionData.map {
-      case (groupId, permissions) => (groupId, GroupPermissions(groupId, permissions.values.toSet))
-    }.values.toSet
+      case (groupId, permissions) =>
+        groupId -> permissions.values.toSet
+    }
   }
 
   /**
@@ -43,9 +43,16 @@ object PermissionProtoConverters {
    * @param userPermissionData The Protocol Buffer group permissions map.
    * @return A Set of domain UserPermissions.
    */
-  def protoToUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Set[UserPermissions] = {
+  def protoToUserPermissions(userPermissionData: Seq[UserPermissionsEntry]): Map[DomainUserId, Set[String]] = {
     userPermissionData
-      .map(p => permissions.UserPermissions(protoToDomainUserId(p.user.get), p.permissions.toSet)).toSet
+      .map { p =>
+        val userId = protoToDomainUserId(p.user.get)
+        userId -> p.permissions.toSet
+      }.groupBy(_._1)
+      .map { case (userId, allPermissions) =>
+        val consolidated = allPermissions.foldLeft(Set[String]())((curr, next) => curr.concat(next._2))
+        userId ->  consolidated
+      }
   }
 
   /**
@@ -55,14 +62,13 @@ object PermissionProtoConverters {
    * @param worldPermissions The Protocol Buffer string sequence.
    * @return A Set of domain WorldPermissions.
    */
-  def protoToWorldPermissions(worldPermissions: Seq[String]): Set[WorldPermission] = {
-    worldPermissions
-      .map(p => WorldPermission(p)).toSet
+  def protoToWorldPermissions(worldPermissions: Seq[String]): Set[String] = {
+    worldPermissions.toSet
   }
 
-  def userPermissionsToProto(userPermission: Set[UserPermissions]): Seq[UserPermissionsEntry] = {
+  def userPermissionsToProto(userPermission: Map[DomainUserId, Set[String]]): Seq[UserPermissionsEntry] = {
     userPermission
-      .map(p => UserPermissionsEntry(Some(domainUserIdToProto(p.user)), p.permissions.toSeq)).toSeq
+      .map(p => UserPermissionsEntry(Some(domainUserIdToProto(p._1)), p._2.toSeq)).toSeq
   }
 
   def protoToAddPermissions(message: AddPermissionsRequestMessage): AddPermissions = {

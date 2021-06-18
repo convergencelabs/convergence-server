@@ -33,7 +33,7 @@ object GetWorldChatPermissionsProcessor extends PermissionsMessageProcessor[GetW
 
   def getPermissions(permissionsStore: PermissionsStore)(message: GetWorldChatPermissionsRequest, chatId: String): Try[GetWorldChatPermissionsResponse] = {
     permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chatId))
-      .map(p => p.map(_.permission))
+      .map(p => p)
       .map(p => GetWorldChatPermissionsResponse(Right(p)))
       .recover { cause =>
         error("Unexpected error getting chat world permissions", cause)

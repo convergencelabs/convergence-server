@@ -19,11 +19,10 @@ import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatena
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.api.rest.domain.DomainActivityService.CreateActivityData
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions, WorldPermission}
-import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityServiceActor}
+import com.convergencelabs.convergence.server.api.rest.domain.DomainActivityService.{AllPermissionsRestData, CreateActivityData, stringsToPermissions}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.{CreateRequest, CreateResponse, DeleteRequest, DeleteResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityServiceActor.{GetActivitiesRequest, GetActivitiesResponse, GetActivityRequest, GetActivityResponse}
+import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityPermission, ActivityServiceActor}
 import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
@@ -62,6 +61,12 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
           } ~ delete {
             complete(deleteActivity(authProfile, domainId, id))
           }
+        } ~ pathPrefix("permissions") {
+          pathEnd {
+            get {
+              complete(getPermissions(authProfile, domainId, id))
+            }
+          }
         }
       }
     }
@@ -71,15 +76,15 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
     val CreateActivityData(activityType, activityId, world, user, group) = data
     val id = ActivityId(activityType, activityId)
 
-    val worldPermissions = DomainActivityService.toPermissionStrings(world).map(WorldPermission).toSet
+    val worldPermissions = DomainActivityService.toPermissionStrings(world).toSet
 
     val userPermissions = user.map { case (userId, permissions) =>
-      UserPermissions(DomainUserId.normal(userId), DomainActivityService.toPermissionStrings(permissions).toSet)
-    }.toSet
+      DomainUserId.normal(userId) -> DomainActivityService.toPermissionStrings(permissions).toSet
+    }
 
-    val groupPermissions = user.map { case (groupId, permissions) =>
-      GroupPermissions(groupId, DomainActivityService.toPermissionStrings(permissions).toSet)
-    }.toSet
+    val groupPermissions = group.map { case (groupId, permissions) =>
+      groupId ->  DomainActivityService.toPermissionStrings(permissions).toSet
+    }
 
     val allPermissions = AllPermissions(worldPermissions, userPermissions, groupPermissions)
 
@@ -93,7 +98,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
           case ActivityActor.UnknownError() =>
             InternalServerError
         },
-        { _ => OkResponse}
+        { _ => OkResponse }
       ))
   }
 
@@ -108,7 +113,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
           case ActivityActor.UnknownError() =>
             InternalServerError
         },
-        { _ => DeletedResponse}
+        { _ => DeletedResponse }
       ))
   }
 
@@ -143,6 +148,33 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
         })
       )
   }
+
+  private[this] def getPermissions(authProfile: AuthorizationProfile, domainId: DomainId, activityId: ActivityId): Future[RestResponse] = {
+    activityShardRegion.ask[ActivityActor.GetPermissionsResponse](r => ActivityActor.GetPermissionsRequest(domainId, activityId, None, r))
+      .map(_.permissions.fold(
+        {
+          case ActivityActor.UnauthorizedError(msg) =>
+            forbiddenResponse(msg)
+          case ActivityActor.UnknownError() =>
+            InternalServerError
+          case ActivityActor.NotFoundError() =>
+            NotFoundResponse
+        },
+        { permissions =>
+          val worldPermissions = stringsToPermissions(permissions.world)
+          val userPermissions = permissions.user.map { case (userId, permissions) =>
+            userId.username -> stringsToPermissions(permissions)
+          }
+
+          val groupPermissions = permissions.group.map { case (groupId, permissions) =>
+            groupId -> stringsToPermissions(permissions)
+          }
+
+          val response = AllPermissionsRestData(worldPermissions, userPermissions, groupPermissions)
+          okResponse(response)
+        }
+      ))
+  }
 }
 
 object DomainActivityService {
@@ -152,24 +184,38 @@ object DomainActivityService {
                                 userPermissions: Map[String, ActivityPermissionsRestData],
                                 groupPermissions: Map[String, ActivityPermissionsRestData])
 
+  case class AllPermissionsRestData(worldPermissions: ActivityPermissionsRestData,
+                                    userPermissions: Map[String, ActivityPermissionsRestData],
+                                    groupPermissions: Map[String, ActivityPermissionsRestData]
+                                   )
+
   case class ActivityPermissionsRestData(join: Boolean, viewState: Boolean, setState: Boolean, manage: Boolean)
+
+  def stringsToPermissions(permissions: Set[String]): ActivityPermissionsRestData = {
+    ActivityPermissionsRestData(
+      permissions.contains(ActivityPermission.Constants.Join),
+      permissions.contains(ActivityPermission.Constants.ViewState),
+      permissions.contains(ActivityPermission.Constants.SetState),
+      permissions.contains(ActivityPermission.Constants.Manage)
+    )
+  }
 
   def toPermissionStrings(data: ActivityPermissionsRestData): Seq[String] = {
     val result = scala.collection.mutable.Set[String]()
     if (data.join) {
-      result += "join"
+      result += ActivityPermission.Constants.Join
     }
 
     if (data.manage) {
-      result += "manage"
+      result += ActivityPermission.Constants.Manage
     }
 
     if (data.setState) {
-      result += "set_state"
+      result += ActivityPermission.Constants.SetState
     }
 
     if (data.viewState) {
-      result += "view_state"
+      result += ActivityPermission.Constants.ViewState
     }
 
     result.toSeq

@@ -168,8 +168,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.ChatsSearchResponse(message) => message
 
       // Permissions
-      case Body.GetConnectedUserPermissionsRequestMessage(message) => message
-      case Body.GetConnectedUserPermissionsResponseMessage(message) => message
+      case Body.ResolvePermissionsForConnectedSessionRequest(message) => message
+      case Body.ResolvePermissionsForConnectedSessionResponse(message) => message
       case Body.AddPermissionsRequest(message) => message
       case Body.RemovePermissionsRequest(message) => message
       case Body.SetPermissionsRequest(message) => message
@@ -329,8 +329,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ChatsSearchResponseMessage => Body.ChatsSearchResponse(message)
 
       // Permissions
-      case message: GetConnectedUserPermissionsRequestMessage=> Body.GetConnectedUserPermissionsRequestMessage(message)
-      case message: GetConnectedUserPermissionsResponseMessage => Body.GetConnectedUserPermissionsResponseMessage(message)
+      case message: ResolvePermissionsForConnectedSessionRequestMessage => Body.ResolvePermissionsForConnectedSessionRequest(message)
+      case message: ResolvePermissionsForConnectedSessionResponseMessage => Body.ResolvePermissionsForConnectedSessionResponse(message)
       case message: AddPermissionsRequestMessage => Body.AddPermissionsRequest(message)
       case message: RemovePermissionsRequestMessage => Body.RemovePermissionsRequest(message)
       case message: SetPermissionsRequestMessage => Body.SetPermissionsRequest(message)

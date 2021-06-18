@@ -240,7 +240,7 @@ final class ActivityActor(domainId: DomainId,
       target,
       user,
       group,
-      world.map(_.permission)
+      world
     )
       .map(_ => Right(Ok()))
       .recover {
@@ -263,7 +263,7 @@ final class ActivityActor(domainId: DomainId,
       target,
       user,
       group,
-      world.map(_.permission)
+      world
     )
       .map(_ => Right(Ok()))
       .recover {
@@ -286,7 +286,7 @@ final class ActivityActor(domainId: DomainId,
       target,
       user,
       group,
-      world.map(_.map(_.permission))
+      world
     )
       .map(_ => Right(Ok()))
       .recover {

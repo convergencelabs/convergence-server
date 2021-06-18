@@ -18,14 +18,13 @@ import com.convergencelabs.convergence.common.{Ok, PagedDataResult}
 import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.{ChatNotFoundException, ChatStore}
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors._
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.chat.{ChatEvent, ChatMembership, ChatState, ChatType}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
-import com.convergencelabs.convergence.server.util.actor.{ShardedActorStatUpPlan, ShardedActor, StartUpRequired}
+import com.convergencelabs.convergence.server.util.actor.{ShardedActor, ShardedActorStatUpPlan, StartUpRequired}
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo, JsonTypeName}
@@ -420,8 +419,8 @@ object ChatActor {
                                              chatId: String,
                                              requester: DomainSessionAndUserId,
                                              world: Option[Set[String]],
-                                             user: Option[Set[UserPermissions]],
-                                             group: Option[Set[GroupPermissions]],
+                                             user: Option[Map[DomainUserId, Set[String]]],
+                                             group: Option[Map[String, Set[String]]],
                                              replyTo: ActorRef[AddChatPermissionsResponse]) extends ChatPermissionsRequest[AddChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -442,8 +441,8 @@ object ChatActor {
                                                 chatId: String,
                                                 requester: DomainSessionAndUserId,
                                                 world: Option[Set[String]],
-                                                user: Option[Set[UserPermissions]],
-                                                group: Option[Set[GroupPermissions]],
+                                                user: Option[Map[DomainUserId, Set[String]]],
+                                                group: Option[Map[String, Set[String]]],
                                                 replyTo: ActorRef[RemoveChatPermissionsResponse]) extends ChatPermissionsRequest[RemoveChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -464,8 +463,8 @@ object ChatActor {
                                              chatId: String,
                                              requester: DomainSessionAndUserId,
                                              world: Option[Set[String]],
-                                             user: Option[Set[UserPermissions]],
-                                             group: Option[Set[GroupPermissions]],
+                                             user: Option[Map[DomainUserId, Set[String]]],
+                                             group: Option[Map[String, Set[String]]],
                                              replyTo: ActorRef[SetChatPermissionsResponse]) extends ChatPermissionsRequest[SetChatPermissionsResponse]
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

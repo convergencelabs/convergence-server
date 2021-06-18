@@ -12,11 +12,8 @@
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.chat._
-import com.convergencelabs.convergence.proto.core.{PermissionsList, UserPermissionsEntry}
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.instanceToTimestamp
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions
-import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.{GroupPermissions, UserPermissions}
 import com.convergencelabs.convergence.server.model.domain.chat._
 
 /**

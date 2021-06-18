@@ -200,11 +200,11 @@ class PermissionsStoreSpec
 
         val user1Permissions = Set(permission1, permission2)
         val user2Permissions = Set(permission3)
-        val user = Set(UserPermissions(user1, user1Permissions), permissions.UserPermissions(user2, user2Permissions))
+        val user = Map(user1 -> user1Permissions, user2 ->user2Permissions)
 
         val group1Permissions =  Set(permission2)
         val group2Permissions =  Set(permission3)
-        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+        val group = Map(group1 -> group1Permissions, group2 -> group2Permissions)
 
         val world = Set(permission1, permission2)
 
@@ -216,7 +216,7 @@ class PermissionsStoreSpec
         provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe group1Permissions
         provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
 
-        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world.map(WorldPermission)
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world
       }
 
       "correctly remove all world, user, and group permissions" in withTestData { provider =>
@@ -224,19 +224,19 @@ class PermissionsStoreSpec
 
         val user1Permissions = Set(permission1, permission2)
         val user2Permissions = Set(permission3)
-        val user = Set(permissions.UserPermissions(user1, user1Permissions), permissions.UserPermissions(user2, user2Permissions))
+        val user = Map(user1 -> user1Permissions, user2-> user2Permissions)
 
         val group1Permissions =  Set(permission2)
         val group2Permissions =  Set(permission3)
-        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+        val group = Map(group1 -> group1Permissions, group2 -> group2Permissions)
 
         val world = Set(permission1, permission2)
 
         provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
 
 
-        val userRemove = Set(permissions.UserPermissions(user1, Set(permission1)))
-        val groupRemove = Set(GroupPermissions(group1, Set(permission2)))
+        val userRemove = Map(user1 -> Set(permission1))
+        val groupRemove = Map(group1 -> Set(permission2))
         val worldRemove = Set(permission2)
         provider.permissionsStore.removePermissionsForTarget(target, userRemove, groupRemove, worldRemove)
 
@@ -246,7 +246,7 @@ class PermissionsStoreSpec
         provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe Set()
         provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
 
-        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(WorldPermission(permission1))
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(permission1)
       }
 
       "correctly set all world, user, and group permissions" in withTestData { provider =>
@@ -254,19 +254,19 @@ class PermissionsStoreSpec
 
         val user1Permissions = Set(permission1, permission2)
         val user2Permissions = Set(permission3)
-        val user = Set(permissions.UserPermissions(user1, user1Permissions), permissions.UserPermissions(user2, user2Permissions))
+        val user = Map(user1 -> user1Permissions, user2 -> user2Permissions)
 
         val group1Permissions =  Set(permission2)
         val group2Permissions =  Set(permission3)
-        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+        val group = Map(group1 -> group1Permissions, group2 -> group2Permissions)
 
         val world = Set(permission1, permission2)
 
         provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
 
 
-        val userSet = Some(Set(permissions.UserPermissions(user1, Set(permission1))))
-        val groupSet = Some(Set(GroupPermissions(group1, Set(permission2))))
+        val userSet = Some(Map(user1 -> Set(permission1)))
+        val groupSet = Some(Map(group1 -> Set(permission2)))
         val worldSet = Some(Set(permission2))
         provider.permissionsStore.setPermissionsForTarget(target, userSet, groupSet, worldSet)
 
@@ -276,7 +276,7 @@ class PermissionsStoreSpec
         provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe Set(permission2)
         provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
 
-        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(WorldPermission(permission2))
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(permission2)
       }
 
       "correctly set all world, user, and group permissions when Nones are supplied" in withTestData { provider =>
@@ -284,11 +284,11 @@ class PermissionsStoreSpec
 
         val user1Permissions = Set(permission1, permission2)
         val user2Permissions = Set(permission3)
-        val user = Set(permissions.UserPermissions(user1, user1Permissions), permissions.UserPermissions(user2, user2Permissions))
+        val user = Map(user1 -> user1Permissions, user2 -> user2Permissions)
 
         val group1Permissions =  Set(permission2)
         val group2Permissions =  Set(permission3)
-        val group = Set(GroupPermissions(group1,group1Permissions), GroupPermissions(group2, group2Permissions))
+        val group = Map(group1 -> group1Permissions, group2 -> group2Permissions)
 
         val world = Set(permission1, permission2)
 
@@ -302,7 +302,7 @@ class PermissionsStoreSpec
         provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe group1Permissions
         provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
 
-        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world.map(WorldPermission)
+        provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world
       }
     }
 
@@ -363,14 +363,14 @@ class PermissionsStoreSpec
       "return correct global permissions" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForWorld(Set(permission1, permission2), GlobalPermissionTarget).get
         val globalPermissions = provider.permissionsStore.getPermissionsForWorld(GlobalPermissionTarget).get
-        globalPermissions shouldBe Set(WorldPermission(permission1), WorldPermission(permission2))
+        globalPermissions shouldBe Set(permission1, permission2)
       }
 
       "return correct world permissions for channel" in withTestData { provider =>
         provider.permissionsStore.addPermissionsForWorld(Set(permission1, permission2), ChatPermissionTarget(chat1Id)).get
         provider.permissionsStore.addPermissionsForWorld(Set(permission3), ChatPermissionTarget(chat2Id)).get
         val worldPermissions = provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat1Id)).get
-        worldPermissions shouldBe Set(WorldPermission(permission1), WorldPermission(permission2))
+        worldPermissions shouldBe Set(permission1, permission2)
       }
 
       "return correct user permissions with no target" in withTestData { provider =>
@@ -454,17 +454,17 @@ class PermissionsStoreSpec
         provider.permissionsStore.addPermissionsForWorld(Set(permission1, permission2), ChatPermissionTarget(chat2Id)).get
 
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat1Id))
-          .map(_.map(_.permission)).get shouldBe Set(permission1, permission2)
+          .get shouldBe Set(permission1, permission2)
 
         provider.permissionsStore.setPermissionsForWorld(Set(permission2, permission3), ChatPermissionTarget(chat1Id)).get
 
         // Channel 1 permissions properly set.
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat1Id))
-          .map(_.map(_.permission)).get shouldBe Set(permission2, permission3)
+          .get shouldBe Set(permission2, permission3)
 
         // World permissions for channel 2 not changed.
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat2Id))
-          .map(_.map(_.permission)).get shouldBe Set(permission1, permission2)
+          .get shouldBe Set(permission1, permission2)
       }
     }
 
@@ -512,17 +512,17 @@ class PermissionsStoreSpec
         provider.permissionsStore.addPermissionsForWorld(Set(permission1, permission2), ChatPermissionTarget(chat2Id)).get
 
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat1Id))
-          .map(_.map(_.permission)).get shouldBe Set(permission1, permission2)
+          .get shouldBe Set(permission1, permission2)
 
         provider.permissionsStore.removePermissionsForWorld(Set(permission2), ChatPermissionTarget(chat1Id)).get
 
         // Channel 1 permissions properly set.
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat1Id))
-          .map(_.map(_.permission)).get shouldBe Set(permission1)
+          .get shouldBe Set(permission1)
 
         // World permissions for channel 2 not changed.
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat2Id))
-          .map(_.map(_.permission)).get shouldBe Set(permission1, permission2)
+          .get shouldBe Set(permission1, permission2)
       }
 
       "remove all permissions for target" in withTestData { provider =>
@@ -550,7 +550,7 @@ class PermissionsStoreSpec
           Set(GroupPermission(group1, permission1), GroupPermission(group1, permission2))
 
         provider.permissionsStore.getPermissionsForWorld(ChatPermissionTarget(chat2Id)).get shouldBe
-          Set(WorldPermission(permission1), WorldPermission(permission2))
+          Set(permission1, permission2)
       }
     }
 

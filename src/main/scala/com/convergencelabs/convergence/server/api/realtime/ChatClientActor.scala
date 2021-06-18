@@ -168,7 +168,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
         onRemoveChatPermissions(message, replyCallback)
       case message: SetPermissionsRequestMessage =>
         onSetChatPermissions(message, replyCallback)
-      case message: GetConnectedUserPermissionsRequestMessage =>
+      case message: ResolvePermissionsForConnectedSessionRequestMessage =>
         onGetConnectedUserPermissionsRequestMessage(message, replyCallback)
       case message: GetWorldPermissionsRequestMessage =>
         onGetWorldPermissions(message, replyCallback)
@@ -424,8 +424,8 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
     }
   }
 
-  private[this] def onGetConnectedUserPermissionsRequestMessage(message: GetConnectedUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetConnectedUserPermissionsRequestMessage(target, _) = message
+  private[this] def onGetConnectedUserPermissionsRequestMessage(message: ResolvePermissionsForConnectedSessionRequestMessage, cb: ReplyCallback): Unit = {
+    val ResolvePermissionsForConnectedSessionRequestMessage(target, _) = message
     getChatIdFromPermissionTarget(target, cb).map { chatId =>
       chatShardRegion
         .ask[ChatActor.GetClientChatPermissionsResponse](ChatActor.GetClientChatPermissionsRequest(domainId, chatId, session, _))
@@ -436,7 +436,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
             case ChatActor.ChatNotJoinedError() =>
               chatNotJoined(chatId, cb)
           },
-          permissions => cb.reply(GetConnectedUserPermissionsResponseMessage(permissions.toSeq))
+          permissions => cb.reply(ResolvePermissionsForConnectedSessionResponseMessage(permissions.toSeq))
         ))
         .recover(_ => cb.timeoutError())
     }
