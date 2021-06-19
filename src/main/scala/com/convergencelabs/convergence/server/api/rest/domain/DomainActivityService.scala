@@ -15,15 +15,15 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
-import com.convergencelabs.convergence.server.api.rest.domain.DomainActivityService.{AllPermissionsRestData, CreateActivityData, stringsToPermissions}
+import com.convergencelabs.convergence.server.api.rest.domain.DomainActivityService._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.{CreateRequest, CreateResponse, DeleteRequest, DeleteResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityServiceActor.{GetActivitiesRequest, GetActivitiesResponse, GetActivityRequest, GetActivityResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityPermission, ActivityServiceActor}
-import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
+import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AllPermissions, SetPermissions}
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.model.DomainId
@@ -50,7 +50,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
           }
         } ~ post {
           entity(as[CreateActivityData]) { activityData =>
-            complete(createActivity(authProfile, domainId, activityData))
+            complete(createActivity(domainId, activityData))
           }
         }
       } ~ pathPrefix(Segment / Segment) { (activityType, activityId) =>
@@ -59,12 +59,16 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
           get {
             complete(getActivity(domainId, id))
           } ~ delete {
-            complete(deleteActivity(authProfile, domainId, id))
+            complete(deleteActivity(domainId, id))
           }
         } ~ pathPrefix("permissions") {
           pathEnd {
             get {
-              complete(getPermissions(authProfile, domainId, id))
+              complete(getPermissions(domainId, id))
+            } ~ put {
+              entity(as[SetPermissionsRestData]) { permissions =>
+                complete(setPermissions(domainId, id, permissions))
+              }
             }
           }
         }
@@ -72,18 +76,18 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
     }
   }
 
-  private[this] def createActivity(authProfile: AuthorizationProfile, domainId: DomainId, data: CreateActivityData): Future[RestResponse] = {
+  private[this] def createActivity(domainId: DomainId, data: CreateActivityData): Future[RestResponse] = {
     val CreateActivityData(activityType, activityId, world, user, group) = data
     val id = ActivityId(activityType, activityId)
 
-    val worldPermissions = DomainActivityService.toPermissionStrings(world).toSet
+    val worldPermissions = DomainActivityService.toPermissionStrings(world)
 
     val userPermissions = user.map { case (userId, permissions) =>
-      DomainUserId.normal(userId) -> DomainActivityService.toPermissionStrings(permissions).toSet
+      DomainUserId.normal(userId) -> DomainActivityService.toPermissionStrings(permissions)
     }
 
     val groupPermissions = group.map { case (groupId, permissions) =>
-      groupId ->  DomainActivityService.toPermissionStrings(permissions).toSet
+      groupId -> DomainActivityService.toPermissionStrings(permissions)
     }
 
     val allPermissions = AllPermissions(worldPermissions, userPermissions, groupPermissions)
@@ -102,7 +106,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
       ))
   }
 
-  private[this] def deleteActivity(authProfile: AuthorizationProfile, domainId: DomainId, activityId: ActivityId): Future[RestResponse] = {
+  private[this] def deleteActivity(domainId: DomainId, activityId: ActivityId): Future[RestResponse] = {
     activityShardRegion.ask[DeleteResponse](r => DeleteRequest(domainId, activityId, None, r))
       .map(_.response.fold(
         {
@@ -149,7 +153,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
       )
   }
 
-  private[this] def getPermissions(authProfile: AuthorizationProfile, domainId: DomainId, activityId: ActivityId): Future[RestResponse] = {
+  private[this] def getPermissions(domainId: DomainId, activityId: ActivityId): Future[RestResponse] = {
     activityShardRegion.ask[ActivityActor.GetPermissionsResponse](r => ActivityActor.GetPermissionsRequest(domainId, activityId, None, r))
       .map(_.permissions.fold(
         {
@@ -175,6 +179,32 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
         }
       ))
   }
+
+  private[this] def setPermissions(domainId: DomainId,
+                                   activityId: ActivityId,
+                                   permissions: SetPermissionsRestData): Future[RestResponse] = {
+    val SetPermissionsRestData(world, user, group) = permissions
+
+    val worldPermissions = world.map(toPermissionStrings)
+    val userPermissions = user.map(_.map(p => (DomainUserId.normal(p._1), toPermissionStrings(p._2))))
+    val groupPermissions = group.map(_.map(p => (p._1, toPermissionStrings(p._2))))
+
+    val setPermissions = SetPermissions(worldPermissions, userPermissions, groupPermissions)
+
+    activityShardRegion.ask[ActivityActor.SetPermissionsResponse](
+      r => ActivityActor.SetPermissionsRequest(domainId, activityId, None, setPermissions, r))
+      .map(_.response.fold(
+        {
+          case ActivityActor.UnauthorizedError(msg) =>
+            forbiddenResponse(msg)
+          case ActivityActor.UnknownError() =>
+            InternalServerError
+          case ActivityActor.NotFoundError() =>
+            NotFoundResponse
+        },
+        { _ => OkResponse }
+      ))
+  }
 }
 
 object DomainActivityService {
@@ -189,6 +219,11 @@ object DomainActivityService {
                                     groupPermissions: Map[String, ActivityPermissionsRestData]
                                    )
 
+  case class SetPermissionsRestData(worldPermissions: Option[ActivityPermissionsRestData],
+                                    userPermissions: Option[Map[String, ActivityPermissionsRestData]],
+                                    groupPermissions: Option[Map[String, ActivityPermissionsRestData]]
+                                   )
+
   case class ActivityPermissionsRestData(join: Boolean, viewState: Boolean, setState: Boolean, manage: Boolean)
 
   def stringsToPermissions(permissions: Set[String]): ActivityPermissionsRestData = {
@@ -200,7 +235,7 @@ object DomainActivityService {
     )
   }
 
-  def toPermissionStrings(data: ActivityPermissionsRestData): Seq[String] = {
+  def toPermissionStrings(data: ActivityPermissionsRestData): Set[String] = {
     val result = scala.collection.mutable.Set[String]()
     if (data.join) {
       result += ActivityPermission.Constants.Join
@@ -218,6 +253,6 @@ object DomainActivityService {
       result += ActivityPermission.Constants.ViewState
     }
 
-    result.toSeq
+    result.toSet
   }
 }

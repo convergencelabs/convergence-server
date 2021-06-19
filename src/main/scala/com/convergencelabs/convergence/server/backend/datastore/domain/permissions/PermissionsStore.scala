@@ -255,7 +255,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       permissionDocs <- getPermissionsByGranteeAndTargetRid(db, AnyGrantee, target, doc => doc)
     } yield {
       val grouped = permissionDocs.groupBy(doc =>
-        Option(doc.eval("target.@class").asInstanceOf[String]).getOrElse("world"))
+        Option(doc.eval("grantee.@class").asInstanceOf[String]).getOrElse("world"))
 
       val groupPermissions = grouped
         .getOrElse(DomainSchema.Classes.UserGroup.ClassName, Set())
