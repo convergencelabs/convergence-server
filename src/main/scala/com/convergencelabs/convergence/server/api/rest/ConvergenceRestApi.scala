@@ -11,14 +11,13 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import java.util.concurrent.TimeUnit
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.{ActorContext, Routers}
 import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, complete, concat, extractRequest, extractUri, handleExceptions}
+import akka.http.scaladsl.server.Directives.{_enhanceRouteWithConcatenation, complete, concat, extractRequest, extractUri, handleExceptions, handleRejections}
 import akka.http.scaladsl.server._
 import akka.stream.{Materializer, SystemMaterializer}
 import akka.util.Timeout
@@ -26,13 +25,13 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives.cors
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import com.convergencelabs.convergence.server.api.rest.domain.DomainService
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
-import com.convergencelabs.convergence.server.backend.services.server.DatabaseManagerActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
-import com.convergencelabs.convergence.server.backend.services.server._
+import com.convergencelabs.convergence.server.backend.services.server.{DatabaseManagerActor, _}
 import grizzled.slf4j.Logging
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
@@ -69,11 +68,22 @@ private[server] final class ConvergenceRestApi(interface: String,
   private[this] var binding: Option[Http.ServerBinding] = None
   private[this] implicit val materializer: Materializer = SystemMaterializer.get(system).materializer
 
+  private[this] val corsSettings: CorsSettings = CorsSettings.defaultSettings.withAllowedMethods(
+    List(
+      HttpMethods.GET,
+      HttpMethods.POST,
+      HttpMethods.PUT,
+      HttpMethods.DELETE,
+      HttpMethods.HEAD,
+      HttpMethods.OPTIONS))
+
   private[this] val exceptionHandler: ExceptionHandler = ExceptionHandler {
     case e: Exception =>
       extractUri { uri =>
         logger.error(s"Error handling REST call: $uri", e)
-        complete(InternalServerError)
+        cors(corsSettings) {
+          complete(InternalServerError)
+        }
       }
   }
 
@@ -133,27 +143,9 @@ private[server] final class ConvergenceRestApi(interface: String,
     val authenticator = new Authenticator(
       authenticationActor, system.scheduler, system.executionContext, defaultRequestTimeout)
 
-    val corsSettings: CorsSettings = CorsSettings.defaultSettings.withAllowedMethods(
-      List(
-        HttpMethods.GET,
-        HttpMethods.POST,
-        HttpMethods.PUT,
-        HttpMethods.DELETE,
-        HttpMethods.HEAD,
-        HttpMethods.OPTIONS))
 
-    implicit def rejectionHandler: RejectionHandler = RejectionHandler
+    val rejectionHandler: RejectionHandler = RejectionHandler
       .newBuilder()
-      .handle {
-        case MalformedRequestContentRejection(message, _) =>
-          cors(corsSettings) {
-            complete(badRequest(message))
-          }
-        case AuthorizationFailedRejection =>
-          cors(corsSettings) {
-            complete(ForbiddenError)
-          }
-      }
       .handleAll[MethodRejection] { methodRejections =>
         val names = methodRejections.map(_.supported.name)
         cors(corsSettings) {
@@ -165,29 +157,50 @@ private[server] final class ConvergenceRestApi(interface: String,
           complete(notFoundResponse(Some("The requested resource could not be found.")))
         }
       }
+      .handle {
+        case MalformedRequestContentRejection(message, _) =>
+          cors(corsSettings) {
+            complete(badRequest(message))
+          }
+        case AuthorizationFailedRejection =>
+          cors(corsSettings) {
+            complete(ForbiddenError)
+          }
+        case r: RejectionWithOptionalCause =>
+          cors(corsSettings) {
+            complete(badRequest(r.cause.map(_.getCause.getMessage).getOrElse("")))
+          }
+        case r: Rejection =>
+          error(r)
+          cors(corsSettings) {
+            complete(badRequest("The server could not handle the request"))
+          }
+      }
       .result()
 
-    val route = cors(corsSettings) {
-      handleExceptions(exceptionHandler) {
-        infoService.route ~
-          // Authentication services can be called without being authenticated
-          authService.route ~
-          // Everything else must be authenticated as a convergence user.
-          extractRequest { request =>
-            authenticator.requireAuthenticatedUser(request) { authProfile =>
-              concat(
-                currentUserService.route(authProfile),
-                statusService.route(authProfile),
-                convergenceUserService.route(authProfile),
-                namespaceService.route(authProfile),
-                domainService.route(authProfile),
-                roleService.route(authProfile),
-                configService.route(authProfile),
-                userApiKeyService.route(authProfile),
-                keyGenService.route(),
-                databaseManagerService.route(authProfile))
+    val route = handleRejections(rejectionHandler) {
+      cors(corsSettings) {
+        handleExceptions(exceptionHandler) {
+          infoService.route ~
+            // Authentication services can be called without being authenticated
+            authService.route ~
+            // Everything else must be authenticated as a convergence user.
+            extractRequest { request =>
+              authenticator.requireAuthenticatedUser(request) { authProfile =>
+                concat(
+                  currentUserService.route(authProfile),
+                  statusService.route(authProfile),
+                  convergenceUserService.route(authProfile),
+                  namespaceService.route(authProfile),
+                  domainService.route(authProfile),
+                  roleService.route(authProfile),
+                  configService.route(authProfile),
+                  userApiKeyService.route(authProfile),
+                  keyGenService.route(),
+                  databaseManagerService.route(authProfile))
+              }
             }
-          }
+        }
       }
     }
 
