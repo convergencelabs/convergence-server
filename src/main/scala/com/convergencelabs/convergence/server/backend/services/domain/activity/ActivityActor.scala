@@ -118,9 +118,12 @@ final class ActivityActor(domainId: DomainId,
 
   private[this] def onDeleteRequest(msg: DeleteRequest): Behavior[Message] = {
     val DeleteRequest(_, _, sessionId, replyTo) = msg
-    persistenceProvider.activityStore
-      .deleteActivity(activityId)
-      .map(_ => Right(Ok()))
+    (for {
+      _ <- persistenceProvider.activityStore
+        .deleteActivity(activityId)
+      _ <- persistenceProvider.permissionsStore
+        .removeAllPermissionsForTarget(ActivityPermissionTarget(activityId))
+    } yield Right(Ok()))
       .recover {
         case _: EntityNotFoundException =>
           Left(NotFoundError())
@@ -497,7 +500,7 @@ object ActivityActor {
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[AlreadyJoined], name = "already_joined"),
     new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
-  new JsonSubTypes.Type(value = classOf[NotFoundError], name = "not_found")
+    new JsonSubTypes.Type(value = classOf[NotFoundError], name = "not_found")
   ))
   sealed trait JoinError
 
