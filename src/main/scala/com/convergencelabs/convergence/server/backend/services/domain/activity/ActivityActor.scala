@@ -198,8 +198,15 @@ final class ActivityActor(domainId: DomainId,
       case Some(data) =>
         val activity = Activity(activityId, data.ephemeral, Instant.now())
         this.ephemeral = data.ephemeral
-        persistenceProvider.activityStore
-          .createActivity(activity)
+        val worldPermissions = msg.autoCreateData.map(_.worldPermissions)
+        val userPermissions = msg.autoCreateData.map(_.userPermissions)
+        val groupPermissions = msg.autoCreateData.map(_.groupPermission)
+        val target = ActivityPermissionTarget(activityId)
+
+        (for {
+          _ <- persistenceProvider.activityStore.createActivity(activity)
+          _ <- persistenceProvider.permissionsStore.setPermissionsForTarget(target, userPermissions, groupPermissions, worldPermissions)
+        } yield ())
           .map { _ =>
             this.processJoinForExistingActivity(msg)
           }
