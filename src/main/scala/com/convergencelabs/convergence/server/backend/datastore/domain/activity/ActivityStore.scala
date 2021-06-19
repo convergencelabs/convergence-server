@@ -99,9 +99,6 @@ class ActivityStore(dbProvider: DatabaseProvider)
     }
   }
 
-  private[this] val SearchActivitiesQuery = "SELECT * FROM Activity ORDER BY type, id ASC"
-  private[this] val SearchActivityCountQuery = "SELECT count(*) as count FROM Activity"
-
   /**
    * Determines if an Activity with the specified id exists.
    *
