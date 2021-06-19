@@ -21,6 +21,7 @@ import com.convergencelabs.convergence.server.model.domain.activity.{Activity, A
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -117,7 +118,9 @@ object ActivityServiceActor {
   final case class GetActivitiesRequest(domainId: DomainId,
                                         typeFilter: Option[String],
                                         idFilter: Option[String],
+                                        @JsonDeserialize(contentAs = classOf[Long])
                                         limit: QueryLimit,
+                                        @JsonDeserialize(contentAs = classOf[Long])
                                         offset: QueryOffset,
                                         replyTo: ActorRef[GetActivitiesResponse]) extends Message
 

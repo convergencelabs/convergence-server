@@ -90,8 +90,6 @@ class ActivityStore(dbProvider: DatabaseProvider)
     val query = OrientDBUtil.buildPagedQuery(baseQuery, limit, offset)
     val countQuery = s"SELECT count(*) as count FROM Activity $where"
 
-    println(countQuery)
-
     for {
       activities <- OrientDBUtil.queryAndMap(db, query, params) (docToActivity)
       totalResults <-  OrientDBUtil.getDocument(db, countQuery, params)

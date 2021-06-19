@@ -27,7 +27,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.permission
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.model.DomainId
-import com.convergencelabs.convergence.server.model.domain.activity.ActivityId
+import com.convergencelabs.convergence.server.model.domain.activity.{Activity, ActivityId}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -131,7 +131,8 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
             InternalServerError
         },
         { pagedData =>
-          okResponse(PagedRestResponse(pagedData.data, pagedData.offset, pagedData.count))
+          val data = pagedData.data.map(toActivityData)
+          okResponse(PagedRestResponse(data, pagedData.offset, pagedData.count))
         }
       ))
   }
@@ -225,6 +226,13 @@ object DomainActivityService {
                                    )
 
   case class ActivityPermissionsRestData(join: Boolean, viewState: Boolean, setState: Boolean, manage: Boolean)
+
+  case class ActivityData(activityType: String, activityId: String, ephemeral: Boolean, created: Long)
+
+  def toActivityData(activity: Activity): ActivityData = {
+    val Activity(ActivityId(activityType, activityId), ephemeral, created) = activity
+    ActivityData(activityType, activityId, ephemeral, created.toEpochMilli)
+  }
 
   def stringsToPermissions(permissions: Set[String]): ActivityPermissionsRestData = {
     ActivityPermissionsRestData(
