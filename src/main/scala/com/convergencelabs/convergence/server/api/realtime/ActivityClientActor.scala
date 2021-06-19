@@ -21,7 +21,7 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters.{domainUserIdToProto, protoToDomainUserId}
-import com.convergencelabs.convergence.server.api.realtime.protocol.{JsonProtoConverters, PermissionProtoConverters}
+import com.convergencelabs.convergence.server.api.realtime.protocol.{CommonProtoConverters, JsonProtoConverters, PermissionProtoConverters}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityAutoCreationOptions}
 import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
 import com.convergencelabs.convergence.server.model.DomainId
@@ -45,7 +45,7 @@ import scala.language.postfixOps
  * @param context             The ActorContext for this actor.
  * @param activityShardRegion The shard region that contains ActivityActor entities.
  * @param clientActor         The ClientActor that this ActivityClientActor is a child of.
- * @param domainId              The id of the domain that the user connected to.
+ * @param domainId            The id of the domain that the user connected to.
  * @param session             The session id of the connected client.
  */
 private final class ActivityClientActor private(context: ActorContext[Message],
@@ -182,7 +182,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
   }
 
   private[this] def onActivityJoin(RequestMessage: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
-    val ActivityJoinRequestMessage(activityType, activityId, state, autoCreateMessage, _) = RequestMessage
+    val ActivityJoinRequestMessage(activityType, activityId, lurk, state, autoCreateMessage, _) = RequestMessage
     val id = ActivityId(activityType, activityId)
     val jsonState = JsonProtoConverters.valueMapToJValueMap(state)
     val autoCreateOptions = autoCreateMessage.map { data =>
@@ -195,8 +195,10 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     }
     val resource = resourceManager.getOrAssignResource(id)
     activityShardRegion
-      .ask[ActivityActor.JoinResponse](
-        ActivityActor.JoinRequest(domainId, id, session.sessionId, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], _))
+      .ask[ActivityActor.JoinResponse] { replyTo =>
+        ActivityActor.JoinRequest(
+          domainId, id, session.sessionId, lurk, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], replyTo)
+      }
       .map(_.response.fold({
         case ActivityActor.AlreadyJoined() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity: {type: '$activityType', id: $activityId}.")
@@ -207,8 +209,9 @@ private final class ActivityClientActor private(context: ActorContext[Message],
         case ActivityActor.UnknownError() =>
           cb.unknownError()
       }, { response =>
-        val mappedState = response.state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
-        cb.reply(ActivityJoinResponseMessage(resource, mappedState))
+        val ActivityActor.Joined(ephemeral, created, state) = response
+        val mappedState = state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
+        cb.reply(ActivityJoinResponseMessage(resource, mappedState, ephemeral, Some(CommonProtoConverters.instantToTimestamp(created))))
       }))
       .recoverWith(handleAskFailure(_, cb))
   }
@@ -428,11 +431,11 @@ private final class ActivityClientActor private(context: ActorContext[Message],
           case PermissionTarget.TargetType.Activity(target) =>
             Some(ActivityId(target.`type`, target.id))
           case _ =>
-            cb.expectedError(ErrorCodes.InvalidMessage,  "The permission target was not set")
+            cb.expectedError(ErrorCodes.InvalidMessage, "The permission target was not set")
             None
         }
       case None =>
-        cb.expectedError(ErrorCodes.InvalidMessage,  "The permission target was not set")
+        cb.expectedError(ErrorCodes.InvalidMessage, "The permission target was not set")
         None
     }
   }

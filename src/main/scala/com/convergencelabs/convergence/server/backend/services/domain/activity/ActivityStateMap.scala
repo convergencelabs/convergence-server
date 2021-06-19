@@ -38,6 +38,10 @@ private[activity] final class ActivityStateMap() {
     state += (sessionId -> Map[String, JValue]())
   }
 
+  def hasSession(sessionId: String): Boolean = {
+    state.contains(sessionId)
+  }
+
   def leave(sessionId: String): Unit = {
     state -= sessionId
   }

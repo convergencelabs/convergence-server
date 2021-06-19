@@ -77,8 +77,8 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
             model.metaData.collection,
             Some(objectValueToProto(model.data)),
             model.metaData.version,
-            Some(instanceToTimestamp(model.metaData.createdTime)),
-            Some(instanceToTimestamp(model.metaData.modifiedTime))
+            Some(instantToTimestamp(model.metaData.createdTime)),
+            Some(instantToTimestamp(model.metaData.modifiedTime))
           )
           cb.reply(response)
         }))

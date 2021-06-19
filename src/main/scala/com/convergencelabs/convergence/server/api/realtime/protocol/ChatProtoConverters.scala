@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.chat._
-import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.instanceToTimestamp
+import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.instantToTimestamp
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.model.domain.chat._
 
@@ -34,8 +34,8 @@ object ChatProtoConverters {
       chatMembershipToProto(state.membership),
       state.name,
       state.topic,
-      Some(instanceToTimestamp(state.created)),
-      Some(instanceToTimestamp(state.lastEventTime)),
+      Some(instantToTimestamp(state.created)),
+      Some(instantToTimestamp(state.lastEventTime)),
       state.lastEventNumber,
       state.members.values.map(member => ChatMemberData(Some(domainUserIdToProto(member.userId)), member.maxSeenEvent)).toSeq)
 
@@ -77,27 +77,27 @@ object ChatProtoConverters {
   def chatEventToProto(event: ChatEvent): ChatEventData = event match {
     case ChatCreatedEvent(eventNumber, chatId, user, timestamp, name, topic, members) =>
       ChatEventData().withCreated(
-        ChatCreatedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name, topic, members.map(domainUserIdToProto).toSeq));
+        ChatCreatedEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name, topic, members.map(domainUserIdToProto).toSeq));
     case ChatMessageEvent(eventNumber, chatId, user, timestamp, message) =>
       ChatEventData().withMessage(
-        ChatMessageEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), message))
+        ChatMessageEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user)), message))
     case ChatUserJoinedEvent(eventNumber, chatId, user, timestamp) =>
       ChatEventData().withUserJoined(
-        ChatUserJoinedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
+        ChatUserJoinedEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
     case ChatUserLeftEvent(eventNumber, chatId, user, timestamp) =>
       ChatEventData().withUserLeft(
-        ChatUserLeftEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
+        ChatUserLeftEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user))))
     case ChatUserAddedEvent(eventNumber, chatId, user, timestamp, addedUser) =>
       ChatEventData().withUserAdded(
-        ChatUserAddedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(addedUser))))
+        ChatUserAddedEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(addedUser))))
     case ChatUserRemovedEvent(eventNumber, chatId, user, timestamp, removedUser) =>
       ChatEventData().withUserRemoved(
-        ChatUserRemovedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(removedUser))))
+        ChatUserRemovedEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user)), Some(domainUserIdToProto(removedUser))))
     case ChatNameChangedEvent(eventNumber, chatId, user, timestamp, name) =>
       ChatEventData().withNameChanged(
-        ChatNameChangedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name))
+        ChatNameChangedEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user)), name))
     case ChatTopicChangedEvent(eventNumber, chatId, user, timestamp, topic) =>
       ChatEventData().withTopicChanged(
-        ChatTopicChangedEventData(chatId, eventNumber, Some(instanceToTimestamp(timestamp)), Some(domainUserIdToProto(user)), topic))
+        ChatTopicChangedEventData(chatId, eventNumber, Some(instantToTimestamp(timestamp)), Some(domainUserIdToProto(user)), topic))
   }
 }

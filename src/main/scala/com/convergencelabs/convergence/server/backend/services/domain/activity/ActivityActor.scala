@@ -62,6 +62,7 @@ final class ActivityActor(domainId: DomainId,
   private[this] var joinedSessions = Map[String, ActorRef[OutgoingMessage]]()
   private[this] val stateMap = new ActivityStateMap()
   private[this] var ephemeral: Boolean = false
+  private[this] var created: Instant = Instant.now()
 
   override def receiveInitialized(msg: Message): Behavior[Message] = {
     msg match {
@@ -74,7 +75,7 @@ final class ActivityActor(domainId: DomainId,
       case msg: JoinRequest =>
         onJoinRequest(msg)
       case msg: LeaveRequest =>
-        leave(msg)
+        onLeave(msg)
       case msg: UpdateState =>
         onUpdateState(msg)
       case msg: AddPermissionsRequest =>
@@ -134,12 +135,22 @@ final class ActivityActor(domainId: DomainId,
 
   private[this] def onJoinRequest(msg: JoinRequest): Behavior[Message] = {
     if (joinedSessions.isEmpty) {
-      this.persistenceProvider.activityStore.exists(activityId).map {
-        case true =>
-          processJoinForExistingActivity(msg)
-        case false =>
-          processJoinForNewActivity(msg)
-      }
+      this.persistenceProvider.activityStore
+        .findActivity(activityId)
+        .map {
+          case Some(activity) =>
+            // This is the first joiner
+            this.ephemeral = activity.ephemeral
+            this.created = activity.created
+            processJoinForExistingActivity(msg)
+          case None =>
+            processJoinForNewActivity(msg)
+        }
+        .recover {
+          case t: Throwable =>
+            error("Unexpected error joining an activity", t)
+            msg.replyTo ! JoinResponse(Left(UnknownError()))
+        }
     } else {
       // If there are other joined sessions that we can skip the existence
       // check since the activity clearly exists.
@@ -150,7 +161,7 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def processJoinForExistingActivity(msg: JoinRequest): Unit = {
-    val JoinRequest(_, _, sessionId, state, _, client, replyTo) = msg
+    val JoinRequest(_, _, sessionId, lurk, state, _, client, replyTo) = msg
     this.joinedSessions.get(sessionId) match {
       case Some(_) =>
         replyTo ! JoinResponse(Left(AlreadyJoined()))
@@ -158,26 +169,29 @@ final class ActivityActor(domainId: DomainId,
       case None =>
         this.joinedSessions += (sessionId -> client)
         this.joinedClients += (client -> sessionId)
-        this.stateMap.join(sessionId)
-
-        state.foreach {
-          case (k, v) =>
-            this.stateMap.setState(sessionId, k, v)
-        }
 
         disableReceiveTimeout()
         context.watch(client)
 
-        val message = ActivitySessionJoined(activityId, sessionId, state)
-        joinedSessions.values filter (_ != client) foreach (_ ! message)
+        if (!lurk) {
+          this.stateMap.join(sessionId)
+          state.foreach {
+            case (k, v) =>
+              this.stateMap.setState(sessionId, k, v)
+          }
 
-        replyTo ! JoinResponse(Right(Joined(stateMap.getState)))
+          val message = ActivitySessionJoined(activityId, sessionId, state)
+          joinedSessions.values filter (_ != client) foreach (_ ! message)
+        }
+
+        val joined = Joined(this.ephemeral, this.created, stateMap.getState)
+
+        replyTo ! JoinResponse(Right(joined))
     }
   }
 
   private[this] def processJoinForNewActivity(msg: JoinRequest): Unit = {
-    val JoinRequest(_, _, sessionId, state, autoCreateData, client, replyTo) = msg
-    autoCreateData match {
+    msg.autoCreateData match {
       case Some(data) =>
         val activity = Activity(activityId, data.ephemeral, Instant.now())
         this.ephemeral = data.ephemeral
@@ -189,10 +203,10 @@ final class ActivityActor(domainId: DomainId,
           .recover {
             case t: Throwable =>
               error("Unexpected error auto creating activity during a join", t)
-              replyTo ! JoinResponse(Left(UnknownError()))
+              msg.replyTo ! JoinResponse(Left(UnknownError()))
           }
       case None =>
-        replyTo ! JoinResponse(Left(NotFoundError()))
+        msg.replyTo ! JoinResponse(Left(NotFoundError()))
     }
   }
 
@@ -337,7 +351,7 @@ final class ActivityActor(domainId: DomainId,
     Behaviors.same
   }
 
-  private[this] def leave(msg: LeaveRequest): Behavior[Message] = {
+  private[this] def onLeave(msg: LeaveRequest): Behavior[Message] = {
     val LeaveRequest(_, _, sessionId, replyTo) = msg
     if (!isSessionJoined(sessionId)) {
       replyTo ! LeaveResponse(Left(NotJoinedError()))
@@ -350,10 +364,12 @@ final class ActivityActor(domainId: DomainId,
 
   private[this] def handleSessionLeft(sessionId: String): Behavior[Message] = {
     val leaver = this.joinedSessions(sessionId)
-    val message = ActivitySessionLeft(activityId, sessionId)
-    joinedSessions.values filter (_ != leaver) foreach (_ ! message)
+    if (this.stateMap.hasSession(sessionId)) {
+      this.stateMap.leave(sessionId)
+      val message = ActivitySessionLeft(activityId, sessionId)
+      joinedSessions.values filter (_ != leaver) foreach (_ ! message)
+    }
 
-    this.stateMap.leave(sessionId)
     this.joinedSessions -= sessionId
     this.joinedClients -= leaver
 
@@ -471,6 +487,7 @@ object ActivityActor {
   final case class JoinRequest(domainId: DomainId,
                                activityId: ActivityId,
                                sessionId: String,
+                               lurk: Boolean,
                                state: Map[String, JValue],
                                autoCreateData: Option[ActivityAutoCreationOptions],
                                client: ActorRef[OutgoingMessage],
@@ -479,13 +496,16 @@ object ActivityActor {
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[AlreadyJoined], name = "already_joined"),
-    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized")
+    new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
+  new JsonSubTypes.Type(value = classOf[NotFoundError], name = "not_found")
   ))
   sealed trait JoinError
 
   final case class AlreadyJoined() extends JoinError
 
-  final case class Joined(state: Map[String, Map[String, JValue]])
+  final case class Joined(ephemeral: Boolean,
+                          created: Instant,
+                          state: Map[String, Map[String, JValue]])
 
   final case class JoinResponse(response: Either[JoinError, Joined]) extends CborSerializable
 
