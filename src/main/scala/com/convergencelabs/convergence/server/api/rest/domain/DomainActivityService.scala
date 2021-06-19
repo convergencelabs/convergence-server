@@ -132,7 +132,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
         },
         { pagedData =>
           val data = pagedData.data.map(toActivityData)
-          okResponse(PagedRestResponse(pagedData.data, pagedData.offset, pagedData.count))
+          okResponse(PagedRestResponse(data, pagedData.offset, pagedData.count))
         }
       ))
   }
@@ -149,7 +149,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
             InternalServerError
         },
         { activity =>
-          okResponse(activity)
+          okResponse(toActivityData(activity))
         })
       )
   }
