@@ -19,7 +19,6 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.schema.Do
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserStore
 import com.convergencelabs.convergence.server.backend.datastore.{AbstractDatabasePersistence, OrientDBUtil}
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
-import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions.SetChatPermissionsProcessor.{toTry, unsafeToTry}
 import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.db.document.ODatabaseDocument
@@ -37,7 +36,7 @@ import scala.util.{Success, Try}
  * granted to, as well as targets which define what the permission applies
  * to. Grantees can be the World (everyone), a User, or a User Group.
  * Targets can be globally scoped, or scoped to one of the entities in
- * the system such as a Chat.
+ * the system such as a Chat or Activity.
  *
  * @param dbProvider The dbProvider that provides connections to the
  *                   database.
@@ -162,24 +161,15 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                               group: Option[Map[String, Set[String]]],
                               world: Option[Set[String]]): Try[Unit] = withDbTransaction { db =>
     for {
-      target <- resolveTarget(db, target)
-      _ <- unsafeToTry(user) {
-        _.foreach { case (userId, permissions) =>
-          setPermissionsForUser(db, permissions, userId, target).get
-        }
-      }
-      _ <- unsafeToTry(group) {
-        _.foreach { case (group, permissions) =>
-          setPermissionsForGroup(db, permissions, group, target).get
-        }
-      }
-      _ <- toTry(world) {
-        setPermissionsForWorld(db, _, target)
-      }
+      targetRid <- resolveTarget(db, target)
+      _ <- user.map(setUserPermissions(targetRid, _, db)).getOrElse(Success(()))
+      _ <- group.map(setGroupPermissions(targetRid, _, db)).getOrElse(Success(()))
+      _ <- world.map(setPermissionsForWorld(db, _, targetRid)).getOrElse(Success(()))
     } yield {
       ()
     }
   }
+
 
   /**
    * Adds user, group, and world permissions to a specified target.
@@ -378,24 +368,16 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
     } yield ()
   }
 
-  def removeAllPermissionsForUser(userId: DomainUserId): Try[Unit] = withDbTransaction { db =>
-    for {
-      userRid <- DomainUserStore.getUserRid(userId, db)
-      _ <- removeAllUserPermissionsOnAllTargetsForUserRid(db, userRid)
-      _ <- removeAllUserPermissionsForUserRid(db, userRid)
-    } yield ()
-    Success(())
-  }
-
-  private[this] def removeAllUserPermissionsOnAllTargetsForUserRid(db: ODatabaseDocument, userRid: ORID): Try[Unit] = {
-    // TODO make this more abstract when we have more permission targets.
-    val command = "UPDATE Chat REMOVE permissions = permissions[grantee = :user] WHERE permissions CONTAINS(grantee = :user)"
-    OrientDBUtil.command(db, command, Map("user" -> userRid)).map(_ => ())
-  }
-
-  private[this] def removeAllUserPermissionsForUserRid(db: ODatabaseDocument, userRid: ORID): Try[Unit] = {
-    val command = "DELETE FROM permission WHERE grantee = :user"
-    OrientDBUtil.command(db, command, Map("user" -> userRid)).map(_ => ())
+  def removeAllPermissionsForUser(userId: DomainUserId): Try[Unit] = withDb { db =>
+    val command =
+      """
+        |let users = SELECT FROM User WHERE userType = :userType AND username = :username;
+        |let user = $users[0];
+        |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $user] WHERE permissions CONTAINS(grantee = $user)
+        |DELETE FROM permission WHERE grantee = $user
+        |""".stripMargin
+    val params = Map("userType" -> userId.userType, "username" -> userId.username)
+    OrientDBUtil.execute(db, command, params).map(_ => ())
   }
 
   private[this] def removePermissionsForUser(db: ODatabaseDocument,
@@ -428,6 +410,19 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       permissionRids <- createMissingPermissions(db, permissions, Some(userRid), target)
     } yield permissionRids)
       .flatMap(p => addPermissionToTarget(db, p, target))
+  }
+
+  private[this] def setUserPermissions(target: Option[ORID],
+                                          userPermissions: Map[DomainUserId, Set[String]],
+                                          db: ODatabaseDocument): Try[Unit] = {
+    for {
+      _ <- removeAllPermissionsForGranteeAndTarget(db, GrantedToAnyUser, target)
+      _ <- Try {
+        userPermissions.foreach { case (userId, permissions) =>
+          setPermissionsForUser(db, permissions, userId, target).get
+        }
+      }
+    } yield ()
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -510,6 +505,31 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       .flatMap(p => addPermissionToTarget(db, p, target))
   }
 
+  private[this] def setGroupPermissions(target: Option[ORID],
+                                        groupPermissions: Map[String, Set[String]],
+                                        db: ODatabaseDocument): Try[Unit] = {
+    for {
+      _ <- removeAllPermissionsForGranteeAndTarget(db, GrantedToAnyGroup, target)
+      _ <- Try {
+        groupPermissions.foreach { case (groupId, permissions) =>
+          setPermissionsForGroup(db, permissions, groupId, target).get
+        }
+      }
+    } yield ()
+  }
+
+  def removeAllPermissionsForGroup(groupId: String): Try[Unit] = withDb { db =>
+    val command =
+      """
+        |let groups = SELECT FROM UserGroup WHERE groupId = :groupId;
+        |let group = $groups[0];
+        |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $group] WHERE permissions CONTAINS(grantee = $group)
+        |DELETE FROM permission WHERE grantee = $group
+        |""".stripMargin
+    val params = Map("groupId" -> groupId)
+    OrientDBUtil.execute(db, command, params).map(_ => ())
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // Target Permissions
   /////////////////////////////////////////////////////////////////////////////
@@ -524,6 +544,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
   /////////////////////////////////////////////////////////////////////////////
   // General Helpers
   /////////////////////////////////////////////////////////////////////////////
+
 
   private[this] def createMissingPermissions(db: ODatabaseDocument,
                                              permissions: Set[String],
@@ -595,12 +616,13 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                                            target: Option[ORID]): Try[Unit] = {
     for {
       _ <- target match {
-        case Some(forRid) =>
+        case Some(targetRid) =>
           val command = s"UPDATE :target REMOVE permissions = :permissions"
-          OrientDBUtil.mutateOneDocument(db, command, Map("target" -> forRid, "permissions" -> permissionRids.asJava))
+          OrientDBUtil.mutateOneDocument(db, command, Map("target" -> targetRid, "permissions" -> permissionRids.asJava))
         case None =>
           Success(())
       }
+      // TODO doing this in a query would be more efficient.
       _ <- Try(permissionRids foreach db.delete)
     } yield ()
   }
@@ -639,7 +661,6 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       List(granteeRid, targetRid, permission))
   }
 
-
   private[this] def getPermissionsByGranteeAndTargetRid[T](db: ODatabaseDocument,
                                                            grantee: PermissionGrantee,
                                                            target: Option[ORID],
@@ -661,6 +682,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(" = :")
         sb.append(Classes.Permission.Fields.Target)
         params + (Classes.Permission.Fields.Target -> rid)
+
       case None =>
         sb.append("not(")
         sb.append(Classes.Permission.Fields.Target)
@@ -675,8 +697,33 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(" AND ")
         sb.append(Classes.Permission.Fields.Grantee)
         sb.append(" = :")
+        sb.append(Params.Grantee)
+        params + (Params.Grantee -> rid)
+
+      case GrantedToUser(userId) =>
+        sb.append(" AND ")
         sb.append(Classes.Permission.Fields.Grantee)
-        params + (Classes.Permission.Fields.Grantee -> rid)
+        sb.append(" = (SELECT FROM User WHERE ")
+        sb.append(Classes.User.Fields.UserType)
+        sb.append(" = :")
+        sb.append(Params.UserType)
+        sb.append(" AND ")
+        sb.append(Classes.User.Fields.Username)
+        sb.append(" = :")
+        sb.append(Params.Username)
+        sb.append(")")
+        params ++ Map(Params.Username -> userId.username, Params.UserType -> userId.userType)
+
+      case GrantedToGroup(groupId) =>
+        sb.append(" AND ")
+        sb.append(Classes.Permission.Fields.Grantee)
+        sb.append(" = (SELECT FROM UserGroup WHERE ")
+        sb.append(Classes.UserGroup.Fields.Id)
+        sb.append(" = :")
+        sb.append(Params.Id)
+        sb.append(")")
+        params ++ Map(Params.Id -> groupId)
+
       case GrantedToAnyUser =>
         sb.append(" AND ")
         sb.append("(")
@@ -685,6 +732,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(Classes.Permission.Fields.Grantee)
         sb.append(".@class = 'User')")
         params
+
       case GrantedToAnyGroup =>
         sb.append(" AND ")
         sb.append("(")
@@ -693,12 +741,14 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(Classes.Permission.Fields.Grantee)
         sb.append(".@class = 'UserGroup')")
         params
+
       case GrantedToWorld =>
         sb.append(" AND ")
         sb.append("not(")
         sb.append(Classes.Permission.Fields.Grantee)
         sb.append(" IS DEFINED)")
         params
+
       case AnyGrantee =>
         params
     }
@@ -708,6 +758,14 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
 object PermissionsStore {
 
   import schema.DomainSchema._
+
+  private object Params {
+    val Target = "target"
+    val Grantee = "grantee"
+    val UserType = "userType"
+    val Username = "username"
+    val Id = "id"
+  }
 
   private def docToWorldPermission(doc: ODocument): String = {
     doc.field(Classes.Permission.Fields.Permission).asInstanceOf[String]

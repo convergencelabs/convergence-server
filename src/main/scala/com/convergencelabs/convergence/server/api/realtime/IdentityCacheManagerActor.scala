@@ -146,8 +146,8 @@ private final class IdentityCacheManagerActor(context: ActorContext[IdentityCach
         processMessage(message, Set(), users)
 
       // permissions
-      case Body.GetAllUserPermissionsResponse(body) =>
-        processMessage(message, Set(), body.users.map(u => protoToDomainUserId(u.user.get)).toSet)
+      case Body.GetPermissionsResponse(body) =>
+        processMessage(message, Set(), body.user.map(u => protoToDomainUserId(u.user.get)).toSet)
 
       case _ =>
         this.messages.enqueue(MessageRecord(message, ready = true))

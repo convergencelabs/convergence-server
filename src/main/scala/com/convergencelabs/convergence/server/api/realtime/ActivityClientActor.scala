@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.proto.activity._
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor.Message
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
-import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters.{domainUserIdToProto, protoToDomainUserId}
+import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters.domainUserIdToProto
 import com.convergencelabs.convergence.server.api.realtime.protocol.{CommonProtoConverters, JsonProtoConverters, PermissionProtoConverters}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityAutoCreationOptions}
 import com.convergencelabs.convergence.server.backend.services.domain.permissions.AllPermissions
@@ -144,9 +144,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
 
     val worldPermission = PermissionProtoConverters.protoToWorldPermissions(world)
     val userPermissions = PermissionProtoConverters.protoToUserPermissions(user)
-
     val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(group)
-
     val allPermissions = AllPermissions(worldPermission, userPermissions, groupPermissions)
 
     activityShardRegion
@@ -247,16 +245,9 @@ private final class ActivityClientActor private(context: ActorContext[Message],
         onSetActivityPermissions(message, replyCallback)
       case message: ResolvePermissionsForConnectedSessionRequestMessage =>
         onGetConnectedUserPermissionsRequestMessage(message, replyCallback)
-      case message: GetWorldPermissionsRequestMessage =>
-        onGetWorldPermissions(message, replyCallback)
-      case message: GetAllUserPermissionsRequestMessage =>
-        onGetAllUserPermissions(message, replyCallback)
-      case message: GetUserPermissionsRequestMessage =>
-        onGetUserPermissions(message, replyCallback)
-      case message: GetAllGroupPermissionsRequestMessage =>
-        onGetAllGroupPermissions(message, replyCallback)
-      case message: GetGroupPermissionsRequestMessage =>
-        onGetGroupPermissions(message, replyCallback)
+      case message: GetPermissionsRequestMessage =>
+        onGetPermissionsRequest(message, replyCallback)
+
     }
 
     Behaviors.same
@@ -273,8 +264,8 @@ private final class ActivityClientActor private(context: ActorContext[Message],
             case error: ActivityActor.CommonErrors =>
               handleCommonErrors(error, cb)
           },
-          _ => OkResponse())
-        )
+          _ => cb.reply(OkResponse())
+        ))
         .recover(_ => cb.timeoutError())
     }
   }
@@ -290,8 +281,8 @@ private final class ActivityClientActor private(context: ActorContext[Message],
             case error: ActivityActor.CommonErrors =>
               handleCommonErrors(error, cb)
           },
-          _ => OkResponse())
-        )
+          _ => cb.reply(OkResponse())
+        ))
         .recover(_ => cb.timeoutError())
     }
   }
@@ -307,8 +298,8 @@ private final class ActivityClientActor private(context: ActorContext[Message],
             case error: ActivityActor.CommonErrors =>
               handleCommonErrors(error, cb)
           },
-          _ => OkResponse())
-        )
+          _ => cb.reply(OkResponse())
+        ))
         .recover(_ => cb.timeoutError())
     }
   }
@@ -329,24 +320,9 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     }
   }
 
-  private[this] def onGetWorldPermissions(message: GetWorldPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetWorldPermissionsRequestMessage(target, _) = message
-    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
-      activityShardRegion
-        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
-        .map(_.permissions.fold(
-          {
-            case error: ActivityActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-          },
-          permissions => cb.reply(GetWorldPermissionsResponseMessage(permissions.world.toSeq))
-        ))
-        .recover(_ => cb.timeoutError())
-    }
-  }
 
-  private[this] def onGetAllUserPermissions(message: GetAllUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetAllUserPermissionsRequestMessage(target, _) = message
+  private[this] def onGetPermissionsRequest(message: GetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetPermissionsRequestMessage(target, _) = message
     getActivityIdFromPermissionTarget(target, cb).map { activityId =>
       activityShardRegion
         .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
@@ -356,69 +332,13 @@ private final class ActivityClientActor private(context: ActorContext[Message],
               handleCommonErrors(error, cb)
           },
           { permissions =>
-            val userPermissionEntries = permissions.user.map { entry =>
+            val userPermissions = permissions.user.map { entry =>
               UserPermissionsEntry(Some(domainUserIdToProto(entry._1)), entry._2.toSeq)
             }.toSeq
-            cb.reply(GetAllUserPermissionsResponseMessage(userPermissionEntries))
-          }))
-        .recover(_ => cb.timeoutError())
-    }
-  }
+            val groupPermissions = permissions.group.map(entry => (entry._1, PermissionsList(entry._2.toSeq)))
+            val worldPermissions = permissions.world.toSeq
 
-  private[this] def onGetAllGroupPermissions(message: GetAllGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetAllGroupPermissionsRequestMessage(target, _) = message
-    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
-      activityShardRegion
-        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
-        .map(_.permissions.fold(
-          {
-            case error: ActivityActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-          },
-          { permissions =>
-            cb.reply(GetAllGroupPermissionsResponseMessage(
-              permissions.group.map(entry => (entry._1, PermissionsList(entry._2.toSeq)))
-            ))
-          }))
-        .recover(_ => cb.timeoutError())
-    }
-  }
-
-  private[this] def onGetUserPermissions(message: GetUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetUserPermissionsRequestMessage(target, userIdData, _) = message
-    userIdData.map(protoToDomainUserId) match {
-      case Some(userId) =>
-        getActivityIdFromPermissionTarget(target, cb).map { activityId =>
-          activityShardRegion
-            .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
-            .map(_.permissions.fold(
-              {
-                case error: ActivityActor.CommonErrors =>
-                  handleCommonErrors(error, cb)
-              },
-              { permissions =>
-                val usersPermissions = permissions.user.get(userId).map(_.toSeq).getOrElse(Seq())
-                cb.reply(GetUserPermissionsResponseMessage(usersPermissions))
-              }))
-        }
-      case None =>
-        cb.reply(GetUserPermissionsResponseMessage(Seq()))
-    }
-  }
-
-  private[this] def onGetGroupPermissions(message: GetGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetGroupPermissionsRequestMessage(target, groupId, _) = message
-    getActivityIdFromPermissionTarget(target, cb).map { activityId =>
-      activityShardRegion
-        .ask[ActivityActor.GetPermissionsResponse](ActivityActor.GetPermissionsRequest(domainId, activityId, Some(session), _))
-        .map(_.permissions.fold(
-          {
-            case error: ActivityActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-          },
-          { permissions =>
-            val groupsPermissions = permissions.group.get(groupId).map(_.toSeq).getOrElse(Seq())
-            cb.reply(GetGroupPermissionsResponseMessage(groupsPermissions))
+            cb.reply(GetPermissionsResponseMessage(userPermissions, groupPermissions, worldPermissions))
           }))
         .recover(_ => cb.timeoutError())
     }
@@ -452,10 +372,6 @@ private final class ActivityClientActor private(context: ActorContext[Message],
         cb.expectedError(ErrorCodes.ActivityNotJoined, "The session must be joined to the activity.")
 
     }
-  }
-
-  private[this] def notJoined(activityId: ActivityId, cb: ReplyCallback): Unit = {
-    cb.expectedError(ErrorCodes.ChatNotJoined, s"The activity must be joined to perform the requested operation: {type: ${activityId.activityType}, id: ${activityId.id}")
   }
 
   //

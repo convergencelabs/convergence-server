@@ -173,16 +173,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.AddPermissionsRequest(message) => message
       case Body.RemovePermissionsRequest(message) => message
       case Body.SetPermissionsRequest(message) => message
-      case Body.GetWorldPermissionsRequest(message) => message
-      case Body.GetWorldPermissionsResponse(message) => message
-      case Body.GetAllUserPermissionsRequest(message) => message
-      case Body.GetAllUserPermissionsResponse(message) => message
-      case Body.GetUserPermissionsRequest(message) => message
-      case Body.GetUserPermissionsResponse(message) => message
-      case Body.GetAllGroupPermissionsRequest(message) => message
-      case Body.GetAllGroupPermissionsResponse(message) => message
-      case Body.GetGroupPermissionsRequest(message) => message
-      case Body.GetGroupPermissionsResponse(message) => message
+      case Body.GetPermissionsRequest(message) => message
+      case Body.GetPermissionsResponse(message) => message
       case Body.Empty => null
     })
   }
@@ -334,16 +326,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: AddPermissionsRequestMessage => Body.AddPermissionsRequest(message)
       case message: RemovePermissionsRequestMessage => Body.RemovePermissionsRequest(message)
       case message: SetPermissionsRequestMessage => Body.SetPermissionsRequest(message)
-      case message: GetWorldPermissionsRequestMessage => Body.GetWorldPermissionsRequest(message)
-      case message: GetWorldPermissionsResponseMessage => Body.GetWorldPermissionsResponse(message)
-      case message: GetAllUserPermissionsRequestMessage => Body.GetAllUserPermissionsRequest(message)
-      case message: GetAllUserPermissionsResponseMessage => Body.GetAllUserPermissionsResponse(message)
-      case message: GetUserPermissionsRequestMessage => Body.GetUserPermissionsRequest(message)
-      case message: GetUserPermissionsResponseMessage => Body.GetUserPermissionsResponse(message)
-      case message: GetAllGroupPermissionsRequestMessage => Body.GetAllGroupPermissionsRequest(message)
-      case message: GetAllGroupPermissionsResponseMessage => Body.GetAllGroupPermissionsResponse(message)
-      case message: GetGroupPermissionsRequestMessage => Body.GetGroupPermissionsRequest(message)
-      case message: GetGroupPermissionsResponseMessage => Body.GetGroupPermissionsResponse(message)
+      case message: GetPermissionsRequestMessage => Body.GetPermissionsRequest(message)
+      case message: GetPermissionsResponseMessage => Body.GetPermissionsResponse(message)
     }
   }
 }

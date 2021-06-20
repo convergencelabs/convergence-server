@@ -170,16 +170,8 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
         onSetChatPermissions(message, replyCallback)
       case message: ResolvePermissionsForConnectedSessionRequestMessage =>
         onGetConnectedUserPermissionsRequestMessage(message, replyCallback)
-      case message: GetWorldPermissionsRequestMessage =>
-        onGetWorldPermissions(message, replyCallback)
-      case message: GetAllUserPermissionsRequestMessage =>
-        onGetAllUserPermissions(message, replyCallback)
-      case message: GetUserPermissionsRequestMessage =>
-        onGetUserPermissions(message, replyCallback)
-      case message: GetAllGroupPermissionsRequestMessage =>
-        onGetAllGroupPermissions(message, replyCallback)
-      case message: GetGroupPermissionsRequestMessage =>
-        onGetGroupPermissions(message, replyCallback)
+      case message: GetPermissionsRequestMessage =>
+        onGetPermissionsRequest(message, replyCallback)
     }
   }
 
@@ -428,7 +420,7 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
     val ResolvePermissionsForConnectedSessionRequestMessage(target, _) = message
     getChatIdFromPermissionTarget(target, cb).map { chatId =>
       chatShardRegion
-        .ask[ChatActor.GetClientChatPermissionsResponse](ChatActor.GetClientChatPermissionsRequest(domainId, chatId, session, _))
+        .ask[ChatActor.ResolveSessionPermissionsResponse](ChatActor.ResolveSessionPermissionsRequest(domainId, chatId, session, _))
         .map(_.permissions.fold(
           {
             case error: ChatActor.CommonErrors =>
@@ -442,11 +434,11 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
     }
   }
 
-  private[this] def onGetWorldPermissions(message: GetWorldPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetWorldPermissionsRequestMessage(target, _) = message
+  private[this] def onGetPermissionsRequest(message: GetPermissionsRequestMessage, cb: ReplyCallback): Unit = {
+    val GetPermissionsRequestMessage(target, _) = message
     getChatIdFromPermissionTarget(target, cb).map { chatId =>
       chatShardRegion
-        .ask[ChatActor.GetWorldChatPermissionsResponse](ChatActor.GetWorldChatPermissionsRequest(domainId, chatId, session, _))
+        .ask[ChatActor.GetPermissionsResponse](ChatActor.GetPermissionsRequest(domainId, chatId, session, _))
         .map(_.permissions.fold(
           {
             case error: ChatActor.CommonErrors =>
@@ -454,88 +446,16 @@ private final class ChatClientActor(context: ActorContext[ChatClientActor.Messag
             case ChatActor.ChatNotJoinedError() =>
               chatNotJoined(chatId, cb)
           },
-          permissions => cb.reply(GetWorldPermissionsResponseMessage(permissions.toSeq))
+          { permissions =>
+            val userPermissions = permissions.user.map { entry =>
+              UserPermissionsEntry(Some(domainUserIdToProto(entry._1)), entry._2.toSeq)
+            }.toSeq
+            val groupPermissions = permissions.group.map(entry => (entry._1, PermissionsList(entry._2.toSeq)))
+            val worldPermissions = permissions.world.toSeq
+
+            cb.reply(GetPermissionsResponseMessage(userPermissions, groupPermissions, worldPermissions))
+          }
         ))
-        .recover(_ => cb.timeoutError())
-    }
-  }
-
-  private[this] def onGetAllUserPermissions(message: GetAllUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetAllUserPermissionsRequestMessage(target, _) = message
-    getChatIdFromPermissionTarget(target, cb).map { chatId =>
-      chatShardRegion
-        .ask[ChatActor.GetAllUserChatPermissionsResponse](
-          ChatActor.GetAllUserChatPermissionsRequest(domainId, chatId, session, _))
-        .map(_.users.fold(
-          {
-            case error: ChatActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-            case ChatActor.ChatNotJoinedError() =>
-              chatNotJoined(chatId, cb)
-          },
-          { users =>
-            val userPermissionEntries = users.map { case (userId, permissions) =>
-              (userId, UserPermissionsEntry(Some(domainUserIdToProto(userId)), permissions.toSeq))
-            }
-            cb.reply(GetAllUserPermissionsResponseMessage(userPermissionEntries.values.toSeq))
-          }))
-        .recover(_ => cb.timeoutError())
-    }
-  }
-
-  private[this] def onGetAllGroupPermissions(message: GetAllGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetAllGroupPermissionsRequestMessage(target, _) = message
-    getChatIdFromPermissionTarget(target, cb).map { chatId =>
-      chatShardRegion
-        .ask[ChatActor.GetAllGroupChatPermissionsResponse](ChatActor.GetAllGroupChatPermissionsRequest(domainId, chatId, session, _))
-        .map(_.groups.fold(
-          {
-            case error: ChatActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-            case ChatActor.ChatNotJoinedError() =>
-              chatNotJoined(chatId, cb)
-          },
-          { groups =>
-            cb.reply(GetAllGroupPermissionsResponseMessage(groups map { case (key, value) => (key, PermissionsList(value.toSeq)) }))
-          }))
-        .recover(_ => cb.timeoutError())
-    }
-  }
-
-  private[this] def onGetUserPermissions(message: GetUserPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetUserPermissionsRequestMessage(target, user, _) = message
-    getChatIdFromPermissionTarget(target, cb).map { chatId =>
-      chatShardRegion
-        .ask[ChatActor.GetUserChatPermissionsResponse](ChatActor.GetUserChatPermissionsRequest(
-          domainId, chatId, session, protoToDomainUserId(user.get), _))
-        .map(_.permissions.fold(
-          {
-            case error: ChatActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-            case ChatActor.ChatNotJoinedError() =>
-              chatNotJoined(chatId, cb)
-          },
-          { permissions =>
-            cb.reply(GetUserPermissionsResponseMessage(permissions.toSeq))
-          }))
-    }
-  }
-
-  private[this] def onGetGroupPermissions(message: GetGroupPermissionsRequestMessage, cb: ReplyCallback): Unit = {
-    val GetGroupPermissionsRequestMessage(target, groupId, _) = message
-    getChatIdFromPermissionTarget(target, cb).map { chatId =>
-      chatShardRegion
-        .ask[ChatActor.GetGroupChatPermissionsResponse](ChatActor.GetGroupChatPermissionsRequest(domainId, chatId, session, groupId, _))
-        .map(_.permissions.fold(
-          {
-            case error: ChatActor.CommonErrors =>
-              handleCommonErrors(error, cb)
-            case ChatActor.ChatNotJoinedError() =>
-              chatNotJoined(chatId, cb)
-          },
-          { permissions =>
-            cb.reply(GetGroupPermissionsResponseMessage(permissions.toSeq))
-          }))
         .recover(_ => cb.timeoutError())
     }
   }

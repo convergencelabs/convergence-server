@@ -145,7 +145,7 @@ private final class DomainRestActor(domainId: DomainId,
     sessionStoreActor = context.spawn(SessionStoreActor(
       persistenceProvider.sessionStore), "SessionStore")
     groupStoreActor = context.spawn(UserGroupStoreActor(
-      persistenceProvider.userGroupStore), "GroupStore")
+      persistenceProvider.userGroupStore, persistenceProvider.permissionsStore), "GroupStore")
 
     Success(())
   }

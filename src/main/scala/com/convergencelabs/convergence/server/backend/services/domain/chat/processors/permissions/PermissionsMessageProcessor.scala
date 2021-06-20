@@ -19,13 +19,6 @@ import grizzled.slf4j.Logging
 import scala.util.{Success, Try}
 
 trait PermissionsMessageProcessor[M <: ChatPermissionsRequest[R], R] extends Logging {
-  def toTry[T, U](o: Option[T])(f: T => Try[Unit]): Try[Unit] = {
-    o.map(f).getOrElse(Success(()))
-  }
-
-  def unsafeToTry[T, U](o: Option[T])(f: T => Unit): Try[Unit] = {
-    o.map(v => Try(f(v))).getOrElse(Success(()))
-  }
 
   def process(hasPermission: (DomainUserId, String, ChatPermission) => Try[Boolean],
               requiredPermission: ChatPermission,
