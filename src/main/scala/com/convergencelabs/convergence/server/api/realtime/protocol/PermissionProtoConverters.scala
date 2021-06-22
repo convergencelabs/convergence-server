@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AddPermissions, RemovePermissions, SetPermissions}
+import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AddPermissions, RemovePermissions, SetGroupPermissions, SetPermissions, SetUserPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
 /**
@@ -90,8 +90,15 @@ object PermissionProtoConverters {
   def protoToSetPermissions(message: SetPermissionsRequestMessage): SetPermissions = {
     val SetPermissionsRequestMessage(_, setWorld, setUser, setGroup, _) = message
     val worldPermissions = setWorld.map(v => protoToWorldPermissions(v.permissions))
-    val groupPermissions = setGroup.map(v => PermissionProtoConverters.protoToGroupPermissions(v.permissions))
-    val userPermissions = setUser.map(v => PermissionProtoConverters.protoToUserPermissions(v.permissions))
+
+    val groupPermissions = setGroup.map{v =>
+      SetGroupPermissions(PermissionProtoConverters.protoToGroupPermissions(v.permissions), v.replaceAll)
+    }
+
+    val userPermissions = setUser.map{ v =>
+      SetUserPermissions(PermissionProtoConverters.protoToUserPermissions(v.permissions), v.replaceAll)
+    }
+
     SetPermissions(worldPermissions, userPermissions, groupPermissions)
   }
 }

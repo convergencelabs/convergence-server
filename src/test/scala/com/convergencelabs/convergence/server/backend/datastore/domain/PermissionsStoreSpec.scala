@@ -264,11 +264,10 @@ class PermissionsStoreSpec
 
         provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
 
-
         val userSet = Some(Map(user1 -> Set(permission1)))
         val groupSet = Some(Map(group1 -> Set(permission2)))
         val worldSet = Some(Set(permission2))
-        provider.permissionsStore.setPermissionsForTarget(target, userSet, groupSet, worldSet)
+        provider.permissionsStore.setPermissionsForTarget(target, userSet, true,  groupSet, true, worldSet)
 
         provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe Set(permission1)
         provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
@@ -294,7 +293,7 @@ class PermissionsStoreSpec
 
         provider.permissionsStore.addPermissionsForTarget(target, user, group, world).get
 
-        provider.permissionsStore.setPermissionsForTarget(target, None, None, None).get
+        provider.permissionsStore.setPermissionsForTarget(target, None, replaceUsers = false, None, replaceGroups = false, None).get
 
         provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe user1Permissions
         provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions

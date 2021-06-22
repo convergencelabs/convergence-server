@@ -158,16 +158,17 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    */
   def setPermissionsForTarget(target: PermissionTarget,
                               user: Option[Map[DomainUserId, Set[String]]],
+                              replaceUsers: Boolean,
                               group: Option[Map[String, Set[String]]],
-                              world: Option[Set[String]]): Try[Unit] = withDbTransaction { db =>
+                              replaceGroups: Boolean,
+                              world: Option[Set[String]],
+                              ): Try[Unit] = withDbTransaction { db =>
     for {
       targetRid <- resolveTarget(db, target)
-      _ <- user.map(setUserPermissions(targetRid, _, db)).getOrElse(Success(()))
-      _ <- group.map(setGroupPermissions(targetRid, _, db)).getOrElse(Success(()))
+      _ <- user.map(setUserPermissions(targetRid, _, replaceUsers, db)).getOrElse(Success(()))
+      _ <- group.map(setGroupPermissions(targetRid, _, replaceGroups, db)).getOrElse(Success(()))
       _ <- world.map(setPermissionsForWorld(db, _, targetRid)).getOrElse(Success(()))
-    } yield {
-      ()
-    }
+    } yield ()
   }
 
 
@@ -228,9 +229,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         }
       }
       _ <- removePermissions(db, world, None, target)
-    } yield {
-      ()
-    }
+    } yield ()
   }
 
   /**
@@ -413,10 +412,15 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
   }
 
   private[this] def setUserPermissions(target: Option[ORID],
-                                          userPermissions: Map[DomainUserId, Set[String]],
-                                          db: ODatabaseDocument): Try[Unit] = {
+                                       userPermissions: Map[DomainUserId, Set[String]],
+                                       replace: Boolean,
+                                       db: ODatabaseDocument): Try[Unit] = {
     for {
-      _ <- removeAllPermissionsForGranteeAndTarget(db, GrantedToAnyUser, target)
+      _ <- if (replace) {
+        removeAllPermissionsForGranteeAndTarget(db, GrantedToAnyUser, target)
+      } else {
+        Success(())
+      }
       _ <- Try {
         userPermissions.foreach { case (userId, permissions) =>
           setPermissionsForUser(db, permissions, userId, target).get
@@ -507,9 +511,14 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
 
   private[this] def setGroupPermissions(target: Option[ORID],
                                         groupPermissions: Map[String, Set[String]],
+                                        replace: Boolean,
                                         db: ODatabaseDocument): Try[Unit] = {
     for {
-      _ <- removeAllPermissionsForGranteeAndTarget(db, GrantedToAnyGroup, target)
+      _ <- if (replace) {
+        removeAllPermissionsForGranteeAndTarget(db, GrantedToAnyGroup, target)
+      } else {
+        Success(())
+      }
       _ <- Try {
         groupPermissions.foreach { case (groupId, permissions) =>
           setPermissionsForGroup(db, permissions, groupId, target).get

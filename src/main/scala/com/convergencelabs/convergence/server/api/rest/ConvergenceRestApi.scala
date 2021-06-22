@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.api.rest
 import akka.actor.typed.receptionist.ServiceKey
 import akka.actor.typed.scaladsl.{ActorContext, Routers}
 import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.http.javadsl.server.RequestEntityExpectedRejection
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
@@ -170,10 +171,12 @@ private[server] final class ConvergenceRestApi(interface: String,
           cors(corsSettings) {
             complete(badRequest(r.cause.map(_.getCause.getMessage).getOrElse("")))
           }
+        case r: RequestEntityExpectedRejection =>
+          complete(badRequest("A request entity was expected, but was not supplied."))
         case r: Rejection =>
           error(r)
           cors(corsSettings) {
-            complete(badRequest("The server could not handle the request"))
+            complete(badRequest("The server could not handle the request."))
           }
       }
       .result()

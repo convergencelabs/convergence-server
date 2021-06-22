@@ -2,6 +2,10 @@ package com.convergencelabs.convergence.server.backend.services.domain.permissio
 
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-case class SetPermissions(world: Option[Set[String]],
-                          user: Option[Map[DomainUserId, Set[String]]],
-                          group: Option[Map[String, Set[String]]])
+final case class SetPermissions(world: Option[Set[String]],
+                          user: Option[SetUserPermissions],
+                          group: Option[SetGroupPermissions])
+
+final case class SetUserPermissions(permissions: Map[DomainUserId, Set[String]], replace: Boolean)
+
+final case class SetGroupPermissions(permissions: Map[String, Set[String]], replace: Boolean)

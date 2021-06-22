@@ -22,8 +22,8 @@ import com.convergencelabs.convergence.server.api.rest._
 import com.convergencelabs.convergence.server.api.rest.domain.DomainActivityService._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.{CreateRequest, CreateResponse, DeleteRequest, DeleteResponse}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityServiceActor.{GetActivitiesRequest, GetActivitiesResponse, GetActivityRequest, GetActivityResponse}
-import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityPermission, ActivityServiceActor}
-import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AllPermissions, SetPermissions}
+import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityServiceActor}
+import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AllPermissions, SetGroupPermissions, SetPermissions, SetUserPermissions}
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor.DomainRestMessage
 import com.convergencelabs.convergence.server.model.DomainId
@@ -80,17 +80,11 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
     val CreateActivityData(activityType, activityId, world, user, group) = data
     val id = ActivityId(activityType, activityId)
 
-    val worldPermissions = DomainActivityService.toPermissionStrings(world)
-
     val userPermissions = user.map { case (userId, permissions) =>
-      DomainUserId.normal(userId) -> DomainActivityService.toPermissionStrings(permissions)
+      DomainUserId.normal(userId) -> permissions
     }
 
-    val groupPermissions = group.map { case (groupId, permissions) =>
-      groupId -> DomainActivityService.toPermissionStrings(permissions)
-    }
-
-    val allPermissions = AllPermissions(worldPermissions, userPermissions, groupPermissions)
+    val allPermissions = AllPermissions(world, userPermissions, group)
 
     activityShardRegion.ask[CreateResponse](r => CreateRequest(domainId, id, None, allPermissions, r))
       .map(_.response.fold(
@@ -166,16 +160,11 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
             NotFoundResponse
         },
         { permissions =>
-          val worldPermissions = stringsToPermissions(permissions.world)
           val userPermissions = permissions.user.map { case (userId, permissions) =>
-            userId.username -> stringsToPermissions(permissions)
+            userId.username -> permissions
           }
 
-          val groupPermissions = permissions.group.map { case (groupId, permissions) =>
-            groupId -> stringsToPermissions(permissions)
-          }
-
-          val response = AllPermissionsRestData(worldPermissions, userPermissions, groupPermissions)
+          val response = AllPermissionsRestData(permissions.world, userPermissions, permissions.group)
           okResponse(response)
         }
       ))
@@ -185,12 +174,14 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
                                    activityId: ActivityId,
                                    permissions: SetPermissionsRestData): Future[RestResponse] = {
     val SetPermissionsRestData(world, user, group) = permissions
+    val userPermissions = user.map { p =>
+      SetUserPermissions(p.permissions.map(v => (DomainUserId.normal(v._1), v._2)), p.replace)
+    }
+    val groupPermissions = group.map { p =>
+      SetGroupPermissions(p.permissions, p.replace)
+    }
 
-    val worldPermissions = world.map(toPermissionStrings)
-    val userPermissions = user.map(_.map(p => (DomainUserId.normal(p._1), toPermissionStrings(p._2))))
-    val groupPermissions = group.map(_.map(p => (p._1, toPermissionStrings(p._2))))
-
-    val setPermissions = SetPermissions(worldPermissions, userPermissions, groupPermissions)
+    val setPermissions = SetPermissions(world.map(_.permissions), userPermissions, groupPermissions)
 
     activityShardRegion.ask[ActivityActor.SetPermissionsResponse](
       r => ActivityActor.SetPermissionsRequest(domainId, activityId, None, setPermissions, r))
@@ -211,56 +202,28 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
 object DomainActivityService {
   case class CreateActivityData(activityType: String,
                                 activityId: String,
-                                worldPermissions: ActivityPermissionsRestData,
-                                userPermissions: Map[String, ActivityPermissionsRestData],
-                                groupPermissions: Map[String, ActivityPermissionsRestData])
+                                worldPermissions: Set[String],
+                                userPermissions: Map[String, Set[String]],
+                                groupPermissions: Map[String, Set[String]])
 
-  case class AllPermissionsRestData(worldPermissions: ActivityPermissionsRestData,
-                                    userPermissions: Map[String, ActivityPermissionsRestData],
-                                    groupPermissions: Map[String, ActivityPermissionsRestData]
-                                   )
+  final case class AllPermissionsRestData(worldPermissions: Set[String],
+                                          userPermissions: Map[String, Set[String]],
+                                          groupPermissions: Map[String, Set[String]])
 
-  case class SetPermissionsRestData(worldPermissions: Option[ActivityPermissionsRestData],
-                                    userPermissions: Option[Map[String, ActivityPermissionsRestData]],
-                                    groupPermissions: Option[Map[String, ActivityPermissionsRestData]]
-                                   )
+  final case class SetPermissionsRestData(worldPermissions: Option[SetWorldPermissionsData],
+                                          userPermissions: Option[SetUserPermissionsData],
+                                          groupPermissions: Option[SetGroupPermissionsData])
 
-  case class ActivityPermissionsRestData(join: Boolean, viewState: Boolean, setState: Boolean, manage: Boolean)
+  final case class SetWorldPermissionsData(permissions: Set[String])
 
-  case class ActivityData(activityType: String, activityId: String, ephemeral: Boolean, created: Long)
+  final case class SetUserPermissionsData(permissions: Map[String, Set[String]], replace: Boolean)
+
+  final case class SetGroupPermissionsData(permissions: Map[String, Set[String]], replace: Boolean)
+
+  final case class ActivityData(activityType: String, activityId: String, ephemeral: Boolean, created: Long)
 
   def toActivityData(activity: Activity): ActivityData = {
     val Activity(ActivityId(activityType, activityId), ephemeral, created) = activity
     ActivityData(activityType, activityId, ephemeral, created.toEpochMilli)
-  }
-
-  def stringsToPermissions(permissions: Set[String]): ActivityPermissionsRestData = {
-    ActivityPermissionsRestData(
-      permissions.contains(ActivityPermission.Constants.Join),
-      permissions.contains(ActivityPermission.Constants.ViewState),
-      permissions.contains(ActivityPermission.Constants.SetState),
-      permissions.contains(ActivityPermission.Constants.Manage)
-    )
-  }
-
-  def toPermissionStrings(data: ActivityPermissionsRestData): Set[String] = {
-    val result = scala.collection.mutable.Set[String]()
-    if (data.join) {
-      result += ActivityPermission.Constants.Join
-    }
-
-    if (data.manage) {
-      result += ActivityPermission.Constants.Manage
-    }
-
-    if (data.setState) {
-      result += ActivityPermission.Constants.SetState
-    }
-
-    if (data.viewState) {
-      result += ActivityPermission.Constants.ViewState
-    }
-
-    result.toSet
   }
 }

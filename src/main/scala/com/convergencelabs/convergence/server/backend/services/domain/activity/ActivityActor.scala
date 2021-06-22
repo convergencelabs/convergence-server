@@ -205,7 +205,8 @@ final class ActivityActor(domainId: DomainId,
 
         (for {
           _ <- persistenceProvider.activityStore.createActivity(activity)
-          _ <- persistenceProvider.permissionsStore.setPermissionsForTarget(target, userPermissions, groupPermissions, worldPermissions)
+          _ <- persistenceProvider.permissionsStore.setPermissionsForTarget(
+            target, userPermissions, replaceUsers = true, groupPermissions, replaceGroups = true, worldPermissions)
         } yield ())
           .map { _ =>
             this.processJoinForExistingActivity(msg)
@@ -308,8 +309,10 @@ final class ActivityActor(domainId: DomainId,
     val target = ActivityPermissionTarget(activityId)
     this.persistenceProvider.permissionsStore.setPermissionsForTarget(
       target,
-      user,
-      group,
+      user.map(_.permissions),
+      user.exists(_.replace),
+      group.map(_.permissions),
+      user.exists(_.replace),
       world
     )
       .map(_ => Right(Ok()))
