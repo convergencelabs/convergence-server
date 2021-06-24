@@ -195,7 +195,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     activityShardRegion
       .ask[ActivityActor.JoinResponse] { replyTo =>
         ActivityActor.JoinRequest(
-          domainId, id, session.sessionId, lurk, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], replyTo)
+          domainId, id, session, lurk, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], replyTo)
       }
       .map(_.response.fold({
         case ActivityActor.AlreadyJoined() =>
@@ -389,6 +389,12 @@ private final class ActivityClientActor private(context: ActorContext[Message],
           case ActivityStateUpdated(_, sessionId, state, complete, removed) =>
             ActivityStateUpdatedMessage(
               resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
+          case ActivityErrorMessage(_, error) =>
+            error
+          case ActivityForceLeave(_, reason) =>
+            ActivityForceLeaveMessage(resource, reason)
+          case ActivityDeleted(_) =>
+            ActivityDeletedMessage(resource)
         }
 
         clientActor ! ClientActor.SendServerMessage(serverMessage)
@@ -448,5 +454,11 @@ object ActivityClientActor {
                                         state: Map[String, JValue],
                                         complete: Boolean,
                                         removed: List[String]) extends OutgoingMessage
+
+  final case class ActivityErrorMessage(activityId: ActivityId, error: ErrorMessage) extends OutgoingMessage
+
+  final case class ActivityDeleted(activityId: ActivityId) extends OutgoingMessage
+
+  final case class ActivityForceLeave(activityId: ActivityId, reason: String) extends OutgoingMessage
 
 }

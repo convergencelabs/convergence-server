@@ -30,6 +30,10 @@ private[activity] final class ActivityStateMap() {
     state = Map()
   }
 
+  def clear(sessionId: String): Unit = {
+    join(sessionId)
+  }
+
   def getState: Map[String, Map[String, JValue]] = {
     state
   }

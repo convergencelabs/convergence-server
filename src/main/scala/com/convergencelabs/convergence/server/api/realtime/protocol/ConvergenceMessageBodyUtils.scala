@@ -109,6 +109,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.ActivitySessionLeft(message) => message
       case Body.ActivityUpdateState(message) => message
       case Body.ActivityStateUpdated(message) => message
+      case Body.ActivityDeleted(message) => message
+      case Body.ActivityForceLeave(message) => message
 
       // Presence
       case Body.PresenceSetState(message) => message
@@ -262,6 +264,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ActivitySessionLeftMessage => Body.ActivitySessionLeft(message)
       case message: ActivityUpdateStateMessage => Body.ActivityUpdateState(message)
       case message: ActivityStateUpdatedMessage => Body.ActivityStateUpdated(message)
+      case message: ActivityDeletedMessage => Body.ActivityDeleted(message)
+      case message: ActivityForceLeaveMessage => Body.ActivityForceLeave(message)
 
       // Presence
       case message: PresenceSetStateMessage => Body.PresenceSetState(message)

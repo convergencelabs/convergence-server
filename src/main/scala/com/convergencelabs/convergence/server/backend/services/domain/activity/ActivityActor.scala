@@ -15,21 +15,26 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.Ok
+import com.convergencelabs.convergence.proto.core.ErrorMessage
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
+import com.convergencelabs.convergence.server.api.realtime.ErrorCodes
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ActivityPermissionTarget
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
-import com.convergencelabs.convergence.server.backend.services.domain.permissions.{AddPermissions, AllPermissions, RemovePermissions, SetPermissions}
+import com.convergencelabs.convergence.server.backend.services.domain.permissions._
 import com.convergencelabs.convergence.server.backend.services.domain.{BaseDomainShardedActor, DomainPersistenceManager}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.activity.{Activity, ActivityId}
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.google.protobuf.struct.Value
 import org.json4s.JsonAST.JValue
 
 import java.time.Instant
 import scala.concurrent.duration.FiniteDuration
+import scala.util.{Success, Try}
 
 /**
  * The [[ActivityActor]] represents a single activity in the system. Activities
@@ -58,11 +63,27 @@ final class ActivityActor(domainId: DomainId,
 
   import ActivityActor._
 
+  private[this] val stateMap = new ActivityStateMap()
+
   private[this] var joinedClients = Map[ActorRef[OutgoingMessage], String]()
   private[this] var joinedSessions = Map[String, ActorRef[OutgoingMessage]]()
-  private[this] val stateMap = new ActivityStateMap()
+  private[this] var joinedUsers = Map[DomainUserId, Set[String]]()
+  private[this] var sessionToUser = Map[String, DomainUserId]()
+
   private[this] var ephemeral: Boolean = false
   private[this] var created: Instant = Instant.now()
+  private[this] var permissionsCache: PermissionsCache = _
+
+  override protected def initializeState(msg: Message): Try[Unit] = {
+    // TODO set ephemeral and created here perhaps.
+    this.permissionsCache = new PermissionsCache(
+      ActivityPermissionTarget(activityId),
+      this.persistenceProvider.permissionsStore,
+      ActivityPermissions.AllActivityPermissions
+    )
+
+    Success(())
+  }
 
   override def receiveInitialized(msg: Message): Behavior[Message] = {
     msg match {
@@ -117,23 +138,38 @@ final class ActivityActor(domainId: DomainId,
 
 
   private[this] def onDeleteRequest(msg: DeleteRequest): Behavior[Message] = {
-    val DeleteRequest(_, _, sessionId, replyTo) = msg
-    (for {
-      _ <- persistenceProvider.activityStore
-        .deleteActivity(activityId)
-      _ <- persistenceProvider.permissionsStore
-        .removeAllPermissionsForTarget(ActivityPermissionTarget(activityId))
-    } yield Right(Ok()))
-      .recover {
-        case _: EntityNotFoundException =>
-          Left(NotFoundError())
-        case t: Throwable =>
-          error("unexpected error deleting activity", t)
-          Left(UnknownError())
-      }
-      .foreach(replyTo ! DeleteResponse(_))
+    val DeleteRequest(_, _, requester, replyTo) = msg
+    this.permissionsCache.hasPermission(requester.map(_.userId), ActivityPermissions.Remove).map {
+      case true =>
+        this.removeAllJoinedSessionsBeforeDelete()
+
+        (for {
+          _ <- persistenceProvider.activityStore
+            .deleteActivity(activityId)
+          _ <- persistenceProvider.permissionsStore
+            .removeAllPermissionsForTarget(ActivityPermissionTarget(activityId))
+        } yield Right(Ok()))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(NotFoundError())
+            case t: Throwable =>
+              error("unexpected error deleting activity", t)
+              Left(UnknownError())
+          }
+          .foreach(replyTo ! DeleteResponse(_))
+
+      case false =>
+        replyTo ! DeleteResponse(Left(UnauthorizedError(Some("The user does not have permissions to delete the specified activity"))))
+    }
 
     Behaviors.same
+  }
+
+  private[this] def removeAllJoinedSessionsBeforeDelete(): Unit = {
+    this.joinedSessions.foreach { case (sessionId, client) =>
+      client ! ActivityDeleted(activityId)
+      this.handleSessionLeft(sessionId, quiet = true)
+    }
   }
 
   private[this] def onJoinRequest(msg: JoinRequest): Behavior[Message] = {
@@ -160,38 +196,90 @@ final class ActivityActor(domainId: DomainId,
       processJoinForExistingActivity(msg)
     }
 
+
     Behaviors.same
   }
 
-  private[this] def processJoinForExistingActivity(msg: JoinRequest): Unit = {
-    val JoinRequest(_, _, sessionId, lurk, state, _, client, replyTo) = msg
-    this.joinedSessions.get(sessionId) match {
-      case Some(_) =>
-        replyTo ! JoinResponse(Left(AlreadyJoined()))
+  private[this] def processJoinForAuthorizedUser(msg: JoinRequest): Unit = {
+    val JoinRequest(_, _, session, lurk, state, _, client, replyTo) = msg
 
-      case None =>
-        this.joinedSessions += (sessionId -> client)
-        this.joinedClients += (client -> sessionId)
+    (for {
+      canView <- permissionsCache.hasPermission(msg.session.userId, ActivityPermissions.ViewState)
+      canSet <- permissionsCache.hasPermission(msg.session.userId, ActivityPermissions.SetState)
+    } yield {
+      val sessionId = session.sessionId
+      this.joinedSessions += (sessionId -> client)
+      this.joinedClients += (client -> sessionId)
+      this.sessionToUser += sessionId -> session.userId
 
-        disableReceiveTimeout()
-        context.watch(client)
+      val userSessions = this.joinedUsers.getOrElse(session.userId, Set())
+      this.joinedUsers += session.userId -> userSessions
 
-        if (!lurk) {
-          this.stateMap.join(sessionId)
+      disableReceiveTimeout()
+      context.watch(client)
+
+      if (!lurk) {
+        this.stateMap.join(sessionId)
+
+        if (canSet) {
           state.foreach {
             case (k, v) =>
               this.stateMap.setState(sessionId, k, v)
           }
-
-          val message = ActivitySessionJoined(activityId, sessionId, state)
-          joinedSessions.values filter (_ != client) foreach (_ ! message)
         }
 
-        val joined = Joined(this.ephemeral, this.created, stateMap.getState)
+        val message = ActivitySessionJoined(activityId, sessionId, state)
+        joinedSessions.values filter (_ != client) foreach (_ ! message)
+      }
 
-        replyTo ! JoinResponse(Right(joined))
+      val activityState = if (canView) {
+        stateMap.getState
+      } else {
+        Map[String, Map[String, JValue]]()
+      }
+      val joined = Joined(this.ephemeral, this.created, activityState)
+
+      replyTo ! JoinResponse(Right(joined))
+    })
+      .recover {
+        case t: Throwable =>
+          error("Unexpected error checking permissions during join", t)
+          replyTo ! JoinResponse(Left(UnknownError()))
+      }
+  }
+
+  private[this] def processJoinForExistingActivity(msg: JoinRequest): Unit = {
+    this.joinedSessions.get(msg.session.sessionId) match {
+      case Some(_) =>
+        msg.replyTo ! JoinResponse(Left(AlreadyJoined()))
+
+      case None =>
+        (for {
+          canJoin <- permissionsCache.hasPermission(msg.session.userId, ActivityPermissions.Join)
+          canLurk <- permissionsCache.hasPermission(msg.session.userId, ActivityPermissions.Lurk)
+        } yield {
+          if (canJoin) {
+            if (msg.lurk) {
+              if (canLurk) {
+                processJoinForAuthorizedUser(msg)
+              } else {
+                msg.replyTo ! JoinResponse(Left(UnauthorizedError(Some("The user does not have permissions to lurk in the requested activity"))))
+              }
+            } else {
+              processJoinForAuthorizedUser(msg)
+            }
+          } else {
+            msg.replyTo ! JoinResponse(Left(UnauthorizedError(Some("The user does not have permissions to join the requested activity"))))
+          }
+        }).recover {
+          case t: Throwable =>
+            val message = "Unexpected error checking permissions when joining an activity"
+            error(message, t)
+            msg.replyTo ! JoinResponse(Left(UnknownError()))
+        }
     }
   }
+
 
   private[this] def processJoinForNewActivity(msg: JoinRequest): Unit = {
     msg.autoCreateData match {
@@ -199,7 +287,19 @@ final class ActivityActor(domainId: DomainId,
         val activity = Activity(activityId, data.ephemeral, Instant.now())
         this.ephemeral = data.ephemeral
         val worldPermissions = msg.autoCreateData.map(_.worldPermissions)
-        val userPermissions = msg.autoCreateData.map(_.userPermissions)
+        val userPermissions = msg.autoCreateData.map { p =>
+          // We need to ensure the user that is auto creating has all permissions
+
+          var creatorPermissions = p.userPermissions.getOrElse(msg.session.userId, ActivityPermissions.AllActivityPermissions)
+          creatorPermissions += ActivityPermissions.Join
+
+          if (msg.lurk) {
+            creatorPermissions += ActivityPermissions.Lurk
+          }
+
+          p.userPermissions + (msg.session.userId -> creatorPermissions)
+        }
+
         val groupPermissions = msg.autoCreateData.map(_.groupPermission)
         val target = ActivityPermissionTarget(activityId)
 
@@ -235,20 +335,50 @@ final class ActivityActor(domainId: DomainId,
     val UpdateState(_, _, sessionId, setState, complete, removed) = msg
 
     if (isSessionJoined(sessionId)) {
-      if (complete) {
-        stateMap.clear()
-      }
-
-      setState.foreach {
-        case (key: String, value: Any) =>
-          stateMap.setState(sessionId, key, value)
-      }
-
-      removed.foreach(key => stateMap.removeState(sessionId, key))
-
+      val userId = this.sessionToUser(sessionId)
       val setter = this.joinedSessions(sessionId)
-      val message = ActivityStateUpdated(activityId, sessionId, setState, complete, removed)
-      joinedSessions.values.filter(_ != setter) foreach (_ ! message)
+
+      this.permissionsCache.hasPermission(userId, ActivityPermissions.SetState).map {
+        case true =>
+          if (complete) {
+            stateMap.clear(sessionId)
+          }
+
+          removed.foreach(key => stateMap.removeState(sessionId, key))
+
+          setState.foreach {
+            case (key: String, value: Any) =>
+              stateMap.setState(sessionId, key, value)
+          }
+
+          val message = ActivityStateUpdated(activityId, sessionId, setState, complete, removed)
+
+          joinedSessions.filter(_._2 != setter) foreach { case (toSessionId, client) =>
+            val user = sessionToUser(toSessionId)
+            permissionsCache.hasPermission(user, ActivityPermissions.ViewState).map { ok =>
+              if (ok) client ! message
+            }.recover(e => error("Unexpected error getting permissions when sending state update", e))
+          }
+
+        case false =>
+          val errorMessage = ErrorMessage(
+            ErrorCodes.Unauthorized.toString,
+            "The user does not have permissions to set state the specified activity",
+            getActivityIdDetails()
+          )
+
+          setter ! ActivityErrorMessage(activityId, errorMessage)
+      }.recover {
+        case t: Throwable =>
+          error("Unexpected error checking permissions when updating activity state", t)
+          val errorMessage = ErrorMessage(
+            ErrorCodes.Unauthorized.toString,
+            "There was an unexpected error setting activity state",
+            getActivityIdDetails()
+          )
+
+          setter ! ActivityErrorMessage(activityId, errorMessage)
+      }
     } else {
       warn(s"Activity(${this.identityString}): Received a state update for a session($sessionId) that is not joined to the activity.")
     }
@@ -257,17 +387,26 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def onAddPermissions(msg: AddPermissionsRequest): Behavior[Message] = {
-    val AddPermissionsRequest(_, _, _, permissions, replyTo) = msg
-    val AddPermissions(world, user, group) = permissions
+    val AddPermissionsRequest(_, _, requester, permissions, replyTo) = msg
+    (for {
+      authorized <- permissionsCache.hasPermission(requester.map(_.userId), ActivityPermissions.Manage)
+      result <- if (!authorized) {
+        Success(Left(UnauthorizedError(Some("The user does not have permissions to add permissions to this activity"))))
+      } else {
+        val AddPermissions(world, user, group) = permissions
 
-    val target = ActivityPermissionTarget(activityId)
-    this.persistenceProvider.permissionsStore.addPermissionsForTarget(
-      target,
-      user,
-      group,
-      world
-    )
-      .map(_ => Right(Ok()))
+        val target = ActivityPermissionTarget(activityId)
+        this.persistenceProvider.permissionsStore.addPermissionsForTarget(
+          target,
+          user,
+          group,
+          world
+        ).map { _ =>
+          clearPermissionsAndUpdateState()
+          Right(Ok())
+        }
+      }
+    } yield result)
       .recover {
         case _: EntityNotFoundException =>
           Left(NotFoundError())
@@ -281,16 +420,25 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def onRemovePermissions(msg: RemovePermissionsRequest): Behavior[Message] = {
-    val RemovePermissionsRequest(_, _, _, permissions, replyTo) = msg
-    val RemovePermissions(world, user, group) = permissions
-    val target = ActivityPermissionTarget(activityId)
-    this.persistenceProvider.permissionsStore.removePermissionsForTarget(
-      target,
-      user,
-      group,
-      world
-    )
-      .map(_ => Right(Ok()))
+    val RemovePermissionsRequest(_, _, requester, permissions, replyTo) = msg
+    (for {
+      authorized <- permissionsCache.hasPermission(requester.map(_.userId), ActivityPermissions.Manage)
+      result <- if (!authorized) {
+        Success(Left(UnauthorizedError(Some("The user does not have permissions to remove permissions from this activity"))))
+      } else {
+        val RemovePermissions(world, user, group) = permissions
+        val target = ActivityPermissionTarget(activityId)
+        this.persistenceProvider.permissionsStore.removePermissionsForTarget(
+          target,
+          user,
+          group,
+          world
+        ).map { _ =>
+          clearPermissionsAndUpdateState()
+          Right(Ok())
+        }
+      }
+    } yield result)
       .recover {
         case _: EntityNotFoundException =>
           Left(NotFoundError())
@@ -304,18 +452,27 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def onSetPermissions(msg: SetPermissionsRequest): Behavior[Message] = {
-    val SetPermissionsRequest(_, _, _, permissions, replyTo) = msg
-    val SetPermissions(world, user, group) = permissions
-    val target = ActivityPermissionTarget(activityId)
-    this.persistenceProvider.permissionsStore.setPermissionsForTarget(
-      target,
-      user.map(_.permissions),
-      user.exists(_.replace),
-      group.map(_.permissions),
-      user.exists(_.replace),
-      world
-    )
-      .map(_ => Right(Ok()))
+    val SetPermissionsRequest(_, _, requester, permissions, replyTo) = msg
+    (for {
+      authorized <- permissionsCache.hasPermission(requester.map(_.userId), ActivityPermissions.Manage)
+      result <- if (!authorized) {
+        Success(Left(UnauthorizedError(Some("The user does not have permissions to set permissions for this activity"))))
+      } else {
+        val SetPermissions(world, user, group) = permissions
+        val target = ActivityPermissionTarget(activityId)
+        this.persistenceProvider.permissionsStore.setPermissionsForTarget(
+          target,
+          user.map(_.permissions),
+          user.exists(_.replace),
+          group.map(_.permissions),
+          user.exists(_.replace),
+          world
+        ).map { _ =>
+          clearPermissionsAndUpdateState()
+          Right(Ok())
+        }
+      }
+    } yield result)
       .recover {
         case _: EntityNotFoundException =>
           Left(NotFoundError())
@@ -329,28 +486,60 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def onGetPermissions(msg: GetPermissionsRequest): Behavior[Message] = {
-    val GetPermissionsRequest(_, _, _, replyTo) = msg
-    val target = ActivityPermissionTarget(activityId)
-    this.persistenceProvider.permissionsStore.getPermissionsForTarget(target)
-      .map(permissions => Right(permissions))
-      .recover {
-        case _: EntityNotFoundException =>
-          Left(NotFoundError())
-        case t: Throwable =>
-          error("Unexpected error getting activity permissions", t)
-          Left(UnknownError())
+    val GetPermissionsRequest(_, _, requester, replyTo) = msg
+    (for {
+      authorized <- permissionsCache.hasPermission(requester.map(_.userId), ActivityPermissions.Manage)
+      result <- if (!authorized) {
+        Success(Left(UnauthorizedError(Some("The user does not have permissions to get permissions from this activity"))))
+      } else {
+        val target = ActivityPermissionTarget(activityId)
+        this.persistenceProvider.permissionsStore.getPermissionsForTarget(target)
+          .map(permissions => Right(permissions))
+          .recover {
+            case _: EntityNotFoundException =>
+              Left(NotFoundError())
+            case t: Throwable =>
+              error("Unexpected error getting activity permissions", t)
+              Left(UnknownError())
+          }
       }
+    } yield result)
       .foreach(replyTo ! GetPermissionsResponse(_))
 
     Behaviors.same
   }
 
-  private[this] def onResolvePermissions(msg: ResolvePermissionsRequest): Behavior[Message] = {
-    this.persistenceProvider.permissionsStore.getAggregateUserPermissionsForTarget(
-      msg.session.userId,
-      ActivityPermissionTarget(activityId),
-      ActivityPermission.Constants.AllActivityPermissions
+  private[this] def getActivityIdDetails(): Map[String, Value] = {
+    Map(
+      "activityType" -> Value().withStringValue(this.activityId.activityType),
+      "activityId" -> Value().withStringValue(this.activityId.id)
     )
+  }
+
+  private[this] def clearPermissionsAndUpdateState(): Unit = {
+    this.permissionsCache.invalidate()
+    this.joinedUsers.map { case (user, sessions) =>
+      permissionsCache.getPermissionsForUser(user).map { permissions =>
+        if (!permissions.contains(ActivityPermissions.Join)) {
+          val message = ActivityForceLeave(activityId, "Join permissions for the activity were revoked")
+          sessions.foreach(s => joinedSessions(s) ! message)
+        } else if (!permissions.contains(ActivityPermissions.Lurk)) {
+          sessions.foreach(s => {
+            if (!stateMap.hasSession(s)) {
+              val message = ActivityForceLeave(activityId, "Lurk permissions for the activity were revoked")
+              joinedSessions(s) ! message
+            }
+          })
+        } else if (!permissions.contains(ActivityPermissions.ViewState)) {
+          val message = ActivityForceLeave(activityId, "Permissions to view activity state have been revoked, you must rejoin the activity.")
+          sessions.foreach(s => joinedSessions(s) ! message)
+        }
+      }
+    }
+  }
+
+  private[this] def onResolvePermissions(msg: ResolvePermissionsRequest): Behavior[Message] = {
+    this.permissionsCache.getPermissionsForUser(msg.session.userId)
       .map(permissions => Right(permissions))
       .recover {
         case _: EntityNotFoundException =>
@@ -371,20 +560,35 @@ final class ActivityActor(domainId: DomainId,
       Behaviors.same
     } else {
       replyTo ! LeaveResponse(Right(Ok()))
-      handleSessionLeft(sessionId)
+      handleSessionLeft(sessionId, quiet = false)
     }
   }
 
-  private[this] def handleSessionLeft(sessionId: String): Behavior[Message] = {
+  private[this] def handleSessionLeft(sessionId: String, quiet: Boolean): Behavior[Message] = {
     val leaver = this.joinedSessions(sessionId)
     if (this.stateMap.hasSession(sessionId)) {
       this.stateMap.leave(sessionId)
-      val message = ActivitySessionLeft(activityId, sessionId)
-      joinedSessions.values filter (_ != leaver) foreach (_ ! message)
+      if (!quiet) {
+        val message = ActivitySessionLeft(activityId, sessionId)
+        joinedSessions.values filter (_ != leaver) foreach (_ ! message)
+      }
     }
 
     this.joinedSessions -= sessionId
     this.joinedClients -= leaver
+
+    val userId = this.sessionToUser(sessionId)
+
+    val userSessions = this.joinedUsers(userId)
+    val newUserSessions = userSessions.filter(_ != sessionId)
+    if (newUserSessions.isEmpty) {
+      this.permissionsCache.invalidateUser(userId)
+      this.joinedUsers -= userId
+    } else {
+      this.joinedUsers += userId -> newUserSessions
+    }
+
+    this.sessionToUser -= sessionId
 
     this.context.unwatch(leaver)
 
@@ -404,7 +608,7 @@ final class ActivityActor(domainId: DomainId,
     this.joinedClients.get(actor) match {
       case Some(sessionId) =>
         debug(s"$identityString: Client with session $sessionId was terminated.  Leaving activity.")
-        this.handleSessionLeft(sessionId)
+        this.handleSessionLeft(sessionId, quiet = false)
       case None =>
         warn(s"$identityString: Deathwatch on a client was triggered for an actor that did not have thi activity open")
         Behaviors.same
@@ -480,7 +684,7 @@ object ActivityActor {
 
   final case class DeleteRequest(domainId: DomainId,
                                  activityId: ActivityId,
-                                 session: Option[DomainSessionAndUserId],
+                                 requester: Option[DomainSessionAndUserId],
                                  replyTo: ActorRef[DeleteResponse]) extends Message
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -499,7 +703,7 @@ object ActivityActor {
 
   final case class JoinRequest(domainId: DomainId,
                                activityId: ActivityId,
-                               sessionId: String,
+                               session: DomainSessionAndUserId,
                                lurk: Boolean,
                                state: Map[String, JValue],
                                autoCreateData: Option[ActivityAutoCreationOptions],

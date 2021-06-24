@@ -112,9 +112,9 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
    * @param filter A set of permissions to include in the look up.
    * @return A set of permissions the user has for the given target and filter.
    */
-  def getAggregateUserPermissionsForTarget(userId: DomainUserId,
-                                           target: NonGlobalPermissionTarget,
-                                           filter: Set[String]): Try[Set[String]] = withDb { db =>
+  def resolveUserPermissionsForTarget(userId: DomainUserId,
+                                      target: NonGlobalPermissionTarget,
+                                      filter: Set[String]): Try[Set[String]] = withDb { db =>
     for {
       target <- resolveNonGlobalTarget(db, target)
       userRid <- DomainUserStore.getUserRid(userId, db)
@@ -162,7 +162,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                               group: Option[Map[String, Set[String]]],
                               replaceGroups: Boolean,
                               world: Option[Set[String]],
-                              ): Try[Unit] = withDbTransaction { db =>
+                             ): Try[Unit] = withDbTransaction { db =>
     for {
       targetRid <- resolveTarget(db, target)
       _ <- user.map(setUserPermissions(targetRid, _, replaceUsers, db)).getOrElse(Success(()))

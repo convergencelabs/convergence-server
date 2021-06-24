@@ -34,7 +34,7 @@ object GetClientChatPermissionsProcessor extends PermissionsMessageProcessor[Res
   def getPermissions(permissionsStore: PermissionsStore)(message: ResolveSessionPermissionsRequest, chatId: String): Try[ResolveSessionPermissionsResponse] = {
     val ResolveSessionPermissionsRequest(_, _, requester, _) = message
     permissionsStore
-      .getAggregateUserPermissionsForTarget(requester.userId, ChatPermissionTarget(chatId), ChatPermissions.AllExistingChatPermissions)
+      .resolveUserPermissionsForTarget(requester.userId, ChatPermissionTarget(chatId), ChatPermissions.AllExistingChatPermissions)
       .map(p => ResolveSessionPermissionsResponse(Right(p)))
       .recover { cause =>
         error("Unexpected error getting client chat permissions", cause)
