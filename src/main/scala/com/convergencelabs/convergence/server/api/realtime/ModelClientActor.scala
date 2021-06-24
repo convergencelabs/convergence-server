@@ -131,8 +131,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
         this.subscribedModels.get(modelId).foreach { _ =>
           val modelDataUpdate = ModelUpdateData(
             model.metaData.version,
-            Some(instanceToTimestamp(model.metaData.createdTime)),
-            Some(instanceToTimestamp(model.metaData.modifiedTime)),
+            Some(instantToTimestamp(model.metaData.createdTime)),
+            Some(instantToTimestamp(model.metaData.modifiedTime)),
             Some(objectValueToProto(model.data))
           )
 
@@ -152,8 +152,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
           val modelUpdate = model.map { m =>
             ModelUpdateData(
               m.metaData.version,
-              Some(instanceToTimestamp(m.metaData.createdTime)),
-              Some(instanceToTimestamp(m.metaData.modifiedTime)),
+              Some(instantToTimestamp(m.metaData.createdTime)),
+              Some(instantToTimestamp(m.metaData.modifiedTime)),
               Some(objectValueToProto(m.data))
             )
           }
@@ -264,7 +264,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
         resourceId,
         session.sessionId,
         contextVersion,
-        Some(instanceToTimestamp(timestamp)),
+        Some(instantToTimestamp(timestamp)),
         Some(OperationConverters.mapOutgoing(operation)))
 
       clientActor ! SendServerMessage(message)
@@ -279,7 +279,7 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
   private[this] def onOperationAcknowledgement(opAck: OperationAcknowledgement): Unit = {
     val OperationAcknowledgement(modelId, seqNo, version, timestamp) = opAck
     resourceId(modelId) foreach { resourceId =>
-      val message = OperationAcknowledgementMessage(resourceId, seqNo, version, Some(instanceToTimestamp(timestamp)))
+      val message = OperationAcknowledgementMessage(resourceId, seqNo, version, Some(instantToTimestamp(timestamp)))
       clientActor ! SendServerMessage(message)
     }
   }
@@ -774,8 +774,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
         metaData.collection,
         java.lang.Long.toString(valueIdPrefix, 36),
         metaData.version,
-        Some(instanceToTimestamp(metaData.createdTime)),
-        Some(instanceToTimestamp(metaData.modifiedTime)),
+        Some(instantToTimestamp(metaData.createdTime)),
+        Some(instantToTimestamp(metaData.modifiedTime)),
         Some(objectValueToProto(modelData)),
         connectedClients.map(s => s.sessionId).toSeq,
         resyncingClients.map(s => s.sessionId).toSeq,
@@ -977,8 +977,8 @@ private final class ModelClientActor(context: ActorContext[ModelClientActor.Mess
               ModelResult(
                 r.metaData.collection,
                 r.metaData.id,
-                Some(instanceToTimestamp(r.metaData.createdTime)),
-                Some(instanceToTimestamp(r.metaData.modifiedTime)),
+                Some(instantToTimestamp(r.metaData.createdTime)),
+                Some(instantToTimestamp(r.metaData.modifiedTime)),
                 r.metaData.version,
                 Some(JsonProtoConverters.toStruct(r.data)))
           }

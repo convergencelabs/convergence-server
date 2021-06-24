@@ -30,12 +30,20 @@ private[activity] final class ActivityStateMap() {
     state = Map()
   }
 
+  def clear(sessionId: String): Unit = {
+    join(sessionId)
+  }
+
   def getState: Map[String, Map[String, JValue]] = {
     state
   }
 
   def join(sessionId: String): Unit = {
     state += (sessionId -> Map[String, JValue]())
+  }
+
+  def hasSession(sessionId: String): Boolean = {
+    state.contains(sessionId)
   }
 
   def leave(sessionId: String): Unit = {

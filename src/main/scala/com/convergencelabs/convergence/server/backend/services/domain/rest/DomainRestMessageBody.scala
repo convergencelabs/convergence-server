@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.rest
 
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
@@ -56,6 +57,15 @@ object DomainRestMessageBody {
 
     def unapply(arg: DomainRestMessageBody): Option[ChatServiceActor.Message] = {
       arg.chat
+    }
+  }
+
+  object Activity {
+    def apply(msg: ActivityServiceActor.Message): DomainRestMessageBody =
+      DomainRestMessageBody(activity = Some(msg))
+
+    def unapply(arg: DomainRestMessageBody): Option[ActivityServiceActor.Message] = {
+      arg.activity
     }
   }
 
@@ -128,6 +138,7 @@ case class DomainRestMessageBody private(model: Option[ModelServiceActor.Message
                                          modelPermission: Option[ModelPermissionsStoreActor.Message] = None,
                                          collection: Option[CollectionStoreActor.Message] = None,
                                          chat: Option[ChatServiceActor.Message] = None,
+                                         activity: Option[ActivityServiceActor.Message] = None,
                                          user: Option[DomainUserStoreActor.Message] = None,
                                          group: Option[UserGroupStoreActor.Message] = None,
                                          jwtKey: Option[JwtAuthKeyStoreActor.Message] = None,

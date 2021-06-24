@@ -15,11 +15,11 @@ import com.convergencelabs.convergence.server.api.realtime.ChatClientActor
 import com.convergencelabs.convergence.server.backend.datastore.domain.chat.ChatStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor._
+import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.ChatMessageProcessor.NextBehavior
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.event._
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.general.{GetHistoryMessageProcessor, RemoveChatMessageProcessor}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.processors.permissions._
-import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatPermissionResolver
 import com.convergencelabs.convergence.server.model.domain.chat.ChatState
 import grizzled.slf4j.Logging
 
@@ -102,18 +102,10 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
         MessageReplyTask(msg.replyTo, RemoveChatPermissionsProcessor.execute(msg, permissionsStore))
       case msg: SetChatPermissionsRequest =>
         MessageReplyTask(msg.replyTo, SetChatPermissionsProcessor.execute(msg, permissionsStore))
-      case msg: GetClientChatPermissionsRequest =>
+      case msg: ResolveSessionPermissionsRequest =>
         MessageReplyTask(msg.replyTo, GetClientChatPermissionsProcessor.execute(msg, permissionsStore))
-      case msg: GetWorldChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, GetWorldChatPermissionsProcessor.execute(msg, permissionsStore))
-      case msg: GetAllUserChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, onGetAllUserChatPermissionsRequest(msg))
-      case msg: GetAllGroupChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, onGetAllGroupChatPermissionsRequest(msg))
-      case msg: GetUserChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, onGetUserChatPermissionsRequest(msg))
-      case msg: GetGroupChatPermissionsRequest =>
-        MessageReplyTask(msg.replyTo, onGetGroupChatPermissionsRequest(msg))
+      case msg: GetPermissionsRequest =>
+        MessageReplyTask(msg.replyTo, GetPermissionsProcessor.execute(msg, permissionsStore))
     }
 
     result.execute()
@@ -121,20 +113,8 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
     ChatMessageProcessor.Same
   }
 
-  protected def onGetWorldChatPermissionsRequest(msg: GetWorldChatPermissionsRequest): GetWorldChatPermissionsResponse =
-    GetWorldChatPermissionsProcessor.execute(msg, permissionsStore)
-
-  protected def onGetAllUserChatPermissionsRequest(msg: GetAllUserChatPermissionsRequest): GetAllUserChatPermissionsResponse =
-    GetAllUserChatPermissionsProcessor.execute(msg, permissionsStore)
-
-  protected def onGetAllGroupChatPermissionsRequest(msg: GetAllGroupChatPermissionsRequest): GetAllGroupChatPermissionsResponse =
-    GetAllGroupChatPermissionsProcessor.execute(msg, permissionsStore)
-
-  protected def onGetUserChatPermissionsRequest(msg: GetUserChatPermissionsRequest): GetUserChatPermissionsResponse =
-    GetUserChatPermissionsProcessor.execute(msg, permissionsStore)
-
-  protected def onGetGroupChatPermissionsRequest(msg: GetGroupChatPermissionsRequest): GetGroupChatPermissionsResponse =
-    GetGroupChatPermissionsProcessor.execute(msg, permissionsStore)
+  protected def onGetPermissionsRequest(msg: GetPermissionsRequest): GetPermissionsResponse =
+    GetPermissionsProcessor.execute(msg, permissionsStore)
 
   protected def onRemoveChatRequest(message: RemoveChatRequest): NextBehavior = {
     val response = RemoveChatMessageProcessor.execute(

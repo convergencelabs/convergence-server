@@ -26,7 +26,7 @@ import java.time.Instant
 import java.util.Date
 
 // scalastyle:off magic.number
-class ActivityStoreSpec
+class   ActivityStoreSpec
   extends PersistenceStoreSpec[ActivityStore](NonRecordingSchemaManager.SchemaType.Domain)
     with AnyWordSpecLike
     with Matchers {
@@ -35,22 +35,15 @@ class ActivityStoreSpec
 
   private val date = Instant.ofEpochMilli(new Date().getTime)
 
-  private val activity1Id = ActivityId("t1", "i1")
-  private val activity1 = Activity(activity1Id, privateAccess = true, date)
-
-  private val activity2Id = ActivityId("t1", "i2")
-  private val activity2 = Activity(activity2Id, privateAccess = true, date)
-
-  private val activity3Id = ActivityId("t2", "i1")
-  private val activity3 = Activity(activity3Id, privateAccess = true, date)
-
-  private val activity4Id = ActivityId("t2", "i2")
-  private val activity4 = Activity(activity4Id, privateAccess = true, date)
+  private val activity1 = Activity(ActivityId("blue", "banana"), ephemeral = true, date)
+  private val activity2 = Activity(ActivityId("blue", "watermelon"), ephemeral = false, date)
+  private val activity3 = Activity(ActivityId("red", "apple"), ephemeral = false, date)
+  private val activity4 = Activity(ActivityId("red", "pear"), ephemeral = true, date)
 
   "An ActivityStore" when {
     "asked whether an activity exists" must {
       "return false if the activity doesn't exist" in withPersistenceStore { store =>
-        store.exists(activity1Id).get shouldBe false
+        store.exists(activity1.id).get shouldBe false
       }
 
       "return true if it does exist" in withPersistenceStore { store =>
@@ -74,7 +67,7 @@ class ActivityStoreSpec
 
     "getting a activity" must {
       "throw if it doesn't exist" in withPersistenceStore { store =>
-        store.getActivity(activity1Id).failed.get shouldBe an[EntityNotFoundException]
+        store.getActivity(activity1.id).failed.get shouldBe an[EntityNotFoundException]
       }
 
       "return the correct activity if it does exist" in withPersistenceStore { store =>
@@ -87,7 +80,7 @@ class ActivityStoreSpec
 
     "finding a activity" must {
       "return None if it doesn't exist" in withPersistenceStore { store =>
-        store.findActivity(activity1Id).get shouldBe None
+        store.findActivity(activity1.id).get shouldBe None
       }
 
       "return the correct activity if it does exist" in withPersistenceStore { store =>
@@ -105,7 +98,7 @@ class ActivityStoreSpec
         store.createActivity(activity3).get
         store.createActivity(activity4).get
 
-        val list = store.getActivities(QueryOffset(), QueryLimit()).get
+        val list = store.getActivities(QueryLimit(), QueryOffset()).get
         list shouldBe PagedData(List(activity1, activity2, activity3, activity4), 0, 4)
       }
 
@@ -115,7 +108,7 @@ class ActivityStoreSpec
         store.createActivity(activity3).get
         store.createActivity(activity4).get
 
-        val list = store.getActivities(QueryOffset(), QueryLimit(2)).get
+        val list = store.getActivities(QueryLimit(2), QueryOffset()).get
         list shouldBe PagedData(List(activity1, activity2), 0, 4)
       }
 
@@ -125,7 +118,7 @@ class ActivityStoreSpec
         store.createActivity(activity3).get
         store.createActivity(activity4).get
 
-        val list = store.getActivities(QueryOffset(1), QueryLimit()).get
+        val list = store.getActivities(QueryLimit(), QueryOffset(1)).get
         list shouldBe PagedData(List(activity2, activity3, activity4), 1, 4)
       }
 
@@ -135,8 +128,80 @@ class ActivityStoreSpec
         store.createActivity(activity3).get
         store.createActivity(activity4).get
 
-        val list = store.getActivities(QueryOffset(1), QueryLimit(2)).get
+        val list = store.getActivities(QueryLimit(2), QueryOffset(1)).get
         list shouldBe PagedData(List(activity2, activity3), 1, 4)
+      }
+    }
+
+    "searching activities" must {
+      "return all activities when no typeFilter, idFilter, limit, or offset are provided" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(None, None, QueryLimit(), QueryOffset()).get
+        list shouldBe PagedData(List(activity1, activity2, activity3, activity4), 0, 4)
+      }
+
+      "return only the limited number of activities when limit provided" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(None, None, QueryLimit(2), QueryOffset()).get
+        list shouldBe PagedData(List(activity1, activity2), 0, 4)
+      }
+
+      "return activities starting at the correct offset" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(None, None, QueryLimit(), QueryOffset(1)).get
+        list shouldBe PagedData(List(activity2, activity3, activity4), 1, 4)
+      }
+
+      "return only the correct activities when a limit and offset are provided" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(None, None, QueryLimit(2), QueryOffset(1)).get
+        list shouldBe PagedData(List(activity2, activity3), 1, 4)
+      }
+
+      "return only the correct activities when with a type filter" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(Some("bl"), None, QueryLimit(), QueryOffset()).get
+        list shouldBe PagedData(List(activity1, activity2), 0, 2)
+      }
+
+      "return only the correct activities when with an id filter" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(None, Some("e"), QueryLimit(), QueryOffset()).get
+        list shouldBe PagedData(List(activity2, activity3, activity4), 0, 3)
+      }
+
+      "return only the correct activities when with a type filter and id filter" in withPersistenceStore { store =>
+        store.createActivity(activity1).get
+        store.createActivity(activity2).get
+        store.createActivity(activity3).get
+        store.createActivity(activity4).get
+
+        val list = store.searchActivities(Some("blue"), Some("e"), QueryLimit(), QueryOffset()).get
+        list shouldBe PagedData(List(activity2), 0, 1)
       }
     }
 

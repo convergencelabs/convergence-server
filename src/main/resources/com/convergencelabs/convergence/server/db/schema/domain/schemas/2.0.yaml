@@ -656,7 +656,6 @@ actions:
     properties:
       - {name: id,          type: String,         constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: type,        type: String,         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: private,     type: Boolean,        constraints: {mandatory: true, notNull: true, readOnly: true}}
       - {name: created,     type: DateTime,       constraints: {mandatory: true, notNull: true, readOnly: true}}
 
   - action: CreateIndex

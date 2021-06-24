@@ -36,7 +36,7 @@ object RemoveChatPermissionsProcessor extends PermissionsMessageProcessor[Remove
     val RemoveChatPermissionsRequest(_, _, _, world, user, group, _) = message
     val target = ChatPermissionTarget(chatId)
     permissionsStore
-      .removePermissionsForTarget(target, user.getOrElse(Set.empty), group.getOrElse(Set.empty), world.getOrElse(Set.empty))
+      .removePermissionsForTarget(target, user.getOrElse(Map.empty), group.getOrElse(Map.empty), world.getOrElse(Set.empty))
       .map(_ => RemoveChatPermissionsResponse(Right(Ok())))
       .recover { cause =>
         error("Unexpected error removing chat permissions", cause)

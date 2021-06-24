@@ -13,7 +13,7 @@ package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.model
 import com.convergencelabs.convergence.proto.model.{ArrayValue => ProtoArrayValue, BooleanValue => ProtoBooleanValue, DataValue => ProtoDataValue, DateValue => ProtoDateValue, DoubleValue => ProtoDoubleValue, NullValue => ProtoNullValue, ObjectValue => ProtoObjectValue, StringValue => ProtoStringValue}
-import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instanceToTimestamp, timestampToInstant}
+import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instantToTimestamp, timestampToInstant}
 import com.convergencelabs.convergence.server.model.domain.model._
 
 /**
@@ -138,5 +138,5 @@ private[realtime] object DataValueProtoConverters {
     ProtoStringValue(stringValue.id, stringValue.value)
 
   def dateValueToProto(dateValue: DateValue): ProtoDateValue =
-    ProtoDateValue(dateValue.id, Some(instanceToTimestamp(dateValue.value)))
+    ProtoDateValue(dateValue.id, Some(instantToTimestamp(dateValue.value)))
 }

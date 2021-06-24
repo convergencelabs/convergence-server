@@ -14,6 +14,7 @@ package com.convergencelabs.convergence.server.backend.services.domain.rest
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.ModelServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.{DomainIdBasedActorSharding, DomainPersistenceManager, DomainPersistenceManagerActor}
@@ -23,11 +24,12 @@ import com.typesafe.config.Config
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final class DomainRestActorSharding private(config: Config,
-                                                    sharding: ClusterSharding,
-                                                    numberOfShards: Int,
-                                                    modelServiceActor: ActorRef[ModelServiceActor.Message],
-                                                    chatServiceActor: ActorRef[ChatServiceActor.Message]
-                                                   )
+                                            sharding: ClusterSharding,
+                                            numberOfShards: Int,
+                                            modelServiceActor: ActorRef[ModelServiceActor.Message],
+                                            chatServiceActor: ActorRef[ChatServiceActor.Message],
+                                            activityServiceShardRegion: ActorRef[ActivityServiceActor.Message]
+                                           )
   extends DomainIdBasedActorSharding[DomainRestActor.Message, DomainRestActorSharding.Props](DomainRestActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
   import DomainRestActorSharding._
@@ -47,7 +49,8 @@ final class DomainRestActorSharding private(config: Config,
       domainPersistenceManager,
       domainPassivationTimeout,
       modelServiceActor,
-      chatServiceActor)
+      chatServiceActor,
+      activityServiceShardRegion)
   }
 
   override protected def createProperties(): Props = {
@@ -64,8 +67,10 @@ object DomainRestActorSharding {
             sharding: ClusterSharding,
             numberOfShards: Int,
             modelServiceActor: ActorRef[ModelServiceActor.Message],
-            chatServiceActor: ActorRef[ChatServiceActor.Message]): ActorRef[DomainRestActor.Message] = {
-    val restSharding = new DomainRestActorSharding(config, sharding, numberOfShards, modelServiceActor, chatServiceActor)
+            chatServiceActor: ActorRef[ChatServiceActor.Message],
+            activityServiceShardRegion: ActorRef[ActivityServiceActor.Message]): ActorRef[DomainRestActor.Message] = {
+    val restSharding = new DomainRestActorSharding(
+      config, sharding, numberOfShards, modelServiceActor, chatServiceActor, activityServiceShardRegion)
     restSharding.shardRegion
   }
 

@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.api.realtime.protocol
 
 import com.convergencelabs.convergence.proto.model._
-import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instanceToTimestamp, timestampToInstant}
+import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters.{instantToTimestamp, timestampToInstant}
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 
@@ -243,7 +243,7 @@ private[realtime] object OperationConverters {
       //
       case DateSetOperation(id, noOp, value) =>
         DiscreteOperationData()
-          .withDateSetOperation(DateSetOperationData(id, noOp, Some(instanceToTimestamp(value))))
+          .withDateSetOperation(DateSetOperationData(id, noOp, Some(instantToTimestamp(value))))
     }
   }
 

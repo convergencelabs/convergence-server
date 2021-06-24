@@ -531,14 +531,28 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       case RequestReceived(msg: HistoricModelClientActor.IncomingRequest, cb) =>
         historyClient ! HistoricModelClientActor.IncomingProtocolRequest(msg, cb)
       case RequestReceived(msg: PermissionRequest with RequestMessage with ClientMessage, cb) =>
-        val idType = msg.idType
-        if (idType == PermissionType.CHAT) {
-          chatClient ! ChatClientActor.IncomingProtocolPermissionsRequest(msg, cb)
+        msg.target match {
+          case Some(target) =>
+            target.targetType match {
+              case _: PermissionTarget.TargetType.Activity =>
+                activityClient ! ActivityClientActor.IncomingProtocolPermissionsRequest(msg, cb)
+              case _: PermissionTarget.TargetType.Chat =>
+                chatClient ! ChatClientActor.IncomingProtocolPermissionsRequest(msg, cb)
+              case PermissionTarget.TargetType.Empty =>
+                cb.expectedError(
+                  ErrorCodes.InvalidMessage,
+                  "A permission request was received that did not have the target set."
+                )
+            }
+          case None =>
+            cb.expectedError(
+              ErrorCodes.InvalidMessage,
+              "A permission request was received that did not have the target set."
+            )
         }
-      case RequestReceived(msg, cb) =>
-        cb.expectedError(ErrorCodes.InvalidMessage, "An invalid request was received: " + msg.toString)
+      case msg =>
+        logger.error("Unexpected request message received: " + msg)
     }
-
     Behaviors.same
   }
 

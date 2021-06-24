@@ -100,14 +100,17 @@ private[realtime] object ConvergenceMessageBodyUtils {
       // Activity
       case Body.ActivityParticipantsRequest(message) => message
       case Body.ActivityParticipantsResponse(message) => message
+      case Body.ActivityCreateRequest(message) => message
+      case Body.ActivityDeleteRequest(message) => message
       case Body.ActivityJoinRequest(message) => message
       case Body.ActivityJoinResponse(message) => message
       case Body.ActivityLeaveRequest(message) => message
-      case Body.ActivityLeaveResponse(message) => message
       case Body.ActivitySessionJoined(message) => message
       case Body.ActivitySessionLeft(message) => message
       case Body.ActivityUpdateState(message) => message
       case Body.ActivityStateUpdated(message) => message
+      case Body.ActivityDeleted(message) => message
+      case Body.ActivityForceLeave(message) => message
 
       // Presence
       case Body.PresenceSetState(message) => message
@@ -167,24 +170,13 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.ChatsSearchResponse(message) => message
 
       // Permissions
-      case Body.GetClientPermissionsRequest(message) => message
-      case Body.GetClientPermissionsResponse(message) => message
+      case Body.ResolvePermissionsForConnectedSessionRequest(message) => message
+      case Body.ResolvePermissionsForConnectedSessionResponse(message) => message
       case Body.AddPermissionsRequest(message) => message
-      case Body.AddPermissionsResponse(message) => message
       case Body.RemovePermissionsRequest(message) => message
-      case Body.RemovePermissionsResponse(message) => message
       case Body.SetPermissionsRequest(message) => message
-      case Body.SetPermissionsResponse(message) => message
-      case Body.GetWorldPermissionsRequest(message) => message
-      case Body.GetWorldPermissionsResponse(message) => message
-      case Body.GetAllUserPermissionsRequest(message) => message
-      case Body.GetAllUserPermissionsResponse(message) => message
-      case Body.GetUserPermissionsRequest(message) => message
-      case Body.GetUserPermissionsResponse(message) => message
-      case Body.GetAllGroupPermissionsRequest(message) => message
-      case Body.GetAllGroupPermissionsResponse(message) => message
-      case Body.GetGroupPermissionsRequest(message) => message
-      case Body.GetGroupPermissionsResponse(message) => message
+      case Body.GetPermissionsRequest(message) => message
+      case Body.GetPermissionsResponse(message) => message
       case Body.Empty => null
     })
   }
@@ -263,14 +255,17 @@ private[realtime] object ConvergenceMessageBodyUtils {
       // Activity
       case message: ActivityParticipantsRequestMessage => Body.ActivityParticipantsRequest(message)
       case message: ActivityParticipantsResponseMessage => Body.ActivityParticipantsResponse(message)
+      case message: ActivityCreateRequestMessage => Body.ActivityCreateRequest(message)
+      case message: ActivityDeleteRequestMessage => Body.ActivityDeleteRequest(message)
       case message: ActivityJoinRequestMessage => Body.ActivityJoinRequest(message)
       case message: ActivityJoinResponseMessage => Body.ActivityJoinResponse(message)
       case message: ActivityLeaveRequestMessage => Body.ActivityLeaveRequest(message)
-      case message: ActivityLeaveResponseMessage => Body.ActivityLeaveResponse(message)
       case message: ActivitySessionJoinedMessage => Body.ActivitySessionJoined(message)
       case message: ActivitySessionLeftMessage => Body.ActivitySessionLeft(message)
       case message: ActivityUpdateStateMessage => Body.ActivityUpdateState(message)
       case message: ActivityStateUpdatedMessage => Body.ActivityStateUpdated(message)
+      case message: ActivityDeletedMessage => Body.ActivityDeleted(message)
+      case message: ActivityForceLeaveMessage => Body.ActivityForceLeave(message)
 
       // Presence
       case message: PresenceSetStateMessage => Body.PresenceSetState(message)
@@ -330,24 +325,13 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ChatsSearchResponseMessage => Body.ChatsSearchResponse(message)
 
       // Permissions
-      case message: GetClientPermissionsRequestMessage => Body.GetClientPermissionsRequest(message)
-      case message: GetClientPermissionsResponseMessage => Body.GetClientPermissionsResponse(message)
+      case message: ResolvePermissionsForConnectedSessionRequestMessage => Body.ResolvePermissionsForConnectedSessionRequest(message)
+      case message: ResolvePermissionsForConnectedSessionResponseMessage => Body.ResolvePermissionsForConnectedSessionResponse(message)
       case message: AddPermissionsRequestMessage => Body.AddPermissionsRequest(message)
-      case message: AddPermissionsResponseMessage => Body.AddPermissionsResponse(message)
       case message: RemovePermissionsRequestMessage => Body.RemovePermissionsRequest(message)
-      case message: RemovePermissionsResponseMessage => Body.RemovePermissionsResponse(message)
       case message: SetPermissionsRequestMessage => Body.SetPermissionsRequest(message)
-      case message: SetPermissionsResponseMessage => Body.SetPermissionsResponse(message)
-      case message: GetWorldPermissionsRequestMessage => Body.GetWorldPermissionsRequest(message)
-      case message: GetWorldPermissionsResponseMessage => Body.GetWorldPermissionsResponse(message)
-      case message: GetAllUserPermissionsRequestMessage => Body.GetAllUserPermissionsRequest(message)
-      case message: GetAllUserPermissionsResponseMessage => Body.GetAllUserPermissionsResponse(message)
-      case message: GetUserPermissionsRequestMessage => Body.GetUserPermissionsRequest(message)
-      case message: GetUserPermissionsResponseMessage => Body.GetUserPermissionsResponse(message)
-      case message: GetAllGroupPermissionsRequestMessage => Body.GetAllGroupPermissionsRequest(message)
-      case message: GetAllGroupPermissionsResponseMessage => Body.GetAllGroupPermissionsResponse(message)
-      case message: GetGroupPermissionsRequestMessage => Body.GetGroupPermissionsRequest(message)
-      case message: GetGroupPermissionsResponseMessage => Body.GetGroupPermissionsResponse(message)
+      case message: GetPermissionsRequestMessage => Body.GetPermissionsRequest(message)
+      case message: GetPermissionsResponseMessage => Body.GetPermissionsResponse(message)
     }
   }
 }

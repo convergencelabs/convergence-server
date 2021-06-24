@@ -14,29 +14,42 @@ package com.convergencelabs.convergence.server.backend.services.domain.activity
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, EntityContext}
 import com.convergencelabs.convergence.server.ConvergenceServerConstants.ServerClusterRoles
-import com.convergencelabs.convergence.server.util.DomainIdAndStringEntityIdSerializer
+import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor
 import com.convergencelabs.convergence.server.util.actor.NoPropsActorSharding
+import com.typesafe.config.Config
 
-private class ActivityActorSharding(sharding: ClusterSharding, numberOfShards: Int)
+import scala.concurrent.duration.Duration
+
+private class ActivityActorSharding(config: Config, sharding: ClusterSharding, numberOfShards: Int)
   extends NoPropsActorSharding[ActivityActor.Message](ActivityActorSharding.EntityName, ServerClusterRoles.Backend, sharding, numberOfShards) {
 
-   val entityIdSerializer = new DomainIdAndStringEntityIdSerializer()
+   val entityIdSerializer = new ActivityEntityIdSerializer()
 
   override def extractEntityId(msg: ActivityActor.Message): String =
-    entityIdSerializer.serialize((msg.domain, msg.activityId))
+    entityIdSerializer.serialize((msg.domainId, msg.activityId))
 
   override def createBehavior(shardRegion: ActorRef[ActivityActor.Message],
                               entityContext: EntityContext[ActivityActor.Message]): Behavior[ActivityActor.Message] = {
-    val (domainId, activity) = entityIdSerializer.deserialize(entityContext.entityId)
-    ActivityActor(domainId, activity, shardRegion, entityContext.shard)
+    val receiveTimeout = Duration.fromNanos(
+      config.getDuration("convergence.realtime.activity.passivation-timeout").toNanos)
+
+    val (domainId, activityId) = entityIdSerializer.deserialize(entityContext.entityId)
+    ActivityActor(
+      domainId,
+      activityId,
+      shardRegion,
+      entityContext.shard,
+      DomainPersistenceManagerActor,
+      receiveTimeout
+    )
   }
 }
 
 object ActivityActorSharding  {
   private val EntityName = "Activities"
 
-  def apply(sharding: ClusterSharding, numberOfShards: Int): ActorRef[ActivityActor.Message] = {
-    val activitySharding = new ActivityActorSharding(sharding, numberOfShards)
+  def apply(config: Config, sharding: ClusterSharding, numberOfShards: Int): ActorRef[ActivityActor.Message] = {
+    val activitySharding = new ActivityActorSharding(config, sharding, numberOfShards)
     activitySharding.shardRegion
   }
 }

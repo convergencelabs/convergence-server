@@ -18,7 +18,7 @@ object ActivityClass extends OrientDbClass {
     val Id = "id"
     val Type = "type"
     val Created = "created"
-    val Private = "private"
+    val Ephemeral = "ephemeral"
     val Permissions = "permissions"
   }
 

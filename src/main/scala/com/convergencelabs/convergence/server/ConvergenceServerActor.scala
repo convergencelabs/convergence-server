@@ -22,13 +22,13 @@ import com.convergencelabs.convergence.server.ConvergenceServerActor.Message
 import com.convergencelabs.convergence.server.api.realtime.{ClientActorCreator, ConvergenceRealtimeApi, ProtocolConfiguration}
 import com.convergencelabs.convergence.server.api.rest.ConvergenceRestApi
 import com.convergencelabs.convergence.server.backend.BackendServices
-import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.activity.{ActivityActor, ActivityActorSharding, ActivityServiceActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.chat.{ChatActor, ChatActorSharding, ChatDeliveryActor, ChatDeliveryActorSharding, ChatServiceActor, ChatServiceActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.identity.{IdentityServiceActor, IdentityServiceActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelOperationServiceActorSharding, ModelServiceActor, ModelServiceActorSharding, RealtimeModelActor, RealtimeModelSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.presence.{PresenceServiceActor, PresenceServiceActorSharding}
 import com.convergencelabs.convergence.server.backend.services.domain.rest.{DomainRestActor, DomainRestActorSharding}
-import com.convergencelabs.convergence.server.backend.services.domain.{DomainSessionActor, DomainSessionActorSharding}
+import com.convergencelabs.convergence.server.backend.services.domain.{DomainSessionActor, DomainSessionActorSharding, activity}
 import com.convergencelabs.convergence.server.backend.services.server.{ConvergenceDatabaseInitializerActor, DomainLifecycleTopic}
 import com.typesafe.config.ConfigRenderOptions
 import grizzled.slf4j.Logging
@@ -94,8 +94,8 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
 
     val sharding = ClusterSharding(context.system)
 
-    val realtimeModelShardRegion = RealtimeModelSharding(context.system.settings.config, sharding, shardCount)
-    val activityShardRegion = ActivityActorSharding(sharding, shardCount)
+    val realtimeModelShardRegion = RealtimeModelSharding(config, sharding, shardCount)
+    val activityShardRegion = ActivityActorSharding(config, sharding, shardCount)
     val chatDeliveryShardRegion = ChatDeliveryActorSharding(sharding, shardCount)
     val chatShardRegion = ChatActorSharding(config, sharding, shardCount, chatDeliveryShardRegion.narrow[ChatDeliveryActor.Send])
     val domainShardRegion = DomainSessionActorSharding(config, sharding, shardCount, () => {
@@ -107,8 +107,10 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     val identityServiceShardRegion = IdentityServiceActorSharding(config, sharding, shardCount)
     val presenceServiceShardRegion = PresenceServiceActorSharding(config, sharding, shardCount)
     val chatServiceShardRegion = ChatServiceActorSharding(config, sharding, shardCount)
+    val activityServiceShardRegion = ActivityServiceActorSharding(config, sharding, shardCount)
 
-    val domainRestShardRegion = DomainRestActorSharding(config, sharding, shardCount, modelServiceShardRegion, chatServiceShardRegion)
+    val domainRestShardRegion = DomainRestActorSharding(
+      config, sharding, shardCount, modelServiceShardRegion, chatServiceShardRegion, activityServiceShardRegion)
 
     val backendStartupFuture = if (roles.contains(ServerClusterRoles.Backend)) {
       this.processBackendRole(domainLifeCycleTopic)
@@ -117,7 +119,8 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
     }
 
     val restStartupFuture = if (roles.contains(ServerClusterRoles.RestApi)) {
-      this.processRestApiRole(domainRestShardRegion, realtimeModelShardRegion, chatShardRegion)
+      this.processRestApiRole(
+        domainRestShardRegion, realtimeModelShardRegion, chatShardRegion, activityShardRegion)
     } else {
       Future.successful(())
     }
@@ -226,7 +229,8 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
    */
   private[this] def processRestApiRole(domainRestRegion: ActorRef[DomainRestActor.Message],
                                        modelClusterRegion: ActorRef[RealtimeModelActor.Message],
-                                       chatClusterRegion: ActorRef[ChatActor.Message]): Future[Unit] = {
+                                       chatClusterRegion: ActorRef[ChatActor.Message],
+                                       activityClusterRegion: ActorRef[activity.ActivityActor.Message]): Future[Unit] = {
     info("Role 'restApi' detected, activating REST API...")
     val host = config.getString("convergence.rest.host")
     val port = config.getInt("convergence.rest.port")
@@ -236,7 +240,8 @@ private[server] final class ConvergenceServerActor(context: ActorContext[Message
       context,
       domainRestRegion,
       modelClusterRegion,
-      chatClusterRegion
+      chatClusterRegion,
+      activityClusterRegion
     )
     this.rest = Some(restFrontEnd)
     restFrontEnd.start()

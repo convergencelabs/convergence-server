@@ -16,7 +16,7 @@ import java.time.Instant
 import com.google.protobuf.timestamp.Timestamp
 
 private[realtime] object CommonProtoConverters {
-  def instanceToTimestamp(instant: Instant): Timestamp = Timestamp(instant.getEpochSecond, instant.getNano)
+  def instantToTimestamp(instant: Instant): Timestamp = Timestamp(instant.getEpochSecond, instant.getNano)
 
   def timestampToInstant(timestamp: Timestamp): Instant = Instant.ofEpochSecond(timestamp.seconds, timestamp.nanos)
 }

@@ -11,6 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.datastore.domain.permissions
 
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.orientechnologies.orient.core.id.ORID
 
 /**
@@ -20,12 +21,16 @@ import com.orientechnologies.orient.core.id.ORID
  */
 private[permissions] sealed trait PermissionGrantee
 
-private[permissions] case object AnyGrantee extends PermissionGrantee
-
 private[permissions] case object GrantedToWorld extends PermissionGrantee
+
+private[permissions] case class GrantedToGroup(groupId: String) extends PermissionGrantee
+
+private[permissions] case class GrantedToUser(userId: DomainUserId) extends PermissionGrantee
 
 private[permissions] case object GrantedToAnyUser extends PermissionGrantee
 
 private[permissions] case object GrantedToAnyGroup extends PermissionGrantee
+
+private[permissions] case object AnyGrantee extends PermissionGrantee
 
 private[permissions] final case class GrantedToRid(rid: ORID) extends PermissionGrantee

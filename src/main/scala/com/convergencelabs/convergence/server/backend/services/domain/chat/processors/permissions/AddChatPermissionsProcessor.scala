@@ -36,7 +36,7 @@ object AddChatPermissionsProcessor extends PermissionsMessageProcessor[AddChatPe
     val AddChatPermissionsRequest(_, _, _, world, user, group, _) = message
     val target = ChatPermissionTarget(chatId)
     permissionsStore
-      .addPermissionsForTarget(target, user.getOrElse(Set.empty), group.getOrElse(Set.empty), world.getOrElse(Set.empty))
+      .addPermissionsForTarget(target, user.getOrElse(Map.empty), group.getOrElse(Map.empty), world.getOrElse(Set.empty))
       .map(_ => AddChatPermissionsResponse(Right(Ok())))
       .recover { cause =>
         error("Unexpected error adding chat permissions", cause)

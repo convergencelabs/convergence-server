@@ -8,11 +8,13 @@
  * Alternatively, see <https://www.gnu.org/licenses/gpl-3.0.html> for the
  * full text of the GPLv3 license, if it was not provided.
  */
-package com.convergencelabs.convergence.server.model.domain.activity
 
-import java.time.Instant
+package com.convergencelabs.convergence.server.backend.services.domain.activity
 
-case class Activity(id: ActivityId,
-                    ephemeral: Boolean,
-                    created: Instant)
+import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
+
+case class ActivityAutoCreationOptions(ephemeral: Boolean,
+                                       worldPermissions: Set[String],
+                                       userPermissions: Map[DomainUserId, Set[String]],
+                                       groupPermission: Map[String, Set[String]])
 

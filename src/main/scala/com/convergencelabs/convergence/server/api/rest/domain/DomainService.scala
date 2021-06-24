@@ -20,6 +20,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatActor
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor
 import com.convergencelabs.convergence.server.backend.services.domain.rest.DomainRestActor
@@ -39,6 +40,7 @@ private[rest] final class DomainService(schedule: Scheduler,
                                         roleStoreActor: ActorRef[RoleStoreActor.Message],
                                         modelClusterRegion: ActorRef[RealtimeModelActor.Message],
                                         chatClusterRegion: ActorRef[ChatActor.Message],
+                                        activityCluster: ActorRef[ActivityActor.Message],
                                         defaultTimeout: Timeout)
   extends AbstractDomainRestService(schedule, executionContext, defaultTimeout) {
 
@@ -54,6 +56,7 @@ private[rest] final class DomainService(schedule: Scheduler,
   val domainKeyService = new DomainKeyService(domainRestActor, schedule, ec, t)
   val domainAdminTokenService = new DomainAdminTokenService(domainRestActor, schedule, ec, t)
   val domainChatService = new DomainChatService(domainRestActor, chatClusterRegion, schedule, ec, t)
+  val domainActivityService = new DomainActivityService(domainRestActor, activityCluster, schedule, ec, t)
   val domainSecurityService = new DomainMembersService(roleStoreActor, schedule, ec, t)
 
   val route: AuthorizationProfile => Route = { authProfile: AuthorizationProfile =>
@@ -106,7 +109,8 @@ private[rest] final class DomainService(schedule: Scheduler,
             domainSecurityService.route(authProfile, domain) ~
             domainSessionService.route(authProfile, domain) ~
             domainUserGroupService.route(authProfile, domain) ~
-            domainChatService.route(authProfile, domain)
+            domainChatService.route(authProfile, domain) ~
+            domainActivityService.route(authProfile, domain)
         }
       }
     }

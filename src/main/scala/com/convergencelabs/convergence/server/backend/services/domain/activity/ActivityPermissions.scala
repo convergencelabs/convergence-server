@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 - Convergence Labs, Inc.
+ * Copyright (c) 2021 - Convergence Labs, Inc.
  *
  * This file is part of the Convergence Server, which is released under
  * the terms of the GNU General Public License version 3 (GPLv3). A copy
@@ -9,8 +9,17 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.datastore.domain.permissions
+package com.convergencelabs.convergence.server.backend.services.domain.activity
 
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 
-final case class UserPermissions(user: DomainUserId, permissions: Set[String])
+object ActivityPermissions {
+  val Join: String = "join"
+  val Lurk: String = "lurk"
+  val Manage: String = "manage"
+  val Remove: String = "remove"
+  val SetState: String = "set_state"
+  val ViewState: String = "view_state"
+
+  val AllActivityPermissions = Set(Join, Lurk, Manage, Remove, SetState, ViewState)
+}
+

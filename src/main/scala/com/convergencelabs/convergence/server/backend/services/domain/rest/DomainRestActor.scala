@@ -17,6 +17,7 @@ import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.ConvergenceJwtUtil
 import com.convergencelabs.convergence.server.backend.datastore.domain.config.DomainConfigStore
 import com.convergencelabs.convergence.server.backend.datastore.domain.user.DomainUserDeletionOrchestrator
+import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.chat.ChatServiceActor
 import com.convergencelabs.convergence.server.backend.services.domain.collection.CollectionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.config.ConfigStoreActor
@@ -27,7 +28,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.rest.Domai
 import com.convergencelabs.convergence.server.backend.services.domain.session.SessionStoreActor
 import com.convergencelabs.convergence.server.backend.services.domain.stats.DomainStatsActor
 import com.convergencelabs.convergence.server.backend.services.domain.user.DomainUserStoreActor
-import com.convergencelabs.convergence.server.backend.services.domain.{AuthenticationHandler, BaseDomainShardedActor, DomainPersistenceManager}
+import com.convergencelabs.convergence.server.backend.services.domain.{AuthenticationHandler, BaseDomainShardedActor, DomainPersistenceManager, activity}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
@@ -42,7 +43,9 @@ private final class DomainRestActor(domainId: DomainId,
                                     domainPersistenceManager: DomainPersistenceManager,
                                     receiveTimeout: FiniteDuration,
                                     modelServiceActor: ActorRef[ModelServiceActor.Message],
-                                    chatServiceActor: ActorRef[ChatServiceActor.Message])
+                                    chatServiceActor: ActorRef[ChatServiceActor.Message],
+                                    activityServiceActor: ActorRef[activity.ActivityServiceActor.Message],
+                                   )
   extends BaseDomainShardedActor[DomainRestActor.Message](
     domainId, context, shardRegion, shard, domainPersistenceManager, receiveTimeout) {
 
@@ -83,6 +86,8 @@ private final class DomainRestActor(domainId: DomainId,
             statsActor ! message
           case DomainRestMessageBody.Session(message) =>
             sessionStoreActor ! message
+          case DomainRestMessageBody.Activity(message) =>
+            activityServiceActor ! message
           case DomainRestMessageBody.Chat(message) =>
             chatServiceActor ! message
           case _ =>
@@ -117,30 +122,31 @@ private final class DomainRestActor(domainId: DomainId,
   }
 
   override protected def initializeState(msg: Message): Try[Unit] = {
-      domainConfigStore = persistenceProvider.configStore
-      statsActor = context.spawn(DomainStatsActor(persistenceProvider), "DomainStats")
-      val userDeleter = new DomainUserDeletionOrchestrator(
-        persistenceProvider.userStore,
-        persistenceProvider.userGroupStore,
-        persistenceProvider.chatStore,
-        persistenceProvider.permissionsStore,
-        persistenceProvider.modelPermissionsStore,
-        persistenceProvider.collectionPermissionsStore)
+    domainConfigStore = persistenceProvider.configStore
+    statsActor = context.spawn(DomainStatsActor(persistenceProvider), "DomainStats")
+    val userDeleter = new DomainUserDeletionOrchestrator(
+      persistenceProvider.userStore,
+      persistenceProvider.userGroupStore,
+      persistenceProvider.chatStore,
+      persistenceProvider.permissionsStore,
+      persistenceProvider.modelPermissionsStore,
+      persistenceProvider.collectionPermissionsStore)
 
-      userStoreActor = context.spawn(DomainUserStoreActor(
-        persistenceProvider.userStore, userDeleter), "UserStore")
-      configStoreActor = context.spawn(ConfigStoreActor(
-        persistenceProvider.configStore), "ConfigStore")
-      collectionStoreActor = context.spawn(CollectionStoreActor(
-        persistenceProvider.collectionStore, persistenceProvider.collectionPermissionsStore), "CollectionStore")
-      modelPermissionsStoreActor = context.spawn(ModelPermissionsStoreActor(
-        persistenceProvider.modelPermissionsStore), "ModelPermissionsStore")
-      keyStoreActor = context.spawn(JwtAuthKeyStoreActor(
-        persistenceProvider.jwtAuthKeyStore), "JwtAuthKeyStore")
-      sessionStoreActor = context.spawn(SessionStoreActor(
-        persistenceProvider.sessionStore), "SessionStore")
-      groupStoreActor = context.spawn(UserGroupStoreActor(
-        persistenceProvider.userGroupStore), "GroupStore")
+    userStoreActor = context.spawn(DomainUserStoreActor(
+      persistenceProvider.userStore, userDeleter), "UserStore")
+    configStoreActor = context.spawn(ConfigStoreActor(
+      persistenceProvider.configStore), "ConfigStore")
+    collectionStoreActor = context.spawn(CollectionStoreActor(
+      persistenceProvider.collectionStore, persistenceProvider.collectionPermissionsStore), "CollectionStore")
+    modelPermissionsStoreActor = context.spawn(ModelPermissionsStoreActor(
+      persistenceProvider.modelPermissionsStore), "ModelPermissionsStore")
+    keyStoreActor = context.spawn(JwtAuthKeyStoreActor(
+      persistenceProvider.jwtAuthKeyStore), "JwtAuthKeyStore")
+    sessionStoreActor = context.spawn(SessionStoreActor(
+      persistenceProvider.sessionStore), "SessionStore")
+    groupStoreActor = context.spawn(UserGroupStoreActor(
+      persistenceProvider.userGroupStore, persistenceProvider.permissionsStore), "GroupStore")
+
     Success(())
   }
 
@@ -157,6 +163,7 @@ object DomainRestActor {
             receiveTimeout: FiniteDuration,
             modelServiceActor: ActorRef[ModelServiceActor.Message],
             chatServiceActor: ActorRef[ChatServiceActor.Message],
+            activityServiceActor: ActorRef[activity.ActivityServiceActor.Message],
            ): Behavior[Message] = Behaviors.setup(context =>
     new DomainRestActor(
       domainId,
@@ -165,7 +172,9 @@ object DomainRestActor {
       shard,
       domainPersistenceManager,
       receiveTimeout,
-      modelServiceActor, chatServiceActor)
+      modelServiceActor,
+      chatServiceActor,
+      activityServiceActor)
   )
 
   /////////////////////////////////////////////////////////////////////////////
@@ -192,6 +201,10 @@ object DomainRestActor {
 
     def apply(domainId: DomainId, msg: ChatServiceActor.Message): DomainRestMessage = {
       DomainRestMessage(domainId, DomainRestMessageBody.Chat(msg))
+    }
+
+    def apply(domainId: DomainId, msg: ActivityServiceActor.Message): DomainRestMessage = {
+      DomainRestMessage(domainId, DomainRestMessageBody.Activity(msg))
     }
 
     def apply(domainId: DomainId, msg: DomainUserStoreActor.Message): DomainRestMessage = {
