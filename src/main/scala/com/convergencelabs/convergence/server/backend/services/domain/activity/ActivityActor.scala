@@ -286,7 +286,11 @@ final class ActivityActor(domainId: DomainId,
       case Some(data) =>
         val activity = Activity(activityId, data.ephemeral, Instant.now())
         this.ephemeral = data.ephemeral
+
+        // If no world permissions were set we set them to the default.
         val worldPermissions = msg.autoCreateData.map(_.worldPermissions)
+          .orElse(Some(ActivityPermissions.DefaultWorldPermissions))
+
         val userPermissions = msg.autoCreateData.map { p =>
           // We need to ensure the user that is auto creating has all permissions
 
@@ -301,6 +305,7 @@ final class ActivityActor(domainId: DomainId,
         }
 
         val groupPermissions = msg.autoCreateData.map(_.groupPermission)
+
         val target = ActivityPermissionTarget(activityId)
 
         (for {

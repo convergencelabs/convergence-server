@@ -21,5 +21,7 @@ object ActivityPermissions {
   val ViewState: String = "view_state"
 
   val AllActivityPermissions = Set(Join, Lurk, Manage, Remove, SetState, ViewState)
+
+  val DefaultWorldPermissions = Set(Join, SetState, ViewState)
 }
 
