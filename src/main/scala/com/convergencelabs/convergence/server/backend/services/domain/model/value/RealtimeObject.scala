@@ -119,7 +119,7 @@ private[model] final class RealtimeObject(value: ObjectValue,
       val child = this.valueFactory.createValue(op.value, Some(this), Some(property))
       childValues = childValues + (property -> child)
 
-      child.detach()
+      oldChild.detach()
 
       Success(AppliedObjectSetPropertyOperation(id, noOp, property, value, Some(oldChild.dataValue())))
     }
