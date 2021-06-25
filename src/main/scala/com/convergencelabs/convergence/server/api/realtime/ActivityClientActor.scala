@@ -29,6 +29,7 @@ import com.convergencelabs.convergence.server.model.domain.activity.ActivityId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
+import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 import com.google.protobuf.struct.Value
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
@@ -104,7 +105,8 @@ private final class ActivityClientActor private(context: ActorContext[Message],
       case Some(activityId) =>
         val ActivityUpdateStateMessage(_, state, complete, removed, _) = message
         val mappedState = JsonProtoConverters.valueMapToJValueMap(state)
-        val updateMessage = ActivityActor.UpdateState(domainId, activityId, session.sessionId, mappedState, complete, removed.toList)
+        val updateMessage = ActivityActor.UpdateState(
+          domainId, activityId, context.self.narrow[ActivityErrorMessage], session.sessionId, mappedState, complete, removed.toSet)
         this.activityShardRegion ! updateMessage
       case None =>
         warn("Received an activity update message for an unregistered resource id: " + message.resourceId)
@@ -199,7 +201,7 @@ private final class ActivityClientActor private(context: ActorContext[Message],
           domainId, id, session, lurk, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], replyTo)
       }
       .map(_.response.fold({
-        case ActivityActor.AlreadyJoined() =>
+        case ActivityActor.AlreadyJoinedError() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity: {type: '$activityType', id: $activityId}.")
         case ActivityActor.NotFoundError() =>
           cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The activity does not exist: {type: '$activityType', id: $activityId}.")
@@ -389,9 +391,9 @@ private final class ActivityClientActor private(context: ActorContext[Message],
             ActivitySessionLeftMessage(resource, sessionId)
           case ActivityStateUpdated(_, sessionId, state, complete, removed) =>
             ActivityStateUpdatedMessage(
-              resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
+              resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed.toSeq)
           case ActivityErrorMessage(activityId, code, string) =>
-            ErrorMessage(code, string, getActivityIdDetails(activityId))
+            ErrorMessage(code.toString, string, getActivityIdDetails(activityId))
           case ActivityForceLeave(_, reason) =>
             ActivityForceLeaveMessage(resource, reason)
           case ActivityDeleted(_) =>
@@ -459,11 +461,14 @@ object ActivityClientActor {
 
   final case class ActivityStateUpdated(activityId: ActivityId,
                                         sessionId: String,
-                                        state: Map[String, JValue],
+                                        set: Map[String, JValue],
                                         complete: Boolean,
-                                        removed: List[String]) extends OutgoingMessage
+                                        removed: Set[String]) extends OutgoingMessage
 
-  final case class ActivityErrorMessage(activityId: ActivityId, code: String, message: String) extends OutgoingMessage
+  final case class ActivityErrorMessage(activityId: ActivityId,
+                                        @JsonScalaEnumeration(classOf[ErrorCodesTypeReference])
+                                        code: ErrorCodes.Value,
+                                        message: String) extends OutgoingMessage
 
   final case class ActivityDeleted(activityId: ActivityId) extends OutgoingMessage
 

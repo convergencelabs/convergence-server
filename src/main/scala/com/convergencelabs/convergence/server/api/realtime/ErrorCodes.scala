@@ -11,6 +11,8 @@
 
 package com.convergencelabs.convergence.server.api.realtime
 
+import com.fasterxml.jackson.core.`type`.TypeReference
+
 /**
  * The ErrorCodes enumeration defines the set of error strings that
  * can be sent back to the client.
@@ -98,3 +100,5 @@ object ErrorCodes extends Enumeration {
 
   val ChatAlreadyExists: ErrorCode = Value("chat_already_exists")
 }
+
+class ErrorCodesTypeReference extends TypeReference[ErrorCodes.type] {}

@@ -161,7 +161,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
                               replaceUsers: Boolean,
                               group: Option[Map[String, Set[String]]],
                               replaceGroups: Boolean,
-                              world: Option[Set[String]],
+                              world: Option[Set[String]]
                              ): Try[Unit] = withDbTransaction { db =>
     for {
       targetRid <- resolveTarget(db, target)

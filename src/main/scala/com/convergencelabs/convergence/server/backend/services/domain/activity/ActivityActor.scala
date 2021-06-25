@@ -16,7 +16,7 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
-import com.convergencelabs.convergence.server.api.realtime.ErrorCodes
+import com.convergencelabs.convergence.server.api.realtime.{ActivityClientActor, ErrorCodes}
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ActivityPermissionTarget
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
@@ -249,7 +249,7 @@ final class ActivityActor(domainId: DomainId,
   private[this] def processJoinForExistingActivity(msg: JoinRequest): Unit = {
     this.joinedSessions.get(msg.session.sessionId) match {
       case Some(_) =>
-        msg.replyTo ! JoinResponse(Left(AlreadyJoined()))
+        msg.replyTo ! JoinResponse(Left(AlreadyJoinedError()))
 
       case None =>
         (for {
@@ -339,7 +339,7 @@ final class ActivityActor(domainId: DomainId,
   }
 
   private[this] def onUpdateState(msg: UpdateState): Behavior[Message] = {
-    val UpdateState(_, _, sessionId, setState, complete, removed) = msg
+    val UpdateState(_, _, client, sessionId, setState, complete, removed) = msg
 
     if (isSessionJoined(sessionId)) {
       val userId = this.sessionToUser(sessionId)
@@ -368,14 +368,15 @@ final class ActivityActor(domainId: DomainId,
           }
 
         case false =>
-          setter ! ActivityErrorMessage(activityId, ErrorCodes.Unauthorized.toString, "The user does not have permissions to set state the specified activity")
+          setter ! ActivityErrorMessage(activityId, ErrorCodes.Unauthorized, "The user does not have permissions to set state the specified activity")
       }.recover {
         case t: Throwable =>
           error("Unexpected error checking permissions when updating activity state", t)
-          setter ! ActivityErrorMessage(activityId, ErrorCodes.Unauthorized.toString, "There was an unexpected error setting activity state")
+          setter ! ActivityErrorMessage(activityId, ErrorCodes.Unauthorized, "There was an unexpected error setting activity state")
       }
     } else {
       warn(s"Activity(${this.identityString}): Received a state update for a session($sessionId) that is not joined to the activity.")
+      client ! ActivityErrorMessage(activityId, ErrorCodes.ActivityNotJoined, "Can not set state on an activity that is not joined")
     }
 
     Behaviors.same
@@ -703,13 +704,13 @@ object ActivityActor {
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
-    new JsonSubTypes.Type(value = classOf[AlreadyJoined], name = "already_joined"),
+    new JsonSubTypes.Type(value = classOf[AlreadyJoinedError], name = "already_joined"),
     new JsonSubTypes.Type(value = classOf[UnauthorizedError], name = "unauthorized"),
     new JsonSubTypes.Type(value = classOf[NotFoundError], name = "not_found")
   ))
   sealed trait JoinError
 
-  final case class AlreadyJoined() extends JoinError
+  final case class AlreadyJoinedError() extends JoinError
 
   final case class Joined(ephemeral: Boolean,
                           created: Instant,
@@ -740,10 +741,11 @@ object ActivityActor {
   //
   final case class UpdateState(domainId: DomainId,
                                activityId: ActivityId,
+                               client: ActorRef[ActivityClientActor.ActivityErrorMessage],
                                sessionId: String,
-                               state: Map[String, JValue],
+                               set: Map[String, JValue],
                                complete: Boolean,
-                               removed: List[String]) extends Message
+                               removed: Set[String]) extends Message
 
   //
   // GetParticipants

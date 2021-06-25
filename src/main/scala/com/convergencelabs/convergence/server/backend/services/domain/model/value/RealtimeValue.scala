@@ -52,7 +52,7 @@ private[model] abstract class RealtimeValue(val id: String,
 
   def processOperation(operation: DiscreteOperation): Try[AppliedDiscreteOperation] = {
     if (operation.id != this.id) {
-      Failure(new IllegalArgumentException("Operation id does not match this RealTimeValues's id"))
+      Failure(new IllegalArgumentException("Operation id does not match this RealTimeValue's id"))
     } else if (operation.noOp) {
       Failure(new IllegalArgumentException("Operation should not be a noop when calling processOperation"))
     } else {
