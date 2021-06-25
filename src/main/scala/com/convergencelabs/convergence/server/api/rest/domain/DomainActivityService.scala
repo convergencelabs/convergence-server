@@ -160,11 +160,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
             NotFoundResponse
         },
         { permissions =>
-          val userPermissions = permissions.user.map { case (userId, permissions) =>
-            userId.username -> permissions
-          }
-
-          val response = AllPermissionsRestData(permissions.world, userPermissions, permissions.group)
+          val response = AllPermissionsRestData(permissions.world, permissions.user, permissions.group)
           okResponse(response)
         }
       ))
@@ -175,7 +171,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
                                    permissions: SetPermissionsRestData): Future[RestResponse] = {
     val SetPermissionsRestData(world, user, group) = permissions
     val userPermissions = user.map { p =>
-      SetUserPermissions(p.permissions.map(v => (DomainUserId.normal(v._1), v._2)), p.replace)
+      SetUserPermissions(p.permissions, p.replace)
     }
     val groupPermissions = group.map { p =>
       SetGroupPermissions(p.permissions, p.replace)
@@ -207,7 +203,7 @@ object DomainActivityService {
                                 groupPermissions: Map[String, Set[String]])
 
   final case class AllPermissionsRestData(worldPermissions: Set[String],
-                                          userPermissions: Map[String, Set[String]],
+                                          userPermissions: Map[DomainUserId, Set[String]],
                                           groupPermissions: Map[String, Set[String]])
 
   final case class SetPermissionsRestData(worldPermissions: Option[SetWorldPermissionsData],
@@ -216,7 +212,7 @@ object DomainActivityService {
 
   final case class SetWorldPermissionsData(permissions: Set[String])
 
-  final case class SetUserPermissionsData(permissions: Map[String, Set[String]], replace: Boolean)
+  final case class SetUserPermissionsData(permissions: Map[DomainUserId, Set[String]], replace: Boolean)
 
   final case class SetGroupPermissionsData(permissions: Map[String, Set[String]], replace: Boolean)
 

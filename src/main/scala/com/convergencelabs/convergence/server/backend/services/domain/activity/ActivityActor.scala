@@ -15,7 +15,6 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.Ok
-import com.convergencelabs.convergence.proto.core.ErrorMessage
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
 import com.convergencelabs.convergence.server.api.realtime.ErrorCodes
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ActivityPermissionTarget
@@ -29,7 +28,6 @@ import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import com.google.protobuf.struct.Value
 import org.json4s.JsonAST.JValue
 
 import java.time.Instant
@@ -144,10 +142,10 @@ final class ActivityActor(domainId: DomainId,
         this.removeAllJoinedSessionsBeforeDelete()
 
         (for {
-          _ <- persistenceProvider.activityStore
-            .deleteActivity(activityId)
           _ <- persistenceProvider.permissionsStore
             .removeAllPermissionsForTarget(ActivityPermissionTarget(activityId))
+          _ <- persistenceProvider.activityStore
+            .deleteActivity(activityId)
         } yield Right(Ok()))
           .recover {
             case _: EntityNotFoundException =>
@@ -168,7 +166,7 @@ final class ActivityActor(domainId: DomainId,
   private[this] def removeAllJoinedSessionsBeforeDelete(): Unit = {
     this.joinedSessions.foreach { case (sessionId, client) =>
       client ! ActivityDeleted(activityId)
-      this.handleSessionLeft(sessionId, quiet = true)
+      this.handleSessionLeft(sessionId, onDelete = true)
     }
   }
 
@@ -213,7 +211,7 @@ final class ActivityActor(domainId: DomainId,
       this.sessionToUser += sessionId -> session.userId
 
       val userSessions = this.joinedUsers.getOrElse(session.userId, Set())
-      this.joinedUsers += session.userId -> userSessions
+      this.joinedUsers += session.userId -> (userSessions + sessionId)
 
       disableReceiveTimeout()
       context.watch(client)
@@ -292,16 +290,20 @@ final class ActivityActor(domainId: DomainId,
           .orElse(Some(ActivityPermissions.DefaultWorldPermissions))
 
         val userPermissions = msg.autoCreateData.map { p =>
-          // We need to ensure the user that is auto creating has all permissions
+          // We need to ensure the user that is auto creating has all permissions if it is not
+          // and admin user.
+          if (!msg.session.userId.isConvergence) {
+            var creatorPermissions = p.userPermissions.getOrElse(msg.session.userId, ActivityPermissions.AllActivityPermissions)
+            creatorPermissions += ActivityPermissions.Join
 
-          var creatorPermissions = p.userPermissions.getOrElse(msg.session.userId, ActivityPermissions.AllActivityPermissions)
-          creatorPermissions += ActivityPermissions.Join
+            if (msg.lurk) {
+              creatorPermissions += ActivityPermissions.Lurk
+            }
 
-          if (msg.lurk) {
-            creatorPermissions += ActivityPermissions.Lurk
+            p.userPermissions + (msg.session.userId -> creatorPermissions)
+          } else {
+            p.userPermissions
           }
-
-          p.userPermissions + (msg.session.userId -> creatorPermissions)
         }
 
         val groupPermissions = msg.autoCreateData.map(_.groupPermission)
@@ -366,23 +368,11 @@ final class ActivityActor(domainId: DomainId,
           }
 
         case false =>
-          val errorMessage = ErrorMessage(
-            ErrorCodes.Unauthorized.toString,
-            "The user does not have permissions to set state the specified activity",
-            getActivityIdDetails()
-          )
-
-          setter ! ActivityErrorMessage(activityId, errorMessage)
+          setter ! ActivityErrorMessage(activityId, ErrorCodes.Unauthorized.toString, "The user does not have permissions to set state the specified activity")
       }.recover {
         case t: Throwable =>
           error("Unexpected error checking permissions when updating activity state", t)
-          val errorMessage = ErrorMessage(
-            ErrorCodes.Unauthorized.toString,
-            "There was an unexpected error setting activity state",
-            getActivityIdDetails()
-          )
-
-          setter ! ActivityErrorMessage(activityId, errorMessage)
+          setter ! ActivityErrorMessage(activityId, ErrorCodes.Unauthorized.toString, "There was an unexpected error setting activity state")
       }
     } else {
       warn(s"Activity(${this.identityString}): Received a state update for a session($sessionId) that is not joined to the activity.")
@@ -514,20 +504,16 @@ final class ActivityActor(domainId: DomainId,
     Behaviors.same
   }
 
-  private[this] def getActivityIdDetails(): Map[String, Value] = {
-    Map(
-      "activityType" -> Value().withStringValue(this.activityId.activityType),
-      "activityId" -> Value().withStringValue(this.activityId.id)
-    )
-  }
-
   private[this] def clearPermissionsAndUpdateState(): Unit = {
     this.permissionsCache.invalidate()
+    debug(this.joinedUsers)
     this.joinedUsers.map { case (user, sessions) =>
       permissionsCache.getPermissionsForUser(user).map { permissions =>
         if (!permissions.contains(ActivityPermissions.Join)) {
           val message = ActivityForceLeave(activityId, "Join permissions for the activity were revoked")
-          sessions.foreach(s => joinedSessions(s) ! message)
+          sessions.foreach { s =>
+            joinedSessions(s) ! message
+          }
         } else if (!permissions.contains(ActivityPermissions.Lurk)) {
           sessions.foreach(s => {
             if (!stateMap.hasSession(s)) {
@@ -565,15 +551,15 @@ final class ActivityActor(domainId: DomainId,
       Behaviors.same
     } else {
       replyTo ! LeaveResponse(Right(Ok()))
-      handleSessionLeft(sessionId, quiet = false)
+      handleSessionLeft(sessionId, onDelete = false)
     }
   }
 
-  private[this] def handleSessionLeft(sessionId: String, quiet: Boolean): Behavior[Message] = {
+  private[this] def handleSessionLeft(sessionId: String, onDelete: Boolean): Behavior[Message] = {
     val leaver = this.joinedSessions(sessionId)
     if (this.stateMap.hasSession(sessionId)) {
       this.stateMap.leave(sessionId)
-      if (!quiet) {
+      if (!onDelete) {
         val message = ActivitySessionLeft(activityId, sessionId)
         joinedSessions.values filter (_ != leaver) foreach (_ ! message)
       }
@@ -597,7 +583,7 @@ final class ActivityActor(domainId: DomainId,
 
     this.context.unwatch(leaver)
 
-    if (this.joinedSessions.isEmpty) {
+    if (this.joinedSessions.isEmpty && !onDelete) {
       enableReceiveTimeout()
       if (this.ephemeral) {
         this.persistenceProvider.activityStore
@@ -613,7 +599,7 @@ final class ActivityActor(domainId: DomainId,
     this.joinedClients.get(actor) match {
       case Some(sessionId) =>
         debug(s"$identityString: Client with session $sessionId was terminated.  Leaving activity.")
-        this.handleSessionLeft(sessionId, quiet = false)
+        this.handleSessionLeft(sessionId, onDelete = false)
       case None =>
         warn(s"$identityString: Deathwatch on a client was triggered for an actor that did not have thi activity open")
         Behaviors.same

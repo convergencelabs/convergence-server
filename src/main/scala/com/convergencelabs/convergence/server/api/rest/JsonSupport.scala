@@ -11,17 +11,18 @@
 
 package com.convergencelabs.convergence.server.api.rest
 
-import java.time.{Duration, Instant}
-
 import com.convergencelabs.convergence.server.api.rest.domain.DomainChatService.ChatEventData
+import com.convergencelabs.convergence.server.api.rest.domain.DomainUserIdSerializer
 import com.convergencelabs.convergence.server.model.domain.model.DataValue
-import com.convergencelabs.convergence.server.model.domain.user.DomainUserType
 import com.convergencelabs.convergence.server.model.domain.user.DomainUserType.DomainUserType
+import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
 import com.convergencelabs.convergence.server.util.DataValueToJValue
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import org.json4s.JsonAST.{JInt, JLong, JString}
 import org.json4s.jackson.Serialization
-import org.json4s.{CustomSerializer, DefaultFormats, FieldSerializer, Formats}
+import org.json4s.{CustomKeySerializer, CustomSerializer, DefaultFormats, FieldSerializer, Formats}
+
+import java.time.{Duration, Instant}
 
 /**
  * A helper trait the supports JSON serialization in the REST API.
@@ -64,7 +65,32 @@ trait JsonSupport extends Json4sSupport {
   }, {
     case domainUserType: DomainUserType =>
       JString(domainUserType.toString)
+  }))
 
+  val domainUserIdSerializer = new CustomSerializer[DomainUserId](_ => ( {
+    case JString(userId) =>
+      DomainUserIdSerializer.decodeDomainUserId(userId) match {
+        case Left(error) =>
+          throw new UnsupportedOperationException("cannot deserialize domain userId: " + error)
+        case Right(id) =>
+          id
+      }
+  }, {
+    case userId: DomainUserId =>
+      JString(DomainUserIdSerializer.encodeDomainUserId(userId))
+  }))
+
+  val domainUserIdKeySerializer = new CustomKeySerializer[DomainUserId](_ => ( {
+    case userId =>
+      DomainUserIdSerializer.decodeDomainUserId(userId) match {
+        case Left(error) =>
+          throw new UnsupportedOperationException("cannot deserialize domain userId: " + error)
+        case Right(id) =>
+          id
+      }
+  }, {
+    case userId: DomainUserId =>
+      DomainUserIdSerializer.encodeDomainUserId(userId)
   }))
 
   implicit val serialization: Serialization.type = Serialization
@@ -74,6 +100,8 @@ trait JsonSupport extends Json4sSupport {
     durationSerializer +
     dataValueSerializer +
     domainUserTypeSerializer +
+    domainUserIdSerializer +
+    domainUserIdKeySerializer +
     FieldSerializer[RestResponseEntity]() +
     FieldSerializer[ChatEventData]()
 }

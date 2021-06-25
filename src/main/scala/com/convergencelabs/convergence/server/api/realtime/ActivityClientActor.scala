@@ -29,6 +29,7 @@ import com.convergencelabs.convergence.server.model.domain.activity.ActivityId
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
+import com.google.protobuf.struct.Value
 import grizzled.slf4j.Logging
 import org.json4s.JsonAST.JValue
 import scalapb.GeneratedMessage
@@ -389,8 +390,8 @@ private final class ActivityClientActor private(context: ActorContext[Message],
           case ActivityStateUpdated(_, sessionId, state, complete, removed) =>
             ActivityStateUpdatedMessage(
               resource, sessionId, JsonProtoConverters.jValueMapToValueMap(state), complete, removed)
-          case ActivityErrorMessage(_, error) =>
-            error
+          case ActivityErrorMessage(activityId, code, string) =>
+            ErrorMessage(code, string, getActivityIdDetails(activityId))
           case ActivityForceLeave(_, reason) =>
             ActivityForceLeaveMessage(resource, reason)
           case ActivityDeleted(_) =>
@@ -403,6 +404,13 @@ private final class ActivityClientActor private(context: ActorContext[Message],
     }
 
     Behaviors.same
+  }
+
+  private[this] def getActivityIdDetails(activityId: ActivityId): Map[String, Value] = {
+    Map(
+      "activityType" -> Value().withStringValue(activityId.activityType),
+      "activityId" -> Value().withStringValue(activityId.id)
+    )
   }
 }
 
@@ -455,7 +463,7 @@ object ActivityClientActor {
                                         complete: Boolean,
                                         removed: List[String]) extends OutgoingMessage
 
-  final case class ActivityErrorMessage(activityId: ActivityId, error: ErrorMessage) extends OutgoingMessage
+  final case class ActivityErrorMessage(activityId: ActivityId, code: String, message: String) extends OutgoingMessage
 
   final case class ActivityDeleted(activityId: ActivityId) extends OutgoingMessage
 

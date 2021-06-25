@@ -62,9 +62,13 @@ class PermissionsCache(target: NonGlobalPermissionTarget,
     if (cache.contains(userId)) {
       Success(cache(userId))
     } else {
-      permissionsStore.resolveUserPermissionsForTarget(userId, target, validPermissions).map { permissions =>
-        cache = cache + (userId -> permissions)
-        permissions
+      if (userId.isConvergence) {
+        cache = cache + (userId -> this.validPermissions)
+        Success(this.validPermissions)
+      } else {permissionsStore.resolveUserPermissionsForTarget(userId, target, validPermissions).map { permissions =>
+          cache = cache + (userId -> permissions)
+          permissions
+        }
       }
     }
   }

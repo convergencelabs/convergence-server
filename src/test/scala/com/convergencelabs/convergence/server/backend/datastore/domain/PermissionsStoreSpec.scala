@@ -303,6 +303,28 @@ class PermissionsStoreSpec
 
         provider.permissionsStore.getPermissionsForWorld(target).get shouldBe world
       }
+
+      "correctly set partial user permissions" in withTestData { provider =>
+        val target = ChatPermissionTarget(chat1Id)
+
+        val user1Permissions = Set(permission1, permission2)
+        val user2Permissions = Set(permission3)
+        val user3Permissions = Set(permission2, permission3)
+        val initialUserPermissions = Map(user1 -> user1Permissions, user2 -> user2Permissions, user3 -> user3Permissions)
+
+        provider.permissionsStore.addPermissionsForTarget(target, initialUserPermissions, Map(), Set()).get
+
+        provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe user1Permissions
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
+        provider.permissionsStore.getPermissionsForUser(user3, target).get shouldBe user3Permissions
+
+        val userSet = Some(Map(user1 -> Set(permission1), user2 -> Set[String]()))
+        provider.permissionsStore.setPermissionsForTarget(target, userSet, replaceUsers = false,  None, replaceGroups = false, None)
+
+        provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe Set(permission1)
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe Set()
+        provider.permissionsStore.getPermissionsForUser(user3, target).get shouldBe user3Permissions
+      }
     }
 
     "aggregating user permissions for target" must {
