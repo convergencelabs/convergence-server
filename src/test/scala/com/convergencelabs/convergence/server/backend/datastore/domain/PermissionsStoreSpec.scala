@@ -270,10 +270,10 @@ class PermissionsStoreSpec
         provider.permissionsStore.setPermissionsForTarget(target, userSet, replaceUsers = true,  groupSet, replaceGroups = true, worldSet)
 
         provider.permissionsStore.getPermissionsForUser(user1, target).get shouldBe Set(permission1)
-        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe user2Permissions
+        provider.permissionsStore.getPermissionsForUser(user2, target).get shouldBe Set()
 
         provider.permissionsStore.getPermissionsForGroup(group1, target).get shouldBe Set(permission2)
-        provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe group2Permissions
+        provider.permissionsStore.getPermissionsForGroup(group2, target).get shouldBe Set()
 
         provider.permissionsStore.getPermissionsForWorld(target).get shouldBe Set(permission2)
       }

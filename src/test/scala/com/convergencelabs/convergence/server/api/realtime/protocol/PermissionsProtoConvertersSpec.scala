@@ -37,7 +37,7 @@ class PermissionsProtoConvertersSpec extends AnyWordSpec with Matchers {
         val g2 = "g2"
 
         val groupPermissionData: Map[String, PermissionsList] = Map(g1 -> list1, g2 -> list2)
-        protoToGroupPermissions(groupPermissionData) shouldBe Set(
+        protoToGroupPermissions(groupPermissionData) shouldBe Map(
           g1 -> list1.values.toSet,
           g2 -> list2.values.toSet,
         )

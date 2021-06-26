@@ -372,7 +372,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       """
         |let users = SELECT FROM User WHERE userType = :userType AND username = :username;
         |let user = $users[0];
-        |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $user] WHERE permissions CONTAINS(grantee = $user)
+        |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $user] WHERE permissions CONTAINS(grantee = $user);
         |DELETE FROM permission WHERE grantee = $user
         |""".stripMargin
     val params = Map("userType" -> userId.userType, "username" -> userId.username)
