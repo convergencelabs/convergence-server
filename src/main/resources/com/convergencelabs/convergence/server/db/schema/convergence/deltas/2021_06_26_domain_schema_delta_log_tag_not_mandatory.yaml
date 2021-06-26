@@ -1,0 +1,12 @@
+description: |-
+  Removes the mandatory flag from the DomainSchemaDeltaLog.tag property
+
+actions:
+
+  ##
+  ## 1. Alter the property to make it not mandatory
+  ##
+  - action: AlterProperty
+    className: DomainSchemaDeltaLog
+    name: tag
+    alterations: { constraints: {mandatory: false} }

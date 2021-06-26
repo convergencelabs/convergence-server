@@ -1,31 +1,39 @@
 description: |-
-  Adds a mode field to the Domain Class to seaparate the schema status
-  from the user intended mode (e.g. offline, online, etc.). This also
-  adds a schema version field to simplify the logic of getting the
-  current version.
+  Adds a availability field to the Domain class to seaparate the schema status
+  from the user intended mode (e.g. offline, online, etc.). This also adds
+  a schema version field to simplify the logic of getting the  current version.
 
 actions:
 
   ##
   ## 1. Assume the intention of all domains is online since that was the only
-  ##    intention previously. Also, set the domain status to healthy for
+  ##    intention previously. Also, set the domain status to ready for
   ##    any domain that is currently online.
   ##
 
   - action: RunSqlCommand
-      command: |-
-        UPDATE Domain SET availability = "online";
-        UPDATE Domain SET status = "ready" WHERE status == "online";
+    command: |-
+      UPDATE Domain SET availability = "online";
+      UPDATE Domain SET status = "ready" WHERE status == "online";
+
   ##
   ## 2. Add the availability property to the Domain class.
   ##
-  - action: CreateProperty
+  - action: AddProperty
     className: Domain
     property: {name: availability, type: String, constraints: { mandatory: true, notNull: true }}
 
   ##
-  ## 3. Add the databaseSchemaVersion property to the Domain class.
+  ## 3. Set all domains to version 1.0, since the only version of the schema
+  ##    that did not have this field was 1.0
+  - action: RunSqlCommand
+    command: |-
+      UPDATE Domain SET databaseSchemaVersion = "1.0"
+
   ##
-  - action: CreateProperty
+  ## 4. Add the databaseSchemaVersion property to the Domain class. now that
+  ##    all domains have the property.
+  ##
+  - action: AddProperty
     className: Domain
     property: {name: databaseSchemaVersion, type: String, constraints: { mandatory: true, notNull: true }}

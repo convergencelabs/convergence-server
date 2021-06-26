@@ -1,10 +1,15 @@
-released: false
+released: yes
 releaseDate: 2021-06-30
-schemaSha256: b46ec0e08ddf99551dec137b4f06982c04fc5ee3a5bf05df8cb5ba31b275c3c9
+schemaSha256: c4212e7b96c885398b84d900c5872daf3c3887dc7aa0be6d650f59bd9b78e2ae
 deltas:
+  ## Version 1.0
   - id: 2020_07_12_migrate_version_schema
     sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+
+  ## Version 2.0
+  - id: 2021_06_26_domain_schema_delta_log_tag_not_mandatory
+    sha256: 9091863c34f589def94386735b9d5e4274a609b7365fdac3fe955ea9d64c0c29
   - id: 2021_05_31_domain_availability_and_schema_version
-    sha256: 78229bf53acd7403f1ca45470fc52f94389014968a2889eace17b271cfe9c8a6
+    sha256: 0cd3ed571ee2e3cf8a7257505ace71e7a55f733555e4cdc20d4aa2796c786136
   - id: 2021_06_02_user_role_indices
-    sha256: 78229bf53acd7403f1ca45470fc52f94389014968a2889eace17b271cfe9c8a6
+    sha256: 5fc2ba93cebe85fd9df980cf1838630ae4df51364179993716c249b1e3b82127

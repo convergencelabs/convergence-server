@@ -87,6 +87,7 @@ private[backend] final class DatabaseManager(databaseUrl: String,
   }
 
   def upgradeDomain(domainId: DomainId): Either[String, Unit] = {
+    debug(s"Upgrading domain $domainId")
     for {
       db <- getDomainDatabaseProvider(domainId)
       schemaManger = new DomainSchemaManager(domainId, convergenceDbProvider, db)

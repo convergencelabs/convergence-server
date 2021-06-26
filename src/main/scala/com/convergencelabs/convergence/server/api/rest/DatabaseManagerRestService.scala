@@ -150,7 +150,6 @@ private[rest] final class DatabaseManagerRestService(executionContext: Execution
   }
 
   private[this] def onUpgradeDomainSchema(namespace: String, domainId: String): Future[RestResponse] = {
-    logger.debug(s"Received an request to upgrade domain database: $domainId")
     databaseManager.ask[UpgradeDomainResponse](UpgradeDomainRequest(DomainId(namespace, domainId), _))
       .map(_.response.fold(
         _ => InternalServerError,

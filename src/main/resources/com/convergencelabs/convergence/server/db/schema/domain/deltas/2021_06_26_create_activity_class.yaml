@@ -15,8 +15,8 @@ actions:
       - { name: type,        type: String,         constraints: { mandatory: true, notNull: true, readOnly: true } }
       - { name: created,     type: DateTime,       constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-      - action: CreateIndex
-        className: Activity
-        name: Activity.type_id
-        type: UniqueHashIndex
-        properties: [ type, id ]
+  - action: CreateIndex
+    className: Activity
+    name: Activity.type_id
+    type: UniqueHashIndex
+    properties: [ type, id ]

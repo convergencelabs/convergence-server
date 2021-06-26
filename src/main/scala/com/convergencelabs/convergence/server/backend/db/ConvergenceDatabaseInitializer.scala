@@ -426,8 +426,8 @@ final class ConvergenceDatabaseInitializer(config: Config,
             Failure(cause)
           case SchemaManager.DeltaApplicationError(None) =>
             Failure(UpgradeException("An error occurred applying an upgrade delta"))
-          case _: SchemaManager.DeltaValidationError =>
-            Failure(UpgradeException("A delta failed to validate during upgrade."))
+          case SchemaManager.InvalidDeltaHashError(delta, _, _) =>
+            Failure(UpgradeException(s"Delta '$delta' failed hash validation during upgrade."))
           case SchemaManager.RepositoryError(message) =>
             Failure(UpgradeException("A repository error occurred: " + message))
           case SchemaManager.StatePersistenceError(message) =>
@@ -460,10 +460,14 @@ final class ConvergenceDatabaseInitializer(config: Config,
       latestVersion <- getLatestDomainSchemaVersion()
       databaseStates <- domainStore.getDomainDatabaseState()
     } yield {
-      databaseStates.foreach { case (_, state) =>
+      databaseStates.foreach { case (domainId, state) =>
         val domainSchemaVersion = state.schemaVersion
         if (domainSchemaVersion < latestVersion && state.status == DomainStatus.Ready) {
-          // needs upgrade
+          info(s"Marking domain '${domainId.namespace}/${domainId.domainId}' in need of upgrade.")
+          domainStore.setDomainStatus(
+            domainId,
+            DomainStatus.SchemaUpgradeRequired,
+            s"Domain at version $domainSchemaVersion. Latest version is $latestVersion")
         }
       }
     }

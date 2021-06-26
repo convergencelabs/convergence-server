@@ -14,8 +14,8 @@ actions:
   ##
   ## 2. Rename the properties
   ##
-  - {action: AlterProperty, class: Permission, name: assignedTo, alterations: { name: grantee}}
-  - {action: AlterProperty, class: Permission, name: forRecord, alterations: { name: target }}
+  - {action: AlterProperty, className: Permission, name: assignedTo, alterations: { name: grantee}}
+  - {action: AlterProperty, className: Permission, name: forRecord, alterations: { name: target }}
 
   ##
   ## 3. Create the new index.

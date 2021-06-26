@@ -9,10 +9,10 @@ actions:
   ## 1. Alter the existing properties in the DomainConfig class to make
   ##    them non mandatory
   ##
-  - {action: AlterProperty, class: DomainConfig, name: adminPublicKey, alterations: { constraints: {mandatory: false} }}
-  - {action: AlterProperty, class: DomainConfig, name: adminPublicKey, alterations: { constraints: {mandatory: false} }}
-  - {action: AlterProperty, class: DomainConfig, name: modelSnapshotConfig, alterations: { constraints: {mandatory: false} }}
-  - {action: AlterProperty, class: DomainConfig, name: anonymousAuth, alterations: { constraints: {mandatory: false} }}
+  - {action: DropProperty, className: DomainConfig, name: adminPublicKey}
+  - {action: DropProperty, className: DomainConfig, name: adminPrivateKey}
+  - {action: DropProperty, className: DomainConfig, name: modelSnapshotConfig}
+  - {action: DropProperty, className: DomainConfig, name: anonymousAuth}
 
 
   ##
@@ -46,10 +46,10 @@ actions:
   ##
   ## 3. Add the new key and value fields after the data has been migrated.
   ##
-  - action: AddPropery
+  - action: AddProperty
     className: DomainConfig
     property: { name: key, type: String, constraints: { mandatory: true, notNull: true } }
 
-  - action: AddPropery
+  - action: AddProperty
     className: DomainConfig
     property: { name: value, type: Any, constraints: { mandatory: true, notNull: true } }

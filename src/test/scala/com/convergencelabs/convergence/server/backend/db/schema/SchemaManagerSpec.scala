@@ -196,7 +196,7 @@ final class SchemaManagerSpec extends AnyWordSpecLike with Matchers with Mockito
         val schemaManager = new SchemaManager(metaDataRepo, schemaStatePersistence, deltaApplicator)
 
         val Left(error) = schemaManager.install()
-        error shouldBe a[DeltaValidationError]
+        error shouldBe a[InvalidSchemaHashError]
       }
     }
 

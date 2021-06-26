@@ -80,6 +80,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
       _ <- {
         if (manifest.released) {
           validateHash(manifest.schemaSha256, schemaDelta.script)
+            .left.map(err => InvalidSchemaHashError(version, err.expected, err.actual))
         } else {
           Right(())
         }
@@ -117,11 +118,12 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
       _ <- recordNewVersion(version, Instant.now())
     } yield ())
       .left.map{err =>
+      error(err)
       err match {
         case DeltaApplicationError(cause) =>
           recordUpgradeFailure(cause.map(_.getMessage).getOrElse("Unknown error applying delta during upgrade"))
-        case _: InvalidHashError =>
-          recordUpgradeFailure("A delta failed hash validation")
+        case InvalidDeltaHashError(delta, _, _) =>
+          recordUpgradeFailure(s"Delta '$delta' failed hash verification")
         case RepositoryError(message) =>
           recordUpgradeFailure(message)
         case StatePersistenceError(message) =>
@@ -162,6 +164,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
   }
 
   private[this] def applyDelta(delta: UpgradeDeltaAndScript, appliedForVersion: String): Either[DeltaApplicationError, Unit] = {
+    debug(s"Applying delta ${delta.id.id}")
     deltaApplicator.applyDeltaToSchema(delta.delta) match {
       case Failure(exception) =>
         recordDeltaFailure(delta, exception, appliedForVersion)
@@ -198,6 +201,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
       result = for {
         delta <- readDelta(entry.toDeltaId)
         _ <- validateHash(entry.sha256, delta.script)
+          .left.map(err => InvalidDeltaHashError(entry.id, err.expected, err.actual))
         updated <- result.map { currentList =>
           currentList :+ delta
         }
@@ -225,7 +229,7 @@ private[schema] class SchemaManager(schemaMetaDataRepository: SchemaMetaDataRepo
     schemaMetaDataRepository.readDelta(deltaId)
       .left.map(e => mapReadError(e, s"delta $deltaId"))
 
-  private[this] def validateHash(expectedHash: String, script: String): Either[DeltaValidationError, Unit] =
+  private[this] def validateHash(expectedHash: String, script: String): Either[InvalidHashError, Unit] =
     Sha256HashValidator
       .validateHash(script, expectedHash)
       .left.map(error => InvalidHashError(error.expected, error.actual))
@@ -274,16 +278,19 @@ object SchemaManager {
 
   sealed trait SchemaInstallError
 
+  final case class InvalidSchemaHashError(version: String, expected: String, actual: String) extends SchemaInstallError
+
   sealed trait SchemaUpgradeError
+
+  final case class InvalidDeltaHashError(deltaId: String, expected: String, actual: String) extends SchemaUpgradeError
+
+  // Common
+
+  final case class RepositoryError(message: String) extends SchemaInstallError with SchemaUpgradeError
+  final case class StatePersistenceError(message: String) extends SchemaInstallError with SchemaUpgradeError
 
   final case class DeltaApplicationError(cause: Option[Throwable] = None) extends SchemaInstallError with SchemaUpgradeError
 
-  sealed trait DeltaValidationError extends SchemaInstallError with SchemaUpgradeError
-
-  final case class RepositoryError(message: String) extends SchemaInstallError with SchemaUpgradeError
-
-  final case class InvalidHashError(expected: String, actual: String) extends DeltaValidationError
-
-  final case class StatePersistenceError(message: String) extends SchemaInstallError with SchemaUpgradeError
+  final case class InvalidHashError(expected: String, actual: String)
 
 }
