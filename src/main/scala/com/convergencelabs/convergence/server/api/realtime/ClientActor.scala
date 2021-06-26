@@ -355,7 +355,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
                     )
 
                   case AuthenticationFailed() =>
-                    ConnectionFailureData("authentication_failed", "", retryOk = false)
+                    ConnectionFailureData("authentication_failed", "Authentication failed", retryOk = false)
 
                   case AnonymousAuthenticationDisabled() =>
                     ConnectionFailureData("anonymous_auth_disabled", "Anonymous authentication is disabled for the requested domain.", retryOk = false)
