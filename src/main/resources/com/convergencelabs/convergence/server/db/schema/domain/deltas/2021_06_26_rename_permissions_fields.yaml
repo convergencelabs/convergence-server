@@ -1,0 +1,27 @@
+description: |-
+  Two fields in the Permisison class have been renamed. The "assignedTo" field
+  has been renamed to "grantee" and the "forRecord" field has been renamed
+  "grantee".
+
+actions:
+
+  ##
+  ## 1. Drop the index that references the old properties.
+  ##
+  - action: DropIndex
+    name: Permission.assignedTo_forRecord_permission
+
+  ##
+  ## 2. Rename the properties
+  ##
+  - {action: AlterProperty, class: Permission, name: assignedTo, alterations: { name: grantee}}
+  - {action: AlterProperty, class: Permission, name: forRecord, alterations: { name: target }}
+
+  ##
+  ## 3. Create the new index.
+  ##
+  - action: CreateIndex
+    className: Permission
+    name: Permission.grantee_target_permission
+    type: UniqueHashIndex
+    properties: [ grantee, target, permission ]

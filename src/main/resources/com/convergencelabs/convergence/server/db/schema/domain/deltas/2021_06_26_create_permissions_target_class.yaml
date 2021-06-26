@@ -1,0 +1,15 @@
+description: |-
+  Creates the new PermissionTarget abstract class that will be the super class
+  of the Activity and Chat class.
+
+actions:
+
+  ##
+  ## 1. Create the abstract permission target class.
+  ##
+
+  - action: CreateClass
+    name: PermissionTarget
+    abstract: true
+    properties:
+      - { name: permissions, type: LinkSet, linkedClass: Permission,        constraints: { mandatory: false, notNull: true } }

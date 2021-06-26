@@ -1,4 +1,17 @@
 released: false
-releaseDate: 2021-06-01
+releaseDate: 2021-06-26
 schemaSha256: a5083792465aa41894e28d39f86fec6c7187b5dde809d8df494a666df45ace75
-deltas: []
+deltas:
+  - id: 2021_06_01_data_value_model_index
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+  - id: 2021_06_26_domain_config_key_value_refactor
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+  - id: 2021_06_26_create_permissions_target_class
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+  - id: 2021_06_26_create_activity_class
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+  - id: 2021_06_26_set_chat_class_superclass
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+  - id: 2021_06_26_rename_permissions_fields
+    sha256: 7f4bad07313382850e12561ca750e678e331ceabf94a49ab9dc70d55862751cb
+

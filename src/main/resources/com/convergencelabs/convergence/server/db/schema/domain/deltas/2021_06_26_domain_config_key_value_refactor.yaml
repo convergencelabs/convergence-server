@@ -1,0 +1,55 @@
+description: |-
+  The DomainConfig class was refactored to be a more generalized key-value
+  structure. All existing fields are removed and replaced with the "key" and
+  "value" fields.  Existing data will be migrated into the new structure.
+
+actions:
+
+  ##
+  ## 1. Alter the existing properties in the DomainConfig class to make
+  ##    them non mandatory
+  ##
+  - {action: AlterProperty, class: DomainConfig, name: adminPublicKey, alterations: { constraints: {mandatory: false} }}
+  - {action: AlterProperty, class: DomainConfig, name: adminPublicKey, alterations: { constraints: {mandatory: false} }}
+  - {action: AlterProperty, class: DomainConfig, name: modelSnapshotConfig, alterations: { constraints: {mandatory: false} }}
+  - {action: AlterProperty, class: DomainConfig, name: anonymousAuth, alterations: { constraints: {mandatory: false} }}
+
+
+  ##
+  ## 2. Migrate the data into the new key/value structure.
+  ##
+  - action: RunSqlCommand
+    command: |-
+      LET existingConfigs = SELECT FROM DomainConfig;
+      LET config = $existingConfigs[0];
+
+      INSERT INTO DomainConfig SET key = "collection.autoCreate", value = true;
+
+      INSERT INTO DomainConfig SET key = "authentication.reconnectTokenValidityMinutes", value = 1440;
+      INSERT INTO DomainConfig SET key = "authentication.anonymousAuthEnabled", value = $config.anonymousAuth;
+      INSERT INTO DomainConfig SET key = "authentication.adminJwtPublicKey", value = $config.adminPublicKey;
+      INSERT INTO DomainConfig SET key = "authentication.adminJwtPrivateKey", value = $config.adminPrivateKey;
+
+      INSERT INTO DomainConfig SET key = "model.snapshots.enabled", value = $config.modelSnapshotConfig.enabled;
+      INSERT INTO DomainConfig SET key = "model.snapshots.triggerByVersion", value = $config.modelSnapshotConfig.triggerByVersion;
+      INSERT INTO DomainConfig SET key = "model.snapshots.limitedByVersion", value = $config.modelSnapshotConfig.limitedByVersion;
+      INSERT INTO DomainConfig SET key = "model.snapshots.minVersionInterval", value = $config.modelSnapshotConfig.minVersionInterval;
+      INSERT INTO DomainConfig SET key = "model.snapshots.maxVersionInterval", value = $config.modelSnapshotConfig.maxVersionInterval;
+      INSERT INTO DomainConfig SET key = "model.snapshots.triggerByTime", value = $config.modelSnapshotConfig.triggerByTime;
+      INSERT INTO DomainConfig SET key = "model.snapshots.limitedByTime", value = $config.modelSnapshotConfig.limitedByTime;
+      INSERT INTO DomainConfig SET key = "model.snapshots.minTimeInterval", value = $config.modelSnapshotConfig.minTimeInterval;
+      INSERT INTO DomainConfig SET key = "model.snapshots.maxTimeInterval", value = $config.modelSnapshotConfig.maxTimeInterval;
+
+      DELETE FROM DomainConfig WHERE key IS NOT DEFINED;
+
+
+  ##
+  ## 3. Add the new key and value fields after the data has been migrated.
+  ##
+  - action: AddPropery
+    className: DomainConfig
+    property: { name: key, type: String, constraints: { mandatory: true, notNull: true } }
+
+  - action: AddPropery
+    className: DomainConfig
+    property: { name: value, type: Any, constraints: { mandatory: true, notNull: true } }

@@ -1,5 +1,5 @@
 description: |-
-  Adds an index for DataVales by model so that deleting all operations
+  Adds an index for DataValues by model so that deleting all operations
   for a model is faster.
 
 actions:

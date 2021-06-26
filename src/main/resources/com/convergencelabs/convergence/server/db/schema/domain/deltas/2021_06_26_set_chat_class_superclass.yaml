@@ -1,0 +1,12 @@
+description: |-
+  Sets the super class of the Chat class to the PermissionTarget class.
+
+actions:
+
+  ##
+  ## 1. Set the superclass of the Chat class.
+  ##
+
+  - action: AlterClass
+    name: Chat
+    superclass: PermissionTarget
