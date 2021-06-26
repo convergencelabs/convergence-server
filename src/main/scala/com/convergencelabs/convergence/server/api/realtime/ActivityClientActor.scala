@@ -184,37 +184,43 @@ private final class ActivityClientActor private(context: ActorContext[Message],
 
   private[this] def onActivityJoin(RequestMessage: ActivityJoinRequestMessage, cb: ReplyCallback): Unit = {
     val ActivityJoinRequestMessage(activityType, activityId, lurk, state, autoCreateMessage, _) = RequestMessage
-    val id = ActivityId(activityType, activityId)
-    val jsonState = JsonProtoConverters.valueMapToJValueMap(state)
-    val autoCreateOptions = autoCreateMessage.map { data =>
+    if (activityType.isEmpty) {
+      cb.reply(ErrorMessage("invalid_activity_type", "The activity type must be set"))
+    } else if (activityId.isEmpty) {
+      cb.reply(ErrorMessage("invalid_activity_id", "The activity id must be set"))
+    } else {
+      val id = ActivityId(activityType, activityId)
+      val jsonState = JsonProtoConverters.valueMapToJValueMap(state)
+      val autoCreateOptions = autoCreateMessage.map { data =>
 
-      val worldPermission = PermissionProtoConverters.protoToWorldPermissions(data.worldPermissions)
-      val userPermissions = PermissionProtoConverters.protoToUserPermissions(data.userPermissions)
-      val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(data.groupPermissions)
+        val worldPermission = PermissionProtoConverters.protoToWorldPermissions(data.worldPermissions)
+        val userPermissions = PermissionProtoConverters.protoToUserPermissions(data.userPermissions)
+        val groupPermissions = PermissionProtoConverters.protoToGroupPermissions(data.groupPermissions)
 
-      ActivityAutoCreationOptions(data.ephemeral, worldPermission, userPermissions, groupPermissions)
-    }
-    val resource = resourceManager.getOrAssignResource(id)
-    activityShardRegion
-      .ask[ActivityActor.JoinResponse] { replyTo =>
-        ActivityActor.JoinRequest(
-          domainId, id, session, lurk, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], replyTo)
+        ActivityAutoCreationOptions(data.ephemeral, worldPermission, userPermissions, groupPermissions)
       }
-      .map(_.response.fold({
-        case ActivityActor.AlreadyJoinedError() =>
-          cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity: {type: '$activityType', id: $activityId}.")
-        case ActivityActor.NotFoundError() =>
-          cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The activity does not exist: {type: '$activityType', id: $activityId}.")
-        case ActivityActor.UnauthorizedError(msg) =>
-          cb.expectedError(ErrorCodes.Unauthorized, msg.getOrElse(""));
-        case ActivityActor.UnknownError() =>
-          cb.unknownError()
-      }, { response =>
-        val ActivityActor.Joined(ephemeral, created, state) = response
-        val mappedState = state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
-        cb.reply(ActivityJoinResponseMessage(resource, mappedState, ephemeral, Some(CommonProtoConverters.instantToTimestamp(created))))
-      }))
-      .recoverWith(handleAskFailure(_, cb))
+      val resource = resourceManager.getOrAssignResource(id)
+      activityShardRegion
+        .ask[ActivityActor.JoinResponse] { replyTo =>
+          ActivityActor.JoinRequest(
+            domainId, id, session, lurk, jsonState, autoCreateOptions, context.self.narrow[OutgoingMessage], replyTo)
+        }
+        .map(_.response.fold({
+          case ActivityActor.AlreadyJoinedError() =>
+            cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The session is already joined to activity: {type: '$activityType', id: $activityId}.")
+          case ActivityActor.NotFoundError() =>
+            cb.expectedError(ErrorCodes.ActivityAlreadyJoined, s"The activity does not exist: {type: '$activityType', id: $activityId}.")
+          case ActivityActor.UnauthorizedError(msg) =>
+            cb.expectedError(ErrorCodes.Unauthorized, msg.getOrElse(""));
+          case ActivityActor.UnknownError() =>
+            cb.unknownError()
+        }, { response =>
+          val ActivityActor.Joined(ephemeral, created, state) = response
+          val mappedState = state.view.mapValues(v => ActivityStateData(JsonProtoConverters.jValueMapToValueMap(v))).toMap
+          cb.reply(ActivityJoinResponseMessage(resource, mappedState, ephemeral, Some(CommonProtoConverters.instantToTimestamp(created))))
+        }))
+        .recoverWith(handleAskFailure(_, cb))
+    }
   }
 
   private[this] def onActivityLeave(message: ActivityLeaveRequestMessage, cb: ReplyCallback): Unit = {
