@@ -532,7 +532,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
       """
         |let groups = SELECT FROM UserGroup WHERE groupId = :groupId;
         |let group = $groups[0];
-        |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $group] WHERE permissions CONTAINS(grantee = $group)
+        |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $group] WHERE permissions CONTAINS(grantee = $group);
         |DELETE FROM permission WHERE grantee = $group
         |""".stripMargin
     val params = Map("groupId" -> groupId)
