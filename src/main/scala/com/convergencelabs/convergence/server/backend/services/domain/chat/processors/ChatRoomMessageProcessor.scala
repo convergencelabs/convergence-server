@@ -128,10 +128,20 @@ private[chat] final class ChatRoomMessageProcessor(chatState: ChatState,
     }
   }
 
-  def broadcast(message: ChatClientActor.OutgoingMessage): Unit = {
+  override protected def broadcast(message: ChatClientActor.OutgoingMessage): Unit = {
     clientManager.joinedClients().foreach(client => {
       client ! message
     })
+  }
+
+  override def shutdown(): Unit = {
+    this.removeAllMembers()
+  }
+
+  override def startup(): Unit = {
+    // this would only need to happen if a previous instance of this room crashed without
+    // cleaning up properly.
+    this.removeAllMembers()
   }
 }
 

@@ -74,9 +74,9 @@ class ChatActor private(domainId: DomainId,
       provider <- DomainPersistenceManagerActor.acquirePersistenceProvider(context.self, context.system, domainId)
       state <- createState(chatId, provider.chatStore)
     } yield {
+      debug("Initial Chat State: " + state)
       state.chatType match {
         case ChatType.Room =>
-
           val clientManager = new ChatRoomClientManager()
           val clientWatcher = context.spawnAnonymous(ChatRoomClientWatcher(context.self, domainId, state.id, clientManager))
 
@@ -87,10 +87,9 @@ class ChatActor private(domainId: DomainId,
             domainId,
             clientManager,
             clientWatcher)
-          // this would only need to happen if a previous instance of this room crashed without
-          // cleaning up properly.
-          mp.removeAllMembers()
+
           this.messageProcessor = Some(mp)
+
         case ChatType.Channel =>
           context.setReceiveTimeout(receiveTimeout, ReceiveTimeout(this.domainId, this.chatId))
           state.membership match {
@@ -101,6 +100,7 @@ class ChatActor private(domainId: DomainId,
                 provider.permissionsStore,
                 domainId,
                 chatDeliveryRegion))
+
             case ChatMembership.Public =>
               this.messageProcessor = Some(new PublicChannelMessageProcessor(
                 state,
@@ -109,6 +109,7 @@ class ChatActor private(domainId: DomainId,
                 domainId,
                 chatDeliveryRegion))
           }
+
         case ChatType.Direct =>
           context.setReceiveTimeout(receiveTimeout, ReceiveTimeout(this.domainId, this.chatId))
           this.messageProcessor = Some(new DirectChatMessageProcessor(
@@ -119,6 +120,8 @@ class ChatActor private(domainId: DomainId,
             chatDeliveryRegion
           ))
       }
+
+      this.messageProcessor.foreach(_.startup())
       StartUpRequired
     })
       .recoverWith {
@@ -141,7 +144,8 @@ class ChatActor private(domainId: DomainId,
 
   override def postStop(): Unit = {
     super.postStop()
-    messageProcessor.foreach(_.removeAllMembers())
+
+    messageProcessor.foreach(_.shutdown())
     DomainPersistenceManagerActor.releasePersistenceProvider(context.self, context.system, domainId)
   }
 

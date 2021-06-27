@@ -146,7 +146,7 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
     task.broadcast.foreach(broadcast)
   }
 
-  def removeAllMembers(): Unit = {
+  protected def removeAllMembers(): Unit = {
     state.members.values.foreach(member => {
       chatStore.removeChatMember(state.id, member.userId) recover {
         case cause: Throwable =>
@@ -158,6 +158,10 @@ abstract class ChatMessageProcessor(protected var state: ChatState,
   }
 
   protected def broadcast(message: ChatClientActor.OutgoingMessage): Unit
+
+  def shutdown(): Unit = {}
+
+  def startup(): Unit = {}
 }
 
 object ChatMessageProcessor {
