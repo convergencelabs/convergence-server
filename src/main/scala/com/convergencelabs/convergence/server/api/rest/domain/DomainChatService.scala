@@ -141,7 +141,7 @@ private[domain] final class DomainChatService(domainRestActor: ActorRef[DomainRe
           case UnknownError() =>
             InternalServerError
         },
-        chatId => createdResponse(chatId)
+        chatId => createdResponse(ChatCreatedResponseData(chatId))
       ))
   }
 
@@ -284,6 +284,8 @@ object DomainChatService {
                                      lastEventTimestamp: Instant)
 
   final case class CreateChatData(chatId: String, chatType: String, membership: String, name: String, topic: String, members: Set[String])
+
+  final case class ChatCreatedResponseData(chatId: String)
 
   final case class SetNameData(name: String)
 

@@ -128,7 +128,6 @@ class ChatActor private(domainId: DomainId,
         case NonFatal(cause) =>
           error(s"error initializing chat channel: '$domainId/$chatId'", cause)
           Failure(cause)
-
       }
   }
 
@@ -177,7 +176,6 @@ class ChatActor private(domainId: DomainId,
       .getChatState(chatId)
       .recoverWith {
         case cause: EntityNotFoundException =>
-          logger.error(cause)
           Failure(ChatNotFoundException(chatId))
       }
   }
