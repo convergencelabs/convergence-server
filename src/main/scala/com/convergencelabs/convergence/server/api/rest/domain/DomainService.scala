@@ -27,6 +27,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.rest.Domai
 import com.convergencelabs.convergence.server.backend.services.server.DomainStoreActor._
 import com.convergencelabs.convergence.server.backend.services.server.{DomainStoreActor, RoleStoreActor}
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.CollectionConfig
 import com.convergencelabs.convergence.server.model.server.domain.DomainAvailability
 import com.convergencelabs.convergence.server.security.AuthorizationProfile
 import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
@@ -118,8 +119,9 @@ private[rest] final class DomainService(schedule: Scheduler,
 
   private[this] def createDomain(createRequest: CreateDomainRestRequestData, authProfile: AuthorizationProfile): Future[RestResponse] = {
     val CreateDomainRestRequestData(namespace, id, displayName) = createRequest
+    val collectionConfig = CollectionConfig(false)
     domainStoreActor.ask[CreateDomainResponse](
-      CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, authProfile.username, _))
+      CreateDomainRequest(namespace, id, displayName, anonymousAuth = false, collectionConfig, authProfile.username, _))
       .map(_.dbInfo.fold(
         {
           case DomainAlreadyExistsError(field) =>

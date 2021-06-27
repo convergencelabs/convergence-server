@@ -23,6 +23,7 @@ import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueE
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.{DestroyDomainRequest, DestroyDomainResponse}
 import com.convergencelabs.convergence.server.backend.services.server.DomainLifecycleTopic.DomainAvailabilityChanged
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.CollectionConfig
 import com.convergencelabs.convergence.server.model.server.domain.{Domain, DomainAvailability, DomainDatabase, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.role.DomainRoleTarget
 import com.convergencelabs.convergence.server.security.{AuthorizationProfile, AuthorizationProfileData, Permissions}
@@ -107,14 +108,14 @@ private final class DomainStoreActor(context: ActorContext[DomainStoreActor.Mess
   }
 
   private[this] def onCreateDomain(createRequest: CreateDomainRequest): Unit = {
-    val CreateDomainRequest(namespace, id, displayName, anonymousAuth, owner, replyTo) = createRequest
+    val CreateDomainRequest(namespace, id, displayName, anonymousAuth, collectionConfig, owner, replyTo) = createRequest
     configStore.getConfigs(List(ConfigKeys.Namespaces.Enabled, ConfigKeys.Namespaces.DefaultNamespace))
     val domainId = DomainId(namespace, id)
     domainCreator.createDomain(domainId, displayName, owner)
       .map { dbInfo =>
         // This returns a future, but we don't need to take any
         // action.
-        domainCreator.createDomainDatabase(domainId, anonymousAuth, dbInfo)
+        domainCreator.createDomainDatabase(domainId, anonymousAuth, collectionConfig, dbInfo)
         CreateDomainResponse(Right(dbInfo))
       }
       .recover {
@@ -388,6 +389,7 @@ object DomainStoreActor {
                                        domainId: String,
                                        displayName: String,
                                        anonymousAuth: Boolean,
+                                       collectionConfig: CollectionConfig,
                                        owner: String,
                                        replyTo: ActorRef[CreateDomainResponse]) extends Message
 

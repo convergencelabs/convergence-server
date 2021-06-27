@@ -20,6 +20,7 @@ import com.convergencelabs.convergence.server.backend.db.schema._
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.CollectionConfig
 import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.Roles
@@ -284,8 +285,8 @@ final class ConvergenceDatabaseInitializer(config: Config,
    * initializing the Convergence schema when the admin user does not
    * exist.
    *
-   * @param dbProvider A connection to the Convergence database.
-   * @param serverAdminConfig     The server's config.
+   * @param dbProvider        A connection to the Convergence database.
+   * @param serverAdminConfig The server's config.
    */
   private[this] def createServerAdminUser(dbProvider: DatabaseProvider, serverAdminConfig: Config): Try[Unit] = {
     logger.debug("Admin user does not exist, creating.")
@@ -379,8 +380,26 @@ final class ConvergenceDatabaseInitializer(config: Config,
         val namespace = domainConfig.getString("namespace")
         val id = domainConfig.getString("id")
         val displayName = domainConfig.getString("displayName")
-        val favorite = domainConfig.getBoolean("favorite")
-        val anonymousAuth = domainConfig.getBoolean("config.anonymousAuthEnabled")
+
+        val favorite = if (domainConfig.hasPath("favorite")) {
+          domainConfig.getBoolean("favorite")
+        } else {
+          false
+        }
+
+        val anonymousAuth = if (domainConfig.hasPath("config.authentication.anonymousAuthEnabled")) {
+          domainConfig.getBoolean("config.authentication.anonymousAuthEnabled")
+        } else {
+          false
+        }
+
+        val collectionAutoCrete = if (domainConfig.hasPath("config.collection.autoCreate")) {
+          domainConfig.getBoolean("config.collection.autoCreate")
+        } else {
+          false
+        }
+
+        val collectionConfig = CollectionConfig(collectionAutoCrete)
 
         logger.info(s"Bootstrapping domain '$namespace/$id'")
         (for {
@@ -397,7 +416,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
           domainCreator.createDomain(domainId, displayName, owner)
             .map { dbInfo =>
               val f = domainCreator
-                .createDomainDatabase(domainId, anonymousAuth, dbInfo)
+                .createDomainDatabase(domainId, anonymousAuth, collectionConfig, dbInfo)
                 .map { _ =>
                   logger.info(s"Bootstrapped domain '$namespace/$id'")
 
@@ -476,7 +495,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
   private[this] def getLatestDomainSchemaVersion(): Try[SchemaVersion] = {
     val repo = new SchemaMetaDataRepository(DomainSchemaManager.BasePath)
     repo.getLatestSchemaVersion() match {
-      case Left(err)  =>
+      case Left(err) =>
         Failure(new IllegalStateException(err))
       case Right(version) =>
         Success(version)

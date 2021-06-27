@@ -18,7 +18,7 @@ import java.time.{Duration => JavaDuration}
 import com.convergencelabs.convergence.server.backend.datastore.domain.{DomainPersistenceProviderImpl, DomainStateProvider}
 import com.convergencelabs.convergence.server.backend.db.schema.{DomainSchemaManager, SchemaManager}
 import com.convergencelabs.convergence.server.backend.services.domain.JwtUtil
-import com.convergencelabs.convergence.server.model.domain.ModelSnapshotConfig
+import com.convergencelabs.convergence.server.model.domain.{CollectionConfig, ModelSnapshotConfig}
 import com.convergencelabs.convergence.server.model.domain.jwt.JwtKeyPair
 import com.convergencelabs.convergence.server.model.{DomainId, domain}
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfig}
@@ -38,7 +38,7 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
   private[this] val dbRootPassword = config.getString("convergence.persistence.server.admin-password")
 
   def createDomainDatabase(data: DomainDatabaseCreationData): Try[Unit] = {
-    val DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth) = data
+    val DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth, collectionConfig) = data
     logger.debug(s"Creating domain database: $dbBaseUri/$dbName")
     createDatabase(dbName) flatMap { _ =>
       setAdminCredentials(dbName, dbAdminUsername, dbAdminPassword)
@@ -56,7 +56,7 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
 
       result
     } flatMap { _ =>
-      initDomain(domainId, dbName, dbUsername, dbPassword, anonymousAuth)
+      initDomain(domainId, dbName, dbUsername, dbPassword, anonymousAuth, collectionConfig)
     }
   }
 
@@ -128,7 +128,12 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
       })
   }
 
-  private[this] def initDomain(domainId: DomainId, dbName: String, username: String, password: String, anonymousAuth: Boolean): Try[Unit] = {
+  private[this] def initDomain(domainId: DomainId,
+                               dbName: String,
+                               username: String,
+                               password: String,
+                               anonymousAuth: Boolean,
+                               collectionConfig: CollectionConfig): Try[Unit] = {
     logger.debug(s"Connecting as normal user to initialize domain: $dbBaseUri/$dbName")
     val provider = new SingleDatabaseProvider(dbBaseUri, dbName, username, password)
     val domainStore = new DomainStore(convergenceDbProvider)
@@ -156,7 +161,7 @@ class DomainDatabaseManager(convergenceDbProvider: DatabaseProvider, config: Con
         logger.debug(s"Initializing domain: $dbBaseUri/$dbName")
         persistenceProvider.configStore.initializeDomainConfig(
           keyPair,
-          DefaultCollectionConfig,
+          collectionConfig,
           DefaultSnapshotConfig,
           anonymousAuth,
           DefaultReconnectTokenMinutes)
@@ -187,7 +192,8 @@ object DomainDatabaseManager {
                                         dbPassword: String,
                                         dbAdminUsername: String,
                                         dbAdminPassword: String,
-                                        anonymousAuth: Boolean)
+                                        anonymousAuth: Boolean,
+                                        collectionConfig: CollectionConfig)
 
   val DefaultReconnectTokenMinutes: Long = 60L * 24L
 
@@ -201,9 +207,6 @@ object DomainDatabaseManager {
     limitedByTime = false,
     JavaDuration.of(0, ChronoUnit.MINUTES),
     JavaDuration.of(0, ChronoUnit.MINUTES))
-
-  val DefaultCollectionConfig: domain.CollectionConfig = domain.CollectionConfig(
-    autoCreate = true)
 
   val OrientDefaultAdmin = "admin"
   val OrientDefaultReader = "reader"

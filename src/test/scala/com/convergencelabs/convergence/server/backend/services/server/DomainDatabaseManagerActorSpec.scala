@@ -12,13 +12,14 @@
 package com.convergencelabs.convergence.server.backend.services.server
 
 import java.util.concurrent.TimeUnit
-import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.{ActorRef, Behavior}
 import com.convergencelabs.convergence.server.InducedTestingException
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager
 import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.DomainDatabaseCreationData
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.{CreateDomainDatabaseRequest, CreateDomainDatabaseResponse}
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.CollectionConfig
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -36,17 +37,19 @@ class DomainDatabaseManagerActorSpec
 
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
+  private val collectionConfig = CollectionConfig(false)
+
   "A DomainDatabaseManagerActor" when {
     "receiving a ProvisionDomain" must {
       "respond with CreateDomainDatabaseResponse if the creation is successful" in new TestFixture {
         Mockito
           .when(domainData.createDomainDatabase(DomainDatabaseCreationData
-          (domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)))
+          (domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false, collectionConfig)))
           .thenReturn(Success(()))
 
         private val client = testKit.createTestProbe[CreateDomainDatabaseResponse]()
         private val message = CreateDomainDatabaseRequest(
-          DomainDatabaseCreationData(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false),
+          DomainDatabaseCreationData(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false, collectionConfig),
           client.ref)
         domainDbManagerActor ! message
 
@@ -57,11 +60,12 @@ class DomainDatabaseManagerActorSpec
       "respond with a failure if the provisioning is not successful" in new TestFixture {
         Mockito
           .when(domainData.createDomainDatabase(
-            DomainDatabaseCreationData(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false)))
+            DomainDatabaseCreationData(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false, collectionConfig)))
           .thenReturn(Failure(InducedTestingException()))
 
-        val client = testKit.createTestProbe[CreateDomainDatabaseResponse]()
-        val message = CreateDomainDatabaseRequest(DomainDatabaseCreationData(domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false), client.ref)
+        val client: TestProbe[CreateDomainDatabaseResponse] = testKit.createTestProbe[CreateDomainDatabaseResponse]()
+        val message: CreateDomainDatabaseRequest = CreateDomainDatabaseRequest(DomainDatabaseCreationData(
+          domainFqn, "dbname", "username", "password", "adminUsername", "adminPassword", anonymousAuth = false, collectionConfig), client.ref)
         domainDbManagerActor ! message
 
         val response: CreateDomainDatabaseResponse = client.expectMessageType[CreateDomainDatabaseResponse](FiniteDuration(1, TimeUnit.SECONDS))

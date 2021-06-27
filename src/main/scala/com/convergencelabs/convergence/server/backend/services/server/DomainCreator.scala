@@ -19,6 +19,7 @@ import com.convergencelabs.convergence.server.backend.db.DomainDatabaseManager.D
 import com.convergencelabs.convergence.server.backend.db.schema.SchemaVersion
 import com.convergencelabs.convergence.server.backend.services.server.DomainDatabaseManagerActor.CreateDomainDatabaseResponse
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.domain.CollectionConfig
 import com.convergencelabs.convergence.server.model.server.domain.{DomainDatabase, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.role.DomainRoleTarget
 import com.convergencelabs.convergence.server.security.Roles
@@ -79,10 +80,10 @@ abstract class DomainCreator(dbProvider: DatabaseProvider,
     } yield domainDbInfo
   }
 
-  def createDomainDatabase(domainId: DomainId, anonymousAuth: Boolean, database: DomainDatabase): Future[Unit] = {
+  def createDomainDatabase(domainId: DomainId, anonymousAuth: Boolean, collectionConfig: CollectionConfig, database: DomainDatabase): Future[Unit] = {
     logger.debug(s"Creating domain database $domainId")
     val DomainDatabase(dbName, schemaVersion.versionString, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword) = database
-    val provisionRequest = DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth)
+    val provisionRequest = DomainDatabaseCreationData(domainId, dbName, dbUsername, dbPassword, dbAdminUsername, dbAdminPassword, anonymousAuth, collectionConfig)
     createDomainDatabase(provisionRequest)
       .map(_.response.fold(
         { e =>
