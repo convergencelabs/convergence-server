@@ -20,7 +20,7 @@ import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueE
 import com.convergencelabs.convergence.server.model.server.apikey.UserApiKey
 import com.convergencelabs.convergence.server.util.RandomStringGenerator
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
-import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 
 private final class UserApiKeyStoreActor(context: ActorContext[UserApiKeyStoreActor.Message],
@@ -145,7 +145,7 @@ object UserApiKeyStoreActor {
   //
   final case class GetApiKeysForUserRequest(username: String, replyTo: ActorRef[GetApiKeysForUserResponse]) extends Message
 
-
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserNotFoundError], name = "user_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -159,6 +159,7 @@ object UserApiKeyStoreActor {
   //
   final case class GetUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[GetUserApiKeyResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[KeyNotFoundError], name = "key_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -175,6 +176,7 @@ object UserApiKeyStoreActor {
                                            enabled: Option[Boolean],
                                            replyTo: ActorRef[CreateUserApiKeyResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[UserApiKeyExistsError], name = "key_exists"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -190,6 +192,7 @@ object UserApiKeyStoreActor {
   //
   final case class DeleteUserApiKeyRequest(username: String, key: String, replyTo: ActorRef[DeleteUserApiKeyResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[KeyNotFoundError], name = "key_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -203,6 +206,7 @@ object UserApiKeyStoreActor {
   //
   final case class UpdateUserApiKeyRequest(username: String, key: String, name: String, enabled: Boolean, replyTo: ActorRef[UpdateUserApiKeyResponse]) extends Message
 
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(Array(
     new JsonSubTypes.Type(value = classOf[KeyNotFoundError], name = "key_not_found"),
     new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
@@ -228,5 +232,4 @@ object UserApiKeyStoreActor {
     with CreateUserApiKeyError
     with DeleteUserApiKeyError
     with UpdateUserApiKeyError
-
 }
