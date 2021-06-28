@@ -26,6 +26,8 @@ actions:
       INSERT INTO DomainConfig SET key = "collection.autoCreate", value = true;
 
       INSERT INTO DomainConfig SET key = "authentication.reconnectTokenValidityMinutes", value = 1440;
+      UPDATE DomainConfig SET value = value.asLong() WHERE key = "authentication.reconnectTokenValidityMinutes";
+
       INSERT INTO DomainConfig SET key = "authentication.anonymousAuthEnabled", value = $config.anonymousAuth;
       INSERT INTO DomainConfig SET key = "authentication.adminJwtPublicKey", value = $config.adminPublicKey;
       INSERT INTO DomainConfig SET key = "authentication.adminJwtPrivateKey", value = $config.adminPrivateKey;

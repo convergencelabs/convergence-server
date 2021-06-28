@@ -7,7 +7,7 @@ deltas:
     sha256: 7d8c9b02697339548aa2afe7ee08a5e0f3878a8d3228f8d928557f36664eed5b
 
   - id: 2021_06_26_domain_config_key_value_refactor
-    sha256: 5d922927858de76cdcd50ad8a39d80d968f1182758171ec090a47bb2aefcd490
+    sha256: fb5caa6ea744472b28b4a46e56fa5789e08e2683e5decea75ee08dff083124e4
 
   - id: 2021_06_26_create_permissions_target_class
     sha256: ea75a8435673a5383c68b05c65674e9d075dc94fc300807f1497a4cbd16eeba0
