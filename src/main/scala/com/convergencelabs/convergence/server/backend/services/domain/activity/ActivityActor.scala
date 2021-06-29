@@ -120,8 +120,15 @@ final class ActivityActor(domainId: DomainId,
   private[this] def onCreateRequest(msg: CreateRequest): Behavior[Message] = {
     val CreateRequest(_, _, _, permissions, replyTo) = msg
     val activity = Activity(activityId, ephemeral = false, Instant.now())
-    persistenceProvider.activityStore
-      .createActivity(activity)
+    (for {
+      _ <- persistenceProvider.activityStore.createActivity(activity)
+      _ <- persistenceProvider.permissionsStore.setPermissionsForTarget(
+        ActivityPermissionTarget(activityId),
+        Some(permissions.user), replaceUsers = true,
+        Some(permissions.group), replaceGroups = true,
+        Some(permissions.world)
+      )
+    } yield ())
       .map(_ => Right(Ok()))
       .recover {
         case _: DuplicateValueException =>

@@ -15,7 +15,7 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.{ActorRef, Scheduler}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable.apply
 import akka.http.scaladsl.server.Directive.{addByNameNullaryApply, addDirectiveApply}
-import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, post, put}
+import akka.http.scaladsl.server.Directives.{Segment, _enhanceRouteWithConcatenation, _string2NR, as, complete, delete, entity, get, parameters, pathEnd, pathPrefix, put}
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import com.convergencelabs.convergence.server.api.rest._
@@ -48,10 +48,6 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
           parameters("type".?, "id".?, "limit".as[Long].?, "offset".as[Long].?) { (typeFilter, idFilter, limit, offset) =>
             complete(getActivities(domainId, typeFilter, idFilter, limit, offset))
           }
-        } ~ post {
-          entity(as[CreateActivityData]) { activityData =>
-            complete(createActivity(domainId, activityData))
-          }
         }
       } ~ pathPrefix(Segment / Segment) { (activityType, activityId) =>
         val id = ActivityId(activityType, activityId)
@@ -60,6 +56,10 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
             complete(getActivity(domainId, id))
           } ~ delete {
             complete(deleteActivity(domainId, id))
+          } ~ put {
+            entity(as[CreateActivityData]) { activityData =>
+              complete(createActivity(domainId, id, activityData))
+            }
           }
         } ~ pathPrefix("permissions") {
           pathEnd {
@@ -76,9 +76,8 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
     }
   }
 
-  private[this] def createActivity(domainId: DomainId, data: CreateActivityData): Future[RestResponse] = {
-    val CreateActivityData(activityType, activityId, world, user, group) = data
-    val id = ActivityId(activityType, activityId)
+  private[this] def createActivity(domainId: DomainId, activityId: ActivityId, data: CreateActivityData): Future[RestResponse] = {
+    val CreateActivityData(world, user, group) = data
 
     val userPermissions = user.map { case (userId, permissions) =>
       DomainUserId.normal(userId) -> permissions
@@ -86,11 +85,11 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
 
     val allPermissions = AllPermissions(world, userPermissions, group)
 
-    activityShardRegion.ask[CreateResponse](r => CreateRequest(domainId, id, None, allPermissions, r))
+    activityShardRegion.ask[CreateResponse](r => CreateRequest(domainId, activityId, None, allPermissions, r))
       .map(_.response.fold(
         {
           case ActivityActor.AlreadyExists() =>
-            conflictsResponse("id", activityId)
+            conflictsResponse("activityId", activityId.id)
           case ActivityActor.UnauthorizedError(msg) =>
             forbiddenResponse(msg)
           case ActivityActor.UnknownError() =>
@@ -196,9 +195,7 @@ private[domain] final class DomainActivityService(domainRestActor: ActorRef[Doma
 }
 
 object DomainActivityService {
-  case class CreateActivityData(activityType: String,
-                                activityId: String,
-                                worldPermissions: Set[String],
+  case class CreateActivityData(worldPermissions: Set[String],
                                 userPermissions: Map[String, Set[String]],
                                 groupPermissions: Map[String, Set[String]])
 
