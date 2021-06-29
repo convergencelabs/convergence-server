@@ -32,7 +32,7 @@ object GetPermissionsProcessor extends PermissionsMessageProcessor[GetPermission
   }
 
   def getPermissions(permissionsStore: PermissionsStore)(message: GetPermissionsRequest, chatId: String): Try[GetPermissionsResponse] = {
-    permissionsStore.getPermissionsForTarget(ChatPermissionTarget(message.chatId))
+    permissionsStore.getAllPermissionsForTarget(ChatPermissionTarget(message.chatId))
       .map(p => p)
       .map(p => GetPermissionsResponse(Right(p)))
       .recover { cause =>

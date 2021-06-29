@@ -48,7 +48,7 @@ class LeaveEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(permissionsStore.userHasPermission(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
-        Mockito.when(permissionsStore.removePermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.removePermissionsForUserFromTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         LeaveEventProcessor.execute(message, state, chatStore, permissionsStore)

@@ -69,7 +69,7 @@ class ChatServiceActor private(domainId: DomainId,
     hasPermission(createdBy, ChatPermissions.Permissions.CreateChat).map { _ =>
       (for {
         id <- createChat(chatId, chatType, membership, name, topic, members, createdBy)
-        _ <- this.persistenceProvider.permissionsStore.addPermissionsForUser(
+        _ <- this.persistenceProvider.permissionsStore.addUserPermissionsToTarget(
           ChatPermissions.AllExistingChatPermissions, createdBy, ChatPermissionTarget(id))
       } yield {
         Right(id)

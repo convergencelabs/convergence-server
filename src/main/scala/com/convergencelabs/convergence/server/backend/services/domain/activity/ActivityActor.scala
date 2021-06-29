@@ -18,6 +18,7 @@ import com.convergencelabs.convergence.common.Ok
 import com.convergencelabs.convergence.server.api.realtime.ActivityClientActor._
 import com.convergencelabs.convergence.server.api.realtime.{ActivityClientActor, ErrorCodes}
 import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.ActivityPermissionTarget
+import com.convergencelabs.convergence.server.backend.datastore.domain.permissions.PermissionsStore.PermissionsTargetNotFound
 import com.convergencelabs.convergence.server.backend.datastore.{DuplicateValueException, EntityNotFoundException}
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor.Message
 import com.convergencelabs.convergence.server.backend.services.domain.permissions._
@@ -489,10 +490,10 @@ final class ActivityActor(domainId: DomainId,
         Success(Left(UnauthorizedError(Some("The user does not have permissions to get permissions from this activity"))))
       } else {
         val target = ActivityPermissionTarget(activityId)
-        this.persistenceProvider.permissionsStore.getPermissionsForTarget(target)
+        this.persistenceProvider.permissionsStore.getAllPermissionsForTarget(target)
           .map(permissions => Right(permissions))
           .recover {
-            case _: EntityNotFoundException =>
+            case _: PermissionsTargetNotFound =>
               Left(NotFoundError())
             case t: Throwable =>
               error("Unexpected error getting activity permissions", t)

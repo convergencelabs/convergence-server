@@ -46,10 +46,10 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(permissionsStore.userHasPermission(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
-        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addUserPermissionsToTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
-        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addUserPermissionsToTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         JoinEventProcessor.execute(message, state, chatStore, permissionsStore)
@@ -88,7 +88,7 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(chatStore.addChatUserJoinedEvent(Matchers.any())).thenReturn(Success(()))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addUserPermissionsToTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val timestamp = Instant.now()
@@ -98,7 +98,7 @@ class JoinEventProcessorSpec extends ScalaTestWithActorTestKit
         result shouldBe Success(())
 
         Mockito.verify(chatStore).addChatUserJoinedEvent(event)
-        Mockito.verify(permissionsStore).addPermissionsForUser(ChatPermissions.DefaultChatPermissions, event.user, ChatPermissionTarget(state.id))
+        Mockito.verify(permissionsStore).addUserPermissionsToTarget(ChatPermissions.DefaultChatPermissions, event.user, ChatPermissionTarget(state.id))
       }
 
       "fail when the persistence operations fail" in {

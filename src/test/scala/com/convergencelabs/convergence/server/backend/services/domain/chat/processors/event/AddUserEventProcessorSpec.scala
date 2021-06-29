@@ -48,7 +48,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(permissionsStore.userHasPermission(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(true))
 
-        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addUserPermissionsToTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val response = AddUserEventProcessor.execute(message, state, chatStore, permissionsStore)
@@ -98,7 +98,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
         Mockito.when(chatStore.addChatUserAddedEvent(Matchers.any())).thenReturn(Success(()))
 
         val permissionsStore = mock[PermissionsStore]
-        Mockito.when(permissionsStore.addPermissionsForUser(Matchers.any(), Matchers.any(), Matchers.any()))
+        Mockito.when(permissionsStore.addUserPermissionsToTarget(Matchers.any(), Matchers.any(), Matchers.any()))
           .thenReturn(Success(()))
 
         val timestamp = Instant.now()
@@ -108,7 +108,7 @@ class AddUserEventProcessorSpec extends ScalaTestWithActorTestKit
         result shouldBe Success(())
 
         Mockito.verify(chatStore).addChatUserAddedEvent(event)
-        Mockito.verify(permissionsStore).addPermissionsForUser(ChatPermissions.DefaultChatPermissions, event.userAdded, ChatPermissionTarget(state.id))
+        Mockito.verify(permissionsStore).addUserPermissionsToTarget(ChatPermissions.DefaultChatPermissions, event.userAdded, ChatPermissionTarget(state.id))
       }
 
       "fail when the persistence operations fail" in {

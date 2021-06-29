@@ -68,7 +68,7 @@ private[chat] object RemoveUserEventProcessor
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserRemovedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserRemovedEvent(event)
-      _ <- permissionsStore.removeAllPermissionsForUserByTarget(event.userRemoved, ChatPermissionTarget(event.id))
+      _ <- permissionsStore.removeAllPermissionsForUserFromTarget(event.userRemoved, ChatPermissionTarget(event.id))
     } yield ()
   }
 

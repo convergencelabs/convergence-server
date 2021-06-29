@@ -482,7 +482,7 @@ final class ConvergenceDatabaseInitializer(config: Config,
       databaseStates.foreach { case (domainId, state) =>
         val domainSchemaVersion = state.schemaVersion
         if (domainSchemaVersion < latestVersion && state.status == DomainStatus.Ready) {
-          info(s"Marking domain '${domainId.namespace}/${domainId.domainId}' in need of upgrade.")
+          info(s" Domain '${domainId.namespace}/${domainId.domainId}' is at schema version $domainSchemaVersion, but the current version is $latestVersion.  Marking domain in need of upgrading.")
           domainStore.setDomainStatus(
             domainId,
             DomainStatus.SchemaUpgradeRequired,

@@ -74,7 +74,7 @@ private[chat] object JoinEventProcessor
   def persistEvent(chatStore: ChatStore, permissionsStore: PermissionsStore)(event: ChatUserJoinedEvent): Try[Unit] = {
     for {
       _ <- chatStore.addChatUserJoinedEvent(event)
-      _ <- permissionsStore.addPermissionsForUser(ChatPermissions.DefaultChatPermissions, event.user, ChatPermissionTarget(event.id))
+      _ <- permissionsStore.addUserPermissionsToTarget(ChatPermissions.DefaultChatPermissions, event.user, ChatPermissionTarget(event.id))
     } yield ()
   }
 
