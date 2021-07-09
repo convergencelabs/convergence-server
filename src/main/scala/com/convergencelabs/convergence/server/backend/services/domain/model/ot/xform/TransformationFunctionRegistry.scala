@@ -114,6 +114,9 @@ private[model] class TransformationFunctionRegistry {
   rtfs.register[StringRemoveOperation, RangeReferenceValues](StringRemoveRangeTF)
   rtfs.register[StringSetOperation, RangeReferenceValues](StringSetRangeTF)
 
+  rtfs.register[ObjectAddPropertyOperation, IndexReferenceValues](ObjectAddPropertyIndexTF)
+  rtfs.register[ObjectAddPropertyOperation, RangeReferenceValues](ObjectAddPropertyRangeTF)
+
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {
     otfs.getOperationTransformationFunction(s, c)
   }
