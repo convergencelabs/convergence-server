@@ -25,9 +25,8 @@ import com.convergencelabs.convergence.server.backend.datastore.domain.model.map
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectRemovePropertyOperationMapper.{oDocumentToObjectRemovePropertyOperation, objectRemovePropertyOperationToODocument, DocumentClassName => ObjectRemovePropertyDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetOperationMapper.{oDocumentToObjectSetOperation, objectSetOperationToODocument, DocumentClassName => ObjectSetDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.ObjectSetPropertyOperationMapper.{oDocumentToObjectSetPropertyOperation, objectSetPropertyOperationToODocument, DocumentClassName => ObjectSetPropertyDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringInsertOperationMapper.{oDocumentToStringInsertOperation, stringInsertOperationToODocument, DocumentClassName => StringInsertDocName}
-import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringRemoveOperationMapper.{oDocumentToStringRemoveOperation, stringRemoveOperationToODocument, DocumentClassName => StringRemoveDocName}
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSetOperationMapper.{oDocumentToStringSetOperation, stringSetOperationToODocument, DocumentClassName => StringSetDocName}
+import com.convergencelabs.convergence.server.backend.datastore.domain.model.mapper.StringSpliceOperationMapper.{oDocumentToStringSpliceOperation, stringSpliceOperationToODocument, DocumentClassName => StringSpliceDocName}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.orientechnologies.orient.core.record.impl.ODocument
 
@@ -43,8 +42,7 @@ object OrientDBOperationMapper {
   // scalastyle:off cyclomatic.complexity
   private[mapper] def oDocumentToDiscreteOperation(doc: ODocument): AppliedDiscreteOperation = {
     doc.getClassName match {
-      case StringInsertDocName => oDocumentToStringInsertOperation(doc)
-      case StringRemoveDocName => oDocumentToStringRemoveOperation(doc)
+      case StringSpliceDocName => oDocumentToStringSpliceOperation(doc)
       case StringSetDocName => oDocumentToStringSetOperation(doc)
 
       case ArrayInsertDocName => oDocumentToArrayInsertOperation(doc)
@@ -79,8 +77,7 @@ object OrientDBOperationMapper {
   private[this] def discreteOperationToODocument(op: AppliedDiscreteOperation): ODocument = {
     op match {
       // String Operations
-      case op: AppliedStringInsertOperation => stringInsertOperationToODocument(op)
-      case op: AppliedStringRemoveOperation => stringRemoveOperationToODocument(op)
+      case op: AppliedStringSpliceOperation => stringSpliceOperationToODocument(op)
       case op: AppliedStringSetOperation => stringSetOperationToODocument(op)
 
       // Array Operations

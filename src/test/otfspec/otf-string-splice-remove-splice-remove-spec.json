@@ -1,0 +1,149 @@
+{
+  "serverOpType": "StringSplice",
+  "clientOpType": "StringSplice",
+  "cases": [
+    {
+      "id": "S-RR-1",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 5, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-2",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 5, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-3",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 5, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-4",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 5, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-5",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 5, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-6",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 5, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-7",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": true, "index": 2, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-8",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 2, "deleteCount": 3, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-9",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 3, "deleteCount": 3, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-10",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": true, "index": 3, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-11",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": true, "index": 4, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-12",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 5, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 2, "deleteCount": 2, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 4, "deleteCount": 3, "insertValue":  ""}
+      }
+    },
+    {
+      "id": "S-RR-13",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 3, "deleteCount": 3, "insertValue":  ""}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": true, "index": 3, "deleteCount": 3, "insertValue":  ""},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 3, "deleteCount": 3, "insertValue":  ""}
+      }
+    }
+  ]
+}

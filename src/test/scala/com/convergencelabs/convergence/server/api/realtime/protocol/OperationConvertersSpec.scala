@@ -38,8 +38,7 @@ class OperationConvertersSpec extends AnyWordSpec with Matchers {
     ArrayMoveOperation(Id, NoOp, 1, 2),
     ArraySetOperation(Id, NoOp, List(Value)),
 
-    StringInsertOperation(Id, NoOp, 1, X),
-    StringRemoveOperation(Id, NoOp, 1, X),
+    StringSpliceOperation(Id, NoOp, 1, 4, X),
     StringSetOperation(Id, NoOp, X),
 
     NumberSetOperation(Id, NoOp, 3),

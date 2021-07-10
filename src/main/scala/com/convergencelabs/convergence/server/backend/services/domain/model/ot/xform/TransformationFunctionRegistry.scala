@@ -29,17 +29,12 @@ private[model] class TransformationFunctionRegistry {
   private[this] val rtfs = new RTFMap()
 
   // String Functions
-  otfs.register[StringInsertOperation, StringInsertOperation](StringInsertInsertTF)
-  otfs.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
-  otfs.register[StringInsertOperation, StringSetOperation](StringInsertSetTF)
+  otfs.register[StringSpliceOperation, StringSetOperation](StringSpliceSetTF)
+  otfs.register[StringSpliceOperation, StringSpliceOperation](StringSpliceSpliceTF)
 
-  otfs.register[StringRemoveOperation, StringInsertOperation](StringRemoveInsertTF)
-  otfs.register[StringRemoveOperation, StringRemoveOperation](StringRemoveRemoveTF)
-  otfs.register[StringRemoveOperation, StringSetOperation](StringRemoveSetTF)
-
-  otfs.register[StringSetOperation, StringInsertOperation](StringSetInsertTF)
-  otfs.register[StringSetOperation, StringRemoveOperation](StringSetRemoveTF)
+  otfs.register[StringSetOperation, StringSpliceOperation](StringSetSpliceTF)
   otfs.register[StringSetOperation, StringSetOperation](StringSetSetTF)
+
 
   // Object Functions
   otfs.register[ObjectAddPropertyOperation, ObjectAddPropertyOperation](ObjectAddPropertyAddPropertyTF)
@@ -106,12 +101,12 @@ private[model] class TransformationFunctionRegistry {
   // Date Functions
   otfs.register[DateSetOperation, DateSetOperation](DateSetSetTF)
 
-  rtfs.register[StringInsertOperation, IndexReferenceValues](StringInsertIndexTF)
-  rtfs.register[StringRemoveOperation, IndexReferenceValues](StringRemoveIndexTF)
+
+  // Reference Transformations
+  rtfs.register[StringSpliceOperation, IndexReferenceValues](StringSpliceIndexTF)
   rtfs.register[StringSetOperation, IndexReferenceValues](StringSetIndexTF)
 
-  rtfs.register[StringInsertOperation, RangeReferenceValues](StringInsertRangeTF)
-  rtfs.register[StringRemoveOperation, RangeReferenceValues](StringRemoveRangeTF)
+  rtfs.register[StringSpliceOperation, RangeReferenceValues](StringSpliceRangeTF)
   rtfs.register[StringSetOperation, RangeReferenceValues](StringSetRangeTF)
 
   def getOperationTransformationFunction[S <: DiscreteOperation, C <: DiscreteOperation](s: S, c: C): Option[OperationTransformationFunction[S, C]] = {

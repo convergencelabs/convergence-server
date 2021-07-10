@@ -1,0 +1,17 @@
+{
+  "serverOpType": "StringSet",
+  "clientOpType": "StringSplice",
+  "cases": [
+    {
+      "id": "S-SI-1",
+      "input": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 5, "deleteCount": 3, "insertValue": "WX"}
+      },
+      "output": {
+        "serverOp": {"type": "StringSet", "noOp": false, "value": "VALUE"},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 5, "deleteCount": 3, "insertValue": "WX"}
+      }
+    }
+  ]
+}

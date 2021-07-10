@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference.IndexTransformer
 import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeValue
 import com.convergencelabs.convergence.server.model.domain.model.RangeReferenceValues
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
@@ -34,7 +34,8 @@ private[model] final class RangeReference(target: RealtimeValue,
   extends ModelReference[RangeReference.Range, RealtimeValue](target, session, key, initial)
     with PositionalInsertAwareReference
     with PositionalRemoveAwareReference
-    with PositionalReorderAwareReference {
+    with PositionalReorderAwareReference
+    with PositionalSpliceAwareReference {
 
   def handlePositionalInsert(index: Int, length: Int): Unit = {
     val newValues = this.values.map { v =>
@@ -47,6 +48,13 @@ private[model] final class RangeReference(target: RealtimeValue,
   def handlePositionalRemove(index: Int, length: Int): Unit = {
     this.values = this.values.map { v =>
       val xFormed = IndexTransformer.handleRemove(List(v.from, v.to), index, length)
+      RangeReference.Range(xFormed.head, xFormed.last)
+    }
+  }
+
+  override def handlePositionalSplice(index: Int, deleteCount: Int, insertLength: Int): Unit = {
+    this.values = this.values.map { v =>
+      val xFormed = IndexTransformer.handleSplice(List(v.from, v.to), index, deleteCount, insertLength)
       RangeReference.Range(xFormed.head, xFormed.last)
     }
   }

@@ -38,8 +38,7 @@ final case class AppliedCompoundOperation(operations: List[AppliedDiscreteOperat
   new JsonSubTypes.Type(value = classOf[AppliedObjectRemovePropertyOperation], name = "object_remove_prop"),
   new JsonSubTypes.Type(value = classOf[AppliedObjectSetOperation], name = "object_set"),
 
-  new JsonSubTypes.Type(value = classOf[AppliedStringInsertOperation], name = "string_insert"),
-  new JsonSubTypes.Type(value = classOf[AppliedStringRemoveOperation], name = "string_remove"),
+  new JsonSubTypes.Type(value = classOf[AppliedStringSpliceOperation], name = "string_splice"),
   new JsonSubTypes.Type(value = classOf[AppliedStringSetOperation], name = "string_set"),
 
   new JsonSubTypes.Type(value = classOf[AppliedNumberAddOperation], name = "number_delta"),
@@ -61,9 +60,7 @@ sealed trait AppliedDiscreteOperation extends AppliedOperation {
 
 sealed trait AppliedStringOperation extends AppliedDiscreteOperation
 
-final case class AppliedStringRemoveOperation(id: String, noOp: Boolean, index: Int, length: Int, oldValue: Option[String]) extends AppliedStringOperation
-
-final case class AppliedStringInsertOperation(id: String, noOp: Boolean, index: Int, value: String) extends AppliedStringOperation
+final case class AppliedStringSpliceOperation(id: String, noOp: Boolean, index: Int, deletedValue: Option[String], insertedValue: String) extends AppliedStringOperation
 
 final case class AppliedStringSetOperation(id: String, noOp: Boolean, value: String, oldValue: Option[String]) extends AppliedStringOperation
 

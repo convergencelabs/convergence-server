@@ -33,18 +33,18 @@ class OperationTransformerSpec
     "transforming identical path operations of the same type" must {
 
       "transform two discrete operations in the proper order" in new WithIdentityTransform {
-        val s = StringInsertOperation(valueId, false, 1, "s")
-        val c = StringInsertOperation(valueId, false, 1, "c")
+        val s = StringSpliceOperation( valueId, false, 1, 0, "s")
+        val c = StringSpliceOperation( valueId, false, 1, 0, "c")
         transformer.transform(s, c)
         verify(otfSpy, times(1)).transform(s, c)
       }
 
       "transform a server compound op against a client discrete op" in new WithIdentityTransform {
-        val s1 = StringInsertOperation(valueId, false, 1, "s1")
-        val s2 = StringInsertOperation(valueId, false, 1, "s2")
+        val s1 = StringSpliceOperation( valueId, false, 1, 0, "s1")
+        val s2 = StringSpliceOperation( valueId, false, 1, 0, "s2")
         val s = CompoundOperation(List(s1, s2))
 
-        val c = StringInsertOperation(valueId, false, 1, "c")
+        val c = StringSpliceOperation( valueId, false, 1, 0, "c")
         transformer.transform(s, c)
 
         val ordered = Mockito.inOrder(otfSpy)
@@ -54,10 +54,10 @@ class OperationTransformerSpec
       }
 
       "transform a client compound op against a server discrete op" in new WithIdentityTransform {
-        val s = StringInsertOperation(valueId, false, 1, "s")
+        val s = StringSpliceOperation( valueId, false, 1, 0, "s")
 
-        val c1 = StringInsertOperation(valueId, false, 1, "c1")
-        val c2 = StringInsertOperation(valueId, false, 1, "c2")
+        val c1 = StringSpliceOperation( valueId, false, 1, 0, "c1")
+        val c2 = StringSpliceOperation( valueId, false, 1, 0, "c2")
         val c = CompoundOperation(List(c1, c2))
         transformer.transform(s, c)
 
@@ -68,12 +68,12 @@ class OperationTransformerSpec
       }
 
       "transform a server compound op against a server compound  op" in new WithIdentityTransform {
-        val s1 = StringInsertOperation(valueId, false, 1, "s1")
-        val s2 = StringInsertOperation(valueId, false, 1, "s2")
+        val s1 = StringSpliceOperation( valueId, false, 1, 0, "s1")
+        val s2 = StringSpliceOperation( valueId, false, 1, 0, "s2")
         val s = CompoundOperation(List(s1, s2))
 
-        val c1 = StringInsertOperation(valueId, false, 1, "c1")
-        val c2 = StringInsertOperation(valueId, false, 1, "c2")
+        val c1 = StringSpliceOperation( valueId, false, 1, 0, "c1")
+        val c2 = StringSpliceOperation( valueId, false, 1, 0, "c2")
         val c = CompoundOperation(List(c1, c2))
         transformer.transform(s, c)
 
@@ -86,8 +86,8 @@ class OperationTransformerSpec
       }
 
       "perform no transformation if the server is a noOp" in new WithIdentityTransform {
-        val s = StringInsertOperation(valueId, true, 1, "s")
-        val c = StringInsertOperation(valueId, false, 1, "c")
+        val s = StringSpliceOperation(valueId, true, 1, 0, "s")
+        val c = StringSpliceOperation( valueId, false, 1, 0, "c")
         val (sx, cx) = transformer.transform(s, c)
         sx shouldBe s
         cx shouldBe c
@@ -96,8 +96,8 @@ class OperationTransformerSpec
       }
 
       "perform no transformation if the client is a noOp" in new WithIdentityTransform {
-        val s = StringInsertOperation(valueId, false, 1, "s")
-        val c = StringInsertOperation(valueId, true, 1, "c")
+        val s = StringSpliceOperation( valueId, false, 1, 0, "s")
+        val c = StringSpliceOperation(valueId, true, 1, 0, "c")
         val (sx, cx) = transformer.transform(s, c)
         sx shouldBe s
         cx shouldBe c
@@ -106,8 +106,8 @@ class OperationTransformerSpec
       }
 
       "perform no transformation if both ops are noOps" in new WithIdentityTransform {
-        val s = StringInsertOperation(valueId, true, 1, "s")
-        val c = StringInsertOperation(valueId, true, 1, "c")
+        val s = StringSpliceOperation(valueId, true, 1, 0, "s")
+        val c = StringSpliceOperation(valueId, true, 1, 0, "c")
         val (sx, cx) = transformer.transform(s, c)
         sx shouldBe s
         cx shouldBe c
@@ -118,8 +118,8 @@ class OperationTransformerSpec
 
     "transforming unrelated operations" must {
       "not transform the operations" in new WithIdentityTransform {
-        val s = StringInsertOperation("x", false, 1, "s")
-        val c = StringInsertOperation("y", false, 1, "c")
+        val s = StringSpliceOperation("x", false, 1, 0, "s")
+        val c = StringSpliceOperation("y", false, 1, 0, "c")
         val (sx, cx) = transformer.transform(s, c)
         sx shouldBe s
         cx shouldBe c
@@ -133,8 +133,8 @@ class OperationTransformerSpec
         when(tfRegistry.getOperationTransformationFunction(anyObject[DiscreteOperation](), anyObject[DiscreteOperation]())).thenReturn(None)
         intercept[IllegalArgumentException] {
           transformer.transform(
-            StringInsertOperation(valueId, false, 1, "s"),
-            StringInsertOperation(valueId, false, 1, "s"))
+            StringSpliceOperation( valueId, false, 1, 0, "s"),
+            StringSpliceOperation( valueId, false, 1, 0, "s"))
         }
       }
     }

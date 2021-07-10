@@ -31,8 +31,7 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
 
   private[this] val valueId = "testId"
 
-  private[this] val StringInsert = StringInsertOperation(valueId, noOp = false, 1, "")
-  private[this] val StringRemove = StringRemoveOperation(valueId, noOp = false, 1, "")
+  private[this] val StringSplice = StringSpliceOperation(valueId, noOp = false, 1, 0, "")
   private[this] val StringSet = StringSetOperation(valueId, noOp = false, "4")
 
   private[this] val ArrayInsert = ArrayInsertOperation(valueId, noOp = false, 1, StringValue("id", "4"))
@@ -66,57 +65,25 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
     // String Operations
     ///////////////////////////////////////////////////////////////////////////
 
-    "getting a TransformationFunction for a StringInsertOperation and anoter StringOperation" must {
-      "return the StringInsertInsertTF when a StringInsertOperation and a StringInsertOperation are passed in" in {
+    "getting a TransformationFunction for a StringSpliceOperation and another StringOperation" must {
+      "return the StringSpliceSetTF when a StringSpliceOperation and a StringSpliceOperation are passed in" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringInsert, StringInsert)
-        tf.value shouldBe StringInsertInsertTF
+        val tf = tfr.getOperationTransformationFunction(StringSplice, StringSplice)
+        tf.value shouldBe StringSpliceSpliceTF
       }
 
-      "return the StringInsertInsertTF when a StringInsertOperation and a StringRemoveOperation are passed in" in {
+      "return the StringSpliceSetTF when a StringSpliceOperation and a StringSetOperation are passed in" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringInsert, StringRemove)
-        tf.value shouldBe StringInsertRemoveTF
-      }
-
-      "return the StringInsertInsertTF when a StringInsertOperation and a StringSetOperation are passed in" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringInsert, StringSet)
-        tf.value shouldBe StringInsertSetTF
+        val tf = tfr.getOperationTransformationFunction(StringSplice, StringSet)
+        tf.value shouldBe StringSpliceSetTF
       }
     }
 
-    "getting a TransformationFunction for a StringRemoveOperation and anoter StringOperation" must {
-      "return the StringInsertInsertTF when a StringRemoveOperation and a StringInsertOperation are passed in" in {
+    "getting a TransformationFunction for a StringSetOperation and another StringOperation" must {
+      "return the StringSetSpliceTF when a StringSetOperation and a StringSpliceOperation are passed in" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringRemove, StringInsert)
-        tf.value shouldBe StringRemoveInsertTF
-      }
-
-      "return the StringRemoveRemoveTF when a StringRemoveOperation and a StringRemoveOperation are passed in" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringRemove, StringRemove)
-        tf.value shouldBe StringRemoveRemoveTF
-      }
-
-      "return the StringRemoveRemoveTF when a StringRemoveOperation and a StringSetOperation are passed in" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringRemove, StringSet)
-        tf.value shouldBe StringRemoveSetTF
-      }
-    }
-
-    "getting a TransformationFunction for a StringSetOperation and anoter StringOperation" must {
-      "return the StringInsertInsertTF when a StringSetOperation and a StringInsertOperation are passed in" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringSet, StringInsert)
-        tf.value shouldBe StringSetInsertTF
-      }
-
-      "return the StringSetSetTF when a StringSetOperation and a StringRemoveOperation are passed in" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getOperationTransformationFunction(StringSet, StringRemove)
-        tf.value shouldBe StringSetRemoveTF
+        val tf = tfr.getOperationTransformationFunction(StringSet, StringSplice)
+        tf.value shouldBe StringSetSpliceTF
       }
 
       "return the StringSetSetTF when a StringSetOperation and a StringSetOperation are passed in" in {
@@ -457,19 +424,11 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
     ///////////////////////////////////////////////////////////////////////////
     // String References
     ///////////////////////////////////////////////////////////////////////////
-    "getting a ReferenceTransformationFunction for an StringInsert and an Index reference" must {
+    "getting a ReferenceTransformationFunction for an StringSplice and an Index reference" must {
       "return StringInsertIndexFT" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringInsert, IndexValues)
-        tf.value shouldBe StringInsertIndexTF
-      }
-    }
-
-    "getting a ReferenceTransformationFunction for an StringRemove and an Index reference" must {
-      "return StringRemoveIndexTF" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringRemove, IndexValues)
-        tf.value shouldBe StringRemoveIndexTF
+        val tf = tfr.getReferenceTransformationFunction(StringSplice, IndexValues)
+        tf.value shouldBe StringSpliceIndexTF
       }
     }
 
@@ -481,19 +440,11 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
       }
     }
 
-    "getting a ReferenceTransformationFunction for an StringInsert and an Range reference" must {
+    "getting a ReferenceTransformationFunction for an StringSplice and an Range reference" must {
       "return StringInsertIndexFT" in {
         val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringInsert, RangeValues)
-        tf.value shouldBe StringInsertRangeTF
-      }
-    }
-
-    "getting a ReferenceTransformationFunction for an StringRemove and an Range reference" must {
-      "return StringRemoveRangeTF" in {
-        val tfr = new TransformationFunctionRegistry()
-        val tf = tfr.getReferenceTransformationFunction(StringRemove, RangeValues)
-        tf.value shouldBe StringRemoveRangeTF
+        val tf = tfr.getReferenceTransformationFunction(StringSplice, RangeValues)
+        tf.value shouldBe StringSpliceRangeTF
       }
     }
 
@@ -538,31 +489,31 @@ class TransformationFunctionRegistrySpec extends AnyWordSpec with Matchers {
 
   "A RegistryKey" when {
     "creating a RegistryKey using of" must {
-      "create the proper instnace" in {
-        RegistryKey.of[StringInsertOperation, StringRemoveOperation] shouldBe
-          RegistryKey(classOf[StringInsertOperation], classOf[StringRemoveOperation])
+      "create the proper instance" in {
+        RegistryKey.of[StringSpliceOperation, StringSpliceOperation] shouldBe
+          RegistryKey(classOf[StringSpliceOperation], classOf[StringSpliceOperation])
       }
     }
   }
 
   "A TFMap" when {
-    "registering a transfomration function" must {
+    "registering a transformation function" must {
       "return a registered function" in {
         val tfMap = new OTFMap()
-        tfMap.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
-        tfMap.getOperationTransformationFunction(StringInsert, StringRemove).value shouldBe StringInsertRemoveTF
+        tfMap.register[StringSpliceOperation, StringSetOperation](StringSpliceSetTF)
+        tfMap.getOperationTransformationFunction(StringSplice, StringSet).value shouldBe StringSpliceSetTF
       }
 
       "return None for a not registered function" in {
         val tfMap = new OTFMap()
-        tfMap.getOperationTransformationFunction(StringInsert, StringRemove) shouldBe None
+        tfMap.getOperationTransformationFunction(StringSplice, StringSet) shouldBe None
       }
 
       "disallow a duplicate registration" in {
         val tfMap = new OTFMap()
-        tfMap.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
+        tfMap.register[StringSpliceOperation, StringSetOperation](StringSpliceSetTF)
         intercept[IllegalArgumentException] {
-          tfMap.register[StringInsertOperation, StringRemoveOperation](StringInsertRemoveTF)
+          tfMap.register[StringSpliceOperation, StringSetOperation](StringSpliceSetTF)
         }
       }
     }

@@ -29,6 +29,8 @@ object OTFTestHarnessSpec {
   val Type = "type"
   val NoOp = "noOp"
   val Value = "value"
+  val InsertValue = "insertValue"
+  val DeleteCount = "deleteCount"
   val Index = "index"
   val Prop = "prop"
 }
@@ -71,7 +73,7 @@ class OTFTestHarnessSpec extends AnyFunSpec {
     val originalServerOp: DiscreteOperation = testCase.input.serverOp
     val originalClientOp: DiscreteOperation = testCase.input.clientOp
 
-    it(s"Testing transformation of $originalServerOp and a client $originalClientOp") {
+    it(s"${testCase.id}: Testing transformation of $originalServerOp and a client $originalClientOp") {
       val tf = registry.getOperationTransformationFunction(originalServerOp, originalClientOp).get
 
       testCase.error match {
@@ -85,7 +87,7 @@ class OTFTestHarnessSpec extends AnyFunSpec {
           val expectedClientOp: DiscreteOperation = testCase.output.get.clientOp
 
           assert(sPrime == expectedServerOp, "server operation was transformed incorrectly")
-          assert(cPrime == expectedClientOp, "server operation was transformed incorrectly")
+          assert(cPrime == expectedClientOp, "client operation was transformed incorrectly")
       }
     }
   }
@@ -93,12 +95,10 @@ class OTFTestHarnessSpec extends AnyFunSpec {
   // scalastyle:off cyclomatic.complexity
   implicit def jObject2Operation(obj: JObject): DiscreteOperation = {
     obj match {
-      case JObject(List((Type, JString("StringInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
-        StringInsertOperation(valueId, noOp, index.intValue, value)
-      case JObject(List((Type, JString("StringRemove")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, JString(value)))) =>
-        StringRemoveOperation(valueId, noOp, index.intValue, value)
       case JObject(List((Type, JString("StringSet")), (NoOp, JBool(noOp)), (Value, JString(value)))) =>
         StringSetOperation(valueId, noOp, value)
+      case JObject(List((Type, JString("StringSplice")), (NoOp, JBool(noOp)), (Index, JInt(index)), (DeleteCount, JInt(deleteCount)), (InsertValue, JString(insertValue)))) =>
+        StringSpliceOperation(valueId, noOp, index.intValue, deleteCount.intValue, insertValue)
 
       case JObject(List((Type, JString("ArrayInsert")), (NoOp, JBool(noOp)), (Index, JInt(index)), (Value, value))) =>
         ArrayInsertOperation(valueId, noOp, index.intValue, mapToDataValue(value))
@@ -153,7 +153,7 @@ class OTFTestHarnessSpec extends AnyFunSpec {
       case JString(value) => StringValue(valueId, value)
       case JInt(value) => DoubleValue(valueId, value.toDouble)
       case JLong(value) => DoubleValue(valueId, value.toDouble)
-      case JDouble(value) => DoubleValue(valueId, value.toDouble)
+      case JDouble(value) => DoubleValue(valueId, value)
       case JDecimal(value) => DoubleValue(valueId, value.toDouble)
       case JBool(value) => BooleanValue(valueId, value)
       case JNull => NullValue(valueId)

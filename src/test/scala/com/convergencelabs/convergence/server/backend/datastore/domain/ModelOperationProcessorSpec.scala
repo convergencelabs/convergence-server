@@ -15,7 +15,6 @@ import com.convergencelabs.convergence.server.backend.datastore.OrientDBUtil
 import com.convergencelabs.convergence.server.backend.db.DatabaseProvider
 import com.convergencelabs.convergence.server.backend.services.domain.model.NewModelOperation
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
-import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.session.DomainSession
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUser, DomainUserId, DomainUserType}
@@ -95,7 +94,7 @@ class ModelOperationProcessorSpec
 
     "applying a noOp'ed discrete operation" must {
       "not apply the operation" in withTestData { provider =>
-        val op = AppliedStringInsertOperation(fnameVID, noOp = true, 0, "abc")
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = true, 0, Some("x"), "abc")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -105,8 +104,8 @@ class ModelOperationProcessorSpec
 
     "applying a compound operation" must {
       "apply all operations in the compound operation" in withTestData { provider =>
-        val op1 = AppliedStringInsertOperation(fnameVID, noOp = false, 0, "x")
-        val op2 = AppliedStringInsertOperation(fnameVID, noOp = false, 1, "y")
+        val op1 = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, Some(""), "x")
+        val op2 = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, Some(""), "y")
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
@@ -129,8 +128,8 @@ class ModelOperationProcessorSpec
       }
 
       "not apply noOp'ed operations in the compound operation" in withTestData { provider =>
-        val op1 = AppliedStringInsertOperation(fnameVID, noOp = false, 0, "x")
-        val op2 = AppliedStringInsertOperation(fnameVID, noOp = true, 1, "y")
+        val op1 = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, Some(""), "x")
+        val op2 = AppliedStringSpliceOperation(fnameVID, noOp = true, 1, Some(""), "y")
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
@@ -142,8 +141,8 @@ class ModelOperationProcessorSpec
     }
 
     "applying string operations" must {
-      "correctly update the model on StringInsert" in withTestData { provider =>
-        val op = AppliedStringInsertOperation(fnameVID, noOp = false, 0, "abc")
+      "correctly update the model on StringSplice (Insert)" in withTestData { provider =>
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, Some(""), "abc")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
@@ -151,13 +150,22 @@ class ModelOperationProcessorSpec
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "abcjohn")
       }
 
-      "correctly update the model on StringRemove" in withTestData { provider =>
-        val op = AppliedStringRemoveOperation(fnameVID, noOp = false, 1, 2, Some("Oh"))
+      "correctly update the model on StringSplice (Remove)" in withTestData { provider =>
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, Some("oh"), "")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
         val modelData = provider.modelStore.getModelData(person1Id).get.value
         modelData.children(fnameField) shouldEqual StringValue(fnameVID, "jn")
+      }
+
+      "correctly update the model on StringSplice (Splice)" in withTestData { provider =>
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, Some("oh"), "xy")
+        val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
+        provider.modelOperationProcessor.processModelOperation(modelOp).get
+
+        val modelData = provider.modelStore.getModelData(person1Id).get.value
+        modelData.children(fnameField) shouldEqual StringValue(fnameVID, "jxyn")
       }
 
       "correctly update the model on StringSet" in withTestData { provider =>

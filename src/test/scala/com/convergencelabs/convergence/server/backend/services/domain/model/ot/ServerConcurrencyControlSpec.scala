@@ -115,7 +115,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         scc.trackClient(Client1, 0)
         scc.trackClient(Client2, 0)
 
-        val op1 = StringInsertOperation(valueId, noOp = false, 1, Val)
+        val op1 = StringSpliceOperation(valueId, noOp = false, 1, 0, Val)
         val event1 = UnprocessedOperationEvent(Client1, 0, op1)
 
         scc.processRemoteOperation(event1).get
@@ -129,10 +129,10 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         scc.trackClient(Client1, 0)
         scc.trackClient(Client2, 0)
 
-        val op1 = StringInsertOperation(valueId, noOp = false, 1, Val)
+        val op1 = StringSpliceOperation(valueId, noOp = false, 1, 0, Val)
         val event1 = UnprocessedOperationEvent(Client1, 0, op1)
 
-        val op2 = StringInsertOperation(valueId, noOp = false, 1, Val)
+        val op2 = StringSpliceOperation(valueId, noOp = false, 1, 0, Val)
         val event2 = UnprocessedOperationEvent(Client2, 0, op2)
 
         scc.processRemoteOperation(event1).get
@@ -152,31 +152,31 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         scc.trackClient(Client1, 0)
         scc.trackClient(Client2, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 1, "c1o1")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 1, 0, "c1o1")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 0, client1Op1)).get
         scc.commit()
 
-        val client1Op2 = StringInsertOperation(valueId, noOp = false, 2, "c1o2")
+        val client1Op2 = StringSpliceOperation(valueId, noOp = false, 2, 0, "c1o2")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 1, client1Op2)).get
         scc.commit()
 
-        val client1Op3 = StringInsertOperation(valueId, noOp = false, 3, "c1o3")
+        val client1Op3 = StringSpliceOperation(valueId, noOp = false, 3, 0, "c1o3")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 2, client1Op3)).get
         scc.commit()
 
-        val client2Op1 = StringInsertOperation(valueId, noOp = false, 1, "c2o1")
+        val client2Op1 = StringSpliceOperation(valueId, noOp = false, 1, 0, "c2o1")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client2, 0, client2Op1)).get
         scc.commit()
 
-        val client1Op4 = StringInsertOperation(valueId, noOp = false, 4, "c1o4")
+        val client1Op4 = StringSpliceOperation(valueId, noOp = false, 4, 0, "c1o4")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 4, client1Op4)).get
         scc.commit()
 
-        val client1Op5 = StringInsertOperation(valueId, noOp = false, 5, "c1o5")
+        val client1Op5 = StringSpliceOperation(valueId, noOp = false, 5, 0, "c1o5")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 5, client1Op5)).get
         scc.commit()
 
-        val client2Op2 = StringInsertOperation(valueId, noOp = false, 2, "c202")
+        val client2Op2 = StringSpliceOperation(valueId, noOp = false, 2, 0, "c202")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client2, 2, client2Op2)).get
         scc.commit()
 
@@ -206,17 +206,17 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         scc.trackClient(Client1, 0)
         scc.trackClient(Client2, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
         scc.commit()
 
-        val client2Op1 = StringInsertOperation(valueId, noOp = false, 0, "B")
+        val client2Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "B")
         val client2Event1 = UnprocessedOperationEvent(Client2, 0, client2Op1)
         scc.processRemoteOperation(client2Event1).get
         scc.commit()
 
-        val client1Op2 = StringInsertOperation(valueId, noOp = false, 0, "C")
+        val client1Op2 = StringSpliceOperation(valueId, noOp = false, 0, 0, "C")
         val client1Event2 = UnprocessedOperationEvent(Client1, 0, client1Op2)
         scc.processRemoteOperation(client1Event2).get
         scc.commit()
@@ -235,11 +235,11 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         scc.trackClient(Client1, 0)
         scc.trackClient(Client2, 0)
 
-        val op1 = StringInsertOperation(valueId, noOp = false, 1, Val)
+        val op1 = StringSpliceOperation(valueId, noOp = false, 1, 0, Val)
         val event1 = UnprocessedOperationEvent(Client1, 0, op1)
         scc.processRemoteOperation(event1).get
 
-        val op2 = StringInsertOperation(valueId, noOp = false, 1, Val)
+        val op2 = StringSpliceOperation(valueId, noOp = false, 1, 0, Val)
         val event2 = UnprocessedOperationEvent(Client2, 0, op2)
 
         intercept[IllegalStateException] {
@@ -253,7 +253,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent("client3", 0, client1Op1)
         intercept[IllegalArgumentException] {
           scc.processRemoteOperation(client1Event1).get
@@ -267,11 +267,11 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 10).get
         scc.trackClient(Client1, 0)
 
-        val c1o1 = StringInsertOperation(valueId, noOp = false, 1, "c1o1")
+        val c1o1 = StringSpliceOperation(valueId, noOp = false, 1, 0, "c1o1")
         scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 10, c1o1)).get
         scc.commit()
 
-        val c1o2 = StringInsertOperation(valueId, noOp = false, 12, "c1o1")
+        val c1o2 = StringSpliceOperation(valueId, noOp = false, 12, 0, "c1o1")
 
         intercept[IllegalArgumentException] {
           scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 9, c1o2)).get
@@ -285,7 +285,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 10).get
         scc.trackClient(Client1, 10)
 
-        val c1o2 = StringInsertOperation(valueId, noOp = false, 1, "c1o1")
+        val c1o2 = StringSpliceOperation(valueId, noOp = false, 1, 0, "c1o1")
         intercept[IllegalArgumentException] {
           scc.processRemoteOperation(UnprocessedOperationEvent(Client1, 11, c1o2)).get
         }
@@ -301,7 +301,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
 
@@ -317,7 +317,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
 
@@ -332,7 +332,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
 
@@ -350,7 +350,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
 
@@ -366,7 +366,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
 
@@ -381,7 +381,7 @@ final class ServerConcurrencyControlSpec extends AnyWordSpec with MockitoSugar {
         val scc = ServerConcurrencyControl.create(opXFormer, refXFormer, 0).get
         scc.trackClient(Client1, 0)
 
-        val client1Op1 = StringInsertOperation(valueId, noOp = false, 0, "A")
+        val client1Op1 = StringSpliceOperation(valueId, noOp = false, 0, 0, "A")
         val client1Event1 = UnprocessedOperationEvent(Client1, 0, client1Op1)
         scc.processRemoteOperation(client1Event1).get
 

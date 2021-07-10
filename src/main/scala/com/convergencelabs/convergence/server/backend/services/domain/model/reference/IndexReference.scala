@@ -11,7 +11,7 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.IndexTransformer
+import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference.IndexTransformer
 import com.convergencelabs.convergence.server.backend.services.domain.model.value.RealtimeValue
 import com.convergencelabs.convergence.server.model.domain.model.IndexReferenceValues
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
@@ -34,6 +34,7 @@ private[model] final class IndexReference(target: RealtimeValue,
   extends ModelReference[Int, RealtimeValue](target, session, key, initial)
     with PositionalInsertAwareReference
     with PositionalRemoveAwareReference
+    with PositionalSpliceAwareReference
     with PositionalReorderAwareReference {
 
   def handlePositionalInsert(index: Int, length: Int): Unit = {
@@ -46,6 +47,10 @@ private[model] final class IndexReference(target: RealtimeValue,
 
   def handlePositionalReorder(fromIndex: Int, toIndex: Int): Unit = {
     this.values = IndexTransformer.handleReorder(this.values, fromIndex, toIndex)
+  }
+
+  override def handlePositionalSplice(index: Int, deleteCount: Int, insertLength: Int): Unit = {
+    this.values = IndexTransformer.handleSplice(this.values, index, deleteCount, insertLength)
   }
 
   override def referenceValues: IndexReferenceValues = IndexReferenceValues(get())

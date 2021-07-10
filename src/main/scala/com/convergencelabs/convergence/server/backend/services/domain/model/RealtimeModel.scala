@@ -18,7 +18,7 @@ import com.convergencelabs.convergence.server.backend.services.domain.model.refe
 import com.convergencelabs.convergence.server.backend.services.domain.model.value.{RealtimeContainerValue, RealtimeObject, RealtimeValue, RealtimeValueFactory}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model
-import com.convergencelabs.convergence.server.model.domain.model.{DataValue, ElementReferenceValues, ModelReferenceValues, ObjectValue, ReferenceState}
+import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
 import scala.util.{Failure, Success, Try}
@@ -242,8 +242,7 @@ private[model] final class RealtimeModel(val domainId: DomainId,
       value.processOperation(op)
     } else {
       Success(op match {
-        case StringRemoveOperation(id, noOp, index, value) => AppliedStringRemoveOperation(id, noOp, index, value.length(), None)
-        case StringInsertOperation(id, noOp, index, value) => AppliedStringInsertOperation(id, noOp, index, value)
+        case StringSpliceOperation(id, noOp, index, deleteCount, insertValue) => AppliedStringSpliceOperation(id, noOp, index, None, insertValue)
         case StringSetOperation(id, noOp, value) => AppliedStringSetOperation(id, noOp, value, None)
         case ObjectSetPropertyOperation(id, noOp, property, value) => AppliedObjectSetPropertyOperation(id, noOp, property, value, None)
         case ObjectAddPropertyOperation(id, noOp, property, value) => AppliedObjectAddPropertyOperation(id, noOp, property, value)

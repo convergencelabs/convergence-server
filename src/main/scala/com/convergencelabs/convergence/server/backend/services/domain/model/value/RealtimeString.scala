@@ -12,7 +12,7 @@
 package com.convergencelabs.convergence.server.backend.services.domain.model.value
 
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
-import com.convergencelabs.convergence.server.backend.services.domain.model.reference.{PositionalInsertAwareReference, PositionalRemoveAwareReference}
+import com.convergencelabs.convergence.server.backend.services.domain.model.reference.PositionalSpliceAwareReference
 import com.convergencelabs.convergence.server.model.domain.model.{IndexReferenceValues, RangeReferenceValues, StringValue}
 
 import scala.util.{Failure, Success, Try}
@@ -38,10 +38,8 @@ private[model] final class RealtimeString(value: StringValue,
 
   protected def processValidatedOperation(op: DiscreteOperation): Try[AppliedStringOperation] = {
     op match {
-      case insert: StringInsertOperation =>
-        this.processInsertOperation(insert)
-      case remove: StringRemoveOperation =>
-        this.processRemoveOperation(remove)
+      case splice: StringSpliceOperation =>
+        this.processSpliceOperation(splice)
       case value: StringSetOperation =>
         this.processSetOperation(value)
       case op =>
@@ -49,37 +47,21 @@ private[model] final class RealtimeString(value: StringValue,
     }
   }
 
-  private[this] def processInsertOperation(op: StringInsertOperation): Try[AppliedStringInsertOperation] = {
-    val StringInsertOperation(id, noOp, index, value) = op
+  private[this] def processSpliceOperation(op: StringSpliceOperation): Try[AppliedStringSpliceOperation] = {
+    val StringSpliceOperation(id, noOp, index, deleteCount, insertValue) = op
 
-    if (this.string.length < index || index < 0) {
+    if (this.string.length < index || index < 0 || index + deleteCount > this.string.length) {
       Failure(new IllegalArgumentException("Index out of bounds: " + index))
     } else {
-      this.string = this.string.slice(0, index) + value + this.string.slice(index, this.string.length)
+      val oldValue = this.string.substring(index, index + deleteCount)
+      this.string = this.string.patch(index, insertValue, deleteCount)
 
       this.referenceManager.referenceMap().getAll.foreach {
-        case x: PositionalInsertAwareReference => x.handlePositionalInsert(index, value.length)
+        case x: PositionalSpliceAwareReference => x.handlePositionalSplice(index, deleteCount, insertValue.length)
         case _ => // no-op
       }
 
-      Success(AppliedStringInsertOperation(id, noOp, index, value))
-    }
-  }
-
-  private[this] def processRemoveOperation(op: StringRemoveOperation): Try[AppliedStringRemoveOperation] = {
-    val StringRemoveOperation(id, noOp, index, value) = op
-
-    if (this.string.length < index + value.length || index < 0) {
-      Failure(new Error("Index out of bounds!"))
-    } else {
-      this.string = this.string.slice(0, index) + this.string.slice(index + value.length, this.string.length)
-
-      this.referenceManager.referenceMap().getAll.foreach {
-        case x: PositionalRemoveAwareReference => x.handlePositionalRemove(index, value.length)
-        case _ => // no-op
-      }
-
-      Success(AppliedStringRemoveOperation(id, noOp, index, value.length(), Some(value)))
+      Success(AppliedStringSpliceOperation(id, noOp, index, Some(oldValue), insertValue))
     }
   }
 

@@ -26,13 +26,8 @@ class OperationsSpec extends AnyFunSuite with Matchers {
   // String Operations
 
   test("StringInsertOperation must preserve other fields when setting noOp and path") {
-    val original = StringInsertOperation(valueId, noOp = false, 1, "insert")
-    original.clone(true) shouldBe StringInsertOperation(valueId, noOp = true, 1, "insert")
-  }
-
-  test("StringRemoveOperation must preserve other fields when setting noOp and path") {
-    val original = StringRemoveOperation(valueId, noOp = false, 1, "remove")
-    original.clone(true) shouldBe StringRemoveOperation(valueId, noOp = true, 1, "remove")
+    val original = StringSpliceOperation(valueId, noOp = false, 1, 5, "insert")
+    original.clone(true) shouldBe StringSpliceOperation(valueId, noOp = true, 1, 5, "insert")
   }
 
   test("StringSetOperation must preserve other fields when setting noOp and path") {

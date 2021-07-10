@@ -24,7 +24,7 @@ ThisBuild / resolvers += Resolver.sonatypeRepo("snapshots")
 
 ThisBuild / organization := "com.convergencelabs"
 ThisBuild / organizationName := "Convergence Labs, Inc."
-ThisBuild / organizationHomepage := Some(url("http://convergencelabs.com"))
+ThisBuild / organizationHomepage := Some(url("https://convergencelabs.com"))
 
 ThisBuild / homepage := Some(url("https://convergence.io"))
 
@@ -38,57 +38,74 @@ ThisBuild / scalaVersion := "2.13.5"
 
 ThisBuild / developers := List(
   Developer(
-    id    = "mmacfadden",
-    name  = "Michael MacFadden",
+    id = "mmacfadden",
+    name = "Michael MacFadden",
     email = "michael@convergencelabs.com",
-    url   = url("https://convergencelabs.com")
+    url = url("https://convergencelabs.com")
   )
 )
+
+//
+// ExhaustiveOtTest
+//
+
+lazy val ExhaustiveOtTest = Configuration.of("OT", "ot") extend Test
+
+lazy val otTestConfig = Defaults.configSettings ++ Defaults.testTasks ++ Seq(
+  ExhaustiveOtTest / scalaSource := baseDirectory.value / "src" / "test-ot" / "scala",
+  ExhaustiveOtTest / parallelExecution := false
+)
+
+lazy val exhaustiveOtTestSettings =
+  inConfig(ExhaustiveOtTest)(otTestConfig)
 
 //
 // Root Project
 //
 
 lazy val root = (project in file("."))
-  .settings(Seq(
-    name := "Convergence Server",
-    normalizedName := "convergence-server",
-    description := "The Convergence Server core classes.",
-    scalacOptions := Seq("-deprecation", "-feature"),
-    Compile/ discoveredMainClasses := Seq(),
-    fork := true,
-    libraryDependencies ++=
-      akkaCore ++
-        orientDb ++
-        loggingAll ++
-        Seq(
-          scalapb,
-          convergenceProto,
-          akkaHttp,
-          json4s,
-          jacksonYaml,
-          json4sExt,
-          akkaHttpJson4s,
-          akkaHttpCors,
-          commonsLang,
-          jose4j,
-          bouncyCastle,
-          scrypt,
-          netty,
-          javaWebsockets,
-          scallop,
-          parboiled
-        ) ++
-        Seq(orientDbServer % "test") ++
-        testingCore ++
-        testingAkka,
+  .configs(ExhaustiveOtTest)
+  .settings(
+    exhaustiveOtTestSettings ++
+      Seq(
+        name := "Convergence Server",
+        normalizedName := "convergence-server",
+        description := "The Convergence Server core classes.",
+        scalacOptions := Seq("-deprecation", "-feature"),
+        Compile / discoveredMainClasses := Seq(),
+        fork := true,
+        libraryDependencies ++=
+          akkaCore ++
+            orientDb ++
+            loggingAll ++
+            Seq(
+              scalapb,
+              convergenceProto,
+              akkaHttp,
+              json4s,
+              jacksonYaml,
+              json4sExt,
+              akkaHttpJson4s,
+              akkaHttpCors,
+              commonsLang,
+              jose4j,
+              bouncyCastle,
+              scrypt,
+              netty,
+              javaWebsockets,
+              scallop,
+              parboiled
+            ) ++
+            Seq(orientDbServer % "test") ++
+            testingCore ++
+            testingAkka,
 
-    //
-    // SBT Build Info
-    //
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "com.convergencelabs.convergence.server"
-  ))
+        //
+        // SBT Build Info
+        //
+        buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+        buildInfoPackage := "com.convergencelabs.convergence.server"
+      ))
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(OrientDBPlugin)
 
@@ -122,11 +139,11 @@ lazy val dist = (project in file("distribution"))
     batScriptExtraDefines += """call :add_java "-Dnashorn.args=--no-deprecation-warning"""",
 
     packageZip := (Compile / baseDirectory).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".zip"),
-    Universal /  packageZip / artifact ~= { (art: Artifact) => art.withType("zip").withExtension("zip") },
-    packageTgz := (Compile/ baseDirectory).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".tgz"),
+    Universal / packageZip / artifact ~= { (art: Artifact) => art.withType("zip").withExtension("zip") },
+    packageTgz := (Compile / baseDirectory).value / "target" / "universal" / (normalizedName.value + "-" + version.value + ".tgz"),
     Universal / packageTgz / artifact ~= { (art: Artifact) => art.withType("tgz").withExtension("tgz") },
 
-    publish := (publish dependsOn(Universal/ packageBin, Universal/ packageZipTarball)).value,
+    publish := (publish dependsOn(Universal / packageBin, Universal / packageZipTarball)).value,
     publishSigned := (publishSigned dependsOn(Universal / packageBin, Universal / packageZipTarball)).value,
   ))
   .settings(addArtifact(Universal / packageZip / artifact, Universal / packageZip))

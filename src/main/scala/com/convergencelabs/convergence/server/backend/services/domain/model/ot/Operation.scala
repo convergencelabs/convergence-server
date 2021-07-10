@@ -38,8 +38,7 @@ final case class CompoundOperation(operations: List[DiscreteOperation]) extends 
   new JsonSubTypes.Type(value = classOf[ObjectRemovePropertyOperation], name = "object_remove_prop"),
   new JsonSubTypes.Type(value = classOf[ObjectSetOperation], name = "object_set"),
 
-  new JsonSubTypes.Type(value = classOf[StringInsertOperation], name = "string_insert"),
-  new JsonSubTypes.Type(value = classOf[StringRemoveOperation], name = "string_remove"),
+  new JsonSubTypes.Type(value = classOf[StringSpliceOperation], name = "string_splice"),
   new JsonSubTypes.Type(value = classOf[StringSetOperation], name = "string_set"),
 
   new JsonSubTypes.Type(value = classOf[NumberAddOperation], name = "number_delta"),
@@ -63,12 +62,8 @@ sealed trait DiscreteOperation extends Operation {
 
 sealed trait StringOperation extends DiscreteOperation
 
-final case class StringRemoveOperation(id: String, noOp: Boolean, index: Int, value: String) extends StringOperation {
-  def clone(noOp: scala.Boolean = noOp): StringRemoveOperation = copy(noOp = noOp)
-}
-
-final case class StringInsertOperation(id: String, noOp: Boolean, index: Int, value: String) extends StringOperation {
-  def clone(noOp: scala.Boolean = noOp): StringInsertOperation = copy(noOp = noOp)
+final case class StringSpliceOperation(id: String, noOp: Boolean, index: Int, deleteCount: Int, insertValue: String) extends StringOperation {
+  def clone(noOp: scala.Boolean = noOp): StringSpliceOperation = copy(noOp = noOp)
 }
 
 final case class StringSetOperation(id: String, noOp: Boolean, value: String) extends StringOperation {

@@ -9,7 +9,7 @@
  * full text of the GPLv3 license, if it was not provided.
  */
 
-package com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform
+package com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference
 
 object IndexTransformer {
   def handleInsert(indices: List[Int], insertIndex: Int, length: Int): List[Int] = {
@@ -36,6 +36,15 @@ object IndexTransformer {
     indices map (index =>
       if (index > removeIndex) {
         index - Math.min(index - removeIndex, length)
+      } else {
+        index
+      })
+  }
+
+  def handleSplice(indices: List[Int], spliceIndex: Int, deleteCount: Int, insertLength: Int): List[Int] = {
+    indices map (index =>
+      if (index >= spliceIndex) {
+        (index - Math.min(index - spliceIndex, deleteCount)) + insertLength
       } else {
         index
       })

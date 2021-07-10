@@ -29,6 +29,14 @@ private[model] trait PositionalRemoveAwareReference {
 
 /**
  * Indicates that a reference can update its value based on a position
+ * insert type of operation.
+ */
+private[model] trait PositionalSpliceAwareReference {
+  def handlePositionalSplice(index: Int, deleteCount: Int, insertLength: Int): Unit
+}
+
+/**
+ * Indicates that a reference can update its value based on a position
  * reorder type of operation.
  */
 private[model] trait PositionalReorderAwareReference {

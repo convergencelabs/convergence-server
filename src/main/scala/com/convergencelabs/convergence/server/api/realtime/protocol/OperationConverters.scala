@@ -54,11 +54,8 @@ private[realtime] object OperationConverters {
       //
       // Strings
       //
-      case DiscreteOperationData.Operation.StringInsertOperation(StringInsertOperationData(id, noOp, index, value, _)) =>
-        Right(StringInsertOperation(id, noOp, index, value))
-
-      case DiscreteOperationData.Operation.StringRemoveOperation(StringRemoveOperationData(id, noOp, index, value, _)) =>
-        Right(StringRemoveOperation(id, noOp, index, value))
+      case DiscreteOperationData.Operation.StringSpliceOperation(StringSpliceOperationData(id, noOp, index, deleteCount, insertedValue, _)) =>
+        Right(StringSpliceOperation(id, noOp, index, deleteCount, insertedValue))
 
       case DiscreteOperationData.Operation.StringSetOperation(StringSetOperationData(id, noOp, value, _)) =>
         Right(StringSetOperation(id, noOp, value))
@@ -165,13 +162,10 @@ private[realtime] object OperationConverters {
       //
       // Strings
       //
-      case StringInsertOperation(id, noOp, index, value) =>
-        DiscreteOperationData()
-          .withStringInsertOperation(StringInsertOperationData(id, noOp, index, value))
 
-      case StringRemoveOperation(id, noOp, index, value) =>
+      case StringSpliceOperation(id, noOp, index, deleteCount, insertedValue) =>
         DiscreteOperationData()
-          .withStringRemoveOperation(StringRemoveOperationData(id, noOp, index, value))
+          .withStringSpliceOperation(StringSpliceOperationData(id, noOp, index, deleteCount, insertedValue))
 
       case StringSetOperation(id, noOp, value) =>
         DiscreteOperationData()

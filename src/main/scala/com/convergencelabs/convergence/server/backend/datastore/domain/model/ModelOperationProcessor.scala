@@ -87,8 +87,7 @@ class ModelOperationProcessor private[domain](dbProvider: DatabaseProvider,
       case op: AppliedObjectRemovePropertyOperation => applyObjectRemovePropertyOperation(modelId, op, db)
       case op: AppliedObjectSetOperation => applyObjectSetOperation(modelId, op, db)
 
-      case op: AppliedStringInsertOperation => applyStringInsertOperation(modelId, op, db)
-      case op: AppliedStringRemoveOperation => applyStringRemoveOperation(modelId, op, db)
+      case op: AppliedStringSpliceOperation => applyStringSpliceOperation(modelId, op, db)
       case op: AppliedStringSetOperation => applyStringSetOperation(modelId, op, db)
 
       case op: AppliedNumberAddOperation => applyNumberAddOperation(modelId, op, db)
@@ -226,17 +225,16 @@ class ModelOperationProcessor private[domain](dbProvider: DatabaseProvider,
   //
   // String Operations
   //
-  private[this] def applyStringInsertOperation(modelId: String, operation: AppliedStringInsertOperation, db: ODatabaseDocument): Try[Unit] = {
-    val script = createUpdate("SET value = value.left(:index).append(:value).append(value.substring(:index))", None)
-    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, Value -> operation.value)
-    val result = OrientDBUtil.executeMutation(db, script, params).map(_ => ())
-    result
-  }
 
-  private[this] def applyStringRemoveOperation(modelId: String, operation: AppliedStringRemoveOperation, db: ODatabaseDocument): Try[Unit] = {
-    val script = createUpdate("SET value = value.left(:index).append(value.substring(:endLength))", None)
-    val endLength = operation.index + operation.length
-    val params = Map(Id -> operation.id, ModelId -> modelId, Index -> operation.index, "endLength" -> endLength)
+  private[this] def applyStringSpliceOperation(modelId: String, operation: AppliedStringSpliceOperation, db: ODatabaseDocument): Try[Unit] = {
+    val script = createUpdate("SET value = value.left(:index).append(:insertedValue).append(value.substring(:endLength))", None)
+    val endLength = operation.index + operation.deletedValue.get.length
+    val params = Map(
+      Id -> operation.id,
+      ModelId -> modelId,
+      Index -> operation.index,
+      "endLength" -> endLength,
+      "insertedValue" -> operation.insertedValue)
     OrientDBUtil.executeMutation(db, script, params).map(_ => ())
   }
 

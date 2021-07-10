@@ -11,7 +11,6 @@
 
 package com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.reference
 
-import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.IndexTransformer
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -20,8 +19,8 @@ class IndexTransformerSpec
     with Matchers {
 
   "An IndexTransformer" when {
-    "tranforming indices against an insert" must {
-      "Increment indices that are greaterthan by the length of the insert" in {
+    "transforming indices against an insert" must {
+      "Increment indices that are greater than by the length of the insert" in {
         IndexTransformer.handleInsert(List(6), 5, 2) shouldBe List(8)
       }
 
@@ -38,7 +37,7 @@ class IndexTransformerSpec
       }
     }
 
-    "tranforming indices against a remove" must {
+    "transforming indices against a remove" must {
       "Decrement indices that are greater than the remove range" in {
         IndexTransformer.handleRemove(List(8), 5, 2) shouldBe List(6)
       }
@@ -61,6 +60,32 @@ class IndexTransformerSpec
 
       "Properly transforms multiple items in a list against a remove" in {
         IndexTransformer.handleRemove(List(4, 5, 8, 12), 5, 4) shouldBe List(4, 5, 5, 8)
+      }
+    }
+
+    "transforming indices against an splice" must {
+      "Decrement indices after the splice index with a net decrease in length" in {
+        IndexTransformer.handleSplice(List(6), 0, 1, 0) shouldBe List(5)
+      }
+
+      "Increment indices after the splice index with a net increase in length" in {
+        IndexTransformer.handleSplice(List(6), 0, 1, 2) shouldBe List(7)
+      }
+
+      "Increment indices at the splice index with a net increase in length" in {
+        IndexTransformer.handleSplice(List(6), 6, 1, 2) shouldBe List(8)
+      }
+
+      "Increment for a range containing the index with a net increase" in {
+        IndexTransformer.handleSplice(List(6), 4, 3, 2) shouldBe List(6)
+      }
+
+      "Not change indices before the splice index with a net increase in length" in {
+        IndexTransformer.handleSplice(List(3), 4, 1, 2) shouldBe List(3)
+      }
+
+      "Properly transforms multiple items in a list against an insert" in {
+        IndexTransformer.handleSplice(List(4, 5, 6), 5, 2, 1) shouldBe List(4, 6, 6)
       }
     }
   }
