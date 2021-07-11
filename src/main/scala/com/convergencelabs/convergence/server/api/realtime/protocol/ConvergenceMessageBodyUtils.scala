@@ -203,7 +203,6 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ConnectionResponseMessage => Body.ConnectionResponse(message)
       case message: IdentityCacheUpdateMessage => Body.IdentityCacheUpdate(message)
       case message: OkResponse => Body.Ok(message)
-      case message: OkResponse => Body.Ok(message)
       case message: GetServerTimeRequestMessage => Body.ServerTimeRequest(message)
       case message: GetServerTimeResponseMessage => Body.ServerTimeResponse(message)
 

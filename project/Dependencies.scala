@@ -24,7 +24,7 @@ object Dependencies {
 
   object Compile {
     // Convergence
-    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto-scala"      % "1.0.0-SNAPSHOT"                // Apache 2.0
+    val convergenceProto   = "com.convergencelabs"      %% "convergence-proto-scala"      % "1.0.0-rc.7"                // Apache 2.0
 
     // Protobuf
     val scalapb            = "com.thesamet.scalapb"     %% "scalapb-runtime"              % "0.11.1"                    // Apache 2.0
