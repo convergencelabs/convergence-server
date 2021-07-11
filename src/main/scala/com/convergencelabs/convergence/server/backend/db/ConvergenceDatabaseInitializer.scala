@@ -21,7 +21,7 @@ import com.convergencelabs.convergence.server.backend.services.server.DomainData
 import com.convergencelabs.convergence.server.backend.services.server.{DomainCreator, UserCreator}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.CollectionConfig
-import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
+import com.convergencelabs.convergence.server.model.server.domain.{DomainAvailability, DomainStatus}
 import com.convergencelabs.convergence.server.model.server.user.User
 import com.convergencelabs.convergence.server.security.Roles
 import com.convergencelabs.convergence.server.util.concurrent.FutureUtils
@@ -483,10 +483,19 @@ final class ConvergenceDatabaseInitializer(config: Config,
         val domainSchemaVersion = state.schemaVersion
         if (domainSchemaVersion < latestVersion && state.status == DomainStatus.Ready) {
           info(s" Domain '${domainId.namespace}/${domainId.domainId}' is at schema version $domainSchemaVersion, but the current version is $latestVersion.  Marking domain in need of upgrading.")
-          domainStore.setDomainStatus(
-            domainId,
-            DomainStatus.SchemaUpgradeRequired,
-            s"Domain at version $domainSchemaVersion. Latest version is $latestVersion")
+          (for {
+            _ <- domainStore.setDomainStatus(
+              domainId,
+              DomainStatus.SchemaUpgradeRequired,
+              s"Domain at version $domainSchemaVersion. Latest version is $latestVersion")
+            currentAvailability <- domainStore.getDomain(domainId).map(_.availability)
+            _ <- if (currentAvailability == DomainAvailability.Online) {
+              domainStore.setDomainAvailability(domainId, DomainAvailability.Maintenance)
+            } else {
+              Success(())
+            }
+          } yield ())
+            .recover(e => error("Error marking domain in need up upgrade", e))
         }
       }
     }
