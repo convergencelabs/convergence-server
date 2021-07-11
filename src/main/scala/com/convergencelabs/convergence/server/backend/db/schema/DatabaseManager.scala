@@ -16,6 +16,7 @@ import com.convergencelabs.convergence.server.backend.db.schema.SchemaManager.Sc
 import com.convergencelabs.convergence.server.backend.db.{DatabaseProvider, DomainDatabaseFactory}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainPersistenceManagerActor.DomainNotFoundException
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.model.server.domain.DomainStatus
 import grizzled.slf4j.Logging
 
 import scala.util.{Failure, Success, Try}

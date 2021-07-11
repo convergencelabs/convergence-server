@@ -139,7 +139,9 @@ private[server] final class BackendServices(context: ActorContext[_],
    *                              database.
    * @return Success if the actors are started; a failure otherwise.
    */
-  private[this] def startActors(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): Try[Unit] = Try {
+  private[this] def startActors(persistenceConfig: Config,
+                                convergenceDbProvider: DatabaseProvider,
+                               ): Try[Unit] = Try {
     createUserSessionTokenReaperActor(convergenceDbProvider)
     createDatabaseManager(persistenceConfig, convergenceDbProvider)
     createStoreActors(persistenceConfig, convergenceDbProvider)
@@ -211,7 +213,8 @@ private[server] final class BackendServices(context: ActorContext[_],
     context.spawn(UserFavoriteDomainStoreActor(favoriteDomainStore), "FavoriteDomains")
   }
 
-  private[this] def createDatabaseManager(persistenceConfig: Config, convergenceDbProvider: DatabaseProvider): ActorRef[DatabaseManagerActor.Message] = {
+  private[this] def createDatabaseManager(persistenceConfig: Config,
+                                          convergenceDbProvider: DatabaseProvider): ActorRef[DatabaseManagerActor.Message] = {
     val dbServerConfig = persistenceConfig.getConfig("server")
     val convergenceRepo = new SchemaMetaDataRepository(ConvergenceSchemaManager.BasePath)
     val domainRepo = new SchemaMetaDataRepository(DomainSchemaManager.BasePath)
@@ -230,7 +233,8 @@ private[server] final class BackendServices(context: ActorContext[_],
         convergenceDbProvider,
         convergenceSchemaVersion,
         domainSchemaVersion)
-      context.spawn(DatabaseManagerActor(databaseManager), name = "DatabaseManager")
+      val domainStore = new DomainStore(convergenceDbProvider)
+      context.spawn(DatabaseManagerActor(databaseManager, domainStore, domainLifecycleTopic), name = "DatabaseManager")
     }).fold({ err =>
       throw new IllegalStateException(err.toString)
     }, actor => actor)
