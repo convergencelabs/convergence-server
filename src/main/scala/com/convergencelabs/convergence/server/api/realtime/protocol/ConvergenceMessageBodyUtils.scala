@@ -34,6 +34,7 @@ private[realtime] object ConvergenceMessageBodyUtils {
    */
   def fromBody(body: Body): Option[GeneratedMessage] = {
     Option(body match {
+      // Core
       case Body.Error(message) => message
       case Body.Ok(message) => message
       case Body.Ping(message) => message
@@ -41,6 +42,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.ConnectionRequest(message) => message
       case Body.ConnectionResponse(message) => message
       case Body.IdentityCacheUpdate(message) => message
+      case Body.ServerTimeRequest(message) => message
+      case Body.ServerTimeResponse(message) => message
 
       // Model
       case Body.OpenRealTimeModelRequest(message) => message
@@ -190,6 +193,7 @@ private[realtime] object ConvergenceMessageBodyUtils {
    */
   def toBody(message: GeneratedMessage): Body = {
     message match {
+      // Core
       case message: ErrorMessage => Body.Error(message)
       case message: PingMessage => Body.Ping(message)
       case message: PongMessage => Body.Pong(message)
@@ -197,6 +201,9 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: ConnectionResponseMessage => Body.ConnectionResponse(message)
       case message: IdentityCacheUpdateMessage => Body.IdentityCacheUpdate(message)
       case message: OkResponse => Body.Ok(message)
+      case message: OkResponse => Body.Ok(message)
+      case message: GetServerTimeRequestMessage => Body.ServerTimeRequest(message)
+      case message: GetServerTimeResponseMessage => Body.ServerTimeResponse(message)
 
       // Model
       case message: OpenRealtimeModelRequestMessage => Body.OpenRealTimeModelRequest(message)

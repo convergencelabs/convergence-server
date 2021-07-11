@@ -25,7 +25,7 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.BuildInfo
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
-import com.convergencelabs.convergence.server.api.realtime.protocol.ConvergenceMessageBodyUtils
+import com.convergencelabs.convergence.server.api.realtime.protocol.{CommonProtoConverters, ConvergenceMessageBodyUtils}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
 import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{AnonymousAuthenticationDisabled, AuthenticationError, AuthenticationFailed}
@@ -48,6 +48,7 @@ import com.google.protobuf.struct.Value.Kind.StringValue
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
 
+import java.time.Instant
 import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -550,9 +551,18 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
               "A permission request was received that did not have the target set."
             )
         }
+      case RequestReceived(_: GetServerTimeRequestMessage, cb) =>
+        onGetServerTimeRequest(cb)
       case msg =>
         logger.error("Unexpected request message received: " + msg)
     }
+    Behaviors.same
+  }
+
+  private def onGetServerTimeRequest(cb: ReplyCallback): Behavior[Message] = {
+    val timestamp = CommonProtoConverters.instantToTimestamp(Instant.now())
+    val response = GetServerTimeResponseMessage(Some(timestamp))
+    cb.reply(response)
     Behaviors.same
   }
 
