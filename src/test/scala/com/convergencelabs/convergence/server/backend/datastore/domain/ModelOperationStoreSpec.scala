@@ -56,6 +56,10 @@ class ModelOperationStoreSpec
   private val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
   private val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), user.toUserId, sessionId, op1)
 
+  private val modelOp2 = NewModelOperation(modelId1, 2L, Instant.ofEpochMilli(20), sessionId, op1)
+  private val modelOp3 = NewModelOperation(modelId1, 3L, Instant.ofEpochMilli(30), sessionId, op1)
+  private val modelOp4 = NewModelOperation(modelId1, 4L, Instant.ofEpochMilli(40), sessionId, op1)
+
   private val op15 = AppliedStringSpliceOperation("0:0", noOp = false, 2, Some(""), "2")
   private val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
 
@@ -79,20 +83,49 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.getMaxVersion(modelId1).get.get shouldBe 15
+        provider.modelOperationStore.getMaxOperationVersion(modelId1).get.get shouldBe 15
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>
-        provider.modelOperationStore.getMaxVersion(notFoundId).success.get shouldBe None
+        provider.modelOperationStore.getMaxOperationVersion(notFoundId).success.get shouldBe None
       }
     }
 
     "requesting version at or before time" must {
-      "return the correct version" in withPersistenceStore { provider =>
+      "return the correct version when time is between two operations" in withPersistenceStore { provider =>
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
-        provider.modelOperationStore.createModelOperation(modelOp15).get
-        provider.modelOperationStore.getVersionAtOrBeforeTime(modelId1, truncatedInstantNow()).success.get.get shouldBe 15
+        provider.modelOperationStore.createModelOperation(modelOp2).get
+        provider.modelOperationStore.createModelOperation(modelOp3).get
+        provider.modelOperationStore.createModelOperation(modelOp4).get
+        provider.modelOperationStore.getVersionAtOrBeforeTime(modelId1, Instant.ofEpochMilli(25)).success.get.get shouldBe 2
+      }
+
+      "return the correct version when time is equal to a version " in withPersistenceStore { provider =>
+        initCommonData(provider)
+        provider.modelOperationStore.createModelOperation(modelOp1).get
+        provider.modelOperationStore.createModelOperation(modelOp2).get
+        provider.modelOperationStore.createModelOperation(modelOp3).get
+        provider.modelOperationStore.createModelOperation(modelOp4).get
+        provider.modelOperationStore.getVersionAtOrBeforeTime(modelId1, Instant.ofEpochMilli(30)).success.get.get shouldBe 3
+      }
+
+      "return the correct version when time is greater than the last version" in withPersistenceStore { provider =>
+        initCommonData(provider)
+        provider.modelOperationStore.createModelOperation(modelOp1).get
+        provider.modelOperationStore.createModelOperation(modelOp2).get
+        provider.modelOperationStore.createModelOperation(modelOp3).get
+        provider.modelOperationStore.createModelOperation(modelOp4).get
+        provider.modelOperationStore.getVersionAtOrBeforeTime(modelId1, Instant.ofEpochMilli(50)).success.get.get shouldBe 4
+      }
+
+      "return the correct version when time is less than the first version" in withPersistenceStore { provider =>
+        initCommonData(provider)
+        provider.modelOperationStore.createModelOperation(modelOp1).get
+        provider.modelOperationStore.createModelOperation(modelOp2).get
+        provider.modelOperationStore.createModelOperation(modelOp3).get
+        provider.modelOperationStore.createModelOperation(modelOp4).get
+        provider.modelOperationStore.getVersionAtOrBeforeTime(modelId1, Instant.ofEpochMilli(0)).success.get shouldBe None
       }
 
       "return None if the model has no operation history" in withPersistenceStore { provider =>
@@ -128,8 +161,23 @@ class ModelOperationStoreSpec
         provider.modelOperationStore.getOperationsAfterVersion(notFoundId, 6).success.get shouldBe empty
       }
     }
+
     "deleting all operations for a model" must {
       "remove all operations in the model" in withPersistenceStore { provider =>
+        initCommonData(provider)
+        provider.modelOperationStore.createModelOperation(modelOp1).get
+        provider.modelOperationStore.createModelOperation(modelOp15).get
+        provider.modelOperationStore.deleteAllOperationsForModel(modelId1).success
+        provider.modelOperationStore.getOperationsAfterVersion(modelId1, 0).success.get shouldBe empty
+      }
+
+      "do nothing if model does not exist" in withPersistenceStore { provider =>
+        provider.modelOperationStore.deleteAllOperationsForModel(notFoundId).success
+      }
+    }
+
+    "getting the version of a model at a specified time" must {
+      "get the correct version" in withPersistenceStore { provider =>
         initCommonData(provider)
         provider.modelOperationStore.createModelOperation(modelOp1).get
         provider.modelOperationStore.createModelOperation(modelOp15).get

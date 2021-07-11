@@ -90,6 +90,8 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case Body.HistoricalDataResponse(message) => message
       case Body.HistoricalOperationsRequest(message) => message
       case Body.HistoricalOperationsResponse(message) => message
+      case Body.ModelGetVersionAtTimeRequest(message) => message
+      case Body.ModelGetVersionAtTimeResponse(message) => message
 
       // Identity
       case Body.UsersGetRequest(message) => message
@@ -232,10 +234,14 @@ private[realtime] object ConvergenceMessageBodyUtils {
       case message: RemoteReferenceUnsharedMessage => Body.ReferenceUnshared(message)
       case message: ModelsQueryRequestMessage => Body.ModelsQueryRequest(message)
       case message: ModelsQueryResponseMessage => Body.ModelsQueryResponse(message)
+
       case message: HistoricalDataRequestMessage => Body.HistoricalDataRequest(message)
       case message: HistoricalDataResponseMessage => Body.HistoricalDataResponse(message)
       case message: HistoricalOperationRequestMessage => Body.HistoricalOperationsRequest(message)
       case message: HistoricalOperationsResponseMessage => Body.HistoricalOperationsResponse(message)
+      case message: ModelGetVersionAtTimeRequestMessage => Body.ModelGetVersionAtTimeRequest(message)
+      case message: ModelGetVersionAtTimeResponseMessage => Body.ModelGetVersionAtTimeResponse(message)
+
       case message: GetModelPermissionsRequestMessage => Body.GetModelPermissionsRequest(message)
       case message: GetModelPermissionsResponseMessage => Body.GetModelPermissionsResponse(message)
       case message: SetModelPermissionsRequestMessage => Body.SetModelPermissionsRequest(message)

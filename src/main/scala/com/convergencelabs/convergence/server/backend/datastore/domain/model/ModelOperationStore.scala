@@ -31,31 +31,70 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
   import ModelOperationStore._
   import schema.ModelOperationClass._
 
-  private[this] val GetMaxVersionQuery = "SELECT max(version) as max FROM ModelOperation WHERE model.id = :modelId"
-
-  def getMaxVersion(id: String): Try[Option[Long]] = withDb { db =>
-    val params = Map(Constants.ModelId -> id)
+  /**
+   * Gets the maximum version for a model.
+   *
+   * @param modelId The id of the model.
+   * @return The max version or non if the model does not have any operations.
+   */
+  def getMaxOperationVersion(modelId: String): Try[Option[Long]] = withDb { db =>
+    val params = Map(Constants.ModelId -> modelId)
     OrientDBUtil
       .findDocument(db, GetMaxVersionQuery, params)
       .map(_.flatMap(doc => Option(doc.getProperty("max"))))
   }
 
-  private[this] val GetVersionAtOrBeforeTime = "SELECT max(version) as max FROM ModelOperation WHERE model.id = :modelId AND timestamp <= :time"
+  private[this] val GetMaxVersionQuery = "SELECT max(version) as max FROM ModelOperation WHERE model.id = :modelId"
 
-  def getVersionAtOrBeforeTime(id: String, time: Instant): Try[Option[Long]] = withDb { db =>
-    val params = Map(Constants.ModelId -> id, "time" -> new java.util.Date(time.toEpochMilli))
+  /**
+   * Gets the version the model was at, at a specific time.
+   *
+   * @param modelId The id of the model to get the operations for.
+   * @param time    The time to get the model version for
+   * @return The version the model was at, at the given time.
+   */
+  def getVersionAtOrBeforeTime(modelId: String, time: Instant): Try[Option[Long]] = withDb { db =>
+    val params = Map(Constants.ModelId -> modelId, "time" -> new java.util.Date(time.toEpochMilli))
     OrientDBUtil
-      .findDocument(db, GetVersionAtOrBeforeTime, params)
-      .map(_.flatMap(doc => Option(doc.getProperty("max"))))
+      .findDocument(db, GetModelVersionAtTimeQuery, params)
+      .map(_.flatMap(doc => Option(doc.getProperty("version").asInstanceOf[Long])))
+  }
+
+  private[this] val GetModelVersionAtTimeQuery =
+    s"""SELECT
+       |  ${Fields.Version}
+       |FROM
+       |  ModelOperation
+       |WHERE
+       |  model.id = :modelId AND
+       |  ${Fields.Timestamp} <= :time
+       |ORDER BY ${Fields.Version} DESC
+       |LIMIT 1""".stripMargin
+
+
+  /**
+   * Gets a specific operation for a model.
+   *
+   * @param modelId The id of the model.
+   * @param version The version of the operation to get.
+   * @return Some operation if the model has an operation with that version or None otherwise.
+   */
+  def getModelOperation(modelId: String, version: Long): Try[Option[ModelOperation]] = withDb { db =>
+    val params = Map(Constants.ModelId -> modelId, "version" -> version)
+    OrientDBUtil
+      .findDocument(db, GetModelOperationQuery, params)
+      .map(_.map(docToModelOperation))
   }
 
   private[this] val GetModelOperationQuery = "SELECT FROM ModelOperation WHERE model.id = :modelId AND version = :version"
 
-  def getModelOperation(id: String, version: Long): Try[Option[ModelOperation]] = withDb { db =>
-    val params = Map(Constants.ModelId -> id, "version" -> version)
+
+  def getMaxOperationForSessionAfterVersion(id: String, sessionId: String, version: Long): Try[Option[Long]] = withDb { db =>
+    val params = Map(Constants.ModelId -> id, Fields.Version -> version, "sessionId" -> sessionId)
     OrientDBUtil
-      .findDocument(db, GetModelOperationQuery, params)
-      .map(_.map(docToModelOperation))
+      .findDocumentAndMap(db, GetMaxOperationForSessionAfterVersionQuery, params) { doc =>
+        doc.getProperty(Fields.Version).asInstanceOf[Long]
+      }
   }
 
   private[this] val GetMaxOperationForSessionAfterVersionQuery =
@@ -68,12 +107,21 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
       |  session.id = :sessionId
       |ORDER BY version DESC LIMIT 1""".stripMargin
 
-  def getMaxOperationForSessionAfterVersion(id: String, sessionId: String, version: Long): Try[Option[Long]] = withDb { db =>
-    val params = Map(Constants.ModelId -> id, Fields.Version -> version, "sessionId" -> sessionId)
+
+  /**
+   * Get all operations after a version for a specific model.
+   *
+   * @param modelId The id of the model.
+   * @param version The version to get operations after.
+   * @param limit   The maximum number of operations to return.
+   * @return The requested list of operations.
+   */
+  def getOperationsAfterVersion(modelId: String, version: Long, limit: Option[Long] = None): Try[List[ModelOperation]] = withDb { db =>
+    val query = OrientDBUtil.buildPagedQuery(GetOperationsAfterVersionQuery, QueryLimit(limit), QueryOffset())
+    val params = Map(Constants.ModelId -> modelId, Fields.Version -> version)
     OrientDBUtil
-      .findDocumentAndMap(db, GetMaxOperationForSessionAfterVersionQuery, params) { doc =>
-        doc.getProperty(Fields.Version).asInstanceOf[Long]
-      }
+      .query(db, query, params)
+      .map(_.map(docToModelOperation))
   }
 
   private[this] val GetOperationsAfterVersionQuery =
@@ -84,22 +132,6 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
       |  version >= :version
       |ORDER BY version ASC""".stripMargin
 
-  def getOperationsAfterVersion(id: String, version: Long, limit: Option[Long] = None): Try[List[ModelOperation]] = withDb { db =>
-    val query = OrientDBUtil.buildPagedQuery(GetOperationsAfterVersionQuery, QueryLimit(limit), QueryOffset())
-    val params = Map(Constants.ModelId -> id, Fields.Version -> version)
-    OrientDBUtil
-      .query(db, query, params)
-      .map(_.map(docToModelOperation))
-  }
-
-  private[this] val GetOperationsInVersionRangeQuery =
-    """SELECT *
-      |FROM ModelOperation
-      |WHERE
-      |  model.id = :modelId AND
-      |  version >= :firstVersion AND
-      |  version <= :lastVersion
-      |ORDER BY version ASC""".stripMargin
 
   /**
    * Gets operations in an inclusive version range.
@@ -116,25 +148,36 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
       .map(_.map(docToModelOperation))
   }
 
-  private[this] val DeleteAllOperationsForModelCommand = "DELETE FROM ModelOperation WHERE model.id = :modelId"
+  private[this] val GetOperationsInVersionRangeQuery =
+    """SELECT *
+      |FROM ModelOperation
+      |WHERE
+      |  model.id = :modelId AND
+      |  version >= :firstVersion AND
+      |  version <= :lastVersion
+      |ORDER BY version ASC""".stripMargin
 
+  /**
+   * Deletes all the operations for a given model.
+   *
+   * @param modelId The id of the model to delete all operations for.
+   * @param db      The optional database instance to use.
+   * @return Success if the operation succeeds; a Failure otherwise.
+   */
   def deleteAllOperationsForModel(modelId: String, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val params = Map(Constants.ModelId -> modelId)
     OrientDBUtil.commandReturningCount(db, DeleteAllOperationsForModelCommand, params).map(_ => ())
   }
 
-  private[this] val CreateModelOperationCommand =
-    """
-      |INSERT INTO
-      |  ModelOperation
-      |SET
-      |  model = (SELECT FROM Model WHERE id = :modelId),
-      |  version = :version,
-      |  timestamp = :timestamp,
-      |  session = (SELECT FROM DomainSession WHERE id = :sessionId),
-      |  operation = :operation
-      |""".stripMargin
+  private[this] val DeleteAllOperationsForModelCommand = "DELETE FROM ModelOperation WHERE model.id = :modelId"
 
+  /**
+   * Creates and stores a new model operations
+   *
+   * @param modelOperation The operation to store.
+   * @param db             The optional database instance to use.
+   * @return Success if the operation succeeds; a Failure otherwise.
+   */
   def createModelOperation(modelOperation: NewModelOperation, db: Option[ODatabaseDocument] = None): Try[Unit] = withDb(db) { db =>
     val opDoc = OrientDBOperationMapper.operationToODocument(modelOperation.op)
     opDoc.save()
@@ -149,6 +192,18 @@ class ModelOperationStore private[domain](dbProvider: DatabaseProvider)
 
     OrientDBUtil.command(db, CreateModelOperationCommand, params).map(_ => ())
   }
+
+  private[this] val CreateModelOperationCommand =
+    """
+      |INSERT INTO
+      |  ModelOperation
+      |SET
+      |  model = (SELECT FROM Model WHERE id = :modelId),
+      |  version = :version,
+      |  timestamp = :timestamp,
+      |  session = (SELECT FROM DomainSession WHERE id = :sessionId),
+      |  operation = :operation
+      |""".stripMargin
 }
 
 object ModelOperationStore {

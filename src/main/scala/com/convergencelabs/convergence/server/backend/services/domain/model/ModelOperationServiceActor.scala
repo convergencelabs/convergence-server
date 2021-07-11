@@ -15,12 +15,12 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
-import com.convergencelabs.convergence.server.backend.services.domain.identity.IdentityServiceActor.ReceiveTimeout
-import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, BaseDomainShardedActor}
+import com.convergencelabs.convergence.server.backend.services.domain.{BaseDomainShardedActor, DomainPersistenceManager}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
+import java.time.Instant
 import scala.concurrent.duration.FiniteDuration
 
 final class ModelOperationServiceActor private(domainId: DomainId,
@@ -36,13 +36,15 @@ final class ModelOperationServiceActor private(domainId: DomainId,
   override def receiveInitialized(msg: Message): Behavior[Message] = {
     msg match {
       case msg: GetOperationsRequest =>
-        handleGetOperations(msg)
+        onGetOperations(msg)
+      case msg: GetVersionAtTimeRequest =>
+        onGetVersionAtTimeRequest(msg)
       case ReceiveTimeout(_) =>
         this.passivate()
     }
   }
 
-  def handleGetOperations(msg: GetOperationsRequest): Behavior[Message] = {
+  def onGetOperations(msg: GetOperationsRequest): Behavior[Message] = {
     val GetOperationsRequest(this.domainId, modelId, first, last, replyTo) = msg
     this.persistenceProvider.modelOperationStore.getOperationsInVersionRange(modelId, first, last)
       .map(ops => Right(ops))
@@ -54,6 +56,27 @@ final class ModelOperationServiceActor private(domainId: DomainId,
           Left(UnknownError())
       }
       .foreach(replyTo ! GetOperationsResponse(_))
+
+    Behaviors.same
+  }
+
+  def onGetVersionAtTimeRequest(msg: GetVersionAtTimeRequest): Behavior[Message] = {
+    val GetVersionAtTimeRequest(this.domainId, modelId, time, replyTo) = msg
+    this.persistenceProvider.modelOperationStore.getVersionAtOrBeforeTime(modelId, time)
+      .map {
+        case Some(version) =>
+          Right(Version(version))
+        case None =>
+          Left(InvalidModelTime("The requested model did not exist at the specified time"))
+      }
+      .recover {
+        case _: EntityNotFoundException =>
+          Left(ModelNotFoundError())
+        case cause =>
+          context.log.error("Unexpected error getting model operations", cause)
+          Left(UnknownError())
+      }
+      .foreach(replyTo ! GetVersionAtTimeResponse(_))
 
     Behaviors.same
   }
@@ -112,12 +135,36 @@ object ModelOperationServiceActor {
   final case class GetOperationsResponse(operations: Either[GetOperationsError, List[ModelOperation]]) extends CborSerializable
 
   //
+  // GetVersionAtTime
+  //
+  final case class GetVersionAtTimeRequest(domainId: DomainId,
+                                           modelId: String,
+                                           time: Instant,
+                                           replyTo: ActorRef[GetVersionAtTimeResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "model_not_found"),
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "invalid_version"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetVersionAtTimeError
+
+  final case class InvalidModelTime(message: String) extends GetVersionAtTimeError
+
+  final case class Version(version: Long)
+
+  final case class GetVersionAtTimeResponse(version: Either[GetVersionAtTimeError, Version]) extends CborSerializable
+
+  //
   // Common Errors
   //
   final case class ModelNotFoundError() extends AnyRef
     with GetOperationsError
+    with GetVersionAtTimeError
 
   final case class UnknownError() extends AnyRef
     with GetOperationsError
+    with GetVersionAtTimeError
 
 }

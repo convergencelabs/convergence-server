@@ -58,6 +58,8 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
         onDataRequest(dataRequest, replyCallback)
       case operationRequest: HistoricalOperationRequestMessage =>
         onOperationRequest(operationRequest, replyCallback)
+      case getVersion: ModelGetVersionAtTimeRequestMessage =>
+        onGetVersionAtTimeRequestMessage(getVersion, replyCallback)
     }
   }
 
@@ -101,6 +103,31 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
           cb.reply(response)
         }))
       .recoverWith(handleAskFailure(_, cb))
+  }
+
+  private[this] def onGetVersionAtTimeRequestMessage(request: ModelGetVersionAtTimeRequestMessage, cb: ReplyCallback): Unit = {
+    val ModelGetVersionAtTimeRequestMessage(modelId, targetTime, _) = request
+    targetTime match {
+      case Some(time) =>
+        operationStoreActor.ask[ModelOperationServiceActor.GetVersionAtTimeResponse](
+          ModelOperationServiceActor.GetVersionAtTimeRequest(domain, request.modelId, timestampToInstant(time), _))
+          .map(_.version.fold(
+            {
+              case ModelOperationServiceActor.ModelNotFoundError() =>
+                cb.expectedError(ErrorCodes.ModelNotFound, s"A model with id '$modelId' does not exist.")
+              case ModelOperationServiceActor.UnknownError() =>
+                cb.unexpectedError("Unexpected error getting historical model operations.")
+              case ModelOperationServiceActor.InvalidModelTime(msg) =>
+                cb.unexpectedError(msg)
+            },
+            { version =>
+              val response = ModelGetVersionAtTimeResponseMessage(version.version)
+              cb.reply(response)
+            }))
+          .recoverWith(handleAskFailure(_, cb))
+      case None =>
+    }
+
   }
 }
 
