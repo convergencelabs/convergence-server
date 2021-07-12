@@ -61,7 +61,7 @@ private[model] final class RealtimeString(value: StringValue,
         case _ => // no-op
       }
 
-      Success(AppliedStringSpliceOperation(id, noOp, index, Some(oldValue), insertValue))
+      Success(AppliedStringSpliceOperation(id, noOp, index, oldValue.length, Some(oldValue), insertValue))
     }
   }
 

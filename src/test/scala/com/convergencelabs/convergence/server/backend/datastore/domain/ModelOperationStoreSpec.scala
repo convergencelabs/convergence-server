@@ -52,7 +52,7 @@ class ModelOperationStoreSpec
 
   private val notFoundId = "Exist"
 
-  private val op1 = AppliedStringSpliceOperation("0:0", noOp = false, 1, Some(""), "1")
+  private val op1 = AppliedStringSpliceOperation("0:0", noOp = false, 1, 0, Some(""), "1")
   private val modelOp1 = NewModelOperation(modelId1, 1L, Instant.ofEpochMilli(10), sessionId, op1)
   private val modelOp1Expected = ModelOperation(modelId1, 1, Instant.ofEpochMilli(10), user.toUserId, sessionId, op1)
 
@@ -60,7 +60,7 @@ class ModelOperationStoreSpec
   private val modelOp3 = NewModelOperation(modelId1, 3L, Instant.ofEpochMilli(30), sessionId, op1)
   private val modelOp4 = NewModelOperation(modelId1, 4L, Instant.ofEpochMilli(40), sessionId, op1)
 
-  private val op15 = AppliedStringSpliceOperation("0:0", noOp = false, 2, Some(""), "2")
+  private val op15 = AppliedStringSpliceOperation("0:0", noOp = false, 2, 0, Some(""), "2")
   private val modelOp15 = NewModelOperation(modelId1, 15L, Instant.ofEpochMilli(10), sessionId, op15)
 
   "A ModelOperationStore" when {
@@ -145,7 +145,7 @@ class ModelOperationStoreSpec
         initCommonData(provider)
         var list = List[ModelOperation]()
         for (version <- 1 to 15) {
-          val op = AppliedStringSpliceOperation("0:0", noOp = false, version, Some(""), version.toString)
+          val op = AppliedStringSpliceOperation("0:0", noOp = false, version, 0, Some(""), version.toString)
           val timestamp = truncatedInstantNow()
           val modelOp = NewModelOperation(modelId1, version, timestamp, sessionId, op)
           list = list :+ ModelOperation(modelId1, version, timestamp, user.toUserId, sessionId, op)

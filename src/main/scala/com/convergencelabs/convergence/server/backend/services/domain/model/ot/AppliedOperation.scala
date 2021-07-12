@@ -60,7 +60,7 @@ sealed trait AppliedDiscreteOperation extends AppliedOperation {
 
 sealed trait AppliedStringOperation extends AppliedDiscreteOperation
 
-final case class AppliedStringSpliceOperation(id: String, noOp: Boolean, index: Int, deletedValue: Option[String], insertedValue: String) extends AppliedStringOperation
+final case class AppliedStringSpliceOperation(id: String, noOp: Boolean, index: Int, deleteCount: Int, deletedValue: Option[String], insertedValue: String) extends AppliedStringOperation
 
 final case class AppliedStringSetOperation(id: String, noOp: Boolean, value: String, oldValue: Option[String]) extends AppliedStringOperation
 

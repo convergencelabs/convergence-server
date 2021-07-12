@@ -50,8 +50,8 @@ final class ModelOperationReplayHelper(modelOperationStore: ModelOperationStore,
       case AppliedCompoundOperation(ops) =>
         CompoundOperation(ops.map(convertAppliedOperation(_).asInstanceOf[DiscreteOperation]))
 
-      case AppliedStringSpliceOperation(id, noOp, index, deletedValue, insertValue) =>
-        StringSpliceOperation(id, noOp, index, deletedValue.get.length, insertValue)
+      case AppliedStringSpliceOperation(id, noOp, index, deleteCount, _, insertValue) =>
+        StringSpliceOperation(id, noOp, index, deleteCount, insertValue)
       case AppliedStringSetOperation(id, noOp, value, _) =>
         StringSetOperation(id, noOp, value)
 

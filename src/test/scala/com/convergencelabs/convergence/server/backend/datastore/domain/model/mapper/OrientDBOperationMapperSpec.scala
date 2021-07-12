@@ -44,7 +44,7 @@ class OrientDBOperationMapperSpec
   "An OrientDBOperationMapper" when {
     "converting string operations" must {
       "correctly map and unmap an StringSpliceOperation" in {
-        val op = AppliedStringSpliceOperation(valueId, noOp = true, 3, Some("delete"), "inserted")
+        val op = AppliedStringSpliceOperation(valueId, noOp = true, 3, 6, Some("delete"), "inserted")
         val asDoc = OrientDBOperationMapper.operationToODocument(op)
         val reverted = OrientDBOperationMapper.oDocumentToOperation(asDoc)
         reverted shouldBe op

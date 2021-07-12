@@ -242,7 +242,7 @@ private[model] final class RealtimeModel(val domainId: DomainId,
       value.processOperation(op)
     } else {
       Success(op match {
-        case StringSpliceOperation(id, noOp, index, deleteCount, insertValue) => AppliedStringSpliceOperation(id, noOp, index, None, insertValue)
+        case StringSpliceOperation(id, noOp, index, deleteCount, insertValue) => AppliedStringSpliceOperation(id, noOp, index, deleteCount, None, insertValue)
         case StringSetOperation(id, noOp, value) => AppliedStringSetOperation(id, noOp, value, None)
         case ObjectSetPropertyOperation(id, noOp, property, value) => AppliedObjectSetPropertyOperation(id, noOp, property, value, None)
         case ObjectAddPropertyOperation(id, noOp, property, value) => AppliedObjectAddPropertyOperation(id, noOp, property, value)

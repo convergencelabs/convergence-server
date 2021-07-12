@@ -1,819 +1,820 @@
 actions:
 
-########## DateTimeFormat ##########
+  ########## DateTimeFormat ##########
 
   - action: RunSqlCommand
     command: "ALTER DATABASE DATETIMEFORMAT \"yyyy-MM-dd'T'HH:mm:ss.SSSZ\";"
 
 
-########## DomainConfig Class ##########
+  ########## DomainConfig Class ##########
 
   - action: CreateClass
     name: DomainConfig
     properties:
-      - {name: key,   type: String, constraints: {mandatory: true, notNull: true}}
-      - {name: value, type: Any,    constraints: {mandatory: true, notNull: true}}
+      - { name: key,   type: String, constraints: { mandatory: true, notNull: true } }
+      - { name: value, type: Any,    constraints: { mandatory: true, notNull: true } }
 
 
-########## JwtAuthKey Class ##########
+  ########## JwtAuthKey Class ##########
 
   - action: CreateClass
     name: JwtAuthKey
     properties:
-      - {name: id,          type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: description, type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: updated,     type: DateTime, constraints: {mandatory: true, notNull: true}}
-      - {name: enabled,     type: Boolean,  constraints: {mandatory: true, notNull: true}}
-      - {name: key,         type: String,   constraints: {mandatory: true, notNull: true}}
+      - { name: id,          type: String,   constraints: { mandatory: true, notNull: true } }
+      - { name: description, type: String,   constraints: { mandatory: true, notNull: true } }
+      - { name: updated,     type: DateTime, constraints: { mandatory: true, notNull: true } }
+      - { name: enabled,     type: Boolean,  constraints: { mandatory: true, notNull: true } }
+      - { name: key,         type: String,   constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: JwtAuthKey
     name: JwtAuthKey.id
     type: UniqueHashIndex
-    properties: [id]
+    properties: [ id ]
 
 
-########## User Class ##########
+  ########## User Class ##########
 
   - action: CreateClass
     name: User
     properties:
-      - {name: userType,        type: String,   constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: username,        type: String,   constraints: {mandatory: true, notNull: true}}
-      - {name: email,           type: String,   constraints: {notNull: true}}
-      - {name: firstName,       type: String,   constraints: {notNull: true}}
-      - {name: lastName,        type: String,   constraints: {notNull: true}}
-      - {name: displayName,     type: String,   constraints: {notNull: true}}
-      - {name: lastLogin,       type: DateTime, constraints: {notNull: true}}
-      - {name: disabled,        type: Boolean,  constraints: {mandatory: true, notNull: true}}
-      - {name: deleted,         type: Boolean,  constraints: {mandatory: true, notNull: true}}
-      - {name: deletedUsername, type: String,   constraints: {notNull: true}}
+      - { name: userType,        type: String,   constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: username,        type: String,   constraints: { mandatory: true, notNull: true } }
+      - { name: email,           type: String,   constraints: { notNull: true } }
+      - { name: firstName,       type: String,   constraints: { notNull: true } }
+      - { name: lastName,        type: String,   constraints: { notNull: true } }
+      - { name: displayName,     type: String,   constraints: { notNull: true } }
+      - { name: lastLogin,       type: DateTime, constraints: { notNull: true } }
+      - { name: disabled,        type: Boolean,  constraints: { mandatory: true, notNull: true } }
+      - { name: deleted,         type: Boolean,  constraints: { mandatory: true, notNull: true } }
+      - { name: deletedUsername, type: String,   constraints: { notNull: true } }
 
   - action: CreateIndex
     className: User
     name: User.username_userType
     type: UniqueHashIndex
-    properties: [username, userType]
+    properties: [ username, userType ]
 
 
-########## UserCredential Class ##########
+  ########## UserCredential Class ##########
 
   - action: CreateClass
     name: UserCredential
     properties:
-      - {name: user,     type: Link,   linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: password, type: String,                    constraints: {mandatory: true, notNull: true}}
+      - { name: user,     type: Link,   linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: password, type: String,                    constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: UserCredential
     name: UserCredential.user
     type: Unique
-    properties: [user]
+    properties: [ user ]
 
 
-######### Session ##########
+  ######### Session ##########
 
   - action: CreateClass
     name: DomainSession
     properties:
-      - {name: id,             type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user,           type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: connected,      type: DateTime,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: disconnected,   type: DateTime,                    constraints: {                 notNull: true, readOnly: true}}
-      - {name: authMethod,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: client,         type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: clientVersion,  type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: clientMetaData, type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: remoteHost,     type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: id,             type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: user,           type: Link,     linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: connected,      type: DateTime,                    constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: disconnected,   type: DateTime,                    constraints: { notNull: true, readOnly: true } }
+      - { name: authMethod,     type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: client,         type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: clientVersion,  type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: clientMetaData, type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: remoteHost,     type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: DomainSession
     name: DomainSession.user
     type: NotUniqueHashIndex
-    properties: [user]
+    properties: [ user ]
 
   - action: CreateIndex
     className: DomainSession
     name: DomainSession.id
     type: UniqueHashIndex
-    properties: [id]
+    properties: [ id ]
 
 
-########## UserReconnectToken Class ##########
+  ########## UserReconnectToken Class ##########
 
   - action: CreateClass
     name: UserReconnectToken
     properties:
-      - {name: user,       type: Link,     linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: token,      type: String,                      constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: expireTime, type: DateTime,                    constraints: {mandatory: true, notNull: true}}
+      - { name: user,       type: Link,     linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: token,      type: String,                      constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: expireTime, type: DateTime,                    constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: UserReconnectToken
     name: UserReconnectToken.token
     type: UniqueHashIndex
-    properties: [token]
+    properties: [ token ]
 
 
-########## ModelSnapshotConfig Class ##########
+  ########## ModelSnapshotConfig Class ##########
 
   - action: CreateClass
     name: ModelSnapshotConfig
     properties:
-      - {name: enabled,            type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: triggerByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: limitedByVersion,   type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: minVersionInterval, type: Long,    constraints: {mandatory: true, notNull: true}}
-      - {name: maxVersionInterval, type: Long,    constraints: {mandatory: true, notNull: true}}
-      - {name: triggerByTime,      type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: limitedByTime,      type: Boolean, constraints: {mandatory: true, notNull: true}}
-      - {name: minTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
-      - {name: maxTimeInterval,    type: Long,    constraints: {mandatory: true, notNull: true}}
+      - { name: enabled,            type: Boolean, constraints: { mandatory: true, notNull: true } }
+      - { name: triggerByVersion,   type: Boolean, constraints: { mandatory: true, notNull: true } }
+      - { name: limitedByVersion,   type: Boolean, constraints: { mandatory: true, notNull: true } }
+      - { name: minVersionInterval, type: Long,    constraints: { mandatory: true, notNull: true } }
+      - { name: maxVersionInterval, type: Long,    constraints: { mandatory: true, notNull: true } }
+      - { name: triggerByTime,      type: Boolean, constraints: { mandatory: true, notNull: true } }
+      - { name: limitedByTime,      type: Boolean, constraints: { mandatory: true, notNull: true } }
+      - { name: minTimeInterval,    type: Long,    constraints: { mandatory: true, notNull: true } }
+      - { name: maxTimeInterval,    type: Long,    constraints: { mandatory: true, notNull: true } }
 
 
-########## Collection Class ##########
+  ########## Collection Class ##########
 
   - action: CreateClass
     name: Collection
     properties:
-      - {name: id,                     type: String,                                       constraints: {mandatory: true, notNull: true}}
-      - {name: description,            type: String,                                       constraints: {mandatory: true, notNull: true}}
-      - {name: overrideSnapshotConfig, type: Boolean,                                      constraints: {mandatory: true, notNull: true, default: false}}
-      - {name: snapshotConfig,         type: Embedded, linkedClass: ModelSnapshotConfig,   constraints: {notNull: true}}
-      - {name: worldPermissions,       type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
-      - {name: userPermissions,        type: LinkList, linkedClass: CollectionUserPermissions}
+      - { name: id,                     type: String,                                       constraints: { mandatory: true, notNull: true } }
+      - { name: description,            type: String,                                       constraints: { mandatory: true, notNull: true } }
+      - { name: overrideSnapshotConfig, type: Boolean,                                      constraints: { mandatory: true, notNull: true, default: false } }
+      - { name: snapshotConfig,         type: Embedded, linkedClass: ModelSnapshotConfig,   constraints: { notNull: true } }
+      - { name: worldPermissions,       type: Embedded, linkedClass: CollectionPermissions, constraints: { mandatory: true, notNull: true, readOnly: false } }
+      - { name: userPermissions,        type: LinkList, linkedClass: CollectionUserPermissions }
 
   - action: CreateIndex
     className: Collection
     name: Collection.id
     type: UniqueHashIndex
-    properties: [id]
+    properties: [ id ]
 
 
-########## Model Class ##########
+  ########## Model Class ##########
 
   - action: CreateClass
     name: Model
     properties:
-      - {name: collection,          type: Link,     linkedClass: Collection,       constraints: {mandatory: true, notNull: true}}
-      - {name: id,                  type: String,                                  constraints: {mandatory: true, notNull: true}}
-      - {name: version,             type: Long,                                    constraints: {mandatory: true, notNull: true, min: 1}}
-      - {name: createdTime,         type: DateTime,                                constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: modifiedTime,        type: DateTime,                                constraints: {mandatory: true, notNull: true}}
-      - {name: data,                type: Link,     linkedClass: ObjectValue,      constraints: {mandatory: true, notNull: true}}
-      - {name: overridePermissions, type: Boolean,                                 constraints: {notNull: true, readOnly: false, default: false}}
-      - {name: worldPermissions,    type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true, readOnly: false}}
-      - {name: userPermissions,     type: LinkList, linkedClass: ModelUserPermissions}
-      - {name: valuePrefix,         type: Long,                                    constraints: {mandatory: true, notNull: true, readOnly: false}}
+      - { name: collection,          type: Link,     linkedClass: Collection,       constraints: { mandatory: true, notNull: true } }
+      - { name: id,                  type: String,                                  constraints: { mandatory: true, notNull: true } }
+      - { name: version,             type: Long,                                    constraints: { mandatory: true, notNull: true, min: 1 } }
+      - { name: createdTime,         type: DateTime,                                constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: modifiedTime,        type: DateTime,                                constraints: { mandatory: true, notNull: true } }
+      - { name: data,                type: Link,     linkedClass: ObjectValue,      constraints: { mandatory: true, notNull: true } }
+      - { name: overridePermissions, type: Boolean,                                 constraints: { notNull: true, readOnly: false, default: false } }
+      - { name: worldPermissions,    type: Embedded, linkedClass: ModelPermissions, constraints: { mandatory: true, notNull: true, readOnly: false } }
+      - { name: userPermissions,     type: LinkList, linkedClass: ModelUserPermissions }
+      - { name: valuePrefix,         type: Long,                                    constraints: { mandatory: true, notNull: true, readOnly: false } }
 
   - action: CreateIndex
     className: Model
     name: Model.collection_id
     type: UniqueHashIndex
-    properties: [collection, id]
+    properties: [ collection, id ]
 
   - action: CreateIndex
     className: Model
     name: Model.id
     type: UniqueHashIndex
-    properties: [id]
+    properties: [ id ]
 
 
-########## ModelSnapshot Class ##########
+  ########## ModelSnapshot Class ##########
 
   - action: CreateClass
     name: ModelSnapshot
     properties:
-      - {name: model,     type: Link,     linkedClass: Model,         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: version,   type: Long,                                 constraints: {mandatory: true, notNull: true, readOnly: true, min: 1}}
-      - {name: timestamp, type: DateTime,                             constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: data,      type: Embedded, linkedClass: ObjectOpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: model,     type: Link,     linkedClass: Model,         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: version,   type: Long,                                 constraints: { mandatory: true, notNull: true, readOnly: true, min: 1 } }
+      - { name: timestamp, type: DateTime,                             constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: data,      type: Embedded, linkedClass: ObjectOpValue, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: ModelSnapshot
     name: ModelSnapshot.model_version
     type: Unique
-    properties: [model, version]
+    properties: [ model, version ]
 
   - action: CreateIndex
     className: ModelSnapshot
     name: ModelSnapshot.model
     type: NotUniqueHashIndex
-    properties: [model]
+    properties: [ model ]
 
 
-########## DataValue Class ##########
+  ########## DataValue Class ##########
 
   - action: CreateClass
     name: DataValue
     abstract: true
     properties:
-      - {name: id,    type: String,                   constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: model, type: Link, linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: id,    type: String,                   constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: model, type: Link, linkedClass: Model, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: DataValue
     name: DataValue.id_model
     type: UniqueHashIndex
-    properties: [id, model]
+    properties: [ id, model ]
 
   - action: CreateIndex
     className: DataValue
     name: DataValue.model
     type: NotUniqueHashIndex
-    properties: [model]
+    properties: [ model ]
 
 
-########## ObjectValue Class ##########
+  ########## ObjectValue Class ##########
 
   - action: CreateClass
     name: ObjectValue
     superclass: DataValue
     properties:
-      - {name: children, type: LinkMap, linkedClass: DataValue, constraints: {mandatory: true, notNull: true}}
+      - { name: children, type: LinkMap, linkedClass: DataValue, constraints: { mandatory: true, notNull: true } }
 
 
-########## ArrayValue Class ##########
+  ########## ArrayValue Class ##########
 
   - action: CreateClass
     name: ArrayValue
     superclass: DataValue
     properties:
-      - {name: children, type: LinkList, constraints: {mandatory: true, notNull: true}}
+      - { name: children, type: LinkList, constraints: { mandatory: true, notNull: true } }
 
 
-########## StringValue Class ##########
+  ########## StringValue Class ##########
 
   - action: CreateClass
     name: StringValue
     superclass: DataValue
     properties:
-      - {name: value, type: String, constraints: {mandatory: true, notNull: true}}
+      - { name: value, type: String, constraints: { mandatory: true, notNull: true } }
 
 
-########## DoubleValue Class ##########
+  ########## DoubleValue Class ##########
 
   - action: CreateClass
     name: DoubleValue
     superclass: DataValue
     properties:
-      - {name: value, type: Double, constraints: {mandatory: true, notNull: true}}
+      - { name: value, type: Double, constraints: { mandatory: true, notNull: true } }
 
 
-########## BooleanValue Class ##########
+  ########## BooleanValue Class ##########
 
   - action: CreateClass
     name: BooleanValue
     superclass: DataValue
     properties:
-      - {name: value, type: Boolean, constraints: {mandatory: true, notNull: true}}
+      - { name: value, type: Boolean, constraints: { mandatory: true, notNull: true } }
 
 
-########## NullValue Class ##########
+  ########## NullValue Class ##########
 
   - action: CreateClass
     name: NullValue
     superclass: DataValue
-    properties: []
+    properties: [ ]
 
-########## DateValue Class ##########
+  ########## DateValue Class ##########
 
   - action: CreateClass
     name: DateValue
     superclass: DataValue
     properties:
-      - {name: value, type: DateTime, constraints: {mandatory: true, notNull: true}}
+      - { name: value, type: DateTime, constraints: { mandatory: true, notNull: true } }
 
 
-########## OpValue Class ##########
+  ########## OpValue Class ##########
 
   - action: CreateClass
     name: OpValue
     abstract: true
     properties:
-      - {name: id, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: id, type: String, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## ObjectOpValue Class ##########
+  ########## ObjectOpValue Class ##########
 
   - action: CreateClass
     name: ObjectOpValue
     superclass: OpValue
     properties:
-      - {name: children, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: children, type: EmbeddedMap, linkedClass: OpValue, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## ArrayOpValue Class ##########
+  ########## ArrayOpValue Class ##########
 
   - action: CreateClass
     name: ArrayOpValue
     superclass: OpValue
     properties:
-      - {name: children, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: children, type: EmbeddedList, linkedClass: OpValue, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## StringOpValue Class ##########
+  ########## StringOpValue Class ##########
 
   - action: CreateClass
     name: StringOpValue
     superclass: OpValue
     properties:
-      - {name: value, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: value, type: String, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## DoubleOpValue Class ##########
+  ########## DoubleOpValue Class ##########
 
   - action: CreateClass
     name: DoubleOpValue
     superclass: OpValue
     properties:
-      - {name: value, type: Double, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: value, type: Double, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## BooleanOpValue Class ##########
+  ########## BooleanOpValue Class ##########
 
   - action: CreateClass
     name: BooleanOpValue
     superclass: OpValue
     properties:
-      - {name: value, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: value, type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## NullOpValue Class ##########
+  ########## NullOpValue Class ##########
 
   - action: CreateClass
     name: NullOpValue
     superclass: OpValue
-    properties: []
+    properties: [ ]
 
-########## DateOpValue Class ##########
+  ########## DateOpValue Class ##########
 
   - action: CreateClass
     name: DateOpValue
     superclass: OpValue
     properties:
-      - {name: value, type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: value, type: DateTime, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## Operation Class ##########
+  ########## Operation Class ##########
 
   - action: CreateClass
     name: Operation
     abstract: true
-    properties: []
+    properties: [ ]
 
 
-########## DiscreteOperation Class ##########
+  ########## DiscreteOperation Class ##########
 
   - action: CreateClass
     name: DiscreteOperation
     superclass: Operation
     abstract: true
     properties:
-      - {name: elementId, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: noOp,      type: Boolean, constraints: {notNull: true, readOnly: true}}
+      - { name: elementId, type: String,  constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: noOp,      type: Boolean, constraints: { notNull: true, readOnly: true } }
 
 
-########## CompoundOperation Class ##########
+  ########## CompoundOperation Class ##########
 
   - action: CreateClass
     name: CompoundOperation
     superclass: Operation
     properties:
-      - {name: ops, type: EmbeddedList, linkedClass: DiscreteOperation, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: ops, type: EmbeddedList, linkedClass: DiscreteOperation, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## StringSpliceOperation Class ##########
+  ########## StringSpliceOperation Class ##########
 
   - action: CreateClass
     name: StringSpliceOperation
     superclass: DiscreteOperation
     properties:
-      - {name: idx, type: Integer, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: deletedVal, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: insertedVal, type: String,  constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: idx,         type: Integer, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: deleteCount, type: Integer, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: deletedVal,  type: String,  constraints: { mandatory: true, readOnly: true } }
+      - { name: insertedVal, type: String,  constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## StringSetOperation Class ##########
+  ########## StringSetOperation Class ##########
 
   - action: CreateClass
     name: StringSetOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val,    type: String, constraints: {mandatory: true, readOnly: true}}
-      - {name: oldVal, type: String, constraints: {mandatory: true, readOnly: true}}
+      - { name: val,    type: String, constraints: { mandatory: true, readOnly: true } }
+      - { name: oldVal, type: String, constraints: { mandatory: true, readOnly: true } }
 
 
-########## ObjectSetPropertyOperation Class ##########
+  ########## ObjectSetPropertyOperation Class ##########
 
   - action: CreateClass
     name: ObjectSetPropertyOperation
     superclass: DiscreteOperation
     properties:
-      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: prop,   type: String,                         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: val,    type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
+      - { name: oldVal, type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
 
-########## ObjectAddPropertyOperation Class ##########
+  ########## ObjectAddPropertyOperation Class ##########
 
   - action: CreateClass
     name: ObjectAddPropertyOperation
     superclass: DiscreteOperation
     properties:
-      - {name: prop, type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: val,  type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: prop, type: String,                         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: val,  type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
 
-########## ObjectRemovePropertyOperation Class ##########
+  ########## ObjectRemovePropertyOperation Class ##########
 
   - action: CreateClass
     name: ObjectRemovePropertyOperation
     superclass: DiscreteOperation
     properties:
-      - {name: prop,   type: String,                         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: prop,   type: String,                         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: oldVal, type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
 
-########## ObjectSetOperation Class ##########
+  ########## ObjectSetOperation Class ##########
 
   - action: CreateClass
     name: ObjectSetOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val,    type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
-      - {name: oldVal, type: EmbeddedMap, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: val,    type: EmbeddedMap, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
+      - { name: oldVal, type: EmbeddedMap, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
 
-########## NumberAddOperation Class ##########
+  ########## NumberAddOperation Class ##########
 
   - action: CreateClass
     name: NumberAddOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: val, type: Any, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## NumberSetOperation Class ##########
+  ########## NumberSetOperation Class ##########
 
   - action: CreateClass
     name: NumberSetOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val,    type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Any, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: val,    type: Any, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: oldVal, type: Any, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## BooleanSetOperation Class ##########
+  ########## BooleanSetOperation Class ##########
 
   - action: CreateClass
     name: BooleanSetOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val,    type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: val,    type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: oldVal, type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
 
-########## ArrayInsertOperation Class ##########
+  ########## ArrayInsertOperation Class ##########
 
   - action: CreateClass
     name: ArrayInsertOperation
     superclass: DiscreteOperation
     properties:
-      - {name: idx, type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: val, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: idx, type: Integer,                        constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: val, type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
 
-########## ArrayRemoveOperation Class ##########
+  ########## ArrayRemoveOperation Class ##########
 
   - action: CreateClass
     name: ArrayRemoveOperation
     superclass: DiscreteOperation
     properties:
-      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: idx,    type: Integer,                        constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: oldVal, type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
 
-########## ArrayReplaceOperation Class ##########
+  ########## ArrayReplaceOperation Class ##########
 
   - action: CreateClass
     name: ArrayReplaceOperation
     superclass: DiscreteOperation
     properties:
-      - {name: idx,    type: Integer,                        constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: val,    type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
-      - {name: oldVal, type: Embedded, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: idx,    type: Integer,                        constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: val,    type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
+      - { name: oldVal, type: Embedded, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
-########## ArrayMoveOperation Class ##########
+  ########## ArrayMoveOperation Class ##########
 
   - action: CreateClass
     name: ArrayMoveOperation
     superclass: DiscreteOperation
     properties:
-      - {name: fromIdx, type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: toIdx,   type: Integer,   constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: fromIdx, type: Integer,   constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: toIdx,   type: Integer,   constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ArraySetOperation Class ##########
+  ########## ArraySetOperation Class ##########
 
   - action: CreateClass
     name: ArraySetOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val,    type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: EmbeddedList, linkedClass: OpValue, constraints: {mandatory: true, readOnly: true}}
+      - { name: val,    type: EmbeddedList, linkedClass: OpValue, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: oldVal, type: EmbeddedList, linkedClass: OpValue, constraints: { mandatory: true, readOnly: true } }
 
-########## DateSetOperation Class ##########
+  ########## DateSetOperation Class ##########
 
   - action: CreateClass
     name: DateSetOperation
     superclass: DiscreteOperation
     properties:
-      - {name: val,    type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: oldVal, type: DateTime, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: val,    type: DateTime, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: oldVal, type: DateTime, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ModelOperation Class ##########
+  ########## ModelOperation Class ##########
 
   - action: CreateClass
     name: ModelOperation
     properties:
-      - {name: model,     type: Link,     linkedClass: Model,         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: version,   type: Long,                                 constraints: {mandatory: true, notNull: true, min: 1, readOnly: true}}
-      - {name: timestamp, type: DateTime,                             constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: session,   type: Link,     linkedClass: DomainSession, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: operation, type: Link,     linkedClass: Operation,     constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: model,     type: Link,     linkedClass: Model,         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: version,   type: Long,                                 constraints: { mandatory: true, notNull: true, min: 1, readOnly: true } }
+      - { name: timestamp, type: DateTime,                             constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: session,   type: Link,     linkedClass: DomainSession, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: operation, type: Link,     linkedClass: Operation,     constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: ModelOperation
     name: ModelOperation.model_version
     type: Unique
-    properties: [model, version]
+    properties: [ model, version ]
 
   - action: CreateIndex
     className: ModelOperation
     name: ModelOperation.model
     type: NotUniqueHashIndex
-    properties: [model]
+    properties: [ model ]
 
-########## CollectionPermissions ##########
+  ########## CollectionPermissions ##########
 
   - action: CreateClass
     name: CollectionPermissions
     properties:
-      - {name: read,       type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: write,      type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: create,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: remove,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: manage,     type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - { name: read,       type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: write,      type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: create,     type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: remove,     type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: manage,     type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
 
-########## CollectionUserPermissions ##########
+  ########## CollectionUserPermissions ##########
 
   - action: CreateClass
     name: CollectionUserPermissions
     properties:
-      - {name: collection, type: Link,   linkedClass: Collection, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: permissions, type: Embedded, linkedClass: CollectionPermissions, constraints: {mandatory: true, notNull: true}}
+      - { name: collection, type: Link,   linkedClass: Collection, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: user, type: Link, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: permissions, type: Embedded, linkedClass: CollectionPermissions, constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: CollectionUserPermissions
     name: CollectionUserPermissions.user_collection
     type: Unique
-    properties: [user, collection]
+    properties: [ user, collection ]
 
   - action: CreateIndex
     className: CollectionUserPermissions
     name: CollectionUserPermissions.user
     type: NotUniqueHashIndex
-    properties: [user]
+    properties: [ user ]
 
   - action: CreateIndex
     className: CollectionUserPermissions
     name: CollectionUserPermissions.collection
     type: NotUniqueHashIndex
-    properties: [collection]
+    properties: [ collection ]
 
-########## ModelPermissions ##########
+  ########## ModelPermissions ##########
 
   - action: CreateClass
     name: ModelPermissions
     properties:
-      - {name: read,   type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: write,  type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: remove, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
-      - {name: manage, type: Boolean, constraints: {mandatory: true, notNull: true, readOnly: false, default: false}}
+      - { name: read,   type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: write,  type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: remove, type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
+      - { name: manage, type: Boolean, constraints: { mandatory: true, notNull: true, readOnly: false, default: false } }
 
-########## ModelUserPermissions ##########
+  ########## ModelUserPermissions ##########
 
   - action: CreateClass
     name: ModelUserPermissions
     properties:
-      - {name: model,  type: Link,   linkedClass: Model, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: permissions, type: Embedded, linkedClass: ModelPermissions, constraints: {mandatory: true, notNull: true}}
+      - { name: model,  type: Link,   linkedClass: Model, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: user, type: Link, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: permissions, type: Embedded, linkedClass: ModelPermissions, constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: ModelUserPermissions
     name: ModelUserPermissions.user_model
     type: Unique
-    properties: [user, model]
+    properties: [ user, model ]
 
   - action: CreateIndex
     className: ModelUserPermissions
     name: ModelUserPermissions.user
     type: NotUniqueHashIndex
-    properties: [user]
+    properties: [ user ]
 
   - action: CreateIndex
     className: ModelUserPermissions
     name: ModelUserPermissions.model
     type: NotUniqueHashIndex
-    properties: [model]
+    properties: [ model ]
 
 
-########## PermissionTarget Class ##########
+  ########## PermissionTarget Class ##########
 
   - action: CreateClass
     name: PermissionTarget
     abstract: true
     properties:
-      - {name: permissions, type: LinkSet, linkedClass: Permission,        constraints: {mandatory: false, notNull: true}}
+      - { name: permissions, type: LinkSet, linkedClass: Permission,        constraints: { mandatory: false, notNull: true } }
 
 
-########## Activity Class ##########
+  ########## Activity Class ##########
 
   - action: CreateClass
     name: Activity
     superclass: PermissionTarget
     properties:
-      - {name: id,          type: String,         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: type,        type: String,         constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: created,     type: DateTime,       constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: id,          type: String,         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: type,        type: String,         constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: created,     type: DateTime,       constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: Activity
     name: Activity.type_id
     type: UniqueHashIndex
-    properties: [type, id]
+    properties: [ type, id ]
 
-########## Chat Class ##########
+  ########## Chat Class ##########
 
   - action: CreateClass
     name: Chat
     superclass: PermissionTarget
     properties:
-      - {name: id,          type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: type,        type: String,                                  constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: created,     type: DateTime,                                constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: private,     type: Boolean,                                 constraints: {mandatory: true, notNull: true}}
-      - {name: name,        type: String,                                  constraints: {mandatory: true, notNull: true}}
-      - {name: topic,       type: String,                                  constraints: {mandatory: true, notNull: true}}
-      - {name: members,     type: LinkSet, linkedClass: ChatMember,        constraints: {mandatory: true, notNull: true}}
+      - { name: id,          type: String,                                  constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: type,        type: String,                                  constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: created,     type: DateTime,                                constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: private,     type: Boolean,                                 constraints: { mandatory: true, notNull: true } }
+      - { name: name,        type: String,                                  constraints: { mandatory: true, notNull: true } }
+      - { name: topic,       type: String,                                  constraints: { mandatory: true, notNull: true } }
+      - { name: members,     type: LinkSet, linkedClass: ChatMember,        constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: Chat
     name: Chat.id
     type: UniqueHashIndex
-    properties: [id]
+    properties: [ id ]
 
-########## ChatEvent Class ##########
+  ########## ChatEvent Class ##########
 
   - action: CreateClass
     name: ChatEvent
     abstract: true
     properties:
-      - {name: chat,      type: Link, linkedClass: Chat, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: eventNo,   type: Long,                    constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user,      type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: timestamp, type: DateTime,                constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: chat,      type: Link, linkedClass: Chat, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: eventNo,   type: Long,                    constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: user,      type: Link, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: timestamp, type: DateTime,                constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: ChatEvent
     name: ChatEvent.chat_eventNo
     type: UniqueHashIndex
-    properties: [chat, eventNo]
+    properties: [ chat, eventNo ]
 
   - action: CreateIndex
     className: ChatEvent
     name: ChatEvent.chat
     type: NotUniqueHashIndex
-    properties: [chat]
+    properties: [ chat ]
 
-########## ChatCreatedEvent Class ##########
+  ########## ChatCreatedEvent Class ##########
 
   - action: CreateClass
     name: ChatCreatedEvent
     superclass: ChatEvent
     properties:
-      - {name: name,    type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: topic,   type: String,                     constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: members, type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: name,    type: String,                     constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: topic,   type: String,                     constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: members, type: LinkSet, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ChatMessageEvent Class ##########
+  ########## ChatMessageEvent Class ##########
 
   - action: CreateClass
     name: ChatMessageEvent
     superclass: ChatEvent
     properties:
-      - {name: message, type: String, constraints: {mandatory: true, notNull: true}}
+      - { name: message, type: String, constraints: { mandatory: true, notNull: true } }
 
-########## ChatUserJoinedEvent Class ##########
+  ########## ChatUserJoinedEvent Class ##########
 
   - action: CreateClass
     name: ChatUserJoinedEvent
     superclass: ChatEvent
-    properties: []
+    properties: [ ]
 
-########## ChatUserLeftEvent Class ##########
+  ########## ChatUserLeftEvent Class ##########
 
   - action: CreateClass
     name: ChatUserLeftEvent
     superclass: ChatEvent
-    properties: []
+    properties: [ ]
 
-########## ChatUserAddedEvent Class ##########
+  ########## ChatUserAddedEvent Class ##########
 
   - action: CreateClass
     name: ChatUserAddedEvent
     superclass: ChatEvent
     properties:
-      - {name: userAdded, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: userAdded, type: Link, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ChatUserRemovedEvent Class ##########
+  ########## ChatUserRemovedEvent Class ##########
 
   - action: CreateClass
     name: ChatUserRemovedEvent
     superclass: ChatEvent
     properties:
-      - {name: userRemoved, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: userRemoved, type: Link, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ChatNameChangedEvent Class ##########
+  ########## ChatNameChangedEvent Class ##########
 
   - action: CreateClass
     name: ChatNameChangedEvent
     superclass: ChatEvent
     properties:
-      - {name: name, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: name, type: String, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ChatTopicChangedEvent Class ##########
+  ########## ChatTopicChangedEvent Class ##########
 
   - action: CreateClass
     name: ChatTopicChangedEvent
     superclass: ChatEvent
     properties:
-      - {name: topic, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: topic, type: String, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
-########## ChatMember Class ##########
+  ########## ChatMember Class ##########
 
   - action: CreateClass
     name: ChatMember
 
     properties:
-      - {name: chat, type: Link, linkedClass: Chat, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: user, type: Link, linkedClass: User, constraints: {mandatory: true, notNull: true, readOnly: true}}
-      - {name: seen, type: Long,                    constraints: {mandatory: true, notNull: true}}
+      - { name: chat, type: Link, linkedClass: Chat, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: user, type: Link, linkedClass: User, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: seen, type: Long,                    constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: ChatMember
     name: ChatMember.chat_user
     type: UniqueHashIndex
-    properties: [chat, user]
+    properties: [ chat, user ]
 
   - action: CreateIndex
     className: ChatMember
     name: ChatMember.chat
     type: NotUniqueHashIndex
-    properties: [chat]
+    properties: [ chat ]
 
-########## UserGroup Class ##########
+  ########## UserGroup Class ##########
 
   - action: CreateClass
     name: UserGroup
     properties:
-      - {name: id,          type: String,                     constraints: {mandatory: true, notNull: true}}
-      - {name: description, type: String,                     constraints: {mandatory: true, notNull: true}}
-      - {name: members,     type: LinkSet, linkedClass: User, constraints: {mandatory: true, notNull: true}}
+      - { name: id,          type: String,                     constraints: { mandatory: true, notNull: true } }
+      - { name: description, type: String,                     constraints: { mandatory: true, notNull: true } }
+      - { name: members,     type: LinkSet, linkedClass: User, constraints: { mandatory: true, notNull: true } }
 
   - action: CreateIndex
     className: UserGroup
     name: UserGroup.id
     type: UniqueHashIndex
-    properties: [id]
+    properties: [ id ]
 
-########## Permission Class ##########
+  ########## Permission Class ##########
 
   - action: CreateClass
     name: Permission
     properties:
-      - {name: grantee,    type: Link,   constraints: {notNull: true, readOnly: true}}
-      - {name: target,     type: Link,   constraints: {notNull: true, readOnly: true}}
-      - {name: permission, type: String, constraints: {mandatory: true, notNull: true, readOnly: true}}
+      - { name: grantee,    type: Link,   constraints: { notNull: true, readOnly: true } }
+      - { name: target,     type: Link,   constraints: { notNull: true, readOnly: true } }
+      - { name: permission, type: String, constraints: { mandatory: true, notNull: true, readOnly: true } }
 
   - action: CreateIndex
     className: Permission
     name: Permission.grantee_target_permission
     type: UniqueHashIndex
-    properties: [grantee, target, permission]
+    properties: [ grantee, target, permission ]
 
-########## Sequences ##########
+  ########## Sequences ##########
 
   - action: CreateSequence
     name: sessionSeq
@@ -827,32 +828,32 @@ actions:
     name: chatIdSeq
     sequenceType: Ordered
 
-########## Functions ##########
+  ########## Functions ##########
 
   - action: CreateFunction
     name: arrayInsert
     idempotent: false
     language: javascript
-    parameters: [array, index, value]
+    parameters: [ array, index, value ]
     code: "var idx = parseInt(index);\narray.add(idx, value);\nreturn array;"
 
   - action: CreateFunction
     name: arrayRemove
     idempotent: false
     language: javascript
-    parameters: [array, index]
+    parameters: [ array, index ]
     code: "var idx = parseInt(index);\narray.remove(idx);\nreturn array;"
 
   - action: CreateFunction
     name: arrayReplace
     idempotent: false
     language: javascript
-    parameters: [array, index, value]
+    parameters: [ array, index, value ]
     code: "var idx = parseInt(index);\narray.set(idx, value);\nreturn array;"
 
   - action: CreateFunction
     name: arrayMove
     idempotent: false
     language: javascript
-    parameters: [array, fromIndex, toIndex]
+    parameters: [ array, fromIndex, toIndex ]
     code: "var toIn = parseInt(toIndex);\nvar fromIn = parseInt(fromIndex);\narray.add(toIn, array.remove(fromIn));\nreturn array;"

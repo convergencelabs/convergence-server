@@ -1,0 +1,85 @@
+description: |-
+  The StringInsertOperation and StringRemoveOperation classes have been
+  replaced by a single StringSpliceOperation class. This delta will
+  create the new StringSpliceOperation class, and then translate the
+  data from the StringInsertOperation and StringRemoveOperation into
+  the StringSpliceOperation class. It will then drop the existing
+  StringInsertOperation and StringRemoveOperation classes. It should
+  be noted that the ModelOperation.operation property is READ ONLY,
+  but this delta needs to change the operation to point to the
+  migrated one.  Thus, the delta must temporarily make the field
+  writeable.
+
+actions:
+
+  ##
+  ## 1. Temporarily make ModelOperation.operation writable
+  ##
+  - {action: AlterProperty, className: ModelOperation, name: operation, alterations: { constraints: { readOnly: false } }}
+
+
+  ##
+  ## 2. Create the StringSpliceOperation class
+  ##
+  - action: CreateClass
+    name: StringSpliceOperation
+    superclass: DiscreteOperation
+    properties:
+      - { name: idx,         type: Integer, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: deleteCount, type: Integer, constraints: { mandatory: true, notNull: true, readOnly: true } }
+      - { name: deletedVal,  type: String,  constraints: { mandatory: true, readOnly: true } }
+      - { name: insertedVal, type: String,  constraints: { mandatory: true, notNull: true, readOnly: true } }
+
+
+  ##
+  ## 3. Migrate StringRemoveOperation
+  ##
+  - action: RunSqlCommand
+    command: |-
+      LET modelOps = SELECT FROM ModelOperation WHERE operation.@class = "StringRemoveOperation";
+      FOREACH(modelOp IN $modelOps) {
+        LET removeOp = $modelOp.operation;
+        DELETE FROM (SELECT $removeOp);
+        LET spliceOp = (INSERT INTO StringSpliceOperation SET
+          elementId=$removeOp.elementId,
+          noOp=$removeOp.noOp,
+          idx=$removeOp.idx,
+          deleteCount=$removeOp.length,
+          deletedValue=$removeOp.oldVal,
+          insertedValue=""
+        );
+        UPDATE $modelOp SET operation = $spliceOp;
+      }
+
+
+  ##
+  ## 4. Migrate StringInsertOperation
+  ##
+  - action: RunSqlCommand
+    command: |-
+      LET modelOps = SELECT FROM ModelOperation WHERE operation.@class = "StringInsertOperation";
+      FOREACH(modelOp IN $modelOps) {
+        LET insertOp = $modelOp.operation;
+        DELETE FROM (SELECT $insertOp);
+        LET spliceOp = (INSERT INTO StringSpliceOperation SET
+          elementId=$insertOp.elementId,
+          noOp=$insertOp.noOp,
+          idx=$insertOp.idx,
+          deleteCount=0,
+          insertedValue=$insertOp.val
+        );
+        UPDATE $modelOp SET operation = $spliceOp;
+      }
+
+
+  ##
+  ## 5. Put ModelOperation.operation back to readOnly
+  ##
+  - {action: AlterProperty, className: ModelOperation, name: operation, alterations: { constraints: { readOnly: true } }}
+
+
+  ##
+  ## 6. Drop the StingRemoveOperation and StringInsertOperation classes
+  ##
+  - {action: DropClass, name: StingRemoveOperation}
+  - {action: DropClass, name: StingInsertOperation}

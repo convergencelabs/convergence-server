@@ -94,7 +94,7 @@ class ModelOperationProcessorSpec
 
     "applying a noOp'ed discrete operation" must {
       "not apply the operation" in withTestData { provider =>
-        val op = AppliedStringSpliceOperation(fnameVID, noOp = true, 0, Some("x"), "abc")
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = true, 0, 1, Some("x"), "abc")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
         val modelData = provider.modelStore.getModelData(person1Id).get.value
@@ -104,8 +104,8 @@ class ModelOperationProcessorSpec
 
     "applying a compound operation" must {
       "apply all operations in the compound operation" in withTestData { provider =>
-        val op1 = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, Some(""), "x")
-        val op2 = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, Some(""), "y")
+        val op1 = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, 0, Some(""), "x")
+        val op2 = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, 0, Some(""), "y")
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
@@ -128,8 +128,8 @@ class ModelOperationProcessorSpec
       }
 
       "not apply noOp'ed operations in the compound operation" in withTestData { provider =>
-        val op1 = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, Some(""), "x")
-        val op2 = AppliedStringSpliceOperation(fnameVID, noOp = true, 1, Some(""), "y")
+        val op1 = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, 0, Some(""), "x")
+        val op2 = AppliedStringSpliceOperation(fnameVID, noOp = true, 1, 0, Some(""), "y")
 
         val compound = AppliedCompoundOperation(List(op1, op2))
 
@@ -142,7 +142,7 @@ class ModelOperationProcessorSpec
 
     "applying string operations" must {
       "correctly update the model on StringSplice (Insert)" in withTestData { provider =>
-        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, Some(""), "abc")
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 0, 0, Some(""), "abc")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
@@ -151,7 +151,7 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on StringSplice (Remove)" in withTestData { provider =>
-        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, Some("oh"), "")
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, 2, Some("oh"), "")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 
@@ -160,7 +160,7 @@ class ModelOperationProcessorSpec
       }
 
       "correctly update the model on StringSplice (Splice)" in withTestData { provider =>
-        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, Some("oh"), "xy")
+        val op = AppliedStringSpliceOperation(fnameVID, noOp = false, 1, 2, Some("oh"), "xy")
         val modelOp = NewModelOperation(person1Id, startingVersion, truncatedInstantNow(), sid, op)
         provider.modelOperationProcessor.processModelOperation(modelOp).get
 

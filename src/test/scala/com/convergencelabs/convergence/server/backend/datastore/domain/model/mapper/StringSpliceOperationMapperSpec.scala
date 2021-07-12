@@ -24,7 +24,7 @@ class StringSpliceOperationMapperSpec
   "An StringSpliceOperationMapper" when {
     "when converting StringSpliceOperation operations" must {
       "correctly map and unmap a StringSpliceOperation" in {
-        val op = AppliedStringSpliceOperation("vid", noOp = true, 4, Some("deleted"), "inserted") // scalastyle:ignore magic.number
+        val op = AppliedStringSpliceOperation("vid", noOp = true, 4, 7, Some("deleted"), "inserted") // scalastyle:ignore magic.number
         val opDoc = stringSpliceOperationToODocument(op)
         val reverted = oDocumentToStringSpliceOperation(opDoc)
         op shouldBe reverted

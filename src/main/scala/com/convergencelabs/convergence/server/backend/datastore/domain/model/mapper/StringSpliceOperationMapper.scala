@@ -18,11 +18,12 @@ import com.orientechnologies.orient.core.record.impl.ODocument
 object StringSpliceOperationMapper extends ODocumentMapper {
 
   private[domain] def stringSpliceOperationToODocument(obj: AppliedStringSpliceOperation): ODocument = {
-    val AppliedStringSpliceOperation(id, noOp, index, deletedValue, insertValue) = obj
+    val AppliedStringSpliceOperation(id, noOp, index, deleteCount, deletedValue, insertValue) = obj
     val doc = new ODocument(DocumentClassName)
     doc.field(Fields.Id, id)
     doc.field(Fields.NoOp, noOp)
     doc.field(Fields.Idx, index)
+    doc.field(Fields.DeleteCount, deleteCount)
     doc.field(Fields.DeletedVal, deletedValue.orNull)
     doc.field(Fields.InsertedVal, insertValue)
     doc
@@ -34,9 +35,10 @@ object StringSpliceOperationMapper extends ODocumentMapper {
     val id = doc.field(Fields.Id).asInstanceOf[String]
     val noOp = doc.field(Fields.NoOp).asInstanceOf[Boolean]
     val index = doc.field(Fields.Idx).asInstanceOf[Int]
+    val deleteCount = doc.field(Fields.DeleteCount).asInstanceOf[Int]
     val deletedValue = Option(doc.field(Fields.DeletedVal).asInstanceOf[String])
     val insertedVal = doc.field(Fields.InsertedVal).asInstanceOf[String]
-    AppliedStringSpliceOperation(id, noOp, index, deletedValue, insertedVal)
+    AppliedStringSpliceOperation(id, noOp, index, deleteCount, deletedValue, insertedVal)
   }
 
   private[domain] val DocumentClassName = "StringSpliceOperation"
@@ -45,6 +47,7 @@ object StringSpliceOperationMapper extends ODocumentMapper {
     val Id = "elementId"
     val NoOp = "noOp"
     val Idx = "idx"
+    val DeleteCount = "deleteCount"
     val DeletedVal = "deletedVal"
     val InsertedVal = "insertedVal"
   }

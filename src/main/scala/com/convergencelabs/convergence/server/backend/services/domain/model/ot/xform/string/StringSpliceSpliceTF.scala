@@ -15,8 +15,6 @@ import com.convergencelabs.convergence.server.backend.services.domain.model.ot.R
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot._
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.xform.OperationTransformationFunction
 
-
-
 private[ot] object StringSpliceSpliceTF extends OperationTransformationFunction[StringSpliceOperation, StringSpliceOperation] {
   private object SpliceType extends Enumeration {
     val Insert, Remove, Splice, NoOp = Value

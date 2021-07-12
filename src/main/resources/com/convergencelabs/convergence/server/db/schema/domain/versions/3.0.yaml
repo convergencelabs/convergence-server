@@ -1,6 +1,6 @@
 released: false
-releaseDate: 2021-06-26
-schemaSha256: a5083792465aa41894e28d39f86fec6c7187b5dde809d8df494a666df45ace75
+releaseDate: 2021-07-12
+schemaSha256: 34e2b32038fbbe3c43770af146c62632c4594eb54e55133f3a95891b2c4d1884
 deltas:
   ## Version 2.0
   - id: 2021_06_01_data_value_model_index
@@ -22,4 +22,5 @@ deltas:
     sha256: d9d6da019c06a4fa23ddbc60b26a3a4b0951186fa50807bb76c440ae3b915e4e
 
   ## Version 3.0
-
+  - id: 2021_07_12_string_splice_model_operation_migration
+    sha256: f3b2a311c6c835e83cc284b115f6801ec402b3d13e8ee9a4b21766f52747ec85

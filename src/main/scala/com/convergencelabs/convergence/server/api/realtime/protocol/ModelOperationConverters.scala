@@ -48,7 +48,7 @@ private[realtime] object ModelOperationConverters {
       //
       // Strings
       //
-      case AppliedStringSpliceOperation(id, noOp, index, deletedValue, insertedValue) =>
+      case AppliedStringSpliceOperation(id, noOp, index, _, deletedValue, insertedValue) =>
         AppliedDiscreteOperationData()
           .withStringSpliceOperation(AppliedStringSpliceOperationData(id, noOp, index, deletedValue.get, insertedValue))
 
