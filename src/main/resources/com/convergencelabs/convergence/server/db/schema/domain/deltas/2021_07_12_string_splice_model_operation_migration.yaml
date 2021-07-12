@@ -45,8 +45,8 @@ actions:
           noOp=$removeOp.noOp,
           idx=$removeOp.idx,
           deleteCount=$removeOp.length,
-          deletedValue=$removeOp.oldVal,
-          insertedValue=""
+          deletedVal=$removeOp.oldVal,
+          insertedVal=""
         );
         UPDATE $modelOp SET operation = $spliceOp;
       }
@@ -66,7 +66,8 @@ actions:
           noOp=$insertOp.noOp,
           idx=$insertOp.idx,
           deleteCount=0,
-          insertedValue=$insertOp.val
+          deletedVal=null,
+          insertedVal=$insertOp.val
         );
         UPDATE $modelOp SET operation = $spliceOp;
       }
@@ -81,5 +82,5 @@ actions:
   ##
   ## 6. Drop the StingRemoveOperation and StringInsertOperation classes
   ##
-  - {action: DropClass, name: StingRemoveOperation}
-  - {action: DropClass, name: StingInsertOperation}
+  - {action: DropClass, name: StringRemoveOperation}
+  - {action: DropClass, name: StringInsertOperation}
