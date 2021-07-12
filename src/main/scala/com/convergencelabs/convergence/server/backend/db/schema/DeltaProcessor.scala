@@ -137,26 +137,38 @@ private[schema] final class DeltaProcessor(delta: Delta, db: ODatabaseDocument) 
     orientType.foreach(oType => oProp.setType(toOType(oType)))
 
     (linkedType, linkedClass) match {
-      case (None, None) =>
-        // not linked
-        if (oProp.getLinkedClass != null) {
-          oProp.setLinkedClass(null)
-        }
-
-        if (oProp.getLinkedType != null) {
-          oProp.setLinkedType(null)
-        }
       case (Some(typeName), None) =>
         // linked orientType
+
+        // If the property already had a linked class, we
+        // need to clear it so we can set the linked type.
         if (oProp.getLinkedClass != null) {
-          oProp.setLinkedClass(null)
+          val propName = s"`${oProp.getName}`.`${oProp.getName}`"
+          val command = s"ALTER PROPERTY $propName LINKEDCLASS NULL"
+          db.command(command)
+
+          // The below does not worked do to an ODB Bug.
+          // https://github.com/orientechnologies/orientdb/issues/9639
+          // oProp.setLinkedClass(null)
         }
+
         oProp.setLinkedType(toOType(typeName))
+
       case (None, Some(className)) =>
         // linked class
+
+        // If the property already had a linked type, we
+        // clear it so we can set the lined class.
         if (oProp.getLinkedType != null) {
-          oProp.setLinkedType(null)
+          val propName = s"`${oProp.getName}`.`${oProp.getName}`"
+          val command = s"ALTER PROPERTY $propName LINKEDTYPE NULL"
+          db.command(command)
+
+          // The below does not worked do to an ODB Bug.
+          // https://github.com/orientechnologies/orientdb/issues/9639
+          // oProp.setLinkedType(null)
         }
+
         Option(db.getMetadata.getSchema.getClass(className)) match {
           case Some(c) =>
             // Already defined, create it now with the link
@@ -166,6 +178,10 @@ private[schema] final class DeltaProcessor(delta: Delta, db: ODatabaseDocument) 
             // without the link now.
             this.deferredLinkedProperties += (oProp -> className)
         }
+
+      case (None, None) =>
+      // No op, neither are being changed.
+
       case (Some(_), Some(_)) =>
         throw new IllegalArgumentException("Can not specify both a linked class and linked type")
     }
