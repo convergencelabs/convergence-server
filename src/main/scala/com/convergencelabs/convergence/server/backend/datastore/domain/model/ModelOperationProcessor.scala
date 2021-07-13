@@ -228,7 +228,7 @@ class ModelOperationProcessor private[domain](dbProvider: DatabaseProvider,
 
   private[this] def applyStringSpliceOperation(modelId: String, operation: AppliedStringSpliceOperation, db: ODatabaseDocument): Try[Unit] = {
     val script = createUpdate("SET value = value.left(:index).append(:insertedValue).append(value.substring(:endLength))", None)
-    val endLength = operation.index + operation.deletedValue.get.length
+    val endLength = operation.index + operation.deletedValue.getOrElse("").length
     val params = Map(
       Id -> operation.id,
       ModelId -> modelId,
