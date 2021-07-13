@@ -369,7 +369,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
       Duration.ofMillis(maximumTimeInterval))
 
     val userPermissions = userPermissionsData.map { case (username, permissions) =>
-      DomainUserId(DomainUserType.Normal, username) -> dataToCollectionPermissions(permissions)
+      username -> dataToCollectionPermissions(permissions)
     }
 
     val collection = Collection(
@@ -410,7 +410,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
       minimumTimeInterval.toMillis)
     val worldPermissionsData = CollectionPermissionsData(create, read, write, remove, manage)
     val userPermissionsData = userPermissions.map { case (userId, permissions) =>
-      userId.username -> collectionPermissionsToData(permissions)
+      userId -> collectionPermissionsToData(permissions)
     }
     val collectionData = CollectionData(
       id, description, worldPermissionsData, userPermissionsData, overrideSnapshotConfig, snapshotConfig)
@@ -431,7 +431,7 @@ private[domain] final class DomainCollectionService(domainRestActor: ActorRef[Do
     val CollectionWorldAndUserPermissions(world, user) = permissions
     CollectionWorldAndUserPermissionsData(
       collectionPermissionsToData(world),
-      user.map { case (k, v) => (k.username, collectionPermissionsToData(v)) })
+      user.map { case (k, v) => (k, collectionPermissionsToData(v)) })
   }
 }
 
@@ -440,13 +440,13 @@ object DomainCollectionService {
   case class CollectionData(id: String,
                             description: String,
                             worldPermissions: CollectionPermissionsData,
-                            userPermissions: Map[String, CollectionPermissionsData],
+                            userPermissions: Map[DomainUserId, CollectionPermissionsData],
                             overrideSnapshotPolicy: Boolean,
                             snapshotPolicy: ModelSnapshotPolicyData)
 
   case class CollectionUpdateData(description: String,
                                   worldPermissions: CollectionPermissionsData,
-                                  userPermissions: Map[String, CollectionPermissionsData],
+                                  userPermissions: Map[DomainUserId, CollectionPermissionsData],
                                   overrideSnapshotPolicy: Boolean,
                                   snapshotPolicy: ModelSnapshotPolicyData)
 
@@ -461,5 +461,5 @@ object DomainCollectionService {
                                        manage: Boolean)
 
   case class CollectionWorldAndUserPermissionsData(worldPermissions: CollectionPermissionsData,
-                                                   userPermissions: Map[String, CollectionPermissionsData])
+                                                   userPermissions: Map[DomainUserId, CollectionPermissionsData])
 }
