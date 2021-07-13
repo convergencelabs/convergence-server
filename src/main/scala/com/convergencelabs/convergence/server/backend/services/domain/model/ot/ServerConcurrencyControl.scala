@@ -61,14 +61,14 @@ private[model] final class ServerConcurrencyControl private(operationTransformer
     }
   }
 
-  def processRemoteReferenceSet[V <: ModelReferenceValues](clientId: String, reference: ReferenceValue[V]): Option[ReferenceValue[V]] = {
+  def processRemoteReferenceSet[V <: ModelReferenceValues](clientId: String, referenceOwnerValueId: String, reference: ReferenceValue[V]): Option[ReferenceValue[V]] = {
     val clientState = clientStates(clientId)
     val newStatePath = getCurrentClientStatePath(clientState, reference.contextVersion)
 
     var xFormedValues: Option[V] = Some(reference.referenceValues)
 
     newStatePath.foreach { event =>
-      xFormedValues = xFormedValues.flatMap { v => referenceTransformer.transform(event.operation, v) }
+      xFormedValues = xFormedValues.flatMap { v => referenceTransformer.transform(event.operation, referenceOwnerValueId, v) }
     }
 
     clientStates(clientId) = clientState.copy(

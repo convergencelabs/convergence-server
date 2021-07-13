@@ -18,16 +18,16 @@ import scala.util.control.Breaks._
 
 class ReferenceTransformer(tfr: TransformationFunctionRegistry) {
 
-  def transform[V <: ModelReferenceValues](op: Operation, values: V): Option[V] = {
+  def transform[V <: ModelReferenceValues](op: Operation, valueId: String, values: V): Option[V] = {
     op match {
       case c: CompoundOperation =>
-        transform(c, values)
+        transform(c, valueId, values)
       case d: DiscreteOperation =>
-        transform[V](d, values)
+        transform[V](d, valueId, values)
     }
   }
 
-  private[this] def transform[V <: ModelReferenceValues](op: CompoundOperation, values: V): Option[V] = {
+  private[this] def transform[V <: ModelReferenceValues](op: CompoundOperation, valueId: String, values: V): Option[V] = {
     var result: Option[V] = Some(values)
 
     breakable {
@@ -35,18 +35,24 @@ class ReferenceTransformer(tfr: TransformationFunctionRegistry) {
         if (result.isEmpty) {
           break()
         }
-        result = result.flatMap(v => transform(op, v))
+        result = result.flatMap(v => transform(op, valueId, v))
       }
     }
 
     result
   }
 
-  private[this] def transform[V <: ModelReferenceValues](op: DiscreteOperation, values: V): Option[V] = {
-    tfr.getReferenceTransformationFunction(op, values) match {
-      case Some(tf) => tf.transform(op, values)
-      case None => throw new IllegalArgumentException(
-        s"No reference transformation function found for operation and reference pair (${op.getClass.getSimpleName},${values.getClass.getSimpleName})")
+  private[this] def transform[V <: ModelReferenceValues](op: DiscreteOperation, referenceOwnerValueId: String, values: V): Option[V] = {
+    if (referenceOwnerValueId != op.id) {
+      // The operation does not target the real time value
+      // that this reference is for.
+      Some(values)
+    } else {
+      tfr.getReferenceTransformationFunction(op, values) match {
+        case Some(tf) => tf.transform(op, values)
+        case None => throw new IllegalArgumentException(
+          s"No reference transformation function found for operation and reference pair (${op.getClass.getSimpleName},${values.getClass.getSimpleName})")
+      }
     }
   }
 }

@@ -153,7 +153,7 @@ private[model] final class RealtimeModel(val domainId: DomainId,
             val ShareReference(domainFqn, _, _, id, key, values, contextVersion) = share
 
             val refVal: ReferenceValue[ModelReferenceValues] = ReferenceValue(values, contextVersion)
-            this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
+            this.cc.processRemoteReferenceSet(session.sessionId, valueId, refVal) match {
               case Some(xformed) =>
                 val setRef: SetReference = SetReference(domainFqn, modelId, session, id, key, xformed.referenceValues, xformed.contextVersion.toInt)
                 realTimeValue.processReferenceEvent(setRef, session).map { _ =>
@@ -172,7 +172,7 @@ private[model] final class RealtimeModel(val domainId: DomainId,
 
           case set: SetReference =>
             val refVal: ReferenceValue[ModelReferenceValues] = ReferenceValue(set.values, set.contextVersion)
-            this.cc.processRemoteReferenceSet(session.sessionId, refVal) match {
+            this.cc.processRemoteReferenceSet(session.sessionId, valueId, refVal) match {
               case Some(xFormed) =>
                 val setRef: SetReference = SetReference(domainId, modelId, session, set.valueId, set.key, xFormed.referenceValues, xFormed.contextVersion.toInt)
                 realTimeValue.processReferenceEvent(setRef, session).map { _ =>
@@ -190,8 +190,8 @@ private[model] final class RealtimeModel(val domainId: DomainId,
         }
       case None =>
         // TODO we just drop the event because we don't have a RTV with this id.
-        // later on I would like to keep some history to know if we ever had
-        // an RTV with this id, else throw an error.
+        //  later on I would like to keep some history to know if we ever had
+        //  an RTV with this id, else throw an error.
         Success(None)
     }
   }
