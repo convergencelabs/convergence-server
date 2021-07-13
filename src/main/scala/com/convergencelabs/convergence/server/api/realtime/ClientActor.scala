@@ -146,7 +146,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   private[this] val shutdownTask = {
     val self = context.self
     CoordinatedShutdown(context.system).addCancellableTask(CoordinatedShutdown.PhaseServiceRequestsDone, "Shutdown Client Actors") { () =>
-      debug("ClientActor executing coordinated shutdown: " + this.sessionId)
+      trace(s"${clientLogName()}: executing coordinated shutdown")
       if (timers.isTimerActive(ConnectionTimerKey)) {
         timers.cancel(ConnectionTimerKey)
       }
@@ -163,7 +163,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   override def onSignal: PartialFunction[Signal, Behavior[Message]] = {
     case PostStop =>
-      debug("ClientActor stopped: " + this.sessionId)
+      trace(s"${clientLogName()}: stopped")
       shutdownTask.cancel()
       Behaviors.same
   }
@@ -188,7 +188,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   private[this] def receiveCommon: PartialFunction[Message, Behavior[Message]] = {
     case PongTimeout =>
-      debug(s"PongTimeout for session: $sessionId")
+      debug(s"${clientLogName()}: Disconnecting after client heartbeat timeout.'")
       this.handleDisconnect()
 
     case IncomingBinaryMessage(message) =>
@@ -200,7 +200,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         case Failure(InvalidConvergenceMessageException(message, convergenceMessage)) =>
           invalidMessage(message, Some(convergenceMessage))
         case Failure(MessageDecodingException()) =>
-          invalidMessage("Could not deserialize binary protocol message", None)
+          invalidMessage(s"${clientLogName()}: Could not deserialize protocol message. Ensure the Convergence client and server versions are compatible.", None)
         case Failure(cause) =>
           invalidMessage(cause.getMessage, None)
       }
@@ -245,7 +245,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   private[this] val receiveConnectionSuccessOrTimeout: PartialFunction[Message, Behavior[Message]] = {
     case ConnectionTimeout =>
-      debug(s"$domainId: Client connection timeout")
+      debug(s"${clientLogName()}: A connection timeout occurred; disconnecting web socket")
       Option(webSocketActor) match {
         case Some(connection) =>
           connection ! WebSocketService.CloseSocket
@@ -280,9 +280,9 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
 
   private[this] def handleMessagesWhenConnected: MessageHandler = {
     case RequestReceived(message, _) if message.isInstanceOf[ConnectionRequestMessage] =>
-      invalidMessage("A connection request message was received while already authenticated", Some(message))
+      invalidMessage("A connection request message was received while already connected", Some(message))
     case RequestReceived(message, _) if message.isInstanceOf[GeneratedMessage with RequestMessage with AuthenticationMessage] =>
-      invalidMessage("An authentication message was received while already authenticated", Some(message))
+      invalidMessage("An authentication message was received while already connected", Some(message))
 
     case message: MessageReceived =>
       onMessageReceived(message)
@@ -375,7 +375,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         case None =>
           error(s"Invalid connection message: $requestMessage")
           cb.reply(ConnectionResponseMessage().withFailure(ConnectionFailureData()
-            .withCode("invalid auth method")
+            .withCode("invalid_auth_method")
           ))
       }
       Behaviors.same
@@ -571,7 +571,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   //
 
   private def onWebSocketClosed(): Behavior[Message] = {
-    debug(s"$domainId: Received a WebSocketClosed message; sending disconnect to domain and stopping: $sessionId")
+    debug(s"${clientLogName()}: Received a WebSocketClosed message; sending disconnect to domain and shutting down.")
     // TODO we may want to keep this client alive to smooth over reconnect in the future.
 
     domainRegion ! DomainSessionActor.ClientDisconnected(domainId, context.self)
@@ -581,12 +581,12 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
   }
 
   private[this] def onConnectionError(cause: Throwable): Behavior[Message] = {
-    debug(s"$domainId: Connection Error for: $sessionId - ${cause.getMessage}")
+    error(s"${clientLogName()}: Connection Error for: ${cause.getMessage}")
     this.disconnect()
   }
 
   private[this] def invalidMessage(details: String, message: Option[Any]): Behavior[Message] = {
-    error(s"$domainId: Invalid message. $details: '${message.getOrElse("")}'")
+    error(s"${clientLogName()}: Invalid message. $details: '${message.getOrElse("")}'")
     this.disconnect()
   }
 
@@ -598,7 +598,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         case x if x == DomainAvailability.Maintenance && this.userId.isConvergence =>
           Behaviors.same
         case _ =>
-          debug(s"$domainId: Disconnecting client because domain availability changed to: " + availability)
+          debug(s"${clientLogName()}: Disconnecting client because domain availability changed to: " + availability)
           this.disconnect()
       }
     } else {
@@ -612,7 +612,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
         case DomainStatus.Ready =>
           Behaviors.same
         case _ =>
-          debug(s"$domainId: Disconnecting client because domain status changed to: " + status)
+          debug(s"${clientLogName()}: Disconnecting client because domain status changed to: " + status)
           this.disconnect()
       }
     } else {
@@ -652,6 +652,8 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
       }
     }
   }
+
+  private def clientLogName() = s"ClientActor(${domainId.namespace}/${domainId.domainId}/$sessionId)"
 }
 
 object ClientActor {
