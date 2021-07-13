@@ -43,7 +43,9 @@ class ReferenceTransformer(tfr: TransformationFunctionRegistry) {
   }
 
   private[this] def transform[V <: ModelReferenceValues](op: DiscreteOperation, referenceOwnerValueId: String, values: V): Option[V] = {
-    if (referenceOwnerValueId != op.id) {
+    if (op.noOp) {
+      Some(values)
+    } else if (referenceOwnerValueId != op.id) {
       // The operation does not target the real time value
       // that this reference is for.
       Some(values)
