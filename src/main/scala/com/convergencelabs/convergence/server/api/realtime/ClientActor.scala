@@ -25,9 +25,9 @@ import com.convergencelabs.convergence.proto.core._
 import com.convergencelabs.convergence.proto.{NormalMessage, ServerMessage, _}
 import com.convergencelabs.convergence.server.BuildInfo
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection._
-import com.convergencelabs.convergence.server.api.realtime.protocol.{CommonProtoConverters, ConvergenceMessageBodyUtils}
 import com.convergencelabs.convergence.server.api.realtime.protocol.IdentityProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.JsonProtoConverters._
+import com.convergencelabs.convergence.server.api.realtime.protocol.{CommonProtoConverters, ConvergenceMessageBodyUtils}
 import com.convergencelabs.convergence.server.backend.services.domain.DomainSessionActor.{AnonymousAuthenticationDisabled, AuthenticationError, AuthenticationFailed}
 import com.convergencelabs.convergence.server.backend.services.domain._
 import com.convergencelabs.convergence.server.backend.services.domain.activity.ActivityActor
@@ -438,7 +438,7 @@ private final class ClientActor(context: ActorContext[ClientActor.Message],
     this.chatClient = context.spawn(ChatClientActor(domainId, session, narrowedSelf, chatShardRegion, chatDeliveryShardRegion, chatService, requestTimeout), "ChatClient")
     this.activityClient = context.spawn(ActivityClientActor(domainId, session, narrowedSelf, activityShardRegion, requestTimeout), "ActivityClient")
     this.presenceClient = context.spawn(PresenceClientActor(domainId, session, narrowedSelf, presenceService, requestTimeout), "PresenceClient")
-    this.historyClient = context.spawn(HistoricModelClientActor(domainId, modelOperationService, modelShardRegion, requestTimeout), "ModelHistoryClient")
+    this.historyClient = context.spawn(HistoricModelClientActor(domainId, modelOperationService, modelService, modelShardRegion, requestTimeout), "ModelHistoryClient")
     this.messageHandler = handleMessagesWhenConnected
 
     val response = ConnectionResponseMessage()

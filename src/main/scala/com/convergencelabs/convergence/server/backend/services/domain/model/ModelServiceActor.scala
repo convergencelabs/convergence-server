@@ -15,8 +15,9 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import com.convergencelabs.convergence.common.PagedData
+import com.convergencelabs.convergence.server.backend.datastore.EntityNotFoundException
 import com.convergencelabs.convergence.server.backend.datastore.domain.model.QueryParsingException
-import com.convergencelabs.convergence.server.backend.services.domain.{DomainPersistenceManager, BaseDomainShardedActor}
+import com.convergencelabs.convergence.server.backend.services.domain.{BaseDomainShardedActor, DomainPersistenceManager}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model.{Model, ModelMetaData, ModelPermissions}
 import com.convergencelabs.convergence.server.model.domain.user.{DomainUserId, DomainUserType}
@@ -25,8 +26,9 @@ import com.convergencelabs.convergence.server.util.{QueryLimit, QueryOffset}
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
+import java.time.Instant
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 private final class ModelServiceActor(domainId: DomainId,
                                       context: ActorContext[ModelServiceActor.Message],
@@ -48,6 +50,8 @@ private final class ModelServiceActor(domainId: DomainId,
         onQueryModelsRequest(message)
       case message: GetModelUpdateRequest =>
         onGetModelUpdate(message)
+      case msg: GetVersionAtTimeRequest =>
+        onGetVersionAtTimeRequest(msg)
       case ReceiveTimeout(_) =>
         this.passivate()
     }
@@ -158,6 +162,48 @@ private final class ModelServiceActor(domainId: DomainId,
     Behaviors.same
   }
 
+  // TODO perhaps move this to the ModelServiceActor
+  def onGetVersionAtTimeRequest(msg: GetVersionAtTimeRequest): Behavior[Message] = {
+    val GetVersionAtTimeRequest(this.domainId, modelId, time, replyTo) = msg
+
+    (for {
+      createdTime <- persistenceProvider.modelStore.getModelMetaData(modelId) flatMap {
+        case Some(meta) =>
+          Success(meta.createdTime)
+        case None =>
+          Failure(EntityNotFoundException())
+      }
+      version <- if (time.isBefore(createdTime)) {
+        // This is a short cut. If the time is before the created time of the
+        // model, then we aren't going to find any operations to don't waste
+        // the time on the query.
+        Success(None)
+      } else {
+        this.persistenceProvider.modelOperationStore.getVersionAtOrBeforeTime(modelId, time)
+      }
+    } yield {
+      version match {
+        case Some(version) =>
+          Right(Version(version))
+        case None =>
+          if (time.isBefore(createdTime)) {
+            Left(InvalidModelTime("The requested model did not exist at the specified time"))
+          } else {
+            Right(Version(1))
+          }
+      }
+    }).recover {
+      case _: EntityNotFoundException =>
+        Left(ModelNotFoundError())
+      case cause =>
+        context.log.error("Unexpected error getting model operations", cause)
+        Left(UnknownError())
+    }
+      .foreach(replyTo ! GetVersionAtTimeResponse(_))
+
+    Behaviors.same
+  }
+
   override protected def getDomainId(msg: Message): DomainId = msg.domainId
 
   override protected def getReceiveTimeoutMessage(): Message = ReceiveTimeout(this.domainId)
@@ -252,6 +298,28 @@ object ModelServiceActor {
   final case class QueryModelsResponse(result: Either[QueryModelsError, PagedData[ModelQueryResult]]) extends CborSerializable
 
   //
+  // GetVersionAtTime
+  //
+  final case class GetVersionAtTimeRequest(domainId: DomainId,
+                                           modelId: String,
+                                           time: Instant,
+                                           replyTo: ActorRef[GetVersionAtTimeResponse]) extends Message
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(Array(
+    new JsonSubTypes.Type(value = classOf[ModelNotFoundError], name = "model_not_found"),
+    new JsonSubTypes.Type(value = classOf[InvalidModelTime], name = "invalid_version"),
+    new JsonSubTypes.Type(value = classOf[UnknownError], name = "unknown")
+  ))
+  sealed trait GetVersionAtTimeError
+
+  final case class InvalidModelTime(message: String) extends GetVersionAtTimeError
+
+  final case class Version(version: Long)
+
+  final case class GetVersionAtTimeResponse(version: Either[GetVersionAtTimeError, Version]) extends CborSerializable
+
+  //
   // GetModelUpdate
   //
   final case class GetModelUpdateRequest(domainId: DomainId,
@@ -298,10 +366,12 @@ object ModelServiceActor {
 
   final case class ModelNotFoundError() extends AnyRef
     with GetModelsError
+    with GetVersionAtTimeError
 
   final case class UnknownError() extends AnyRef
     with QueryModelsError
     with GetModelsInCollectionError
     with GetModelsError
     with GetModelUpdateError
+    with GetVersionAtTimeError
 }

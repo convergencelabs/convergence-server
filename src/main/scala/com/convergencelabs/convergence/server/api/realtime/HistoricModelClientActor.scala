@@ -17,13 +17,13 @@ import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.util.Timeout
 import com.convergencelabs.convergence.proto._
 import com.convergencelabs.convergence.proto.model._
-import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.api.realtime.ProtocolConnection.ReplyCallback
 import com.convergencelabs.convergence.server.api.realtime.protocol.CommonProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.DataValueProtoConverters._
 import com.convergencelabs.convergence.server.api.realtime.protocol.ModelOperationConverters._
-import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, RealtimeModelActor}
+import com.convergencelabs.convergence.server.backend.services.domain.model.{ModelOperationServiceActor, ModelServiceActor, RealtimeModelActor}
 import com.convergencelabs.convergence.server.model.DomainId
+import com.convergencelabs.convergence.server.util.actor.AskUtils
 import com.convergencelabs.convergence.server.util.serialization.akka.CborSerializable
 import grizzled.slf4j.Logging
 import scalapb.GeneratedMessage
@@ -33,7 +33,8 @@ import scala.language.postfixOps
 
 private final class HistoricModelClientActor(context: ActorContext[HistoricModelClientActor.Message],
                                              domain: DomainId,
-                                             operationStoreActor: ActorRef[ModelOperationServiceActor.Message],
+                                             modelOperationServiceActor: ActorRef[ModelOperationServiceActor.Message],
+                                             modelServiceActor: ActorRef[ModelServiceActor.Message],
                                              modelShardRegion: ActorRef[RealtimeModelActor.Message],
                                              defaultTimeout: Timeout)
   extends AbstractBehavior[HistoricModelClientActor.Message](context) with Logging with AskUtils {
@@ -89,7 +90,7 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
 
   private[this] def onOperationRequest(request: HistoricalOperationRequestMessage, cb: ReplyCallback): Unit = {
     val HistoricalOperationRequestMessage(modelId, first, last, _) = request
-    operationStoreActor.ask[ModelOperationServiceActor.GetOperationsResponse](
+    modelOperationServiceActor.ask[ModelOperationServiceActor.GetOperationsResponse](
       ModelOperationServiceActor.GetOperationsRequest(domain, request.modelId, first, last, _))
       .map(_.operations.fold(
         {
@@ -109,15 +110,15 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
     val ModelGetVersionAtTimeRequestMessage(modelId, targetTime, _) = request
     targetTime match {
       case Some(time) =>
-        operationStoreActor.ask[ModelOperationServiceActor.GetVersionAtTimeResponse](
-          ModelOperationServiceActor.GetVersionAtTimeRequest(domain, request.modelId, timestampToInstant(time), _))
+        modelServiceActor.ask[ModelServiceActor.GetVersionAtTimeResponse](
+          ModelServiceActor.GetVersionAtTimeRequest(domain, request.modelId, timestampToInstant(time), _))
           .map(_.version.fold(
             {
-              case ModelOperationServiceActor.ModelNotFoundError() =>
+              case ModelServiceActor.ModelNotFoundError() =>
                 cb.expectedError(ErrorCodes.ModelNotFound, s"A model with id '$modelId' does not exist.")
-              case ModelOperationServiceActor.UnknownError() =>
+              case ModelServiceActor.UnknownError() =>
                 cb.unexpectedError("Unexpected error getting historical model operations.")
-              case ModelOperationServiceActor.InvalidModelTime(msg) =>
+              case ModelServiceActor.InvalidModelTime(msg) =>
                 cb.unexpectedError(msg)
             },
             { version =>
@@ -134,10 +135,11 @@ private final class HistoricModelClientActor(context: ActorContext[HistoricModel
 object HistoricModelClientActor {
   private[realtime] def apply(domain: DomainId,
                               operationStoreActor: ActorRef[ModelOperationServiceActor.Message],
+                              modelServiceActor: ActorRef[ModelServiceActor.Message],
                               modelShardRegion: ActorRef[RealtimeModelActor.Message],
                               defaultTimeout: Timeout): Behavior[Message] =
     Behaviors.setup(context => new HistoricModelClientActor(
-      context, domain, operationStoreActor, modelShardRegion, defaultTimeout))
+      context, domain, operationStoreActor, modelServiceActor, modelShardRegion, defaultTimeout))
 
   /////////////////////////////////////////////////////////////////////////////
   // Message Protocol
