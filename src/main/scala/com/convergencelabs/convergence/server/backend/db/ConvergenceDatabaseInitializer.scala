@@ -111,12 +111,23 @@ final class ConvergenceDatabaseInitializer(config: Config,
    */
   private[this] def attemptConnection(uri: String, adminUser: String, adminPassword: String, retryDelay: Duration): Option[OrientDB] = {
     info(s"Attempting to connect to the database at uri: $uri")
-    Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig())) match {
+    (for {
+      odb <- Try(new OrientDB(uri, adminUser, adminPassword, OrientDBConfig.defaultConfig()))
+
+      // This forces an attempt to reach out to the server  otherwise, the OrientDB will report
+      // that it is open even though it can't reach the server.
+      _ <- Try(odb.list()).recoverWith { e =>
+        odb.close()
+        Failure(e)
+      }
+    } yield odb)
+    match {
       case Success(db) =>
         logger.info("Connected to database with Server Admin")
         Some(db)
       case Failure(e) =>
-        logger.error(s"Unable to connect to database, retrying in ${retryDelay.toMillis}ms", e)
+        logger.warn(s"Unable to connect to database, retrying in ${retryDelay.toMillis}ms: " + e.getMessage)
+        logger.trace("Could not connect to database", e)
         Thread.sleep(retryDelay.toMillis)
         None
     }
