@@ -10,3 +10,5 @@ target
 .idea
 .bsp
 .vscode
+
+.DS_Store
