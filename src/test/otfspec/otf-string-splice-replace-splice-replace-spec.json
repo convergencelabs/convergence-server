@@ -1,0 +1,28 @@
+{
+  "serverOpType": "StringSplice",
+  "clientOpType": "StringSplice",
+  "cases": [
+    {
+      "id": "S-PP-1",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 1, "insertValue": "X"},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 1, "insertValue": "Y"}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 1, "insertValue": "X"},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 4, "deleteCount": 1, "insertValue": "Y"}
+      }
+    },
+    {
+      "id": "S-PP-2",
+      "input": {
+        "serverOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 1, "insertValue": "X"},
+        "clientOp": {"type": "StringSplice", "noOp": false, "index": 4, "deleteCount": 1, "insertValue": "X"}
+      },
+      "output": {
+        "serverOp": {"type": "StringSplice", "noOp": true, "index": 4, "deleteCount": 1, "insertValue": "X"},
+        "clientOp": {"type": "StringSplice", "noOp": true, "index": 4, "deleteCount": 1, "insertValue": "X"}
+      }
+    }
+  ]
+}

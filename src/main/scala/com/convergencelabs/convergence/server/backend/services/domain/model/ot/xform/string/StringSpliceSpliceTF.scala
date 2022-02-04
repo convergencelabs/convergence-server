@@ -391,14 +391,21 @@ private[ot] object StringSpliceSpliceTF extends OperationTransformationFunction[
       case FinishedBy =>
         (
           s.copy(deleteCount = s.deleteCount - c.deleteCount),
-          c.copy(deleteCount = 0, index = s.index + s.insertValue.length),
+          c.copy(deleteCount = 0, index = s.index + s.insertValue.length)
         )
 
       case EqualTo =>
-        (
-          s.copy(deleteCount = 0),
-          c.copy(index = c.index + s.insertValue.length, deleteCount = 0),
-        )
+        if (s.insertValue != c.insertValue) {
+          (
+            s,
+            c.copy(noOp = true)
+          )
+        } else {
+          (
+            s.copy(noOp = true),
+            c.copy(noOp = true)
+          )
+        }
     }
   }
 
