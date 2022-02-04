@@ -20,7 +20,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class RangeReferenceSpec extends AnyWordSpec with Matchers {
   private[this] val session = domain.session.DomainSessionAndUserId("session", DomainUserId.normal("user"))
-  private[this] val key = "key"
+  private[this] val rangeKey = "key"
   private[this] val stringValue = StringValue("id", "some string")
   private[this] val rts = new RealtimeString(stringValue, None, None)
 
@@ -31,17 +31,17 @@ class RangeReferenceSpec extends AnyWordSpec with Matchers {
   "A RangeReference" when {
     "when constructed" must {
       "have the correct values" in {
-        val r = new RangeReference(rts, session, key, List(val1))
+        val r = new RangeReference(rts, session, rangeKey, List(val1))
         r.target shouldBe rts
         r.session shouldBe session
-        r.key shouldBe key
+        r.key shouldBe rangeKey
         r.get() shouldBe List(val1)
       }
     }
 
     "when setting values" must {
       "set the correct values" in {
-        val r = new RangeReference(rts, session, key, List())
+        val r = new RangeReference(rts, session, rangeKey, List())
         r.set(List(val1))
         r.get() shouldBe List(val1)
       }
@@ -49,7 +49,7 @@ class RangeReferenceSpec extends AnyWordSpec with Matchers {
 
     "handlePositionalInsert" must {
       "have the correct values" in {
-        val r = new RangeReference(rts, session, key, List())
+        val r = new RangeReference(rts, session, rangeKey, List())
         r.set(List(val1, val2))
 
         r.handlePositionalInsert(6, 4)
