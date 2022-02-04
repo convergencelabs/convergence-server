@@ -15,12 +15,13 @@ import com.convergencelabs.convergence.server.api.realtime.ModelClientActor._
 import com.convergencelabs.convergence.server.backend.services.domain.model.RealtimeModelActor.{apply => _, _}
 import com.convergencelabs.convergence.server.backend.services.domain.model.ot.{Operation, _}
 import com.convergencelabs.convergence.server.backend.services.domain.model.reference._
-import com.convergencelabs.convergence.server.backend.services.domain.model.value.{RealtimeContainerValue, RealtimeObject, RealtimeValue, RealtimeValueFactory}
+import com.convergencelabs.convergence.server.backend.services.domain.model.value.{RealtimeArray, RealtimeBoolean, RealtimeContainerValue, RealtimeDate, RealtimeDouble, RealtimeObject, RealtimeString, RealtimeValue, RealtimeValueFactory}
 import com.convergencelabs.convergence.server.model.DomainId
 import com.convergencelabs.convergence.server.model.domain.model
 import com.convergencelabs.convergence.server.model.domain.model._
 import com.convergencelabs.convergence.server.model.domain.session.DomainSessionAndUserId
 
+import java.time.Instant
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -241,22 +242,87 @@ private[model] final class RealtimeModel(val domainId: DomainId,
       val value = this.idToValue(op.id)
       value.processOperation(op)
     } else {
+      val modelValue = this.idToValue.get(op.id)
+
       Success(op match {
-        case StringSpliceOperation(id, noOp, index, deleteCount, insertValue) => AppliedStringSpliceOperation(id, noOp, index, deleteCount, None, insertValue)
-        case StringSetOperation(id, noOp, value) => AppliedStringSetOperation(id, noOp, value, None)
-        case ObjectSetPropertyOperation(id, noOp, property, value) => AppliedObjectSetPropertyOperation(id, noOp, property, value, None)
-        case ObjectAddPropertyOperation(id, noOp, property, value) => AppliedObjectAddPropertyOperation(id, noOp, property, value)
-        case ObjectRemovePropertyOperation(id, noOp, property) => AppliedObjectRemovePropertyOperation(id, noOp, property, None)
-        case ObjectSetOperation(id, noOp, value) => AppliedObjectSetOperation(id, noOp, value, None)
-        case NumberAddOperation(id, noOp, value) => AppliedNumberAddOperation(id, noOp, value)
-        case NumberSetOperation(id, noOp, value) => AppliedNumberSetOperation(id, noOp, value, None)
-        case BooleanSetOperation(id, noOp, value) => AppliedBooleanSetOperation(id, noOp, value, None)
-        case ArrayInsertOperation(id, noOp, index, value) => AppliedArrayInsertOperation(id, noOp, index, value)
-        case ArrayRemoveOperation(id, noOp, index) => AppliedArrayRemoveOperation(id, noOp, index, None)
-        case ArrayReplaceOperation(id, noOp, index, value) => AppliedArrayReplaceOperation(id, noOp, index, value, None)
-        case ArrayMoveOperation(id, noOp, fromIndex, toIndex) => AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
-        case ArraySetOperation(id, noOp, value) => AppliedArraySetOperation(id, noOp, value, None)
-        case DateSetOperation(id, noOp, value) => AppliedDateSetOperation(id, noOp, value, None)
+        // FIXME we have an issue here where we don't know what to put for the old value
+        //  if the element is not longer in the model. The database requires an
+        //  old value. So we need to jam something in for now.
+        //  https://github.com/convergencelabs/convergence-project/issues/266
+        case StringSpliceOperation(id, noOp, index, deleteCount, insertValue) =>
+          AppliedStringSpliceOperation(id, noOp, index, deleteCount, None, insertValue)
+
+        case StringSetOperation(id, noOp, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeString].data()).orElse(Some(""))
+          AppliedStringSetOperation(id, noOp, value, oldValue)
+
+        case ObjectSetPropertyOperation(id, noOp, property, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeObject].valueAt(List(property)).get.dataValue())
+            .orElse(Some(NullValue("unknown old value")))
+          AppliedObjectSetPropertyOperation(id, noOp, property, value, oldValue)
+
+        case ObjectAddPropertyOperation(id, noOp, property, value) =>
+          AppliedObjectAddPropertyOperation(id, noOp, property, value)
+
+        case ObjectRemovePropertyOperation(id, noOp, property) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeObject].valueAt(List(property)).get.dataValue())
+            .orElse(Some(NullValue("unknown old value")))
+          AppliedObjectRemovePropertyOperation(id, noOp, property, oldValue)
+
+        case ObjectSetOperation(id, noOp, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeObject].dataValue().children)
+            .orElse(Some(Map[String, DataValue]()))
+          AppliedObjectSetOperation(id, noOp, value, oldValue)
+
+        case NumberAddOperation(id, noOp, value) =>
+          AppliedNumberAddOperation(id, noOp, value)
+
+        case NumberSetOperation(id, noOp, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeDouble].dataValue().value)
+            .orElse(Some(0d))
+          AppliedNumberSetOperation(id, noOp, value, oldValue)
+
+        case BooleanSetOperation(id, noOp, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeBoolean].dataValue().value)
+            .orElse(Some(false))
+          AppliedBooleanSetOperation(id, noOp, value, oldValue)
+
+        case ArrayInsertOperation(id, noOp, index, value) =>
+          AppliedArrayInsertOperation(id, noOp, index, value)
+
+        case ArrayRemoveOperation(id, noOp, index) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeArray].valueAt(List(index)).get.dataValue())
+            .orElse(Some(NullValue("unknown old value")))
+          AppliedArrayRemoveOperation(id, noOp, index, oldValue)
+
+        case ArrayReplaceOperation(id, noOp, index, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeArray].valueAt(List(index)).get.dataValue())
+            .orElse(Some(NullValue("unknown old value")))
+          AppliedArrayRemoveOperation(id, noOp, index, oldValue)
+          AppliedArrayReplaceOperation(id, noOp, index, value, None)
+
+        case ArrayMoveOperation(id, noOp, fromIndex, toIndex) =>
+          AppliedArrayMoveOperation(id, noOp, fromIndex, toIndex)
+
+        case ArraySetOperation(id, noOp, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeArray].dataValue().children)
+            .orElse(Some(List[DataValue]()))
+          AppliedArraySetOperation(id, noOp, value, oldValue)
+
+        case DateSetOperation(id, noOp, value) =>
+          val oldValue = modelValue
+            .map(v => v.asInstanceOf[RealtimeDate].dataValue().value)
+            .orElse(Some(Instant.now()))
+          AppliedDateSetOperation(id, noOp, value, oldValue)
       })
     }
   }
