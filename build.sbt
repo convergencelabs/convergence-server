@@ -34,7 +34,7 @@ ThisBuild / scmInfo := Some(ScmInfo(
   url("https://github.com/convergencelabs/convergence-server"),
   "https://github.com/convergencelabs/convergence-server.git"))
 
-ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / scalaVersion := "2.13.7"
 
 ThisBuild / developers := List(
   Developer(
