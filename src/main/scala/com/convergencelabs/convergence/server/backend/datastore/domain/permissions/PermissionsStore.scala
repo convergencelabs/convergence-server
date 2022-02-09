@@ -375,7 +375,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         |UPDATE PermissionTarget REMOVE permissions = permissions[grantee = $user] WHERE permissions CONTAINS(grantee = $user);
         |DELETE FROM permission WHERE grantee = $user
         |""".stripMargin
-    val params = Map("userType" -> userId.userType, "username" -> userId.username)
+    val params = Map("userType" -> userId.userType.toString.toLowerCase, "username" -> userId.username)
     OrientDBUtil.execute(db, command, params).map(_ => ())
   }
 
@@ -721,7 +721,7 @@ class PermissionsStore private[domain](dbProvider: DatabaseProvider)
         sb.append(" = :")
         sb.append(Params.Username)
         sb.append(")")
-        params ++ Map(Params.Username -> userId.username, Params.UserType -> userId.userType)
+        params ++ Map(Params.Username -> userId.username, Params.UserType -> userId.userType.toString.toLowerCase)
 
       case GrantedToGroup(groupId) =>
         sb.append(" AND ")
